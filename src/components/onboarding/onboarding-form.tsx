@@ -10,11 +10,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { CATEGORIES, Category, CategoryName, PAYMENT_METHODS, PaymentMethod, PaymentMethodName } from '@/types';
+import { CATEGORIES, Category, CategoryName, PAYMENT_METHODS, PaymentMethod, PaymentMethodName, getCategoryLabel, getPaymentMethodLabel } from '@/types';
 import { CategoryIcon, PaymentMethodIcon, getSelectableIcons } from '@/components/icons';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
-import { Utensils, ShoppingCart, PlusCircle, CircleHelp, type LucideIcon } from 'lucide-react';
+import { PlusCircle, CircleHelp, type LucideIcon } from 'lucide-react';
 import { useLanguage } from '@/context/language-context';
 import { useAuth } from '@/context/auth-context';
 import { db } from '@/lib/firebase';
@@ -24,16 +24,16 @@ const predefinedExpenseCategories = CATEGORIES.filter(cat => cat.type === 'expen
 const predefinedPaymentMethods = PAYMENT_METHODS;
 
 interface CustomCategory {
-  name: CategoryName; // Stored as English name
+  name: CategoryName;
   type: 'expense';
   icon: string;
-  label: { en: string; pt: string }; // User inputs one name, we'll use it for both for simplicity here
+  label: { en: string; pt: string };
 }
 
 interface CustomPaymentMethod {
-  name: PaymentMethodName; // Stored as English name
+  name: PaymentMethodName;
   icon: string;
-  label: { en: string; pt: string }; // User inputs one name, we'll use it for both
+  label: { en: string; pt: string };
 }
 
 type DisplayCategory = Category | CustomCategory;
@@ -41,20 +41,18 @@ type DisplayPaymentMethod = PaymentMethod | CustomPaymentMethod;
 
 const selectableIconsList = getSelectableIcons();
 
-// Helper to get category display label
-const getDisplayCategoryLabel = (category: DisplayCategory, lang: 'en' | 'pt'): string => {
-  if ('label' in category && category.label && category.label[lang]) {
+const getDisplayCategoryLabelFromList = (category: DisplayCategory, lang: 'en' | 'pt'): string => {
+  if (category.label && category.label[lang]) {
     return category.label[lang];
   }
-  return category.name; // Fallback for custom items or missing translations
+  return category.name;
 };
 
-// Helper to get payment method display label
-const getDisplayPaymentMethodLabel = (method: DisplayPaymentMethod, lang: 'en' | 'pt'): string => {
-  if ('label' in method && method.label && method.label[lang]) {
+const getDisplayPaymentMethodLabelFromList = (method: DisplayPaymentMethod, lang: 'en' | 'pt'): string => {
+  if (method.label && method.label[lang]) {
     return method.label[lang];
   }
-  return method.name; // Fallback
+  return method.name;
 };
 
 
@@ -88,7 +86,6 @@ export function OnboardingForm() {
     ...userDefinedPaymentMethods
   ];
 
-  // Example categories for budget goals (using their stable English names for keys)
   const budgetGoalCategoryKeys: CategoryName[] = ['Groceries', 'Dining Out'];
 
 
@@ -109,7 +106,7 @@ export function OnboardingForm() {
   };
 
   const handleAddCustomCategory = () => {
-    const newCategoryName = customCategoryInput.trim(); // Treat as English identifier
+    const newCategoryName = customCategoryInput.trim();
     if (!newCategoryName) {
       toast({ title: translate({en: "Invalid Name", pt: "Nome Inválido"}), description: translate({en: "Please enter a name for the category.", pt: "Por favor, insira um nome para a categoria."}), variant: "destructive" });
       return;
@@ -124,15 +121,15 @@ export function OnboardingForm() {
       return;
     }
     const newCustomCategory: CustomCategory = {
-      name: newCategoryName as CategoryName, // Store as CategoryName
+      name: newCategoryName as CategoryName,
       type: 'expense',
       icon: selectedCustomCategoryIcon,
-      label: { en: newCategoryName, pt: newCategoryName } // User's input becomes the label in all languages for custom items
+      label: { en: newCategoryName, pt: newCategoryName }
     };
     setUserDefinedCategories(prev => [...prev, newCustomCategory]);
     setSelectedCategories(prev => new Set(prev).add(newCustomCategory.name));
     setCustomCategoryInput('');
-    toast({ title: translate({en: "Category Added", pt: "Categoria Adicionada"}), description: `"${newCategoryName}" ${translate({en: "has been added.", pt: "foi adicionada."})}` });
+    toast({ title: translate({en: "Category Added", pt: "Categoria Adicionada"}), description: `${translate(newCustomCategory.label)} ${translate({en: "has been added.", pt: "foi adicionada."})}` });
   };
 
   const handlePaymentMethodToggle = (methodName: PaymentMethodName) => {
@@ -148,7 +145,7 @@ export function OnboardingForm() {
   };
 
   const handleAddCustomPaymentMethod = () => {
-    const newMethodName = customPaymentMethodInput.trim(); // Treat as English identifier
+    const newMethodName = customPaymentMethodInput.trim();
     if (!newMethodName) {
       toast({ title: translate({en: "Invalid Name", pt: "Nome Inválido"}), description: translate({en: "Please enter a name for the payment method.", pt: "Por favor, insira um nome para o método de pagamento."}), variant: "destructive" });
       return;
@@ -163,14 +160,14 @@ export function OnboardingForm() {
       return;
     }
     const newCustomMethod: CustomPaymentMethod = {
-      name: newMethodName as PaymentMethodName, // Store as PaymentMethodName
+      name: newMethodName as PaymentMethodName,
       icon: selectedCustomPaymentMethodIcon,
-      label: { en: newMethodName, pt: newMethodName } // User's input becomes the label
+      label: { en: newMethodName, pt: newMethodName }
     };
     setUserDefinedPaymentMethods(prev => [...prev, newCustomMethod]);
     setSelectedPaymentMethods(prev => new Set(prev).add(newCustomMethod.name));
     setCustomPaymentMethodInput('');
-    toast({ title: translate({en: "Method Added", pt: "Método Adicionado"}), description: `"${newMethodName}" ${translate({en: "has been added.", pt: "foi adicionado."})}` });
+    toast({ title: translate({en: "Method Added", pt: "Método Adicionado"}), description: `${translate(newCustomMethod.label)} ${translate({en: "has been added.", pt: "foi adicionado."})}` });
   };
 
   const handleBudgetChange = (categoryName: CategoryName, amount: string) => {
@@ -198,15 +195,13 @@ export function OnboardingForm() {
 
     try {
       const userDocRef = doc(db, "users", user.uid);
-      // Store only the names (identifiers) of selected categories/methods
-      // Custom items are stored with their full structure including user-defined label (which is just their name for now)
       const preferencesData = {
         language,
         selectedCategories: Array.from(selectedCategories),
-        userDefinedCategories: userDefinedCategories.map(cat => ({ name: cat.name, icon: cat.icon, label: cat.label })), // Save full structure
+        userDefinedCategories: userDefinedCategories.map(cat => ({ name: cat.name, icon: cat.icon, label: cat.label })),
         selectedPaymentMethods: Array.from(selectedPaymentMethods),
-        userDefinedPaymentMethods: userDefinedPaymentMethods.map(pm => ({ name: pm.name, icon: pm.icon, label: pm.label })), // Save full structure
-        budgetGoals, // budgetGoals keys are already CategoryName (English)
+        userDefinedPaymentMethods: userDefinedPaymentMethods.map(pm => ({ name: pm.name, icon: pm.icon, label: pm.label })),
+        budgetGoals,
         updatedAt: serverTimestamp(),
       };
       
@@ -221,12 +216,18 @@ export function OnboardingForm() {
       localStorage.setItem('onboardingComplete', 'true'); 
       localStorage.setItem('userLanguage', language);
 
-
       toast({ title: translate({en: "Setup Saved!", pt: "Configuração Salva!"}), description: translate({en: "Welcome to FinTrack!", pt: "Bem-vindo(a) ao FinTrack!"}) });
       router.push('/');
     } catch (error) {
-      console.error("Error saving onboarding data:", error);
-      toast({ title: translate({en: "Save Error", pt: "Erro ao Salvar"}), description: translate({en: "Could not save your preferences. Please try again.", pt: "Não foi possível salvar suas preferências. Por favor, tente novamente."}), variant: "destructive" });
+      console.error("Error saving onboarding data (handleSubmit):", error); // Specific log for this function's catch block
+      toast({
+        title: translate({en: "Save Error", pt: "Erro ao Salvar"}),
+        description: translate({
+          en: "Could not save your preferences. Please check your connection and try again.",
+          pt: "Não foi possível salvar suas preferências. Verifique sua conexão e tente novamente."
+        }),
+        variant: "destructive"
+      });
     } finally {
       setIsSaving(false);
     }
@@ -234,22 +235,31 @@ export function OnboardingForm() {
 
 
   useEffect(() => {
+    // This effect runs when user, authLoading, or router changes.
+    // It checks if the user is authenticated and not loading.
+    // If so, it proceeds to check their onboarding status from Firestore.
     if (user && !authLoading) {
       const checkOnboardingStatus = async () => {
+        if (!user) { // Double check user, though outer if should cover
+            // console.log("OnboardingPage: checkOnboardingStatus - no user, exiting.");
+            return;
+        }
+        // console.log("OnboardingPage: Checking onboarding status for user:", user.uid);
         const userDocRef = doc(db, "users", user.uid);
         try {
           const userDocSnap = await getDoc(userDocRef);
           if (userDocSnap.exists() && userDocSnap.data().onboardingComplete) {
-            localStorage.setItem('onboardingComplete', 'true');
+            // console.log("OnboardingPage: User has completed onboarding, redirecting to /");
+            localStorage.setItem('onboardingComplete', 'true'); // Keep localStorage for quick checks elsewhere if needed
             router.push('/');
           } else {
-              localStorage.removeItem('onboardingComplete');
+            // console.log("OnboardingPage: User has not completed onboarding or doc doesn't exist.");
+            localStorage.removeItem('onboardingComplete');
           }
         } catch (error) {
-          // Handle error if user doc doesn't exist or other Firestore issue
-           console.error("Error checking onboarding status, user document might be missing:", error);
-           // If the user document doesn't exist (e.g., signup didn't complete fully),
-           // it's okay to stay on onboarding. If it's a network error, the toast from page.tsx will handle it.
+           // This catch is for errors during getDoc itself (e.g., network offline)
+           console.error("OnboardingPage: Error checking onboarding status (getDoc failed):", error);
+           // Toast for this specific error is in the OnboardingPage component's useEffect
         }
       };
       checkOnboardingStatus();
@@ -293,7 +303,7 @@ export function OnboardingForm() {
                 />
                 <CategoryIcon iconName={category.icon} className="h-5 w-5 text-muted-foreground" />
                 <Label htmlFor={`category-${category.name}`} className="font-normal cursor-pointer">
-                  {getDisplayCategoryLabel(category, language)}
+                  {getDisplayCategoryLabelFromList(category, language)}
                 </Label>
               </div>
             ))}
@@ -356,7 +366,7 @@ export function OnboardingForm() {
                 />
                 <PaymentMethodIcon iconName={method.icon} className="h-5 w-5 text-muted-foreground" />
                 <Label htmlFor={`payment-${method.name}`} className="font-normal cursor-pointer">
-                  {getDisplayPaymentMethodLabel(method, language)}
+                  {getDisplayPaymentMethodLabelFromList(method, language)}
                   {'isDefault' in method && method.isDefault ? ` (${translate({en: "Default", pt: "Padrão"})})` : ''}
                 </Label>
               </div>
@@ -415,13 +425,13 @@ export function OnboardingForm() {
               const categoryDetails = allDisplayCategories.find(c => c.name === categoryKey);
               if (!categoryDetails) return null;
               
-              const IconComponent = categoryDetails.icon && selectableIconsList.find(i => i.value === categoryDetails.icon)?.iconComponent || CircleHelp;
+              const IconComponent = selectableIconsList.find(i => i.value === categoryDetails.icon)?.iconComponent || CircleHelp;
 
               return (
                 <div key={categoryKey} className="flex items-center space-x-3">
                   <IconComponent className="h-5 w-5 text-muted-foreground flex-shrink-0" />
                   <Label htmlFor={`budget-${categoryKey}`} className="w-40 truncate flex-shrink-0">
-                    {getDisplayCategoryLabel(categoryDetails, language)}
+                    {getDisplayCategoryLabelFromList(categoryDetails, language)}
                   </Label>
                   <Input
                     type="number"
@@ -444,3 +454,5 @@ export function OnboardingForm() {
     </Card>
   );
 }
+
+    
