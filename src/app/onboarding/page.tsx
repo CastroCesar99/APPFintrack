@@ -21,10 +21,10 @@ export default function OnboardingPage() {
 
   useEffect(() => {
     if (authLoading) {
-      return; 
+      return;
     }
     if (!user) {
-      router.push('/login'); 
+      router.push('/login');
       return;
     }
 
@@ -38,7 +38,7 @@ export default function OnboardingPage() {
           router.push('/');
         } else {
           localStorage.removeItem('onboardingComplete');
-          setOnboardingChecked(true); 
+          setOnboardingChecked(true);
         }
       } catch (error) {
         console.error("Error checking onboarding status:", error);
@@ -63,12 +63,12 @@ export default function OnboardingPage() {
 
   if (authLoading || !onboardingChecked) {
     return (
-      <div className="flex items-center justify-center h-screen bg-background">
+      <div className="flex items-center justify-center h-screen w-full bg-background">
         <p className="text-foreground">{translate({ en: "Loading...", pt: "Carregando..."})}</p>
       </div>
     );
   }
-  
+
   return (
     <div className="w-full min-h-screen bg-background text-foreground flex flex-col items-center justify-center p-4">
       <div className="w-full max-w-2xl">
