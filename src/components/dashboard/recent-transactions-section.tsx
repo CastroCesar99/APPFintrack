@@ -1,11 +1,12 @@
 
 "use client";
-import type { Transaction, TransactionType } from "@/types";
+import type { Transaction, TransactionType, CategoryName } from "@/types";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { CategoryIcon } from "@/components/icons";
 import { formatCurrency, cn } from "@/lib/utils";
 import { format, parseISO } from "date-fns";
 import { useLanguage } from "@/context/language-context";
+import { getCategoryLabel } from "@/types"; // Import helper
 
 interface RecentTransactionsSectionProps {
   title: string;
@@ -15,7 +16,7 @@ interface RecentTransactionsSectionProps {
 }
 
 export function RecentTransactionsSection({ title, description, transactions, type }: RecentTransactionsSectionProps) {
-  const { translate } = useLanguage();
+  const { translate, language } = useLanguage();
 
   if (transactions.length === 0) {
     return (
@@ -47,11 +48,12 @@ export function RecentTransactionsSection({ title, description, transactions, ty
           {transactions.map((transaction) => (
             <li key={transaction.id} className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <CategoryIcon iconName={transaction.category} className="h-6 w-6 text-muted-foreground" />
+                {/* Assuming transaction.category is the English name/key */}
+                <CategoryIcon categoryName={transaction.category} className="h-6 w-6 text-muted-foreground" />
                 <div>
                   <p className="font-medium">{transaction.description}</p>
                   <p className="text-xs text-muted-foreground">
-                    {format(parseISO(transaction.date), "MMM dd, yyyy")}
+                    {format(parseISO(transaction.date), "MMM dd, yyyy")} - {getCategoryLabel(transaction.category, language)}
                   </p>
                 </div>
               </div>

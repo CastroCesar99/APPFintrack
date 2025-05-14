@@ -16,22 +16,24 @@ import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
 import { Utensils, ShoppingCart, PlusCircle, CircleHelp, type LucideIcon } from 'lucide-react';
 import { useLanguage } from '@/context/language-context';
-import { useAuth } from '@/context/auth-context'; // Import useAuth
-import { db } from '@/lib/firebase'; // Import db
-import { doc, setDoc, updateDoc, serverTimestamp, getDoc } from "firebase/firestore"; // Import Firestore functions
+import { useAuth } from '@/context/auth-context';
+import { db } from '@/lib/firebase';
+import { doc, setDoc, updateDoc, serverTimestamp, getDoc } from "firebase/firestore";
 
 const predefinedExpenseCategories = CATEGORIES.filter(cat => cat.type === 'expense');
 const predefinedPaymentMethods = PAYMENT_METHODS;
 
 interface CustomCategory {
-  name: CategoryName;
+  name: CategoryName; // Stored as English name
   type: 'expense';
   icon: string;
+  label: { en: string; pt: string }; // User inputs one name, we'll use it for both for simplicity here
 }
 
 interface CustomPaymentMethod {
-  name: PaymentMethodName;
+  name: PaymentMethodName; // Stored as English name
   icon: string;
+  label: { en: string; pt: string }; // User inputs one name, we'll use it for both
 }
 
 type DisplayCategory = Category | CustomCategory;
@@ -39,11 +41,28 @@ type DisplayPaymentMethod = PaymentMethod | CustomPaymentMethod;
 
 const selectableIconsList = getSelectableIcons();
 
+// Helper to get category display label
+const getDisplayCategoryLabel = (category: DisplayCategory, lang: 'en' | 'pt'): string => {
+  if ('label' in category && category.label && category.label[lang]) {
+    return category.label[lang];
+  }
+  return category.name; // Fallback for custom items or missing translations
+};
+
+// Helper to get payment method display label
+const getDisplayPaymentMethodLabel = (method: DisplayPaymentMethod, lang: 'en' | 'pt'): string => {
+  if ('label' in method && method.label && method.label[lang]) {
+    return method.label[lang];
+  }
+  return method.name; // Fallback
+};
+
+
 export function OnboardingForm() {
   const router = useRouter();
   const { toast } = useToast();
   const { language, setLanguage, translate } = useLanguage();
-  const { user, loading: authLoading } = useAuth(); // Get user from AuthContext
+  const { user, loading: authLoading } = useAuth();
 
   const [isSaving, setIsSaving] = useState(false);
 
@@ -57,10 +76,7 @@ export function OnboardingForm() {
   const [selectedCustomPaymentMethodIcon, setSelectedCustomPaymentMethodIcon] = useState<string>(selectableIconsList.find(icon => icon.value === 'CircleHelp')?.value || selectableIconsList[0]?.value || '');
   const [userDefinedPaymentMethods, setUserDefinedPaymentMethods] = useState<CustomPaymentMethod[]>([]);
 
-  const [budgetGoals, setBudgetGoals] = useState<Record<CategoryName, string>>({
-    'Groceries': '',
-    'Dining Out': '',
-  });
+  const [budgetGoals, setBudgetGoals] = useState<Record<CategoryName, string>>({});
 
   const allDisplayCategories: DisplayCategory[] = [
     ...predefinedExpenseCategories,
@@ -71,6 +87,10 @@ export function OnboardingForm() {
     ...predefinedPaymentMethods,
     ...userDefinedPaymentMethods
   ];
+
+  // Example categories for budget goals (using their stable English names for keys)
+  const budgetGoalCategoryKeys: CategoryName[] = ['Groceries', 'Dining Out'];
+
 
   const handleLanguageChange = (value: string) => {
     setLanguage(value as 'en' | 'pt');
@@ -89,7 +109,7 @@ export function OnboardingForm() {
   };
 
   const handleAddCustomCategory = () => {
-    const newCategoryName = customCategoryInput.trim() as CategoryName;
+    const newCategoryName = customCategoryInput.trim(); // Treat as English identifier
     if (!newCategoryName) {
       toast({ title: translate({en: "Invalid Name", pt: "Nome Inválido"}), description: translate({en: "Please enter a name for the category.", pt: "Por favor, insira um nome para a categoria."}), variant: "destructive" });
       return;
@@ -103,9 +123,14 @@ export function OnboardingForm() {
       toast({ title: translate({en: "Duplicate Category", pt: "Categoria Duplicada"}), description: translate({en: "This category already exists.", pt: "Essa categoria já existe."}), variant: "destructive" });
       return;
     }
-    const newCustomCategory: CustomCategory = { name: newCategoryName, type: 'expense', icon: selectedCustomCategoryIcon };
+    const newCustomCategory: CustomCategory = {
+      name: newCategoryName as CategoryName, // Store as CategoryName
+      type: 'expense',
+      icon: selectedCustomCategoryIcon,
+      label: { en: newCategoryName, pt: newCategoryName } // User's input becomes the label in all languages for custom items
+    };
     setUserDefinedCategories(prev => [...prev, newCustomCategory]);
-    setSelectedCategories(prev => new Set(prev).add(newCategoryName));
+    setSelectedCategories(prev => new Set(prev).add(newCustomCategory.name));
     setCustomCategoryInput('');
     toast({ title: translate({en: "Category Added", pt: "Categoria Adicionada"}), description: `"${newCategoryName}" ${translate({en: "has been added.", pt: "foi adicionada."})}` });
   };
@@ -123,7 +148,7 @@ export function OnboardingForm() {
   };
 
   const handleAddCustomPaymentMethod = () => {
-    const newMethodName = customPaymentMethodInput.trim() as PaymentMethodName;
+    const newMethodName = customPaymentMethodInput.trim(); // Treat as English identifier
     if (!newMethodName) {
       toast({ title: translate({en: "Invalid Name", pt: "Nome Inválido"}), description: translate({en: "Please enter a name for the payment method.", pt: "Por favor, insira um nome para o método de pagamento."}), variant: "destructive" });
       return;
@@ -137,9 +162,13 @@ export function OnboardingForm() {
       toast({ title: translate({en: "Duplicate Method", pt: "Método Duplicado"}), description: translate({en: "This payment method already exists.", pt: "Esse método de pagamento já existe."}), variant: "destructive" });
       return;
     }
-    const newCustomMethod: CustomPaymentMethod = { name: newMethodName, icon: selectedCustomPaymentMethodIcon };
+    const newCustomMethod: CustomPaymentMethod = {
+      name: newMethodName as PaymentMethodName, // Store as PaymentMethodName
+      icon: selectedCustomPaymentMethodIcon,
+      label: { en: newMethodName, pt: newMethodName } // User's input becomes the label
+    };
     setUserDefinedPaymentMethods(prev => [...prev, newCustomMethod]);
-    setSelectedPaymentMethods(prev => new Set(prev).add(newMethodName));
+    setSelectedPaymentMethods(prev => new Set(prev).add(newCustomMethod.name));
     setCustomPaymentMethodInput('');
     toast({ title: translate({en: "Method Added", pt: "Método Adicionado"}), description: `"${newMethodName}" ${translate({en: "has been added.", pt: "foi adicionado."})}` });
   };
@@ -169,25 +198,26 @@ export function OnboardingForm() {
 
     try {
       const userDocRef = doc(db, "users", user.uid);
-      const preferencesDocRef = doc(db, `users/${user.uid}/preferences`, "userPreferences");
-
+      // Store only the names (identifiers) of selected categories/methods
+      // Custom items are stored with their full structure including user-defined label (which is just their name for now)
       const preferencesData = {
         language,
         selectedCategories: Array.from(selectedCategories),
-        userDefinedCategories,
+        userDefinedCategories: userDefinedCategories.map(cat => ({ name: cat.name, icon: cat.icon, label: cat.label })), // Save full structure
         selectedPaymentMethods: Array.from(selectedPaymentMethods),
-        userDefinedPaymentMethods,
-        budgetGoals,
+        userDefinedPaymentMethods: userDefinedPaymentMethods.map(pm => ({ name: pm.name, icon: pm.icon, label: pm.label })), // Save full structure
+        budgetGoals, // budgetGoals keys are already CategoryName (English)
         updatedAt: serverTimestamp(),
       };
-
+      
+      const preferencesDocRef = doc(db, `users/${user.uid}/preferences`, "userPreferences");
       await setDoc(preferencesDocRef, preferencesData, { merge: true });
+
       await updateDoc(userDocRef, {
         onboardingComplete: true,
         onboardedAt: serverTimestamp(),
       });
       
-      // Still set localStorage for immediate UI updates if needed, though Firestore is source of truth
       localStorage.setItem('onboardingComplete', 'true'); 
       localStorage.setItem('userLanguage', language);
 
@@ -202,22 +232,24 @@ export function OnboardingForm() {
     }
   };
 
-  const budgetGoalCategoriesExample: { name: CategoryName; icon: LucideIcon }[] = [
-    { name: 'Groceries', icon: ShoppingCart },
-    { name: 'Dining Out', icon: Utensils },
-  ];
 
-  // Check if onboarding is already complete for this user from Firestore
   useEffect(() => {
     if (user && !authLoading) {
       const checkOnboardingStatus = async () => {
         const userDocRef = doc(db, "users", user.uid);
-        const userDocSnap = await getDoc(userDocRef);
-        if (userDocSnap.exists() && userDocSnap.data().onboardingComplete) {
-          localStorage.setItem('onboardingComplete', 'true'); // Sync localStorage
-          router.push('/');
-        } else {
-            localStorage.removeItem('onboardingComplete'); // Ensure it's clear if not complete in DB
+        try {
+          const userDocSnap = await getDoc(userDocRef);
+          if (userDocSnap.exists() && userDocSnap.data().onboardingComplete) {
+            localStorage.setItem('onboardingComplete', 'true');
+            router.push('/');
+          } else {
+              localStorage.removeItem('onboardingComplete');
+          }
+        } catch (error) {
+          // Handle error if user doc doesn't exist or other Firestore issue
+           console.error("Error checking onboarding status, user document might be missing:", error);
+           // If the user document doesn't exist (e.g., signup didn't complete fully),
+           // it's okay to stay on onboarding. If it's a network error, the toast from page.tsx will handle it.
         }
       };
       checkOnboardingStatus();
@@ -261,7 +293,7 @@ export function OnboardingForm() {
                 />
                 <CategoryIcon iconName={category.icon} className="h-5 w-5 text-muted-foreground" />
                 <Label htmlFor={`category-${category.name}`} className="font-normal cursor-pointer">
-                  {category.name}
+                  {getDisplayCategoryLabel(category, language)}
                 </Label>
               </div>
             ))}
@@ -324,7 +356,8 @@ export function OnboardingForm() {
                 />
                 <PaymentMethodIcon iconName={method.icon} className="h-5 w-5 text-muted-foreground" />
                 <Label htmlFor={`payment-${method.name}`} className="font-normal cursor-pointer">
-                  {method.name} {(method as PaymentMethod).isDefault ? ` (${translate({en: "Default", pt: "Padrão"})})` : ''}
+                  {getDisplayPaymentMethodLabel(method, language)}
+                  {'isDefault' in method && method.isDefault ? ` (${translate({en: "Default", pt: "Padrão"})})` : ''}
                 </Label>
               </div>
             ))}
@@ -378,22 +411,29 @@ export function OnboardingForm() {
             {translate({ en: "Set some initial monthly budget goals for selected categories.", pt: "Defina algumas metas de orçamento mensais iniciais para as categorias selecionadas." })}
           </p>
           <div className="space-y-4">
-            {budgetGoalCategoriesExample.map(goalCategory => (
-              <div key={goalCategory.name} className="flex items-center space-x-3">
-                <goalCategory.icon className="h-5 w-5 text-muted-foreground flex-shrink-0" />
-                <Label htmlFor={`budget-${goalCategory.name}`} className="w-40 truncate flex-shrink-0">
-                  {goalCategory.name}
-                </Label>
-                <Input
-                  type="number"
-                  id={`budget-${goalCategory.name}`}
-                  value={budgetGoals[goalCategory.name as CategoryName] || ''}
-                  onChange={(e) => handleBudgetChange(goalCategory.name as CategoryName, e.target.value)}
-                  placeholder={translate({ en: "e.g., 200", pt: "ex: 200" })}
-                  className="w-full"
-                />
-              </div>
-            ))}
+            {budgetGoalCategoryKeys.map(categoryKey => {
+              const categoryDetails = allDisplayCategories.find(c => c.name === categoryKey);
+              if (!categoryDetails) return null;
+              
+              const IconComponent = categoryDetails.icon && selectableIconsList.find(i => i.value === categoryDetails.icon)?.iconComponent || CircleHelp;
+
+              return (
+                <div key={categoryKey} className="flex items-center space-x-3">
+                  <IconComponent className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+                  <Label htmlFor={`budget-${categoryKey}`} className="w-40 truncate flex-shrink-0">
+                    {getDisplayCategoryLabel(categoryDetails, language)}
+                  </Label>
+                  <Input
+                    type="number"
+                    id={`budget-${categoryKey}`}
+                    value={budgetGoals[categoryKey] || ''}
+                    onChange={(e) => handleBudgetChange(categoryKey, e.target.value)}
+                    placeholder={translate({ en: "e.g., 200", pt: "ex: 200" })}
+                    className="w-full"
+                  />
+                </div>
+              );
+            })}
           </div>
         </section>
 
