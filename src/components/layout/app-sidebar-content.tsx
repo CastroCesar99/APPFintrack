@@ -10,6 +10,7 @@ import {
   SidebarMenuButton,
   SidebarFooter,
 } from "@/components/ui/sidebar";
+import { Button } from "@/components/ui/button"; // Added import
 import { AppLogoIcon, DashboardIcon, SettingsIcon } from "@/components/icons";
 import { cn } from "@/lib/utils";
 
