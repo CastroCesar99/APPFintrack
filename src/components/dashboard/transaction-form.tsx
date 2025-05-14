@@ -27,9 +27,9 @@ import { CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import type { Transaction, TransactionType } from "@/types";
-import { CATEGORIES, getCategoriesByType, CategoryName, getCategoryLabel } from "@/types"; // Added getCategoryLabel
+import { CATEGORIES, getCategoriesByType, CategoryName, getCategoryLabel } from "@/types";
 import { useState, useEffect } from "react";
-import { useLanguage } from "@/context/language-context"; // Import useLanguage
+import { useLanguage } from "@/context/language-context";
 
 const formSchema = z.object({
   description: z.string().min(2, { message: "Description must be at least 2 characters." }).max(100),
@@ -42,15 +42,15 @@ const formSchema = z.object({
 type TransactionFormValues = z.infer<typeof formSchema>;
 
 interface TransactionFormProps {
-  onAddTransaction: (transaction: Omit<Transaction, "id">) => Promise<void>; // Changed to Promise<void> to allow async handling
+  onAddTransaction: (transaction: Omit<Transaction, "id">) => Promise<void>;
   initialType?: TransactionType;
 }
 
 export function TransactionForm({ onAddTransaction, initialType = "expense" }: TransactionFormProps) {
-  const { language, translate } = useLanguage(); // Use language context
+  const { language, translate } = useLanguage();
   const [selectedType, setSelectedType] = useState<TransactionType>(initialType);
   const [availableCategories, setAvailableCategories] = useState(() => getCategoriesByType(initialType, language));
-
+  const [isSubmitting, setIsSubmitting] = useState(false); // Added loading state
 
   const form = useForm<TransactionFormValues>({
     resolver: zodResolver(formSchema),
@@ -70,12 +70,11 @@ export function TransactionForm({ onAddTransaction, initialType = "expense" }: T
     setSelectedType(initialType);
     const newCategories = getCategoriesByType(initialType, language);
     setAvailableCategories(newCategories);
-    form.setValue("category", "", { shouldValidate: true }); // Reset category when initialType changes
+    form.setValue("category", "", { shouldValidate: false });
   }, [initialType, form, language]);
 
 
   useEffect(() => {
-    // This effect reacts to user changing the type via radio buttons
     if (typeFieldValue !== selectedType) {
       setSelectedType(typeFieldValue);
       const newCategories = getCategoriesByType(typeFieldValue, language);
@@ -93,22 +92,30 @@ export function TransactionForm({ onAddTransaction, initialType = "expense" }: T
 
 
   async function onSubmit(values: TransactionFormValues) {
-    await onAddTransaction({
-      ...values,
-      date: format(values.date, "yyyy-MM-dd"), // Format date to string
-      category: values.category as CategoryName,
-    });
-    // Toast is now handled by the parent component (QuickActionsSection)
-    form.reset({
-        description: "",
-        amount: 0,
-        type: initialType, // Reset to initial type or a default like 'expense'
-        category: "",
-        date: new Date(),
-    });
-    // Ensure type related state is also reset if form is part of a dialog being reused
-    setSelectedType(initialType);
-    setAvailableCategories(getCategoriesByType(initialType, language));
+    setIsSubmitting(true);
+    try {
+      await onAddTransaction({
+        ...values,
+        date: format(values.date, "yyyy-MM-dd"),
+        category: values.category as CategoryName,
+      });
+      // Form reset is handled here, assuming onAddTransaction might close the dialog
+      // or the user might want to add another transaction if the dialog stays open.
+      form.reset({
+          description: "",
+          amount: 0,
+          type: initialType,
+          category: "",
+          date: new Date(),
+      });
+      setSelectedType(initialType); // Reset internal type state
+      setAvailableCategories(getCategoriesByType(initialType, language)); // Reset categories
+    } catch (error) {
+      // Error toast is expected to be handled by the parent component calling onAddTransaction
+      console.error("Error during transaction submission in TransactionForm:", error);
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   const descriptionLabel = translate({ en: "Description", pt: "Descrição" });
@@ -122,6 +129,7 @@ export function TransactionForm({ onAddTransaction, initialType = "expense" }: T
   const dateLabel = translate({ en: "Date", pt: "Data" });
   const pickDateLabel = translate({ en: "Pick a date", pt: "Escolha uma data" });
   const addTransactionButtonLabel = translate({ en: "Add Transaction", pt: "Adicionar Transação" });
+  const submittingButtonLabel = translate({ en: "Adding...", pt: "Adicionando..." });
 
 
   return (
@@ -164,7 +172,7 @@ export function TransactionForm({ onAddTransaction, initialType = "expense" }: T
                   onValueChange={(value) => {
                     field.onChange(value);
                   }}
-                  value={field.value} // Controlled component
+                  value={field.value}
                   className="flex space-x-4"
                 >
                   <FormItem className="flex items-center space-x-2 space-y-0">
@@ -250,8 +258,11 @@ export function TransactionForm({ onAddTransaction, initialType = "expense" }: T
             </FormItem>
           )}
         />
-        <Button type="submit" className="w-full bg-primary hover:bg-primary/90">{addTransactionButtonLabel}</Button>
+        <Button type="submit" className="w-full bg-primary hover:bg-primary/90" disabled={isSubmitting}>
+          {isSubmitting ? submittingButtonLabel : addTransactionButtonLabel}
+        </Button>
       </form>
     </Form>
   );
 }
+
