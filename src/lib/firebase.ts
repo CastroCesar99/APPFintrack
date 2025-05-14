@@ -1,7 +1,7 @@
 
 import { initializeApp, getApps, type FirebaseApp } from "firebase/app";
 import { getAuth, type Auth } from "firebase/auth";
-import { getFirestore, type Firestore } from "firebase/firestore"; // Import Firestore
+import { getFirestore, type Firestore, enableIndexedDbPersistence, CACHE_SIZE_UNLIMITED } from "firebase/firestore"; // Import Firestore and persistence
 
 // Explicitly read environment variables
 const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
@@ -44,14 +44,36 @@ const firebaseConfig = {
 };
 
 let app: FirebaseApp;
+let db: Firestore;
+let auth: Auth;
 
 if (!getApps().length) {
   app = initializeApp(firebaseConfig);
+  db = getFirestore(app);
+  auth = getAuth(app);
+  if (typeof window !== 'undefined') { // Ensure this only runs on the client
+    enableIndexedDbPersistence(db, { 
+        synchronizeTabs: true, 
+        cacheSizeBytes: CACHE_SIZE_UNLIMITED 
+      })
+      .then(() => {
+        console.log("Firestore offline persistence enabled successfully.");
+      })
+      .catch((err) => {
+        if (err.code === 'failed-precondition') {
+          console.warn("Firestore offline persistence failed: Multiple tabs open or other precondition not met. Data will not be synced offline across tabs.");
+        } else if (err.code === 'unimplemented') {
+          console.warn("Firestore offline persistence failed: The current browser does not support all of the features required to enable persistence.");
+        } else {
+          console.error("Firestore offline persistence failed with error: ", err);
+        }
+      });
+  }
 } else {
   app = getApps()[0];
+  db = getFirestore(app); // Ensure db is initialized in this path too
+  auth = getAuth(app);   // Ensure auth is initialized in this path too
 }
 
-const auth: Auth = getAuth(app);
-const db: Firestore = getFirestore(app); // Initialize Firestore
 
 export { app, auth, db }; // Export db

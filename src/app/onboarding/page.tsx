@@ -29,7 +29,7 @@ export default function OnboardingPage() {
     }
 
     const checkOnboardingStatus = async () => {
-      if (!user) return; // Should not happen if already checked user above
+      if (!user) return; 
       const userDocRef = doc(db, "users", user.uid);
       try {
         const userDocSnap = await getDoc(userDocRef);
@@ -38,7 +38,6 @@ export default function OnboardingPage() {
           router.push('/');
         } else {
           localStorage.removeItem('onboardingComplete');
-          setOnboardingChecked(true);
         }
       } catch (error) {
         console.error("Error checking onboarding status:", error);
@@ -50,9 +49,8 @@ export default function OnboardingPage() {
           }),
           variant: "destructive",
         });
-        // Fallback: allow rendering the form if Firestore check fails,
-        // it will re-check on form submit or next load.
-        setOnboardingChecked(true);
+      } finally {
+        setOnboardingChecked(true); // Ensure form is shown regardless of initial check outcome
       }
     };
 
