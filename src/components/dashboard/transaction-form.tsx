@@ -1,3 +1,4 @@
+
 "use client";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -47,7 +48,7 @@ interface TransactionFormProps {
 export function TransactionForm({ onAddTransaction }: TransactionFormProps) {
   const { toast } = useToast();
   const [selectedType, setSelectedType] = useState<TransactionType>("expense");
-  const [availableCategories, setAvailableCategories] = useState(getCategoriesByType("expense"));
+  const [availableCategories, setAvailableCategories] = useState(() => getCategoriesByType("expense"));
 
   const form = useForm<TransactionFormValues>({
     resolver: zodResolver(formSchema),
@@ -60,14 +61,21 @@ export function TransactionForm({ onAddTransaction }: TransactionFormProps) {
     },
   });
 
+  const typeFieldValue = form.watch("type");
+
   useEffect(() => {
-    const currentType = form.watch("type");
-    setSelectedType(currentType);
-    setAvailableCategories(getCategoriesByType(currentType));
-    if (availableCategories.length > 0 && !availableCategories.find(cat => cat.name === form.getValues("category"))) {
-      form.setValue("category", ""); 
+    setSelectedType(typeFieldValue);
+    const newCategories = getCategoriesByType(typeFieldValue);
+    setAvailableCategories(newCategories);
+
+    const currentCategoryInForm = form.getValues("category");
+    if (currentCategoryInForm) {
+      const isCategoryStillValid = newCategories.some(cat => cat.name === currentCategoryInForm);
+      if (!isCategoryStillValid) {
+        form.setValue("category", "", { shouldValidate: true });
+      }
     }
-  }, [form.watch("type"), form, availableCategories]);
+  }, [typeFieldValue, form, setSelectedType, setAvailableCategories]);
 
 
   function onSubmit(values: TransactionFormValues) {
@@ -125,7 +133,7 @@ export function TransactionForm({ onAddTransaction }: TransactionFormProps) {
                 <RadioGroup
                   onValueChange={(value) => {
                     field.onChange(value);
-                    setSelectedType(value as TransactionType);
+                    // setSelectedType(value as TransactionType); // This state is now updated via useEffect based on form.watch("type")
                   }}
                   defaultValue={field.value}
                   className="flex space-x-4"
