@@ -39,7 +39,7 @@ export const DynamicIcon: React.FC<DynamicIconProps> = ({ iconName, ...props }) 
 // but they will now use DynamicIcon internally or a similar lookup.
 
 interface CategoryIconProps extends LucideProps {
-  iconName: string; // Now directly takes the icon name string
+ iconName: string; // Now directly takes the icon name string
 }
 
 export const CategoryIcon: React.FC<CategoryIconProps> = ({ iconName, ...props }) => {
@@ -49,7 +49,7 @@ export const CategoryIcon: React.FC<CategoryIconProps> = ({ iconName, ...props }
 
 
 interface PaymentMethodIconProps extends LucideProps {
-  iconName: string; // Now directly takes the icon name string
+ iconName: string; // Now directly takes the icon name string
 }
 
 export const PaymentMethodIcon: React.FC<PaymentMethodIconProps> = ({ iconName, ...props }) => {
@@ -57,9 +57,8 @@ export const PaymentMethodIcon: React.FC<PaymentMethodIconProps> = ({ iconName, 
   return <IconComponent {...props} />;
 };
 
-
 // Export commonly used app icons
-export const AppLogoIcon = () => <img src="/image/fintrack logo.png" alt="FinTrack Logo" className="h-8 w-8" />;
+export const AppLogoIcon = () => <img src="/image/fintrack logo.ico" alt="FinTrack Logo" className="h-8 w-8" />;
 export const SettingsIcon = Settings;
 export const DashboardIcon = LayoutDashboard;
 export const ExportIcon = FileText;
@@ -74,4 +73,4 @@ export const getSelectableIcons = () => {
     label: name.replace(/([A-Z](?=[a-z]))|([A-Z]+(?=[A-Z][a-z]|$))/g, ' $1$2').trimStart(), // Add spaces for readability
     iconComponent: Component as LucideIcon,
   })).sort((a,b) => a.label.localeCompare(b.label)); // Sort alphabetically by label
-};
+}

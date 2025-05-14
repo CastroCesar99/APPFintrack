@@ -28,7 +28,7 @@ export function AppHeaderContent() {
     <div className="flex h-14 items-center justify-between gap-4 border-b bg-background px-4 lg:px-6">
       <div className="flex items-center gap-2">
         <SidebarTrigger className="md:hidden" />
-        <AppLogoIcon className="h-6 w-6 text-primary" />
+        <AppLogoIcon />
         <h1 className="text-lg font-semibold">FinTrack</h1>
       </div>
       <DropdownMenu>

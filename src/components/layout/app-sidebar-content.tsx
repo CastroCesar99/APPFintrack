@@ -28,7 +28,7 @@ export function AppSidebarContent() {
     <>
       <SidebarHeader className="p-4">
         <Link href="/" className="flex items-center gap-2">
-          <AppLogoIcon className="h-8 w-8 text-primary" />
+          <AppLogoIcon />
           <span className="text-xl font-semibold">FinTrack</span>
         </Link>
       </SidebarHeader>
