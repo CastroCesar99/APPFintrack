@@ -14,8 +14,8 @@ body {
     --card-foreground: 0 0% 3.9%;
     --popover: 0 0% 100%;
     --popover-foreground: 0 0% 3.9%;
-    --primary: 275 70% 58%; /* Vibrant Purple */
-    --primary-foreground: 0 0% 98%;
+    --primary: 208 100% 20%; /* Navy Blue (PMS 5395) */
+    --primary-foreground: 0 0% 98%; /* White for contrast on dark navy */
     --secondary: 0 0% 96.1%;
     --secondary-foreground: 0 0% 9%;
     --muted: 0 0% 96.1%;
@@ -26,7 +26,7 @@ body {
     --destructive-foreground: 0 0% 98%;
     --border: 0 0% 89.8%;
     --input: 0 0% 89.8%;
-    --ring: 275 70% 58%; /* Matches new primary */
+    --ring: 208 100% 20%; /* Matches new primary */
     --chart-1: hsl(var(--primary));
     --chart-2: hsl(var(--accent));
     --chart-3: 197 37% 24%;
@@ -55,8 +55,8 @@ body {
     --popover: 240 8% 10%;
     --popover-foreground: 0 0% 98%;
 
-    --primary: 275 70% 62%; /* Vibrant Purple for Dark Mode */
-    --primary-foreground: 0 0% 98%; /* White text on purple */
+    --primary: 208 70% 48%; /* Navy Blue for Dark Mode (lighter for visibility) */
+    --primary-foreground: 0 0% 98%; /* White text on navy */
 
     --secondary: 240 5% 25%;
     --secondary-foreground: 0 0% 98%;
@@ -65,14 +65,14 @@ body {
     --muted-foreground: 0 0% 60%;
 
     --accent: 230 75% 65%; /* Bright Blue for Dark Mode */
-    --accent-foreground: 0 0% 98%; /* White text on navy */
+    --accent-foreground: 0 0% 98%; /* White text on accent blue */
 
     --destructive: 0 70% 55%;
     --destructive-foreground: 0 0% 98%;
 
     --border: 240 5% 22%; 
     --input: 240 5% 18%;
-    --ring: 275 70% 62%; /* Matches new primary for Dark Mode */
+    --ring: 208 70% 48%; /* Matches new primary for Dark Mode */
 
     /* Chart colors for dark theme */
     --chart-1: hsl(var(--primary));
@@ -84,12 +84,12 @@ body {
     /* Sidebar specific colors for dark theme */
     --sidebar-background: 240 8% 8%; /* Slightly darker/distinct sidebar */
     --sidebar-foreground: 0 0% 85%; 
-    --sidebar-primary: 275 70% 62%; /* Use the new primary for sidebar too */
+    --sidebar-primary: 208 70% 48%; /* Use the new primary for sidebar too */
     --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 230 75% 65%; /* Use the new accent for sidebar too */
+    --sidebar-accent: 230 75% 65%; /* Use the current accent for sidebar too */
     --sidebar-accent-foreground: 0 0% 98%;
     --sidebar-border: 240 5% 15%;
-    --sidebar-ring: 275 70% 62%; /* Matches new primary for Dark Mode */
+    --sidebar-ring: 208 70% 48%; /* Matches new primary for Dark Mode */
   }
 }
 
