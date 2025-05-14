@@ -18,11 +18,13 @@ import { useAuth } from "@/context/auth-context";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
-import { updateProfile } from "firebase/auth"; // Import updateProfile
+import { updateProfile } from "firebase/auth";
 import { useLanguage } from "@/context/language-context";
+import { db } from "@/lib/firebase"; // Import db
+import { doc, setDoc, serverTimestamp } from "firebase/firestore"; // Import Firestore functions
 
 const signupFormSchema = z.object({
-  name: z.string().min(2, { message: "O nome deve ter pelo menos 2 caracteres." }), // Zod messages can be i18n'd later
+  name: z.string().min(2, { message: "O nome deve ter pelo menos 2 caracteres." }),
   email: z.string().email({ message: "Por favor, insira um email válido." }),
   password: z.string().min(6, { message: "A senha deve ter pelo menos 6 caracteres." }),
   confirmPassword: z.string(),
@@ -57,21 +59,31 @@ export function SignupForm() {
     if (user) {
       try {
         await updateProfile(user, { displayName: values.name });
+
+        // Create user document in Firestore
+        const userDocRef = doc(db, "users", user.uid);
+        await setDoc(userDocRef, {
+          uid: user.uid,
+          name: values.name,
+          email: values.email,
+          createdAt: serverTimestamp(),
+          onboardingComplete: false, // Initialize onboarding status
+        });
+
         toast({
           title: translate({ en: "Signup successful!", pt: "Cadastro realizado!" }),
           description: translate({ en: "Your account has been created.", pt: "Sua conta foi criada com sucesso." })
         });
-        localStorage.removeItem('onboardingComplete');
+        localStorage.removeItem('onboardingComplete'); // Ensure old localStorage value is cleared
         router.push("/onboarding");
-      } catch (profileError) {
-        console.error("Error updating profile:", profileError);
+      } catch (error) {
+        console.error("Error updating profile or creating user document:", error);
+        // Attempt to roll back user creation or provide guidance
         toast({
-          title: translate({ en: "Signup successful, but name update failed.", pt: "Cadastro realizado, mas houve um erro ao salvar seu nome." }),
-          description: translate({ en: "You can try updating your name in the profile later.", pt: "Você pode tentar atualizar seu nome no perfil mais tarde." }),
+          title: translate({ en: "Signup error", pt: "Erro no cadastro" }),
+          description: translate({ en: "An error occurred during signup. Please try again.", pt: "Ocorreu um erro durante o cadastro. Por favor, tente novamente." }),
           variant: "destructive",
         });
-        localStorage.removeItem('onboardingComplete');
-        router.push("/onboarding");
       }
     } else {
       toast({

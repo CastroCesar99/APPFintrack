@@ -3,7 +3,7 @@
 import type React from 'react';
 import { useState, useEffect } from "react";
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@/context/auth-context'; // Import useAuth
+import { useAuth } from '@/context/auth-context';
 import { AppLayout } from "@/components/layout/app-layout";
 import { SummarySection } from "@/components/dashboard/summary-section";
 import { QuickActionsSection } from "@/components/dashboard/quick-actions-section";
@@ -11,69 +11,113 @@ import { RecentTransactionsSection } from "@/components/dashboard/recent-transac
 import { ExpenseCategoryChart } from "@/components/dashboard/charts/expense-category-chart";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import type { Transaction } from "@/types";
-import { v4 as uuidv4 } from 'uuid';
 import { useLanguage } from '@/context/language-context';
+import { db } from '@/lib/firebase';
+import { collection, query, orderBy, onSnapshot, doc, getDoc, writeBatch, serverTimestamp } from "firebase/firestore";
+import { v4 as uuidv4 } from 'uuid'; // Keep for initial seed if needed
 
-const initialTransactions: Transaction[] = [
-  { id: uuidv4(), date: '2025-05-08', description: 'Salário Gi', amount: 4100, type: 'income', category: 'Salary' },
-  { id: uuidv4(), date: '2025-05-08', description: 'Salary', amount: 2500, type: 'income', category: 'Salary' },
-  { id: uuidv4(), date: '2025-05-01', description: 'Freelance Project', amount: 300, type: 'income', category: 'Freelance' },
-  { id: uuidv4(), date: '2025-04-08', description: 'Salary', amount: 2400, type: 'income', category: 'Salary' },
-  { id: uuidv4(), date: '2025-05-10', description: 'Stock Dividends', amount: 200, type: 'income', category: 'Investment' },
-  { id: uuidv4(), date: '2025-05-08', description: 'Lunch at Cafe', amount: 12.50, type: 'expense', category: 'Dining Out' },
-  { id: uuidv4(), date: '2025-05-07', description: 'Weekly groceries', amount: 55.00, type: 'expense', category: 'Groceries' },
-  { id: uuidv4(), date: '2025-05-06', description: 'Electricity Bill', amount: 250.00, type: 'expense', category: 'Utilities' },
-  { id: uuidv4(), date: '2025-05-08', description: 'Gasoline', amount: 30.00, type: 'expense', category: 'Transport' },
-  { id: uuidv4(), date: '2025-05-07', description: 'New T-shirt', amount: 75.00, type: 'expense', category: 'Shopping' },
-  { id: uuidv4(), date: '2025-04-15', description: 'Rent Payment', amount: 1500, type: 'expense', category: 'Rent/Mortgage' },
-  { id: uuidv4(), date: '2025-05-03', description: 'Movie Tickets', amount: 25.00, type: 'expense', category: 'Entertainment' },
+// This can be used to seed initial transactions if the user has none
+const seedTransactions: Omit<Transaction, 'id'>[] = [
+  { date: '2025-05-08', description: 'Salário Gi', amount: 4100, type: 'income', category: 'Salary' },
+  { date: '2025-05-08', description: 'Salary', amount: 2500, type: 'income', category: 'Salary' },
+  { date: '2025-05-01', description: 'Freelance Project', amount: 300, type: 'income', category: 'Freelance' },
+  { date: '2025-04-08', description: 'Salary', amount: 2400, type: 'income', category: 'Salary' },
+  { date: '2025-05-10', description: 'Stock Dividends', amount: 200, type: 'income', category: 'Investment' },
+  { date: '2025-05-08', description: 'Lunch at Cafe', amount: 12.50, type: 'expense', category: 'Dining Out' },
+  { date: '2025-05-07', description: 'Weekly groceries', amount: 55.00, type: 'expense', category: 'Groceries' },
+  { date: '2025-05-06', description: 'Electricity Bill', amount: 250.00, type: 'expense', category: 'Utilities' },
+  { date: '2025-05-08', description: 'Gasoline', amount: 30.00, type: 'expense', category: 'Transport' },
+  { date: '2025-05-07', description: 'New T-shirt', amount: 75.00, type: 'expense', category: 'Shopping' },
+  { date: '2025-04-15', description: 'Rent Payment', amount: 1500, type: 'expense', category: 'Rent/Mortgage' },
+  { date: '2025-05-03', description: 'Movie Tickets', amount: 25.00, type: 'expense', category: 'Entertainment' },
 ];
 
-const MONTHLY_BUDGET = 900;
+
+const MONTHLY_BUDGET = 900; // This might come from user preferences in Firestore later
 
 export default function DashboardPage() {
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
-  const { translate } = useLanguage();
+  const { translate, language } = useLanguage(); // Correctly destructure language
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [isClient, setIsClient] = useState(false);
+  const [isLoadingTransactions, setIsLoadingTransactions] = useState(true);
   const [currentMonthName, setCurrentMonthName] = useState('');
-  const [isLoadingOnboarding, setIsLoadingOnboarding] = useState(true);
+  const [isClient, setIsClient] = useState(false);
+
 
   useEffect(() => {
-    setIsClient(true);
-    if (authLoading) {
-      return;
+    setIsClient(true); 
+    if (language) { // Ensure language is defined before using it
+      const date = new Date();
+      const month = date.toLocaleString(language === 'pt' ? 'pt-BR' : 'en-US', { month: 'long' });
+      setCurrentMonthName(month.charAt(0).toUpperCase() + month.slice(1));
     }
+  }, [translate, language]);
+
+  useEffect(() => {
+    if (authLoading) return;
     if (!user) {
       router.push('/login');
       return;
     }
 
-    const onboardingComplete = localStorage.getItem('onboardingComplete');
-    if (!onboardingComplete) {
-      router.push('/onboarding');
-    } else {
-      setIsLoadingOnboarding(false);
-      const storedTransactions = localStorage.getItem('fintrack-transactions');
-      if (storedTransactions) {
-        setTransactions(JSON.parse(storedTransactions));
+    const checkOnboarding = async () => {
+      const userDocRef = doc(db, "users", user.uid);
+      const userDocSnap = await getDoc(userDocRef);
+      if (userDocSnap.exists() && !userDocSnap.data().onboardingComplete) {
+        router.push('/onboarding');
+      } else if (!userDocSnap.exists()) {
+        // Should not happen if signup creates user doc, but as a fallback:
+        router.push('/signup'); // Or onboarding
       } else {
-        setTransactions(initialTransactions);
+        // User exists and onboarding is complete, proceed to fetch transactions
+        const transactionsColRef = collection(db, `users/${user.uid}/transactions`);
+        const q = query(transactionsColRef, orderBy("date", "desc"));
+
+        const unsubscribe = onSnapshot(q, async (querySnapshot) => {
+          if (querySnapshot.empty && querySnapshot.metadata.hasPendingWrites === false) {
+            // No transactions, let's seed them if it's the first time
+            const userTransactionsStatusRef = doc(db, `users/${user.uid}/status`, "transactions");
+            const statusSnap = await getDoc(userTransactionsStatusRef);
+
+            if (!statusSnap.exists() || !statusSnap.data().seeded) {
+              const batch = writeBatch(db);
+              const seededTxs: Transaction[] = [];
+              seedTransactions.forEach(txData => {
+                const id = uuidv4();
+                const docRef = doc(db, `users/${user.uid}/transactions`, id);
+                batch.set(docRef, { ...txData, id, userId: user.uid, createdAt: serverTimestamp() });
+                seededTxs.push({ ...txData, id });
+              });
+              batch.set(userTransactionsStatusRef, { seeded: true, seededAt: serverTimestamp() });
+              await batch.commit();
+              setTransactions(seededTxs);
+            } else {
+               setTransactions([]); // Already seeded but still empty, show no transactions
+            }
+          } else {
+            const fetchedTransactions = querySnapshot.docs.map(docSnap => ({
+              id: docSnap.id,
+              ...docSnap.data(),
+            } as Transaction));
+            setTransactions(fetchedTransactions);
+          }
+          setIsLoadingTransactions(false);
+        }, (error) => {
+          console.error("Error fetching transactions:", error);
+          setIsLoadingTransactions(false);
+          // Potentially set an error state to show in UI
+        });
+        return () => unsubscribe(); // Cleanup listener
       }
-    }
-    // For simplicity, keeping month name static. Dynamic translation would require date-fns locale support.
-    setCurrentMonthName(translate({ en: 'May', pt: 'Maio' }));
-  }, [user, authLoading, router, translate]);
+    };
+    checkOnboarding();
 
-  useEffect(() => {
-    if(isClient && !isLoadingOnboarding && user) {
-        localStorage.setItem('fintrack-transactions', JSON.stringify(transactions));
-    }
-  }, [transactions, isClient, isLoadingOnboarding, user]);
+  }, [user, authLoading, router]);
 
-  const MOCK_CURRENT_YEAR = 2025;
-  const MOCK_CURRENT_MONTH = 4; // 0-indexed for May
+
+  const MOCK_CURRENT_YEAR = new Date().getFullYear(); // Use current year
+  const MOCK_CURRENT_MONTH = new Date().getMonth(); // Use current month (0-indexed)
 
   const transactionsThisMonth = transactions.filter(t => {
     const transactionDate = new Date(t.date);
@@ -90,13 +134,14 @@ export default function DashboardPage() {
     .sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     .slice(0, 5);
 
-  if (!isClient || authLoading || (!user && !authLoading) || (user && isLoadingOnboarding && localStorage.getItem('onboardingComplete') !== 'true')) {
+  if (!isClient || authLoading || (!user && !authLoading) || isLoadingTransactions) {
     return (
         <div className="flex items-center justify-center h-screen bg-background">
           <p className="text-foreground">{translate({ en: "Loading...", pt: "Carregando..."})}</p>
         </div>
     );
   }
+
 
   return (
     <AppLayout>

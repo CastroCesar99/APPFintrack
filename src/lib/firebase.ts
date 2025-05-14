@@ -1,6 +1,7 @@
 
 import { initializeApp, getApps, type FirebaseApp } from "firebase/app";
 import { getAuth, type Auth } from "firebase/auth";
+import { getFirestore, type Firestore } from "firebase/firestore"; // Import Firestore
 
 // Explicitly read environment variables
 const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
@@ -31,9 +32,6 @@ if (
     "Values should be copied exactly from your Firebase project settings.\n" +
     "IMPORTANT: After creating or updating the .env.local file, you MUST restart your Next.js development server for the changes to take effect."
   );
-  // Note: The application might still try to initialize Firebase below,
-  // which will likely result in the 'auth/invalid-api-key' or a similar error from Firebase
-  // if the configuration is incomplete. This console error provides an earlier, more specific warning.
 }
 
 const firebaseConfig = {
@@ -48,13 +46,12 @@ const firebaseConfig = {
 let app: FirebaseApp;
 
 if (!getApps().length) {
-  // Initialize Firebase, this may still throw an error if config values are present but incorrect
   app = initializeApp(firebaseConfig);
 } else {
   app = getApps()[0];
 }
 
-// getAuth might throw an error if 'app' was initialized with an invalid API key (even if 'app' object exists)
 const auth: Auth = getAuth(app);
+const db: Firestore = getFirestore(app); // Initialize Firestore
 
-export { app, auth };
+export { app, auth, db }; // Export db

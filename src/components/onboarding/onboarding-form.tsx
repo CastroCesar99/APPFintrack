@@ -16,6 +16,9 @@ import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
 import { Utensils, ShoppingCart, PlusCircle, CircleHelp, type LucideIcon } from 'lucide-react';
 import { useLanguage } from '@/context/language-context';
+import { useAuth } from '@/context/auth-context'; // Import useAuth
+import { db } from '@/lib/firebase'; // Import db
+import { doc, setDoc, updateDoc, serverTimestamp, getDoc } from "firebase/firestore"; // Import Firestore functions
 
 const predefinedExpenseCategories = CATEGORIES.filter(cat => cat.type === 'expense');
 const predefinedPaymentMethods = PAYMENT_METHODS;
@@ -39,7 +42,10 @@ const selectableIconsList = getSelectableIcons();
 export function OnboardingForm() {
   const router = useRouter();
   const { toast } = useToast();
-  const { language, setLanguage, translate } = useLanguage(); // Use language context
+  const { language, setLanguage, translate } = useLanguage();
+  const { user, loading: authLoading } = useAuth(); // Get user from AuthContext
+
+  const [isSaving, setIsSaving] = useState(false);
 
   const [selectedCategories, setSelectedCategories] = useState<Set<CategoryName>>(new Set());
   const [customCategoryInput, setCustomCategoryInput] = useState('');
@@ -145,7 +151,11 @@ export function OnboardingForm() {
     }));
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
+    if (!user) {
+      toast({ title: translate({en: "Error", pt: "Erro"}), description: translate({en: "User not authenticated.", pt: "Usuário não autenticado."}), variant: "destructive" });
+      return;
+    }
     if (selectedCategories.size === 0) {
       toast({ title: translate({en: "Selection Required", pt: "Seleção Necessária"}), description: translate({en: "Please select at least one expense category.", pt: "Por favor, selecione ao menos uma categoria de despesa."}), variant: "destructive" });
       return;
@@ -155,22 +165,65 @@ export function OnboardingForm() {
       return;
     }
 
-    localStorage.setItem('onboardingComplete', 'true');
-    localStorage.setItem('userLanguage', language);
-    localStorage.setItem('userExpenseCategories', JSON.stringify(Array.from(selectedCategories)));
-    localStorage.setItem('userPaymentMethods', JSON.stringify(Array.from(selectedPaymentMethods)));
-    localStorage.setItem('userDefinedCategories', JSON.stringify(userDefinedCategories));
-    localStorage.setItem('userDefinedPaymentMethods', JSON.stringify(userDefinedPaymentMethods));
-    localStorage.setItem('userBudgetGoals', JSON.stringify(budgetGoals));
+    setIsSaving(true);
 
-    toast({ title: translate({en: "Setup Saved!", pt: "Configuração Salva!"}), description: translate({en: "Welcome to FinTrack!", pt: "Bem-vindo(a) ao FinTrack!"}) });
-    router.push('/');
+    try {
+      const userDocRef = doc(db, "users", user.uid);
+      const preferencesDocRef = doc(db, `users/${user.uid}/preferences`, "userPreferences");
+
+      const preferencesData = {
+        language,
+        selectedCategories: Array.from(selectedCategories),
+        userDefinedCategories,
+        selectedPaymentMethods: Array.from(selectedPaymentMethods),
+        userDefinedPaymentMethods,
+        budgetGoals,
+        updatedAt: serverTimestamp(),
+      };
+
+      await setDoc(preferencesDocRef, preferencesData, { merge: true });
+      await updateDoc(userDocRef, {
+        onboardingComplete: true,
+        onboardedAt: serverTimestamp(),
+      });
+      
+      // Still set localStorage for immediate UI updates if needed, though Firestore is source of truth
+      localStorage.setItem('onboardingComplete', 'true'); 
+      localStorage.setItem('userLanguage', language);
+
+
+      toast({ title: translate({en: "Setup Saved!", pt: "Configuração Salva!"}), description: translate({en: "Welcome to FinTrack!", pt: "Bem-vindo(a) ao FinTrack!"}) });
+      router.push('/');
+    } catch (error) {
+      console.error("Error saving onboarding data:", error);
+      toast({ title: translate({en: "Save Error", pt: "Erro ao Salvar"}), description: translate({en: "Could not save your preferences. Please try again.", pt: "Não foi possível salvar suas preferências. Por favor, tente novamente."}), variant: "destructive" });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const budgetGoalCategoriesExample: { name: CategoryName; icon: LucideIcon }[] = [
     { name: 'Groceries', icon: ShoppingCart },
     { name: 'Dining Out', icon: Utensils },
   ];
+
+  // Check if onboarding is already complete for this user from Firestore
+  useEffect(() => {
+    if (user && !authLoading) {
+      const checkOnboardingStatus = async () => {
+        const userDocRef = doc(db, "users", user.uid);
+        const userDocSnap = await getDoc(userDocRef);
+        if (userDocSnap.exists() && userDocSnap.data().onboardingComplete) {
+          localStorage.setItem('onboardingComplete', 'true'); // Sync localStorage
+          router.push('/');
+        } else {
+            localStorage.removeItem('onboardingComplete'); // Ensure it's clear if not complete in DB
+        }
+      };
+      checkOnboardingStatus();
+    }
+  }, [user, authLoading, router]);
+
 
   return (
     <Card className="w-full shadow-xl">
@@ -344,8 +397,8 @@ export function OnboardingForm() {
           </div>
         </section>
 
-        <Button onClick={handleSubmit} className="w-full text-lg py-6 mt-8 bg-primary hover:bg-primary/90">
-          {translate({ en: "Let's Get Started!", pt: "Vamos Começar!" })}
+        <Button onClick={handleSubmit} className="w-full text-lg py-6 mt-8 bg-primary hover:bg-primary/90" disabled={isSaving || authLoading}>
+          {isSaving ? translate({en: "Saving...", pt: "Salvando..."}) :translate({ en: "Let's Get Started!", pt: "Vamos Começar!" })}
         </Button>
       </CardContent>
     </Card>
