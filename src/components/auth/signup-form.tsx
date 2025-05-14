@@ -18,8 +18,10 @@ import { useAuth } from "@/context/auth-context";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
+import { updateProfile } from "firebase/auth"; // Import updateProfile
 
 const signupFormSchema = z.object({
+  name: z.string().min(2, { message: "O nome deve ter pelo menos 2 caracteres." }),
   email: z.string().email({ message: "Por favor, insira um email válido." }),
   password: z.string().min(6, { message: "A senha deve ter pelo menos 6 caracteres." }),
   confirmPassword: z.string(),
@@ -39,6 +41,7 @@ export function SignupForm() {
   const form = useForm<SignupFormValues>({
     resolver: zodResolver(signupFormSchema),
     defaultValues: {
+      name: "",
       email: "",
       password: "",
       confirmPassword: "",
@@ -48,13 +51,23 @@ export function SignupForm() {
   async function onSubmit(values: SignupFormValues) {
     setIsLoading(true);
     const user = await signUp(values.email, values.password);
-    setIsLoading(false);
+    
     if (user) {
-      toast({ title: "Cadastro realizado!", description: "Sua conta foi criada com sucesso." });
-      // Decide whether to redirect to onboarding or main page
-      // For now, redirecting to onboarding as a new user likely needs it.
-      localStorage.removeItem('onboardingComplete'); // Ensure new user goes through onboarding
-      router.push("/onboarding"); 
+      try {
+        await updateProfile(user, { displayName: values.name });
+        toast({ title: "Cadastro realizado!", description: "Sua conta foi criada com sucesso." });
+        localStorage.removeItem('onboardingComplete'); 
+        router.push("/onboarding"); 
+      } catch (profileError) {
+        console.error("Error updating profile:", profileError);
+        toast({
+          title: "Cadastro realizado, mas houve um erro ao salvar seu nome.",
+          description: "Você pode tentar atualizar seu nome no perfil mais tarde.",
+          variant: "destructive",
+        });
+        localStorage.removeItem('onboardingComplete');
+        router.push("/onboarding"); // Still redirect to onboarding
+      }
     } else {
       toast({
         title: "Erro no Cadastro",
@@ -62,11 +75,25 @@ export function SignupForm() {
         variant: "destructive",
       });
     }
+    setIsLoading(false);
   }
 
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        <FormField
+          control={form.control}
+          name="name"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Nome</FormLabel>
+              <FormControl>
+                <Input placeholder="Seu nome completo" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
         <FormField
           control={form.control}
           name="email"
