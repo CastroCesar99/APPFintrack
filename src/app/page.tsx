@@ -1,7 +1,7 @@
 
 "use client";
 import type React from 'react';
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react"; // Added useMemo
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/auth-context';
 import { AppLayout } from "@/components/layout/app-layout";
@@ -58,27 +58,20 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (authLoading) {
-      // Still waiting for auth state to resolve, show loading
-      // isLoadingTransactions can remain true or be set true here
-      // but the primary loading screen check will use authLoading.
       return;
     }
     if (!user) {
       router.push('/login');
-      // If redirecting, this component instance might unmount or re-render.
-      // The destination page will handle its own loading.
       return;
     }
 
-    // User is authenticated, proceed to check onboarding and fetch transactions.
-    setIsLoadingTransactions(true); // Set loading true before async operations.
+    setIsLoadingTransactions(true);
 
     const checkOnboardingAndFetchTransactions = async () => {
       try {
-        // Double check user, though it should be present due to guards above
         if (!user) {
             setIsLoadingTransactions(false);
-            router.push('/login'); // Fallback redirect
+            router.push('/login'); 
             return;
         }
 
@@ -88,17 +81,16 @@ export default function DashboardPage() {
         if (!userDocSnap.exists()) {
           console.warn("User document not found for UID:", user.uid, "Redirecting to signup.");
           router.push('/signup');
-          setIsLoadingTransactions(false); // Stop loading on redirect
+          setIsLoadingTransactions(false);
           return;
         }
 
         if (!userDocSnap.data().onboardingComplete) {
           router.push('/onboarding');
-          setIsLoadingTransactions(false); // Stop loading on redirect
+          setIsLoadingTransactions(false);
           return;
         }
 
-        // If onboarding is complete, proceed to fetch transactions.
         const transactionsColRef = collection(db, `users/${user.uid}/transactions`);
         const q = query(transactionsColRef, orderBy("date", "desc"));
 
@@ -141,7 +133,7 @@ export default function DashboardPage() {
             } as Transaction));
             setTransactions(fetchedTransactions);
           }
-          setIsLoadingTransactions(false); // Transactions loaded or seeding attempted
+          setIsLoadingTransactions(false);
         }, (error) => {
           console.error("Error fetching transactions:", error);
           toast({
@@ -152,9 +144,9 @@ export default function DashboardPage() {
             }),
             variant: "destructive",
           });
-          setIsLoadingTransactions(false); // Error occurred, stop loading
+          setIsLoadingTransactions(false);
         });
-        return () => unsubscribe(); // Return unsubscribe for cleanup
+        return () => unsubscribe();
 
       } catch (error) {
         console.error("Error in checkOnboardingAndFetchTransactions:", error);
@@ -163,11 +155,10 @@ export default function DashboardPage() {
           description: translate({ en: "Could not load dashboard data. Please check your connection and try again.", pt: "Não foi possível carregar os dados do painel. Verifique sua conexão e tente novamente." }),
           variant: "destructive",
         });
-        setIsLoadingTransactions(false); // General error, stop loading
+        setIsLoadingTransactions(false); 
       }
     };
 
-    // Call the async function
     let unsubscribeFromTransactions: (() => void) | undefined;
     const manageTransactions = async () => {
         unsubscribeFromTransactions = await checkOnboardingAndFetchTransactions();
@@ -180,25 +171,31 @@ export default function DashboardPage() {
         unsubscribeFromTransactions();
       }
     };
-  }, [user, authLoading, router, toast, translate, language]); // Added language dependency because it's used in the effect
+  }, [user, authLoading, router, toast, translate, language]);
 
-  const MOCK_CURRENT_YEAR = new Date().getFullYear();
-  const MOCK_CURRENT_MONTH = new Date().getMonth();
+  const transactionsThisMonth = useMemo(() => {
+    const currentYear = new Date().getFullYear();
+    const currentMonth = new Date().getMonth();
+    return transactions.filter(t => {
+      const transactionDate = new Date(t.date); // Assuming t.date is 'YYYY-MM-DD'
+      return transactionDate.getFullYear() === currentYear && transactionDate.getMonth() === currentMonth;
+    });
+  }, [transactions]);
 
-  const transactionsThisMonth = transactions.filter(t => {
-    const transactionDate = new Date(t.date);
-    return transactionDate.getFullYear() === MOCK_CURRENT_YEAR && transactionDate.getMonth() === MOCK_CURRENT_MONTH;
-  });
+  const recentIncome = useMemo(() => {
+    return transactions
+      .filter(t => t.type === 'income')
+      .sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      .slice(0, 5);
+  }, [transactions]);
 
-  const recentIncome = transactions
-    .filter(t => t.type === 'income')
-    .sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-    .slice(0, 5);
+  const recentExpenses = useMemo(() => {
+    return transactions
+      .filter(t => t.type === 'expense')
+      .sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      .slice(0, 5);
+  }, [transactions]);
 
-  const recentExpenses = transactions
-    .filter(t => t.type === 'expense')
-    .sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-    .slice(0, 5);
 
   if (!isClient || authLoading || isLoadingTransactions) {
     return (
@@ -259,4 +256,3 @@ export default function DashboardPage() {
     </AppLayout>
   );
 }
-
