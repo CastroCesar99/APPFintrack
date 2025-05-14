@@ -12,11 +12,14 @@ import {
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { AppLogoIcon, DashboardIcon, SettingsIcon } from "@/components/icons";
-import { useLanguage } from "@/context/language-context"; // Import useLanguage
+import { useLanguage } from "@/context/language-context"; 
+import { useAuth } from "@/context/auth-context"; // Import useAuth
+import { LogOut } from "lucide-react"; // Import LogOut icon
 
 export function AppSidebarContent() {
   const pathname = usePathname();
-  const { translate } = useLanguage(); // Use language context
+  const { translate } = useLanguage(); 
+  const { user, logOut, loading: authLoading } = useAuth(); // Get user and logOut function
 
   const dashboardLabel = translate({
     en: "Dashboard",
@@ -28,6 +31,11 @@ export function AppSidebarContent() {
     pt: "Configurações",
   });
 
+  const logoutLabel = translate({
+    en: "Logout",
+    pt: "Sair",
+  });
+
   const appTitle = translate({
     en: "FinTrack",
     pt: "FinTrack PT",
@@ -35,9 +43,7 @@ export function AppSidebarContent() {
 
   const menuItems = [
     { href: "/", label: dashboardLabel, icon: DashboardIcon, exact: true },
-    // Add more menu items here if needed, e.g.
-    // { href: "/reports", label: "Reports", icon: BarChartIcon },
-    // { href: "/settings", label: "Settings", icon: SettingsIcon },
+    // Add more menu items here if needed
   ];
 
   return (
@@ -69,11 +75,17 @@ export function AppSidebarContent() {
           ))}
         </SidebarMenu>
       </SidebarContent>
-      <SidebarFooter className="p-4 border-t">
+      <SidebarFooter className="p-4 border-t space-y-2">
          <Button variant="ghost" className="w-full justify-start gap-2">
             <SettingsIcon className="h-5 w-5" />
             <span>{settingsLabel}</span>
         </Button>
+        {user && !authLoading && (
+          <Button variant="ghost" onClick={logOut} className="w-full justify-start gap-2 text-red-500 hover:text-red-600 hover:bg-red-500/10">
+            <LogOut className="h-5 w-5" />
+            <span>{logoutLabel}</span>
+          </Button>
+        )}
       </SidebarFooter>
     </>
   );
