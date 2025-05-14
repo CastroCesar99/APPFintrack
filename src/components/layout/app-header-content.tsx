@@ -20,12 +20,17 @@ export function AppHeaderContent() {
 
   const appTitle = translate({
     en: "FinTrack",
-    pt: "FinTrack PT", // Example translation
+    pt: "FinTrack PT",
   });
 
   const languageLabel = translate({
     en: "Language",
     pt: "Idioma",
+  });
+
+  const settingsSrLabel = translate({
+    en: "Settings",
+    pt: "Configurações",
   });
 
   return (
@@ -39,7 +44,7 @@ export function AppHeaderContent() {
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" size="icon" className="rounded-full">
             <SettingsIcon className="h-5 w-5" />
-            <span className="sr-only">Settings</span>
+            <span className="sr-only">{settingsSrLabel}</span>
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
