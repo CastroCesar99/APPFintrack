@@ -1,6 +1,7 @@
 
 "use client";
 import type { LucideProps, LucideIcon } from 'lucide-react';
+import Image from 'next/image'; // Added import for next/image
 import {
   Briefcase, ShoppingCart, Home, Zap, Replace, Utensils, Car, HeartPulse,
   Film, ShoppingBag, Plane, BookOpen, Gift, TrendingUp, Laptop, DollarSign, CircleHelp, PiggyBank, Settings, LayoutDashboard, FileText,
@@ -58,7 +59,7 @@ export const PaymentMethodIcon: React.FC<PaymentMethodIconProps> = ({ iconName, 
 };
 
 // Export commonly used app icons
-export const AppLogoIcon = () => <img src="/image/fintrack logo.ico" alt="FinTrack Logo" className="h-8 w-8" />;
+export const AppLogoIcon = () => <Image src="/image/fintrack logo.ico" alt="FinTrack Logo" width={32} height={32} />;
 export const SettingsIcon = Settings;
 export const DashboardIcon = LayoutDashboard;
 export const ExportIcon = FileText;
@@ -74,3 +75,4 @@ export const getSelectableIcons = () => {
     iconComponent: Component as LucideIcon,
   })).sort((a,b) => a.label.localeCompare(b.label)); // Sort alphabetically by label
 }
+
