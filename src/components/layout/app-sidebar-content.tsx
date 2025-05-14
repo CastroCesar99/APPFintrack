@@ -12,19 +12,49 @@ import {
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { AppLogoIcon, DashboardIcon, SettingsIcon } from "@/components/icons";
-import { useLanguage } from "@/context/language-context"; 
-import { useAuth } from "@/context/auth-context"; // Import useAuth
-import { LogOut } from "lucide-react"; // Import LogOut icon
+import { useLanguage } from "@/context/language-context";
+import { useAuth } from "@/context/auth-context";
+import { LogOut, CreditCard, TrendingUp, ListChecks, FileText } from "lucide-react"; // Import new icons
 
 export function AppSidebarContent() {
   const pathname = usePathname();
-  const { translate } = useLanguage(); 
-  const { user, logOut, loading: authLoading } = useAuth(); // Get user and logOut function
+  const { translate } = useLanguage();
+  const { user, logOut, loading: authLoading } = useAuth();
 
-  const dashboardLabel = translate({
-    en: "Dashboard",
-    pt: "Painel",
-  });
+  const appTitle = "FinTrack";
+
+  const menuItems = [
+    {
+      href: "/",
+      label: translate({ en: "Dashboard", pt: "Painel" }),
+      icon: DashboardIcon,
+      exact: true
+    },
+    {
+      href: "/expenses", // Placeholder
+      label: translate({ en: "Expenses", pt: "Despesas" }),
+      icon: CreditCard,
+      exact: false
+    },
+    {
+      href: "/income", // Placeholder
+      label: translate({ en: "Income", pt: "Receitas" }),
+      icon: TrendingUp,
+      exact: false
+    },
+    {
+      href: "/budgets", // Placeholder
+      label: translate({ en: "Budgets", pt: "Orçamentos" }),
+      icon: ListChecks,
+      exact: false
+    },
+    {
+      href: "/reports", // Placeholder
+      label: translate({ en: "Reports", pt: "Relatórios" }),
+      icon: FileText,
+      exact: false
+    },
+  ];
 
   const settingsLabel = translate({
     en: "Settings",
@@ -35,13 +65,6 @@ export function AppSidebarContent() {
     en: "Logout",
     pt: "Sair",
   });
-
-  const appTitle = "FinTrack"; // Changed to static title
-
-  const menuItems = [
-    { href: "/", label: dashboardLabel, icon: DashboardIcon, exact: true },
-    // Add more menu items here if needed
-  ];
 
   return (
     <>
