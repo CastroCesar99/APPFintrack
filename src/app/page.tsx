@@ -49,20 +49,20 @@ export default function DashboardPage() {
   const userId = user?.uid;
 
   useEffect(() => {
-    // console.log("Dashboard: isClient useEffect running");
+    console.log("Dashboard: TRACER --- isClient useEffect running");
     setIsClient(true);
     if (language) {
       const date = new Date();
       const month = date.toLocaleString(language === 'pt' ? 'pt-BR' : 'en-US', { month: 'long' });
       setCurrentMonthName(month.charAt(0).toUpperCase() + month.slice(1));
-      // console.log("Dashboard: currentMonthName set to", month.charAt(0).toUpperCase() + month.slice(1));
+      console.log("Dashboard: TRACER --- currentMonthName set to", month.charAt(0).toUpperCase() + month.slice(1));
     }
   }, [language]);
 
   useEffect(() => {
     let isEffectMounted = true;
     let unsubscribeFromSnapshot: (() => void) | undefined;
-    console.log("Dashboard: Main data fetching useEffect TRACER --- Start. AuthLoading:", authLoading, "UserId:", userId, "isLoadingTransactions:", isLoadingTransactions);
+    console.log("Dashboard: TRACER --- Main data fetching useEffect TRACER --- Start. UserID:", userId, "AuthLoading:", authLoading);
 
 
     const fetchData = async () => {
@@ -74,21 +74,19 @@ export default function DashboardPage() {
       if (authLoading) {
         console.log("Dashboard: TRACER --- Auth is loading. Waiting...");
         // No need to set isLoadingTransactions(true) here; main loading div handles it.
+        // Ensure isLoadingTransactions is false if we return here before user-specific data fetching begins
+        if (isEffectMounted) setIsLoadingTransactions(false);
         return;
       }
 
       if (!userId) {
         console.log("Dashboard: TRACER --- No user ID after auth. Redirecting to login.");
         router.push('/login');
-        if (isEffectMounted) {
-            console.log("Dashboard: TRACER --- Setting isLoadingTransactions to FALSE (no userId).");
-            setIsLoadingTransactions(false);
-        }
+        if (isEffectMounted) setIsLoadingTransactions(false);
         return;
       }
       
       console.log("Dashboard: TRACER --- Auth resolved, user ID available. Setting isLoadingTransactions to TRUE to fetch user data.");
-      // This is the primary point to set loading for user-specific data
       if (isEffectMounted) setIsLoadingTransactions(true);
 
       try {
@@ -97,26 +95,21 @@ export default function DashboardPage() {
 
         if (!isEffectMounted) {
           console.log("Dashboard: TRACER --- fetchData aborted, effect unmounted while fetching user doc.");
+          if (isEffectMounted) setIsLoadingTransactions(false);
           return;
         }
 
         if (!userDocSnap.exists()) {
           console.warn("Dashboard: TRACER --- User document not found. Redirecting to signup.");
           router.push('/signup');
-          if (isEffectMounted) {
-            console.log("Dashboard: TRACER --- Setting isLoadingTransactions to FALSE (user doc not found).");
-            setIsLoadingTransactions(false);
-          }
+          if (isEffectMounted) setIsLoadingTransactions(false);
           return;
         }
 
         if (!userDocSnap.data().onboardingComplete) {
           console.log("Dashboard: TRACER --- User onboarding not complete. Redirecting to onboarding.");
           router.push('/onboarding');
-          if (isEffectMounted) {
-            console.log("Dashboard: TRACER --- Setting isLoadingTransactions to FALSE (onboarding not complete).");
-            setIsLoadingTransactions(false);
-          }
+          if (isEffectMounted) setIsLoadingTransactions(false);
           return;
         }
         
@@ -146,7 +139,6 @@ export default function DashboardPage() {
                     variant: "destructive",
                   });
                   setTransactions([]); 
-                  console.log("Dashboard: TRACER --- Setting isLoadingTransactions to FALSE (error fetching transaction status).");
                   setIsLoadingTransactions(false);
                }
                return;
@@ -168,7 +160,7 @@ export default function DashboardPage() {
               batch.set(userTransactionsStatusRef, { seeded: true, seededAt: serverTimestamp() });
               try {
                 await batch.commit();
-                console.log("Dashboard: TRACER --- Seed transactions committed. Waiting for onSnapshot to reflect changes (isLoadingTransactions remains true).");
+                console.log("Dashboard: TRACER --- Seed transactions committed. Waiting for onSnapshot to reflect changes (isLoadingTransactions remains true for now).");
                 // We intentionally DO NOT set isLoadingTransactions(false) here.
                 // The onSnapshot listener will fire again with the new data.
               } catch (commitError) {
@@ -182,8 +174,6 @@ export default function DashboardPage() {
                     }),
                     variant: "destructive",
                   });
-                  setTransactions([]);
-                  console.log("Dashboard: TRACER --- Setting isLoadingTransactions to FALSE (error seeding transactions).");
                   setIsLoadingTransactions(false);
                 }
               }
@@ -191,7 +181,6 @@ export default function DashboardPage() {
               console.log("Dashboard: TRACER --- Transactions collection is empty, but already marked as seeded.");
               if (isEffectMounted) {
                 setTransactions([]);
-                console.log("Dashboard: TRACER --- Setting isLoadingTransactions to FALSE (confirmed empty and seeded).");
                 setIsLoadingTransactions(false);
               }
             }
@@ -203,7 +192,6 @@ export default function DashboardPage() {
             } as Transaction));
             if (isEffectMounted) {
               setTransactions(fetchedTransactions);
-              console.log("Dashboard: TRACER --- Setting isLoadingTransactions to FALSE (data processed from snapshot).");
               setIsLoadingTransactions(false);
             }
           }
@@ -222,7 +210,6 @@ export default function DashboardPage() {
               }),
               variant: "destructive",
             });
-            console.log("Dashboard: TRACER --- Setting isLoadingTransactions to FALSE (snapshot listener error).");
             setIsLoadingTransactions(false);
           }
         });
@@ -239,7 +226,6 @@ export default function DashboardPage() {
             description: translate({ en: "Could not load dashboard data. Please check connection.", pt: "Não foi possível carregar dados do painel. Verifique sua conexão." }),
             variant: "destructive",
           });
-          console.log("Dashboard: TRACER --- Setting isLoadingTransactions to FALSE (main fetch logic error).");
           setIsLoadingTransactions(false);
         }
       }
@@ -254,8 +240,7 @@ export default function DashboardPage() {
         unsubscribeFromSnapshot();
       }
     };
-  // Removed translate and language from dependencies to test stability
-  }, [userId, authLoading, router, toast]); 
+  }, [userId, authLoading, router, toast, translate]);
 
   const transactionsThisMonth = useMemo(() => {
     const currentYear = new Date().getFullYear();
@@ -282,14 +267,14 @@ export default function DashboardPage() {
 
 
   if (!isClient || authLoading || isLoadingTransactions) {
-    // console.log("Dashboard: TRACER --- RENDERING LOADING SCREEN. isClient:", isClient, "authLoading:", authLoading, "isLoadingTransactions:", isLoadingTransactions);
+    console.log("Dashboard: TRACER --- RENDERING LOADING SCREEN. isClient:", isClient, "authLoading:", authLoading, "isLoadingTransactions:", isLoadingTransactions);
     return (
         <div className="flex items-center justify-center h-screen w-full bg-background">
           <p className="text-foreground">{translate({ en: "Loading...", pt: "Carregando..."})}</p>
         </div>
     );
   }
-  // console.log("Dashboard: TRACER --- RENDERING DASHBOARD CONTENT.");
+  console.log("Dashboard: TRACER --- RENDERING DASHBOARD CONTENT.");
 
 
   return (
@@ -342,4 +327,3 @@ export default function DashboardPage() {
     </AppLayout>
   );
 }
-
