@@ -59,7 +59,7 @@ export const PaymentMethodIcon: React.FC<PaymentMethodIconProps> = ({ iconName, 
 };
 
 // Export commonly used app icons
-export const AppLogoIcon = () => <Image src="/image/fintrack logo.ico" alt="FinTrack Logo" width={32} height={32} />;
+export const AppLogoIcon = () => <Image src="/fintrack-logo.ico" alt="FinTrack Logo" width={32} height={32} />;
 export const SettingsIcon = Settings;
 export const DashboardIcon = LayoutDashboard;
 export const ExportIcon = FileText;
