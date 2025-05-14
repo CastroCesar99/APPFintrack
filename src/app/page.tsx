@@ -1,5 +1,5 @@
 
-"use client";
+'use client';
 import React, { useRef } from 'react';
 import { useState, useEffect, useMemo } from "react";
 import { useRouter } from 'next/navigation';
@@ -41,203 +41,254 @@ export default function DashboardPage() {
   const { user, loading: authLoading } = useAuth();
   const { translate, language } = useLanguage();
   const { toast } = useToast();
+
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isLoadingTransactions, setIsLoadingTransactions] = useState(true);
   const [currentMonthName, setCurrentMonthName] = useState('');
   const [isClient, setIsClient] = useState(false);
+  
   const effectMountedRef = useRef(true);
+  const unsubscribeSnapshotRef = useRef<(() => void) | null>(null);
+  const mainFetchInitiatedForUser = useRef<string | null>(null);
   const userId = user?.uid;
 
   useEffect(() => {
     console.log("Dashboard: TRACER --- isClient useEffect running");
     setIsClient(true);
-    if (language) {
+  }, []);
+
+  useEffect(() => {
+    if (language && isClient) { // Ensure isClient is true before using language for client-side date formatting
       const date = new Date();
       const month = date.toLocaleString(language === 'pt' ? 'pt-BR' : 'en-US', { month: 'long' });
       setCurrentMonthName(month.charAt(0).toUpperCase() + month.slice(1));
       console.log("Dashboard: TRACER --- currentMonthName set to", month.charAt(0).toUpperCase() + month.slice(1));
     }
-  }, [language]);
+  }, [language, isClient]);
 
+
+  // Main data fetching and subscription effect
   useEffect(() => {
-    let unsubscribeFromSnapshot: (() => void) | undefined;
-    console.log("Dashboard: TRACER --- Main data fetching useEffect TRACER --- Start. UserID:", userId, "AuthLoading:", authLoading);
     effectMountedRef.current = true;
+    console.log("Dashboard: TRACER --- Main useEffect running. UserID:", userId, "AuthLoading:", authLoading, "isClient:", isClient, "InitiatedFor:", mainFetchInitiatedForUser.current);
 
+    const cleanupListener = () => {
+      if (unsubscribeSnapshotRef.current) {
+        console.log("Dashboard: TRACER --- useEffect Cleanup: Unsubscribing snapshot listener for UserID:", mainFetchInitiatedForUser.current);
+        unsubscribeSnapshotRef.current();
+        unsubscribeSnapshotRef.current = null;
+      }
+    };
 
-    const fetchData = async () => { 
+    if (authLoading) {
+      console.log("Dashboard: TRACER --- Auth is loading, waiting...");
+      // setIsLoadingTransactions(true); // Already initially true, or handled by main loading screen logic
+      return; // Wait for auth to resolve; cleanup will run if deps change before resolution
+    }
+
+    if (!userId && isClient) { // User is definitively logged out (and client is hydrated)
+      console.log("Dashboard: TRACER --- No user ID. Cleaning up listener and stopping loading.");
+      cleanupListener();
+      setIsLoadingTransactions(false);
+      mainFetchInitiatedForUser.current = null; // Reset fetch initiator state
+      router.push('/login'); // Redirect to login if no user
+      return;
+    }
+    
+    // Async function to perform the actual data fetching and subscription setup
+    const fetchDataInternal = async (currentUserId: string) => {
       if (!effectMountedRef.current) {
-        console.log("Dashboard: TRACER --- fetchData aborted, effect unmounted early (ref).");
-        return; 
+          console.log("Dashboard: TRACER --- fetchDataInternal: Effect unmounted early.");
+          return;
       }
-
-      if (authLoading) {
-        console.log("Dashboard: TRACER --- Auth is loading. Waiting...");
-        if (effectMountedRef.current) setIsLoadingTransactions(false);
-        return;
-      }
-
-      if (!userId) {
-        console.log("Dashboard: TRACER --- No user ID after auth. Redirecting to login.");
-        router.push('/login');
-        if (effectMountedRef.current) setIsLoadingTransactions(false);
-        return;
-      }
-      
-      console.log("Dashboard: TRACER --- Auth resolved, user ID available. Setting isLoadingTransactions to TRUE to fetch user data.");
-      if (effectMountedRef.current) setIsLoadingTransactions(true);
+      console.log("Dashboard: TRACER --- fetchDataInternal: Starting for UserID:", currentUserId);
 
       try {
-        const userDocRef = doc(db, "users", userId);
+        const userDocRef = doc(db, "users", currentUserId);
         const userDocSnap = await getDoc(userDocRef);
-      
+
         if (!effectMountedRef.current) {
-          console.log("Dashboard: TRACER --- fetchData aborted, effect unmounted while fetching user doc (ref).");
-          if (effectMountedRef.current) setIsLoadingTransactions(false);
+          console.log("Dashboard: TRACER --- fetchDataInternal: Effect unmounted while fetching user doc.");
           return;
         }
 
         if (!userDocSnap.exists()) {
-          console.warn("Dashboard: TRACER --- User document not found. Redirecting to signup.");
-          router.push('/signup');
-          if (effectMountedRef.current) setIsLoadingTransactions(false);
+          console.warn("Dashboard: TRACER --- fetchDataInternal: User document not found. Redirecting to signup.");
+          if (effectMountedRef.current) {
+            router.push('/signup');
+            setIsLoadingTransactions(false);
+          }
           return;
         }
 
         if (!userDocSnap.data().onboardingComplete) {
-          console.log("Dashboard: TRACER --- User onboarding not complete. Redirecting to onboarding.");
-          router.push('/onboarding'); 
-          if (effectMountedRef.current) setIsLoadingTransactions(false);
+          console.log("Dashboard: TRACER --- fetchDataInternal: User onboarding not complete. Redirecting to onboarding.");
+          if (effectMountedRef.current) {
+            router.push('/onboarding');
+            setIsLoadingTransactions(false);
+          }
           return;
         }
-        
-        console.log("Dashboard: TRACER --- User onboarding complete. Setting up onSnapshot listener for transactions.");
-        const transactionsColRef = collection(db, `users/${userId}/transactions`);
-        const q_transactions = query(transactionsColRef, orderBy("date", "desc"));
 
-        unsubscribeFromSnapshot = onSnapshot(q_transactions, async (querySnapshot) => {
-          if (!effectMountedRef.current) { 
-            console.log("Dashboard: TRACER --- onSnapshot fired but effect is unmounted.");
+        console.log("Dashboard: TRACER --- fetchDataInternal: User onboarding complete. Setting up onSnapshot listener.");
+        const transactionsColRef = collection(db, `users/${currentUserId}/transactions`);
+        const q_transactions = query(transactionsColRef, orderBy("date", "desc"));
+        
+        // Explicitly clean up any existing listener before attaching a new one
+        // This is important if the effect re-runs for the same user due to other dep changes (though less likely now)
+        if (unsubscribeSnapshotRef.current) {
+            console.log("Dashboard: TRACER --- fetchDataInternal: Stale snapshot listener found, unsubscribing before new setup.");
+            unsubscribeSnapshotRef.current();
+            unsubscribeSnapshotRef.current = null;
+        }
+
+        unsubscribeSnapshotRef.current = onSnapshot(q_transactions, async (querySnapshot) => {
+          if (!effectMountedRef.current) {
+            console.log("Dashboard: TRACER --- onSnapshot: Effect unmounted. Skipping state update.");
             return;
           }
-          console.log(`Dashboard: TRACER --- Transactions snapshot received. Empty: ${querySnapshot.empty}, PendingWrites: ${querySnapshot.metadata.hasPendingWrites}`);
-         
+          console.log("Dashboard: TRACER --- onSnapshot: Received data. Empty:", querySnapshot.empty, "PendingWrites:", querySnapshot.metadata.hasPendingWrites);
+
           if (querySnapshot.empty && !querySnapshot.metadata.hasPendingWrites) {
-            console.log("Dashboard: TRACER --- Transactions snapshot is empty and no pending writes. Checking seed status.");
-            const userTransactionsStatusRef = doc(db, `users/${userId}/status`, "transactions");
+            const userTransactionsStatusRef = doc(db, `users/${currentUserId}/status`, "transactions");
             let statusSnap;
             try {
               statusSnap = await getDoc(userTransactionsStatusRef);
-            } catch (docError) {
-               console.error("Dashboard: TRACER --- Error fetching transaction status doc (onSnapshot empty branch) (ref):", docError);
-               if (effectMountedRef.current) {
-                 toast({ 
-                    title: translate({ en: "Connection Error", pt: "Erro de Conexão" }),
-                    description: translate({ en: "Could not verify transaction status. Please check connection.", pt: "Não foi possível verificar o status das transações. Verifique a conexão."}),
-                    variant: "destructive",
-                  });
-                  setTransactions([]); 
-                  setIsLoadingTransactions(false);
-               }
-               return;
-            }
-            
-            if (!effectMountedRef.current) {
-              console.log("Dashboard: TRACER --- onSnapshot aborted, effect unmounted while checking seed status (ref).");
-              return;
-            }
+              if (!effectMountedRef.current) return;
 
-            if (!statusSnap.exists() || !statusSnap.data().seeded) {
-              console.log("Dashboard: TRACER --- Transactions not seeded. Seeding now.");
-              const batch = writeBatch(db);
-              seedTransactions.forEach(txData => {
-                const id = uuidv4();
-                const docRef = doc(db, `users/${userId}/transactions`, id);
-                batch.set(docRef, { ...txData, id, userId: userId, createdAt: serverTimestamp() });
-              });
-              batch.set(userTransactionsStatusRef, { seeded: true, seededAt: serverTimestamp() });
-              try {
-                await batch.commit();
-                console.log("Dashboard: TRACER --- Seed transactions committed. Waiting for onSnapshot to reflect changes (isLoadingTransactions remains true for now).");
-              } catch (commitError) { 
-                console.error("Dashboard: TRACER --- Error seeding transactions:", commitError);
-                if (effectMountedRef.current) { 
-                  toast({
-                    title: translate({ en: "Seeding Error", pt: "Erro ao Popular Dados" }),
-                    description: translate({
-                      en: "Could not seed initial transactions. Please try refreshing.",
-                      pt: "Não foi possível popular as transações iniciais. Por favor, atualize a página."
-                    }),
-                    variant: "destructive",
-                  });
+              if (!statusSnap.exists() || !statusSnap.data().seeded) {
+                console.log("Dashboard: TRACER --- onSnapshot: Transactions not seeded. Seeding now.");
+                const batch = writeBatch(db);
+                seedTransactions.forEach(txData => {
+                  const id = uuidv4();
+                  const docRef = doc(db, `users/${currentUserId}/transactions`, id);
+                  batch.set(docRef, { ...txData, id, userId: currentUserId, createdAt: serverTimestamp() });
+                });
+                batch.set(userTransactionsStatusRef, { seeded: true, seededAt: serverTimestamp() });
+                
+                try {
+                  await batch.commit();
+                  console.log("Dashboard: TRACER --- onSnapshot: Seed transactions committed. Waiting for next snapshot.");
+                  // DO NOT set isLoadingTransactions(false) here. Let the next snapshot trigger handle it.
+                } catch (commitError: any) {
+                  console.error("Dashboard: TRACER --- onSnapshot: Error seeding transactions:", commitError);
+                  if (effectMountedRef.current) {
+                    toast({
+                      title: translate({ en: "Seeding Error", pt: "Erro ao Popular Dados" }),
+                      description: translate({
+                        en: "Could not seed initial transactions. Please try refreshing.",
+                        pt: "Não foi possível popular as transações iniciais. Por favor, atualize a página."
+                      }) + (commitError.message ? ` (${commitError.message})` : ''),
+                      variant: "destructive",
+                    });
+                    setTransactions([]); // Ensure UI reflects empty state on error
+                    setIsLoadingTransactions(false);
+                    console.log("Dashboard: TRACER --- setIsLoadingTransactions(false) in onSnapshot seed commit error.");
+                  }
+                }
+              } else {
+                console.log("Dashboard: TRACER --- onSnapshot: Transactions collection empty, but already marked as seeded.");
+                if (effectMountedRef.current) {
+                  setTransactions([]);
                   setIsLoadingTransactions(false);
+                  console.log("Dashboard: TRACER --- setIsLoadingTransactions(false) in onSnapshot empty but seeded.");
                 }
               }
-            } else {
-              console.log("Dashboard: TRACER --- Transactions collection is empty, but already marked as seeded.");
-              if (effectMountedRef.current) { 
-                setTransactions([]);
-                setIsLoadingTransactions(false);
-              }
+            } catch (docError: any) {
+               console.error("Dashboard: TRACER --- onSnapshot: Error fetching transaction seed status:", docError);
+               if (effectMountedRef.current) {
+                 toast({
+                    title: translate({ en: "Connection Error", pt: "Erro de Conexão" }),
+                    description: translate({ en: "Could not verify transaction status.", pt: "Não foi possível verificar o status das transações."}) + (docError.message ? ` (${docError.message})` : ''),
+                    variant: "destructive",
+                  });
+                  setTransactions([]);
+                  setIsLoadingTransactions(false);
+                  console.log("Dashboard: TRACER --- setIsLoadingTransactions(false) in onSnapshot seed status fetch error.");
+               }
             }
-          } else { 
-            console.log(`Dashboard: TRACER --- Processing ${querySnapshot.docs.length} transactions. Has pending writes: ${querySnapshot.metadata.hasPendingWrites}.`);
-            const fetchedTransactions = querySnapshot.docs.map(docSnap => ({
-              id: docSnap.id,
-              ...docSnap.data(),
-            } as Transaction));
-            if (effectMountedRef.current) { 
+          } else { // Snapshot has data or pending writes
+            const fetchedTransactions = querySnapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as Transaction));
+            if (effectMountedRef.current) {
+              console.log(`Dashboard: TRACER --- onSnapshot: Setting ${fetchedTransactions.length} transactions.`);
               setTransactions(fetchedTransactions);
               setIsLoadingTransactions(false);
+              console.log("Dashboard: TRACER --- setIsLoadingTransactions(false) after processing snapshot data.");
             }
           }
-        }, (error) => { 
+        }, (error: any) => {
           if (!effectMountedRef.current) {
-            console.log("Dashboard: TRACER --- onSnapshot error callback, but effect unmounted.");
-            return; 
+            console.log("Dashboard: TRACER --- onSnapshot error callback: Effect unmounted.");
+            return;
           }
-          console.error("Dashboard: TRACER --- Error listening to transactions snapshot:", error);
-          if (effectMountedRef.current) { 
-            toast({ 
+          console.error("Dashboard: TRACER --- onSnapshot: Error listening to transactions snapshot:", error);
+          if (effectMountedRef.current) {
+            toast({
               title: translate({ en: "Transaction Error", pt: "Erro nas Transações" }),
               description: translate({
                 en: "Could not fetch transactions. Please check your connection.",
                 pt: "Não foi possível buscar as transações. Verifique sua conexão."
-              }),
+              }) + (error.message ? ` (${error.message})` : ''),
               variant: "destructive",
             });
             setIsLoadingTransactions(false);
+            console.log("Dashboard: TRACER --- setIsLoadingTransactions(false) in onSnapshot error callback.");
           }
         });
 
-      } catch (error) { 
+      } catch (error: any) {
         if (!effectMountedRef.current) {
-          console.log("Dashboard: TRACER --- Main fetchData try-catch, but effect unmounted (ref)."); 
+          console.log("Dashboard: TRACER --- fetchDataInternal: Main try-catch, effect unmounted.");
           return;
         }
-        console.error("Dashboard: TRACER --- Error in main data fetching logic (outer try-catch):", error);
-        if (effectMountedRef.current) { 
+        console.error("Dashboard: TRACER --- fetchDataInternal: Error in main data fetching logic:", error);
+        if (effectMountedRef.current) {
           toast({
             title: translate({ en: "Error", pt: "Erro" }),
-            description: translate({ en: "Could not load dashboard data. Please check connection.", pt: "Não foi possível carregar dados do painel. Verifique sua conexão." }),
+            description: translate({ en: "Could not load dashboard data.", pt: "Não foi possível carregar dados do painel." }) + (error.message ? ` (${error.message})` : ''),
             variant: "destructive",
           });
           setIsLoadingTransactions(false);
+          console.log("Dashboard: TRACER --- setIsLoadingTransactions(false) in fetchDataInternal main catch block.");
         }
       }
     };
 
-    if (userId && !authLoading) fetchData(); 
+    // Main logic gate for fetching
+    if (userId && isClient && !authLoading) {
+      if (mainFetchInitiatedForUser.current !== userId) {
+        console.log("Dashboard: TRACER --- Conditions met for new fetch. Current UserID:", userId, "Previously initiated for:", mainFetchInitiatedForUser.current);
+        cleanupListener(); // Clean up any old listener first
+        
+        if(effectMountedRef.current) setIsLoadingTransactions(true); // Set loading true *before* starting async fetch
+        console.log("Dashboard: TRACER --- setIsLoadingTransactions(true) before calling fetchDataInternal for user:", userId);
+        
+        mainFetchInitiatedForUser.current = userId; // Mark that fetch is being initiated for THIS user
+        fetchDataInternal(userId);
+      } else {
+        console.log("Dashboard: TRACER --- Fetch already initiated for user:", userId, ". Snapshot listener should be handling updates.");
+        // If fetch was already initiated, we assume the snapshot listener is active.
+        // If isLoadingTransactions is still true here, it means the initial snapshot hasn't resolved yet.
+        // If it's false, data has loaded. No action needed in this path for setIsLoadingTransactions.
+      }
+    } else {
+      console.log("Dashboard: TRACER --- Main useEffect: Conditions for data fetch NOT met. userId:", userId, "isClient:", isClient, "authLoading:", authLoading);
+      // If auth is not loading, isClient is true, but there's no userId, it means user is logged out.
+      // This case is handled by the early return for !userId.
+      // If isClient is false, it's server render/pre-hydration, no client-side fetch yet.
+      // If authLoading is true, we're waiting.
+      // This else branch might not need to do anything with setIsLoadingTransactions if other paths cover it.
+    }
 
     return () => {
-      console.log("Dashboard: TRACER --- Main data fetching useEffect CLEANUP. Unsubscribing from snapshot if active.");
-      effectMountedRef.current = false; 
-      if (unsubscribeFromSnapshot) {
-        unsubscribeFromSnapshot();
-      }
+      console.log("Dashboard: TRACER --- Main useEffect CLEANUP (outer). Current UserID for potential cleanup:", mainFetchInitiatedForUser.current);
+      effectMountedRef.current = false;
+      cleanupListener(); // This will run when dependencies change or component unmounts.
+      // Do not reset mainFetchInitiatedForUser.current here,
+      // as the effect might re-run for a minor dep change for the *same user*.
+      // It's reset when userId becomes null or changes.
     };
-  }, [userId, authLoading, router, toast, translate]);
-
+  }, [userId, authLoading, isClient]); // Removed router and toast
 
   const transactionsThisMonth = useMemo(() => {
     const currentYear = new Date().getFullYear();
@@ -271,7 +322,7 @@ export default function DashboardPage() {
         </div>
     );
   }
-  console.log("Dashboard: TRACER --- RENDERING DASHBOARD CONTENT.");
+  console.log("Dashboard: TRACER --- RENDERING DASHBOARD CONTENT. Transactions:", transactions.length);
 
 
   return (
@@ -325,3 +376,4 @@ export default function DashboardPage() {
   );
 }
 
+    
