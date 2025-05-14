@@ -1,8 +1,12 @@
+
 "use client";
 import type { LucideProps, LucideIcon } from 'lucide-react';
 import {
   Briefcase, ShoppingCart, Home, Zap, Replace, Utensils, Car, HeartPulse,
-  Film, ShoppingBag, Plane, BookOpen, Gift, TrendingUp, Laptop, DollarSign, CircleHelp, PiggyBank, Settings, LayoutDashboard, FileText
+  Film, ShoppingBag, Plane, BookOpen, Gift, TrendingUp, Laptop, DollarSign, CircleHelp, PiggyBank, Settings, LayoutDashboard, FileText,
+  ListChecks, // Added for Budget Status
+  PlusCircle, // Added for Add buttons
+  SlidersHorizontal // Added for Manage Budgets
 } from 'lucide-react';
 import type { CategoryName } from '@/types';
 import { CATEGORIES } from '@/types';
@@ -13,7 +17,12 @@ export const categoryIconsMap: Record<CategoryName, LucideIcon> = CATEGORIES.red
     Briefcase, ShoppingCart, Home, Zap, Replace, Utensils, Car, HeartPulse,
     Film, ShoppingBag, Plane, BookOpen, Gift, TrendingUp, Laptop, DollarSign, CircleHelp
   };
-  acc[category.name] = iconMapping[category.icon] || CircleHelp;
+  // Ensure Shopping is mapped if it's used and icon is ShoppingBag
+  if (category.name === 'Shopping' && category.icon === 'ShoppingBag') {
+     acc[category.name] = ShoppingBag;
+  } else {
+    acc[category.name] = iconMapping[category.icon] || CircleHelp;
+  }
   return acc;
 }, {} as Record<CategoryName, LucideIcon>);
 
@@ -31,3 +40,8 @@ export const AppLogoIcon = PiggyBank;
 export const SettingsIcon = Settings;
 export const DashboardIcon = LayoutDashboard;
 export const ExportIcon = FileText;
+
+// Export new icons for direct use if needed
+export { ListChecks, PlusCircle, SlidersHorizontal };
+
+    
