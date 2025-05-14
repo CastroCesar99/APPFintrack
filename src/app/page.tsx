@@ -14,7 +14,8 @@ import type { Transaction } from "@/types";
 import { useLanguage } from '@/context/language-context';
 import { db } from '@/lib/firebase';
 import { collection, query, orderBy, onSnapshot, doc, getDoc, writeBatch, serverTimestamp } from "firebase/firestore";
-import { v4 as uuidv4 } from 'uuid'; // Keep for initial seed if needed
+import { v4 as uuidv4 } from 'uuid';
+import { useToast } from "@/hooks/use-toast"; // Import useToast
 
 // This can be used to seed initial transactions if the user has none
 const seedTransactions: Omit<Transaction, 'id'>[] = [
@@ -33,12 +34,13 @@ const seedTransactions: Omit<Transaction, 'id'>[] = [
 ];
 
 
-const MONTHLY_BUDGET = 900; // This might come from user preferences in Firestore later
+const MONTHLY_BUDGET = 900; 
 
 export default function DashboardPage() {
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
   const { translate, language } = useLanguage();
+  const { toast } = useToast(); // Initialize useToast
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isLoadingTransactions, setIsLoadingTransactions] = useState(true);
   const [currentMonthName, setCurrentMonthName] = useState('');
@@ -52,7 +54,7 @@ export default function DashboardPage() {
       const month = date.toLocaleString(language === 'pt' ? 'pt-BR' : 'en-US', { month: 'long' });
       setCurrentMonthName(month.charAt(0).toUpperCase() + month.slice(1));
     }
-  }, [language]); // Removed translate from dependencies as it's stable
+  }, [language]); 
 
   useEffect(() => {
     if (authLoading) return;
@@ -61,15 +63,39 @@ export default function DashboardPage() {
       return;
     }
 
-    const checkOnboarding = async () => {
-      if (!user) return; // Extra safety check
-      const userDocRef = doc(db, "users", user.uid);
-      const userDocSnap = await getDoc(userDocRef);
-      if (userDocSnap.exists() && !userDocSnap.data().onboardingComplete) {
-        router.push('/onboarding');
-      } else if (!userDocSnap.exists()) {
-        router.push('/signup'); 
-      } else {
+    const checkOnboardingAndFetchTransactions = async () => {
+      if (!user) return; 
+      
+      let onboardingComplete = false;
+      try {
+        const userDocRef = doc(db, "users", user.uid);
+        const userDocSnap = await getDoc(userDocRef);
+        if (userDocSnap.exists() && userDocSnap.data().onboardingComplete) {
+          onboardingComplete = true;
+        } else if (userDocSnap.exists() && !userDocSnap.data().onboardingComplete) {
+          router.push('/onboarding');
+          return; 
+        } else if (!userDocSnap.exists()) {
+          console.warn("User document not found for UID:", user.uid, "Redirecting to signup.");
+          router.push('/signup'); 
+          return;
+        }
+      } catch (error) {
+        console.error("Error checking user document for onboarding status:", error);
+        toast({
+          title: translate({ en: "Connection Issue", pt: "Problema de Conexão" }),
+          description: translate({
+            en: "Could not verify user status. Some features might be unavailable. Please check your internet connection.",
+            pt: "Não foi possível verificar o status do usuário. Alguns recursos podem estar indisponíveis. Verifique sua conexão com a internet."
+          }),
+          variant: "destructive",
+        });
+        // Potentially set isLoadingTransactions to false here and show an error state for transactions
+        // For now, allow to proceed, transaction fetching might also show an error.
+      }
+
+      // Proceed to fetch transactions only if onboarding check didn't redirect
+      if (router.pathname !== '/onboarding' && router.pathname !== '/login' && router.pathname !== '/signup') {
         const transactionsColRef = collection(db, `users/${user.uid}/transactions`);
         const q = query(transactionsColRef, orderBy("date", "desc"));
 
@@ -88,8 +114,20 @@ export default function DashboardPage() {
                 seededTxs.push({ ...txData, id });
               });
               batch.set(userTransactionsStatusRef, { seeded: true, seededAt: serverTimestamp() });
-              await batch.commit();
-              setTransactions(seededTxs);
+              try {
+                await batch.commit();
+                setTransactions(seededTxs);
+              } catch (commitError) {
+                 console.error("Error seeding transactions:", commitError);
+                 toast({
+                    title: translate({ en: "Seeding Error", pt: "Erro ao Popular Dados" }),
+                    description: translate({
+                      en: "Could not seed initial transactions. Please try refreshing.",
+                      pt: "Não foi possível popular as transações iniciais. Por favor, atualize a página."
+                    }),
+                    variant: "destructive",
+                  });
+              }
             } else {
                setTransactions([]); 
             }
@@ -103,14 +141,25 @@ export default function DashboardPage() {
           setIsLoadingTransactions(false);
         }, (error) => {
           console.error("Error fetching transactions:", error);
+          toast({
+            title: translate({ en: "Transaction Error", pt: "Erro nas Transações" }),
+            description: translate({
+              en: "Could not fetch transactions. Please check your connection and ensure you are online.",
+              pt: "Não foi possível buscar as transações. Verifique sua conexão e se está online."
+            }),
+            variant: "destructive",
+          });
           setIsLoadingTransactions(false);
         });
         return () => unsubscribe(); 
+      } else {
+        // If redirected, ensure loading state is handled
+        setIsLoadingTransactions(false);
       }
     };
-    checkOnboarding();
+    checkOnboardingAndFetchTransactions();
 
-  }, [user, authLoading, router]);
+  }, [user, authLoading, router, toast, translate]); // Added toast and translate
 
 
   const MOCK_CURRENT_YEAR = new Date().getFullYear(); 

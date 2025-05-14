@@ -6,40 +6,50 @@ import { OnboardingForm } from '@/components/onboarding/onboarding-form';
 import { AppLogoIcon } from '@/components/icons';
 import { useAuth } from '@/context/auth-context';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react'; // Import useState
+import { useEffect, useState } from 'react';
 import { useLanguage } from '@/context/language-context';
-import { doc, getDoc } from "firebase/firestore"; // Import Firestore functions
-import { db } from "@/lib/firebase"; // Import db
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import { useToast } from "@/hooks/use-toast"; // Import useToast
 
 export default function OnboardingPage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const { translate } = useLanguage();
-  const [onboardingChecked, setOnboardingChecked] = useState(false); // New state
+  const { toast } = useToast(); // Initialize useToast
+  const [onboardingChecked, setOnboardingChecked] = useState(false);
 
   useEffect(() => {
     if (authLoading) {
-      return; // Wait for auth state to resolve
+      return; 
     }
     if (!user) {
-      router.push('/login'); // If no user, redirect to login
+      router.push('/login'); 
       return;
     }
 
-    // Check Firestore for onboarding status
     const checkOnboardingStatus = async () => {
+      if (!user) return; // Should not happen if already checked user above
       const userDocRef = doc(db, "users", user.uid);
       try {
         const userDocSnap = await getDoc(userDocRef);
         if (userDocSnap.exists() && userDocSnap.data().onboardingComplete) {
-          localStorage.setItem('onboardingComplete', 'true'); // Sync localStorage for safety
+          localStorage.setItem('onboardingComplete', 'true');
           router.push('/');
         } else {
-          localStorage.removeItem('onboardingComplete'); // Ensure localStorage is clear
-          setOnboardingChecked(true); // Mark as checked, allow form to render
+          localStorage.removeItem('onboardingComplete');
+          setOnboardingChecked(true); 
         }
       } catch (error) {
         console.error("Error checking onboarding status:", error);
+        toast({
+          title: translate({ en: "Connection Error", pt: "Erro de Conexão" }),
+          description: translate({
+            en: "Could not check your onboarding status. Please check your internet connection and try again.",
+            pt: "Não foi possível verificar seu status de onboarding. Verifique sua conexão com a internet e tente novamente."
+          }),
+          variant: "destructive",
+        });
         // Fallback: allow rendering the form if Firestore check fails,
         // it will re-check on form submit or next load.
         setOnboardingChecked(true);
@@ -48,7 +58,7 @@ export default function OnboardingPage() {
 
     checkOnboardingStatus();
 
-  }, [user, authLoading, router]);
+  }, [user, authLoading, router, toast, translate]);
 
 
   if (authLoading || !onboardingChecked) {
@@ -58,7 +68,7 @@ export default function OnboardingPage() {
       </div>
     );
   }
-  // If user is loaded, onboarding is not complete in Firestore, and checks are done, render the form
+  
   return (
     <div className="w-full min-h-screen bg-background text-foreground flex flex-col items-center justify-center p-4">
       <div className="w-full max-w-2xl">
