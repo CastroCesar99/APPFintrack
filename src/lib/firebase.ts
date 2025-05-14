@@ -1,7 +1,7 @@
 
 import { initializeApp, getApps, type FirebaseApp } from "firebase/app";
 import { getAuth, type Auth } from "firebase/auth";
-import { getFirestore, type Firestore, enableIndexedDbPersistence, CACHE_SIZE_UNLIMITED } from "firebase/firestore"; // Import Firestore and persistence
+import { getFirestore, type Firestore, enableIndexedDbPersistence, CACHE_SIZE_UNLIMITED } from "firebase/firestore";
 
 // Explicitly read environment variables
 const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
@@ -47,38 +47,56 @@ let app: FirebaseApp;
 let db: Firestore;
 let auth: Auth;
 
+// Define the specific database ID you want to use
+const databaseId = "fintrackdatabase";
+
 if (!getApps().length) {
   try {
     app = initializeApp(firebaseConfig);
-    db = getFirestore(app);
+    // Initialize Firestore with the specific database ID
+    db = getFirestore(app, databaseId);
     auth = getAuth(app);
     if (typeof window !== 'undefined') { // Ensure this only runs on the client
-      enableIndexedDbPersistence(db, {
+      enableIndexedDbPersistence(db, { // Pass the specific db instance here
           synchronizeTabs: true,
           cacheSizeBytes: CACHE_SIZE_UNLIMITED
         })
         .then(() => {
-          console.log("Firestore offline persistence enabled successfully.");
+          console.log(`Firestore offline persistence enabled successfully for database '${databaseId}'.`);
         })
         .catch((err) => {
           if (err.code === 'failed-precondition') {
-            console.warn("Firestore offline persistence failed: Multiple tabs open or other precondition not met. Data will not be synced offline across tabs.");
+            console.warn(`Firestore offline persistence for database '${databaseId}' failed: Multiple tabs open or other precondition not met. Data will not be synced offline across tabs.`);
           } else if (err.code === 'unimplemented') {
-            console.warn("Firestore offline persistence failed: The current browser does not support all of the features required to enable persistence.");
+            console.warn(`Firestore offline persistence for database '${databaseId}' failed: The current browser does not support all of the features required to enable persistence.`);
           } else {
-            console.error("Firestore offline persistence failed with error: ", err);
+            console.error(`Firestore offline persistence for database '${databaseId}' failed with error: `, err);
           }
         }
       );
     }
   } catch (error) {
     console.error("An error occurred during Firebase initialization:", error);
+    // Ensure db and auth are potentially null or handled if initialization fails critically
+    // Depending on the error, you might want to throw it or set a global error state
   }
 } else {
   app = getApps()[0];
-  db = getFirestore(app); // Ensure db is initialized in this path too
-  auth = getAuth(app);   // Ensure auth is initialized in this path too
+  // Ensure db is initialized with the specific database ID in this path too
+  db = getFirestore(app, databaseId);
+  auth = getAuth(app);
+}
+
+// Fallback if db somehow didn't get initialized (e.g. critical error during init)
+// This is a defensive measure; ideally, critical init errors should be handled more robustly.
+if (!db && app) {
+    console.warn("Firestore db was not initialized during the primary block, attempting fallback initialization for database:", databaseId);
+    db = getFirestore(app, databaseId);
+}
+if (!auth && app) {
+    console.warn("Firebase Auth was not initialized during the primary block, attempting fallback initialization.");
+    auth = getAuth(app);
 }
 
 
-export { app, auth, db }; // Export db
+export { app, auth, db };
