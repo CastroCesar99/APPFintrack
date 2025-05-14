@@ -7,7 +7,7 @@ import { AppLogoIcon } from '@/components/icons';
 
 export default function OnboardingPage() {
   return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col items-center justify-center p-4">
+    <div className="w-full min-h-screen bg-background text-foreground flex flex-col items-center justify-center p-4">
       <div className="w-full max-w-2xl">
         <div className="flex flex-col items-center mb-8">
           <AppLogoIcon className="h-12 w-12 text-primary mb-3" />
