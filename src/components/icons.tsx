@@ -54,7 +54,7 @@ export const PaymentMethodIcon: React.FC<PaymentMethodIconProps> = ({ methodName
 
 
 // Export commonly used app icons
-export const AppLogoIcon = PiggyBank;
+export const AppLogoIcon = () => <img src="/image/fintrack logo.png" alt="FinTrack Logo" className="h-8 w-8" />;
 export const SettingsIcon = Settings;
 export const DashboardIcon = LayoutDashboard;
 export const ExportIcon = FileText;
