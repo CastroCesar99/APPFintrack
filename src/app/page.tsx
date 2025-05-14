@@ -58,46 +58,68 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (authLoading) {
+      setIsLoadingTransactions(true); // Keep loading if auth is still pending
       return;
     }
+
     if (!user) {
       router.push('/login');
+      setIsLoadingTransactions(false); // Not fetching for non-user
       return;
     }
 
-    setIsLoadingTransactions(true);
+    // User is present and authLoading is false.
+    setIsLoadingTransactions(true); // Start loading transactions.
 
-    const checkOnboardingAndFetchTransactions = async () => {
+    let isEffectMounted = true;
+    let unsubscribeFromSnapshot: (() => void) | undefined;
+
+    const fetchData = async () => {
       try {
-        if (!user) {
-            setIsLoadingTransactions(false);
-            router.push('/login'); 
+        // This check might be redundant if already handled by the effect's user dependency,
+        // but it's a safeguard within the async flow.
+        if (!user) { 
+            if (isEffectMounted) {
+                router.push('/login');
+                setIsLoadingTransactions(false);
+            }
             return;
         }
 
         const userDocRef = doc(db, "users", user.uid);
         const userDocSnap = await getDoc(userDocRef);
 
+        if (!isEffectMounted) return;
+
         if (!userDocSnap.exists()) {
           console.warn("User document not found for UID:", user.uid, "Redirecting to signup.");
-          router.push('/signup');
-          setIsLoadingTransactions(false);
+          if (isEffectMounted) {
+            router.push('/signup');
+            setIsLoadingTransactions(false);
+          }
           return;
         }
 
         if (!userDocSnap.data().onboardingComplete) {
-          router.push('/onboarding');
-          setIsLoadingTransactions(false);
+          if (isEffectMounted) {
+            router.push('/onboarding');
+            setIsLoadingTransactions(false);
+          }
           return;
         }
 
+        // Onboarding complete, setup snapshot listener
         const transactionsColRef = collection(db, `users/${user.uid}/transactions`);
-        const q = query(transactionsColRef, orderBy("date", "desc"));
+        const q_transactions = query(transactionsColRef, orderBy("date", "desc"));
 
-        const unsubscribe = onSnapshot(q, async (querySnapshot) => {
-          if (querySnapshot.empty && querySnapshot.metadata.hasPendingWrites === false) {
+        unsubscribeFromSnapshot = onSnapshot(q_transactions, async (querySnapshot) => {
+          if (!isEffectMounted) return;
+
+          if (querySnapshot.empty && !querySnapshot.metadata.hasPendingWrites) {
             const userTransactionsStatusRef = doc(db, `users/${user.uid}/status`, "transactions");
             const statusSnap = await getDoc(userTransactionsStatusRef);
+
+            if (!isEffectMounted) return;
 
             if (!statusSnap.exists() || !statusSnap.data().seeded) {
               const batch = writeBatch(db);
@@ -111,10 +133,11 @@ export default function DashboardPage() {
               batch.set(userTransactionsStatusRef, { seeded: true, seededAt: serverTimestamp() });
               try {
                 await batch.commit();
-                setTransactions(seededTxs);
+                if (isEffectMounted) setTransactions(seededTxs);
               } catch (commitError) {
-                 console.error("Error seeding transactions:", commitError);
-                 toast({
+                console.error("Error seeding transactions:", commitError);
+                if (isEffectMounted) {
+                  toast({
                     title: translate({ en: "Seeding Error", pt: "Erro ao Popular Dados" }),
                     description: translate({
                       en: "Could not seed initial transactions. Please try refreshing.",
@@ -122,53 +145,55 @@ export default function DashboardPage() {
                     }),
                     variant: "destructive",
                   });
+                }
               }
             } else {
-               setTransactions([]);
+              if (isEffectMounted) setTransactions([]);
             }
           } else {
             const fetchedTransactions = querySnapshot.docs.map(docSnap => ({
               id: docSnap.id,
               ...docSnap.data(),
             } as Transaction));
-            setTransactions(fetchedTransactions);
+            if (isEffectMounted) setTransactions(fetchedTransactions);
           }
-          setIsLoadingTransactions(false);
+          if (isEffectMounted) setIsLoadingTransactions(false);
         }, (error) => {
+          if (!isEffectMounted) return;
           console.error("Error fetching transactions:", error);
+          if (isEffectMounted) {
+            toast({
+              title: translate({ en: "Transaction Error", pt: "Erro nas Transações" }),
+              description: translate({
+                en: "Could not fetch transactions. Please check your connection and ensure you are online.",
+                pt: "Não foi possível buscar as transações. Verifique sua conexão e se está online."
+              }),
+              variant: "destructive",
+            });
+            setIsLoadingTransactions(false);
+          }
+        });
+
+      } catch (error) {
+        if (!isEffectMounted) return;
+        console.error("Error in main data fetching logic for dashboard:", error);
+        if (isEffectMounted) {
           toast({
-            title: translate({ en: "Transaction Error", pt: "Erro nas Transações" }),
-            description: translate({
-              en: "Could not fetch transactions. Please check your connection and ensure you are online.",
-              pt: "Não foi possível buscar as transações. Verifique sua conexão e se está online."
-            }),
+            title: translate({ en: "Error", pt: "Erro" }),
+            description: translate({ en: "Could not load dashboard data. Please check your connection and try again.", pt: "Não foi possível carregar os dados do painel. Verifique sua conexão e tente novamente." }),
             variant: "destructive",
           });
           setIsLoadingTransactions(false);
-        });
-        return () => unsubscribe();
-
-      } catch (error) {
-        console.error("Error in checkOnboardingAndFetchTransactions:", error);
-        toast({
-          title: translate({ en: "Error", pt: "Erro" }),
-          description: translate({ en: "Could not load dashboard data. Please check your connection and try again.", pt: "Não foi possível carregar os dados do painel. Verifique sua conexão e tente novamente." }),
-          variant: "destructive",
-        });
-        setIsLoadingTransactions(false); 
+        }
       }
     };
 
-    let unsubscribeFromTransactions: (() => void) | undefined;
-    const manageTransactions = async () => {
-        unsubscribeFromTransactions = await checkOnboardingAndFetchTransactions();
-    }
-    manageTransactions();
-
+    fetchData();
 
     return () => {
-      if (unsubscribeFromTransactions) {
-        unsubscribeFromTransactions();
+      isEffectMounted = false;
+      if (unsubscribeFromSnapshot) {
+        unsubscribeFromSnapshot();
       }
     };
   }, [user, authLoading, router, toast, translate, language]);
