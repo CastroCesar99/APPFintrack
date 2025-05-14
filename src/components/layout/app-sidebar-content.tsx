@@ -36,10 +36,7 @@ export function AppSidebarContent() {
     pt: "Sair",
   });
 
-  const appTitle = translate({
-    en: "FinTrack",
-    pt: "FinTrack PT",
-  });
+  const appTitle = "FinTrack"; // Changed to static title
 
   const menuItems = [
     { href: "/", label: dashboardLabel, icon: DashboardIcon, exact: true },
