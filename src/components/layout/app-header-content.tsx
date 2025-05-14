@@ -22,7 +22,7 @@ export function AppHeaderContent() {
 
   const appTitle = translate({
     en: "FinTrack",
-    pt: "FinTrack PT",
+    pt: "FinTrack", // Kept as FinTrack based on previous request
   });
 
   const languageLabel = translate({
@@ -35,11 +35,16 @@ export function AppHeaderContent() {
     pt: "Configurações",
   });
 
-  let headerDisplayTitle = appTitle; // Default to translated app title
+  const welcomeMessage = translate({ en: "Welcome,", pt: "Bem Vindo," });
+  let headerDisplayTitle = appTitle; 
 
   if (!authLoading && user && user.displayName) {
-    headerDisplayTitle = user.displayName;
+    headerDisplayTitle = `${welcomeMessage} ${user.displayName}`;
+  } else if (!authLoading && user && !user.displayName) {
+    // Fallback if user exists but has no displayName, might show only welcome or app title
+    headerDisplayTitle = `${welcomeMessage}`; // Or keep as appTitle
   }
+
 
   return (
     <div className="flex h-14 items-center justify-between gap-4 border-b bg-background px-4 lg:px-6">
