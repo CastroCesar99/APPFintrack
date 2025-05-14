@@ -2,6 +2,7 @@
 "use client";
 import type React from 'react';
 import { useState, useEffect } from "react";
+import { useRouter } from 'next/navigation'; // Import useRouter
 import { AppLayout } from "@/components/layout/app-layout";
 import { SummarySection } from "@/components/dashboard/summary-section";
 import { QuickActionsSection } from "@/components/dashboard/quick-actions-section";
@@ -31,35 +32,40 @@ const initialTransactions: Transaction[] = [
 ];
 
 // Define a hardcoded budget for "Budget Status" card
-const MONTHLY_BUDGET = 900;
+const MONTHLY_BUDGET = 900; // This might be superseded by user-defined budgets later
 
 export default function DashboardPage() {
+  const router = useRouter();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isClient, setIsClient] = useState(false);
   const [currentMonthName, setCurrentMonthName] = useState('');
+  const [isLoadingOnboarding, setIsLoadingOnboarding] = useState(true);
+
 
   useEffect(() => {
     setIsClient(true);
-    const storedTransactions = localStorage.getItem('fintrack-transactions');
-    if (storedTransactions) {
-      setTransactions(JSON.parse(storedTransactions));
+    const onboardingComplete = localStorage.getItem('onboardingComplete');
+    if (!onboardingComplete) {
+      router.push('/onboarding');
     } else {
-      setTransactions(initialTransactions);
+      setIsLoadingOnboarding(false);
+      const storedTransactions = localStorage.getItem('fintrack-transactions');
+      if (storedTransactions) {
+        setTransactions(JSON.parse(storedTransactions));
+      } else {
+        setTransactions(initialTransactions);
+      }
     }
     // For "This Month" labels, using a fixed "May" to match screenshot context
-    // In a real app, this would be dynamic: new Date().toLocaleString('default', { month: 'long' })
     setCurrentMonthName('May'); 
-  }, []);
+  }, [router]); // Add router to dependency array
   
   useEffect(() => {
-    if(isClient) {
+    if(isClient && !isLoadingOnboarding) { // Only save if onboarding is complete
         localStorage.setItem('fintrack-transactions', JSON.stringify(transactions));
     }
-  }, [transactions, isClient]);
+  }, [transactions, isClient, isLoadingOnboarding]);
 
-  // For "This Month" calculations, we'll filter transactions.
-  // We'll use a fixed month (May 2025) for consistency with the screenshot.
-  // In a real app, this would be `new Date().getMonth()` and `new Date().getFullYear()`.
   const MOCK_CURRENT_YEAR = 2025;
   const MOCK_CURRENT_MONTH = 4; // 0-indexed for May
 
@@ -78,13 +84,12 @@ export default function DashboardPage() {
     .sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     .slice(0, 5);
 
-  if (!isClient) {
+  if (!isClient || isLoadingOnboarding) {
+    // Show a generic loading state or null while checking onboarding status or if not client yet
     return (
-      <AppLayout>
-        <div className="flex items-center justify-center h-full">
-          <p>Loading dashboard...</p>
+        <div className="flex items-center justify-center h-screen bg-background">
+          <p className="text-foreground">Loading...</p>
         </div>
-      </AppLayout>
     );
   }
 
@@ -133,5 +138,3 @@ export default function DashboardPage() {
     </AppLayout>
   );
 }
-
-    
