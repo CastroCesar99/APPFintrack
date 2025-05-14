@@ -48,26 +48,31 @@ let db: Firestore;
 let auth: Auth;
 
 if (!getApps().length) {
-  app = initializeApp(firebaseConfig);
-  db = getFirestore(app);
-  auth = getAuth(app);
-  if (typeof window !== 'undefined') { // Ensure this only runs on the client
-    enableIndexedDbPersistence(db, { 
-        synchronizeTabs: true, 
-        cacheSizeBytes: CACHE_SIZE_UNLIMITED 
-      })
-      .then(() => {
-        console.log("Firestore offline persistence enabled successfully.");
-      })
-      .catch((err) => {
-        if (err.code === 'failed-precondition') {
-          console.warn("Firestore offline persistence failed: Multiple tabs open or other precondition not met. Data will not be synced offline across tabs.");
-        } else if (err.code === 'unimplemented') {
-          console.warn("Firestore offline persistence failed: The current browser does not support all of the features required to enable persistence.");
-        } else {
-          console.error("Firestore offline persistence failed with error: ", err);
+  try {
+    app = initializeApp(firebaseConfig);
+    db = getFirestore(app);
+    auth = getAuth(app);
+    if (typeof window !== 'undefined') { // Ensure this only runs on the client
+      enableIndexedDbPersistence(db, {
+          synchronizeTabs: true,
+          cacheSizeBytes: CACHE_SIZE_UNLIMITED
+        })
+        .then(() => {
+          console.log("Firestore offline persistence enabled successfully.");
+        })
+        .catch((err) => {
+          if (err.code === 'failed-precondition') {
+            console.warn("Firestore offline persistence failed: Multiple tabs open or other precondition not met. Data will not be synced offline across tabs.");
+          } else if (err.code === 'unimplemented') {
+            console.warn("Firestore offline persistence failed: The current browser does not support all of the features required to enable persistence.");
+          } else {
+            console.error("Firestore offline persistence failed with error: ", err);
+          }
         }
-      });
+      );
+    }
+  } catch (error) {
+    console.error("An error occurred during Firebase initialization:", error);
   }
 } else {
   app = getApps()[0];

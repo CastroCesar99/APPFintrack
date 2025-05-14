@@ -27,9 +27,9 @@ import { CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import type { Transaction, TransactionType } from "@/types";
-import { CATEGORIES, getCategoriesByType, CategoryName } from "@/types";
-import { useToast } from "@/hooks/use-toast";
+import { CATEGORIES, getCategoriesByType, CategoryName, getCategoryLabel } from "@/types"; // Added getCategoryLabel
 import { useState, useEffect } from "react";
+import { useLanguage } from "@/context/language-context"; // Import useLanguage
 
 const formSchema = z.object({
   description: z.string().min(2, { message: "Description must be at least 2 characters." }).max(100),
@@ -42,20 +42,22 @@ const formSchema = z.object({
 type TransactionFormValues = z.infer<typeof formSchema>;
 
 interface TransactionFormProps {
-  onAddTransaction: (transaction: Omit<Transaction, "id">) => void;
+  onAddTransaction: (transaction: Omit<Transaction, "id">) => Promise<void>; // Changed to Promise<void> to allow async handling
+  initialType?: TransactionType;
 }
 
-export function TransactionForm({ onAddTransaction }: TransactionFormProps) {
-  const { toast } = useToast();
-  const [selectedType, setSelectedType] = useState<TransactionType>("expense");
-  const [availableCategories, setAvailableCategories] = useState(() => getCategoriesByType("expense"));
+export function TransactionForm({ onAddTransaction, initialType = "expense" }: TransactionFormProps) {
+  const { language, translate } = useLanguage(); // Use language context
+  const [selectedType, setSelectedType] = useState<TransactionType>(initialType);
+  const [availableCategories, setAvailableCategories] = useState(() => getCategoriesByType(initialType, language));
+
 
   const form = useForm<TransactionFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       description: "",
       amount: 0,
-      type: "expense",
+      type: initialType,
       category: "",
       date: new Date(),
     },
@@ -64,35 +66,63 @@ export function TransactionForm({ onAddTransaction }: TransactionFormProps) {
   const typeFieldValue = form.watch("type");
 
   useEffect(() => {
-    setSelectedType(typeFieldValue);
-    const newCategories = getCategoriesByType(typeFieldValue);
+    form.setValue("type", initialType);
+    setSelectedType(initialType);
+    const newCategories = getCategoriesByType(initialType, language);
     setAvailableCategories(newCategories);
+    form.setValue("category", "", { shouldValidate: true }); // Reset category when initialType changes
+  }, [initialType, form, language]);
 
-    const currentCategoryInForm = form.getValues("category");
-    if (currentCategoryInForm) {
-      const isCategoryStillValid = newCategories.some(cat => cat.name === currentCategoryInForm);
-      if (!isCategoryStillValid) {
-        form.setValue("category", "", { shouldValidate: true });
+
+  useEffect(() => {
+    // This effect reacts to user changing the type via radio buttons
+    if (typeFieldValue !== selectedType) {
+      setSelectedType(typeFieldValue);
+      const newCategories = getCategoriesByType(typeFieldValue, language);
+      setAvailableCategories(newCategories);
+
+      const currentCategoryInForm = form.getValues("category");
+      if (currentCategoryInForm) {
+        const isCategoryStillValid = newCategories.some(cat => cat.name === currentCategoryInForm);
+        if (!isCategoryStillValid) {
+          form.setValue("category", "", { shouldValidate: true });
+        }
       }
     }
-  }, [typeFieldValue, form, setSelectedType, setAvailableCategories]);
+  }, [typeFieldValue, form, language, selectedType]);
 
 
-  function onSubmit(values: TransactionFormValues) {
-    onAddTransaction({
+  async function onSubmit(values: TransactionFormValues) {
+    await onAddTransaction({
       ...values,
       date: format(values.date, "yyyy-MM-dd"), // Format date to string
       category: values.category as CategoryName,
     });
-    toast({
-      title: "Transaction Added",
-      description: `${values.description} for ${values.amount} has been added.`,
+    // Toast is now handled by the parent component (QuickActionsSection)
+    form.reset({
+        description: "",
+        amount: 0,
+        type: initialType, // Reset to initial type or a default like 'expense'
+        category: "",
+        date: new Date(),
     });
-    form.reset();
-    // Reset date to today after submission
-    form.setValue("date", new Date()); 
-    form.setValue("type", "expense"); // Reset type to expense
+    // Ensure type related state is also reset if form is part of a dialog being reused
+    setSelectedType(initialType);
+    setAvailableCategories(getCategoriesByType(initialType, language));
   }
+
+  const descriptionLabel = translate({ en: "Description", pt: "Descrição" });
+  const descriptionPlaceholder = translate({ en: "e.g., Coffee, Salary", pt: "ex: Café, Salário" });
+  const amountLabel = translate({ en: "Amount", pt: "Valor" });
+  const typeLabel = translate({ en: "Type", pt: "Tipo" });
+  const incomeLabel = translate({ en: "Income", pt: "Receita" });
+  const expenseLabel = translate({ en: "Expense", pt: "Despesa" });
+  const categoryLabel = translate({ en: "Category", pt: "Categoria" });
+  const categoryPlaceholder = translate({ en: "Select a category", pt: "Selecione uma categoria" });
+  const dateLabel = translate({ en: "Date", pt: "Data" });
+  const pickDateLabel = translate({ en: "Pick a date", pt: "Escolha uma data" });
+  const addTransactionButtonLabel = translate({ en: "Add Transaction", pt: "Adicionar Transação" });
+
 
   return (
     <Form {...form}>
@@ -102,9 +132,9 @@ export function TransactionForm({ onAddTransaction }: TransactionFormProps) {
           name="description"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Description</FormLabel>
+              <FormLabel>{descriptionLabel}</FormLabel>
               <FormControl>
-                <Input placeholder="e.g., Coffee, Salary" {...field} />
+                <Input placeholder={descriptionPlaceholder} {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -115,9 +145,9 @@ export function TransactionForm({ onAddTransaction }: TransactionFormProps) {
           name="amount"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Amount</FormLabel>
+              <FormLabel>{amountLabel}</FormLabel>
               <FormControl>
-                <Input type="number" placeholder="0.00" {...field} />
+                <Input type="number" step="0.01" placeholder="0.00" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -128,27 +158,26 @@ export function TransactionForm({ onAddTransaction }: TransactionFormProps) {
           name="type"
           render={({ field }) => (
             <FormItem className="space-y-3">
-              <FormLabel>Type</FormLabel>
+              <FormLabel>{typeLabel}</FormLabel>
               <FormControl>
                 <RadioGroup
                   onValueChange={(value) => {
                     field.onChange(value);
-                    // setSelectedType(value as TransactionType); // This state is now updated via useEffect based on form.watch("type")
                   }}
-                  defaultValue={field.value}
+                  value={field.value} // Controlled component
                   className="flex space-x-4"
                 >
                   <FormItem className="flex items-center space-x-2 space-y-0">
                     <FormControl>
                       <RadioGroupItem value="income" />
                     </FormControl>
-                    <FormLabel className="font-normal">Income</FormLabel>
+                    <FormLabel className="font-normal">{incomeLabel}</FormLabel>
                   </FormItem>
                   <FormItem className="flex items-center space-x-2 space-y-0">
                     <FormControl>
                       <RadioGroupItem value="expense" />
                     </FormControl>
-                    <FormLabel className="font-normal">Expense</FormLabel>
+                    <FormLabel className="font-normal">{expenseLabel}</FormLabel>
                   </FormItem>
                 </RadioGroup>
               </FormControl>
@@ -161,17 +190,17 @@ export function TransactionForm({ onAddTransaction }: TransactionFormProps) {
           name="category"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Category</FormLabel>
+              <FormLabel>{categoryLabel}</FormLabel>
               <Select onValueChange={field.onChange} value={field.value} disabled={availableCategories.length === 0}>
                 <FormControl>
                   <SelectTrigger>
-                    <SelectValue placeholder="Select a category" />
+                    <SelectValue placeholder={categoryPlaceholder} />
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
                   {availableCategories.map((cat) => (
                     <SelectItem key={cat.name} value={cat.name}>
-                      {cat.name}
+                      {getCategoryLabel(cat.name, language)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -185,7 +214,7 @@ export function TransactionForm({ onAddTransaction }: TransactionFormProps) {
           name="date"
           render={({ field }) => (
             <FormItem className="flex flex-col">
-              <FormLabel>Date</FormLabel>
+              <FormLabel>{dateLabel}</FormLabel>
               <Popover>
                 <PopoverTrigger asChild>
                   <FormControl>
@@ -199,7 +228,7 @@ export function TransactionForm({ onAddTransaction }: TransactionFormProps) {
                       {field.value ? (
                         format(field.value, "PPP")
                       ) : (
-                        <span>Pick a date</span>
+                        <span>{pickDateLabel}</span>
                       )}
                       <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                     </Button>
@@ -221,7 +250,7 @@ export function TransactionForm({ onAddTransaction }: TransactionFormProps) {
             </FormItem>
           )}
         />
-        <Button type="submit" className="w-full bg-primary hover:bg-primary/90">Add Transaction</Button>
+        <Button type="submit" className="w-full bg-primary hover:bg-primary/90">{addTransactionButtonLabel}</Button>
       </form>
     </Form>
   );
