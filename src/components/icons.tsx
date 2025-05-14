@@ -4,51 +4,56 @@ import type { LucideProps, LucideIcon } from 'lucide-react';
 import {
   Briefcase, ShoppingCart, Home, Zap, Replace, Utensils, Car, HeartPulse,
   Film, ShoppingBag, Plane, BookOpen, Gift, TrendingUp, Laptop, DollarSign, CircleHelp, PiggyBank, Settings, LayoutDashboard, FileText,
-  ListChecks, 
-  PlusCircle, 
+  ListChecks,
+  PlusCircle,
   SlidersHorizontal,
-  Wallet, // For Dinheiro
-  CreditCard, // For Cartão de Débito/Crédito
-  Sparkles // For Personal Care / Cuidados Pessoais
+  Wallet,
+  CreditCard,
+  Sparkles,
+  Archive, Bell, Box, Camera, Cog, Coins, Flag, Folder, Key, Mail, MapPin, Package, Pen, Phone, Receipt, Shield, Tag, Trash, User, Wrench
 } from 'lucide-react';
 import type { CategoryName, PaymentMethodName } from '@/types';
 import { CATEGORIES, PAYMENT_METHODS } from '@/types';
 
-// Centralized icon map based on CATEGORIES constant
-export const categoryIconsMap: Record<CategoryName, LucideIcon> = CATEGORIES.reduce((acc, category) => {
-  const iconMapping: Record<string, LucideIcon> = {
-    Briefcase, ShoppingCart, Home, Zap, Replace, Utensils, Car, HeartPulse,
-    Film, ShoppingBag, Plane, BookOpen, Gift, TrendingUp, Laptop, DollarSign, CircleHelp, Sparkles
-  };
-  acc[category.name] = iconMapping[category.icon] || CircleHelp;
-  return acc;
-}, {} as Record<CategoryName, LucideIcon>);
+// Centralized map of icon string names to Lucide components
+// This map will be used for both predefined and user-selected icons.
+export const iconNameToComponentMap: Record<string, LucideIcon> = {
+  Briefcase, ShoppingCart, Home, Zap, Replace, Utensils, Car, HeartPulse,
+  Film, ShoppingBag, Plane, BookOpen, Gift, TrendingUp, Laptop, DollarSign, CircleHelp, PiggyBank, Settings, LayoutDashboard, FileText,
+  ListChecks, PlusCircle, SlidersHorizontal, Wallet, CreditCard, Sparkles,
+  // Additional icons available for user selection:
+  Archive, Bell, Box, Camera, Cog, Coins, Flag, Folder, Key, Mail, MapPin, Package, Pen, Phone, Receipt, Shield, Tag, Trash, User, Wrench
+};
 
 
-interface CategoryIconProps extends LucideProps {
-  categoryName: CategoryName | string;
+interface DynamicIconProps extends LucideProps {
+  iconName: string;
 }
 
-export const CategoryIcon: React.FC<CategoryIconProps> = ({ categoryName, ...props }) => {
-  const IconComponent = categoryIconsMap[categoryName as CategoryName] || CircleHelp;
+export const DynamicIcon: React.FC<DynamicIconProps> = ({ iconName, ...props }) => {
+  const IconComponent = iconNameToComponentMap[iconName] || CircleHelp;
   return <IconComponent {...props} />;
 };
 
-// Icon map for Payment Methods
-export const paymentMethodIconsMap: Record<PaymentMethodName, LucideIcon> = PAYMENT_METHODS.reduce((acc, method) => {
-  const iconMapping: Record<string, LucideIcon> = {
-    Wallet, CreditCard
-  };
-  acc[method.name] = iconMapping[method.icon] || CircleHelp;
-  return acc;
-}, {} as Record<PaymentMethodName, LucideIcon>);
+// Keeping CategoryIcon and PaymentMethodIcon for semantic clarity in use,
+// but they will now use DynamicIcon internally or a similar lookup.
 
-interface PaymentMethodIconProps extends LucideProps {
-  methodName: PaymentMethodName | string;
+interface CategoryIconProps extends LucideProps {
+  iconName: string; // Now directly takes the icon name string
 }
 
-export const PaymentMethodIcon: React.FC<PaymentMethodIconProps> = ({ methodName, ...props }) => {
-  const IconComponent = paymentMethodIconsMap[methodName as PaymentMethodName] || CircleHelp;
+export const CategoryIcon: React.FC<CategoryIconProps> = ({ iconName, ...props }) => {
+  const IconComponent = iconNameToComponentMap[iconName] || CircleHelp;
+  return <IconComponent {...props} />;
+};
+
+
+interface PaymentMethodIconProps extends LucideProps {
+  iconName: string; // Now directly takes the icon name string
+}
+
+export const PaymentMethodIcon: React.FC<PaymentMethodIconProps> = ({ iconName, ...props }) => {
+  const IconComponent = iconNameToComponentMap[iconName] || CircleHelp;
   return <IconComponent {...props} />;
 };
 
@@ -59,5 +64,14 @@ export const SettingsIcon = Settings;
 export const DashboardIcon = LayoutDashboard;
 export const ExportIcon = FileText;
 
-// Export new icons for direct use if needed
+// Export new icons for direct use if needed (already exported by name from lucide-react)
 export { ListChecks, PlusCircle, SlidersHorizontal };
+
+// Helper function to get a list of selectable icons for dropdowns
+export const getSelectableIcons = () => {
+  return Object.entries(iconNameToComponentMap).map(([name, Component]) => ({
+    value: name,
+    label: name.replace(/([A-Z](?=[a-z]))|([A-Z]+(?=[A-Z][a-z]|$))/g, ' $1$2').trimStart(), // Add spaces for readability
+    iconComponent: Component as LucideIcon,
+  })).sort((a,b) => a.label.localeCompare(b.label)); // Sort alphabetically by label
+};
