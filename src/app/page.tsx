@@ -49,35 +49,46 @@ export default function DashboardPage() {
   const userId = user?.uid;
 
   useEffect(() => {
+    // console.log("Dashboard: isClient useEffect running");
     setIsClient(true);
     if (language) {
       const date = new Date();
       const month = date.toLocaleString(language === 'pt' ? 'pt-BR' : 'en-US', { month: 'long' });
       setCurrentMonthName(month.charAt(0).toUpperCase() + month.slice(1));
+      // console.log("Dashboard: currentMonthName set to", month.charAt(0).toUpperCase() + month.slice(1));
     }
   }, [language]);
 
   useEffect(() => {
     let isEffectMounted = true;
     let unsubscribeFromSnapshot: (() => void) | undefined;
+    console.log("Dashboard: Main data fetching useEffect TRACER --- Start. AuthLoading:", authLoading, "UserId:", userId, "isLoadingTransactions:", isLoadingTransactions);
+
 
     const fetchData = async () => {
-      if (!isEffectMounted) return;
+      if (!isEffectMounted) {
+        console.log("Dashboard: TRACER --- fetchData aborted, effect unmounted early.");
+        return;
+      }
 
       if (authLoading) {
-        console.log("Dashboard: Auth is loading. Setting isLoadingTransactions to true.");
-        if (isEffectMounted) setIsLoadingTransactions(true);
+        console.log("Dashboard: TRACER --- Auth is loading. Waiting...");
+        // No need to set isLoadingTransactions(true) here; main loading div handles it.
         return;
       }
 
       if (!userId) {
-        console.log("Dashboard: No user ID. Redirecting to login. Setting isLoadingTransactions to false.");
+        console.log("Dashboard: TRACER --- No user ID after auth. Redirecting to login.");
         router.push('/login');
-        if (isEffectMounted) setIsLoadingTransactions(false);
+        if (isEffectMounted) {
+            console.log("Dashboard: TRACER --- Setting isLoadingTransactions to FALSE (no userId).");
+            setIsLoadingTransactions(false);
+        }
         return;
       }
       
-      console.log("Dashboard: Auth resolved, user ID available. Setting isLoadingTransactions to true to fetch data.");
+      console.log("Dashboard: TRACER --- Auth resolved, user ID available. Setting isLoadingTransactions to TRUE to fetch user data.");
+      // This is the primary point to set loading for user-specific data
       if (isEffectMounted) setIsLoadingTransactions(true);
 
       try {
@@ -85,43 +96,49 @@ export default function DashboardPage() {
         const userDocSnap = await getDoc(userDocRef);
 
         if (!isEffectMounted) {
-          console.log("Dashboard: Effect unmounted while fetching user doc.");
+          console.log("Dashboard: TRACER --- fetchData aborted, effect unmounted while fetching user doc.");
           return;
         }
 
         if (!userDocSnap.exists()) {
-          console.warn("Dashboard: User document not found. Redirecting to signup. Setting isLoadingTransactions to false.");
+          console.warn("Dashboard: TRACER --- User document not found. Redirecting to signup.");
           router.push('/signup');
-          if (isEffectMounted) setIsLoadingTransactions(false);
+          if (isEffectMounted) {
+            console.log("Dashboard: TRACER --- Setting isLoadingTransactions to FALSE (user doc not found).");
+            setIsLoadingTransactions(false);
+          }
           return;
         }
 
         if (!userDocSnap.data().onboardingComplete) {
-          console.log("Dashboard: User onboarding not complete. Redirecting to onboarding. Setting isLoadingTransactions to false.");
+          console.log("Dashboard: TRACER --- User onboarding not complete. Redirecting to onboarding.");
           router.push('/onboarding');
-          if (isEffectMounted) setIsLoadingTransactions(false);
+          if (isEffectMounted) {
+            console.log("Dashboard: TRACER --- Setting isLoadingTransactions to FALSE (onboarding not complete).");
+            setIsLoadingTransactions(false);
+          }
           return;
         }
         
-        console.log("Dashboard: User onboarding complete. Setting up onSnapshot listener for transactions.");
+        console.log("Dashboard: TRACER --- User onboarding complete. Setting up onSnapshot listener for transactions.");
         const transactionsColRef = collection(db, `users/${userId}/transactions`);
         const q_transactions = query(transactionsColRef, orderBy("date", "desc"));
 
         unsubscribeFromSnapshot = onSnapshot(q_transactions, async (querySnapshot) => {
           if (!isEffectMounted) {
-            console.log("Dashboard: onSnapshot fired but effect is unmounted.");
+            console.log("Dashboard: TRACER --- onSnapshot fired but effect is unmounted.");
             return;
           }
-          console.log(`Dashboard: Transactions snapshot received. Empty: ${querySnapshot.empty}, PendingWrites: ${querySnapshot.metadata.hasPendingWrites}`);
+          console.log(`Dashboard: TRACER --- Transactions snapshot received. Empty: ${querySnapshot.empty}, PendingWrites: ${querySnapshot.metadata.hasPendingWrites}`);
 
           if (querySnapshot.empty && !querySnapshot.metadata.hasPendingWrites) {
-            console.log("Dashboard: Transactions snapshot is empty and no pending writes. Checking seed status.");
+            console.log("Dashboard: TRACER --- Transactions snapshot is empty and no pending writes. Checking seed status.");
             const userTransactionsStatusRef = doc(db, `users/${userId}/status`, "transactions");
             let statusSnap;
             try {
               statusSnap = await getDoc(userTransactionsStatusRef);
             } catch (docError) {
-               console.error("Dashboard: Error fetching transaction status doc:", docError);
+               console.error("Dashboard: TRACER --- Error fetching transaction status doc:", docError);
                if (isEffectMounted) {
                  toast({
                     title: translate({ en: "Connection Error", pt: "Erro de Conexão" }),
@@ -129,15 +146,19 @@ export default function DashboardPage() {
                     variant: "destructive",
                   });
                   setTransactions([]); 
-                  setIsLoadingTransactions(false); // Stop loading on error
+                  console.log("Dashboard: TRACER --- Setting isLoadingTransactions to FALSE (error fetching transaction status).");
+                  setIsLoadingTransactions(false);
                }
                return;
             }
             
-            if (!isEffectMounted) return;
+            if (!isEffectMounted) {
+              console.log("Dashboard: TRACER --- onSnapshot aborted, effect unmounted while checking seed status.");
+              return;
+            }
 
             if (!statusSnap.exists() || !statusSnap.data().seeded) {
-              console.log("Dashboard: Transactions not seeded. Seeding now.");
+              console.log("Dashboard: TRACER --- Transactions not seeded. Seeding now.");
               const batch = writeBatch(db);
               seedTransactions.forEach(txData => {
                 const id = uuidv4();
@@ -147,11 +168,11 @@ export default function DashboardPage() {
               batch.set(userTransactionsStatusRef, { seeded: true, seededAt: serverTimestamp() });
               try {
                 await batch.commit();
-                console.log("Dashboard: Seed transactions committed. Waiting for onSnapshot to reflect changes.");
+                console.log("Dashboard: TRACER --- Seed transactions committed. Waiting for onSnapshot to reflect changes (isLoadingTransactions remains true).");
                 // We intentionally DO NOT set isLoadingTransactions(false) here.
-                // The onSnapshot listener will fire again with the new data, and that will handle it.
+                // The onSnapshot listener will fire again with the new data.
               } catch (commitError) {
-                console.error("Dashboard: Error seeding transactions:", commitError);
+                console.error("Dashboard: TRACER --- Error seeding transactions:", commitError);
                 if (isEffectMounted) {
                   toast({
                     title: translate({ en: "Seeding Error", pt: "Erro ao Popular Dados" }),
@@ -161,31 +182,37 @@ export default function DashboardPage() {
                     }),
                     variant: "destructive",
                   });
-                  setTransactions([]); // Show empty
-                  setIsLoadingTransactions(false); // Stop loading on seeding error
+                  setTransactions([]);
+                  console.log("Dashboard: TRACER --- Setting isLoadingTransactions to FALSE (error seeding transactions).");
+                  setIsLoadingTransactions(false);
                 }
               }
             } else {
-              console.log("Dashboard: Transactions collection is empty, but already marked as seeded.");
+              console.log("Dashboard: TRACER --- Transactions collection is empty, but already marked as seeded.");
               if (isEffectMounted) {
                 setTransactions([]);
-                setIsLoadingTransactions(false); // Confirmed empty, stop loading
+                console.log("Dashboard: TRACER --- Setting isLoadingTransactions to FALSE (confirmed empty and seeded).");
+                setIsLoadingTransactions(false);
               }
             }
-          } else { // Snapshot has data or pending writes
-            console.log(`Dashboard: Processing ${querySnapshot.docs.length} transactions. Has pending writes: ${querySnapshot.metadata.hasPendingWrites}.`);
+          } else { 
+            console.log(`Dashboard: TRACER --- Processing ${querySnapshot.docs.length} transactions. Has pending writes: ${querySnapshot.metadata.hasPendingWrites}.`);
             const fetchedTransactions = querySnapshot.docs.map(docSnap => ({
               id: docSnap.id,
               ...docSnap.data(),
             } as Transaction));
             if (isEffectMounted) {
               setTransactions(fetchedTransactions);
-              setIsLoadingTransactions(false); // Data processed, stop loading
+              console.log("Dashboard: TRACER --- Setting isLoadingTransactions to FALSE (data processed from snapshot).");
+              setIsLoadingTransactions(false);
             }
           }
-        }, (error) => { // Error callback for onSnapshot
-          if (!isEffectMounted) return;
-          console.error("Dashboard: Error listening to transactions snapshot:", error);
+        }, (error) => { 
+          if (!isEffectMounted) {
+            console.log("Dashboard: TRACER --- onSnapshot error callback, but effect unmounted.");
+            return;
+          }
+          console.error("Dashboard: TRACER --- Error listening to transactions snapshot:", error);
           if (isEffectMounted) {
             toast({
               title: translate({ en: "Transaction Error", pt: "Erro nas Transações" }),
@@ -195,20 +222,25 @@ export default function DashboardPage() {
               }),
               variant: "destructive",
             });
-            setIsLoadingTransactions(false); // Stop loading on snapshot listener error
+            console.log("Dashboard: TRACER --- Setting isLoadingTransactions to FALSE (snapshot listener error).");
+            setIsLoadingTransactions(false);
           }
         });
 
       } catch (error) {
-        if (!isEffectMounted) return;
-        console.error("Dashboard: Error in main data fetching logic:", error);
+        if (!isEffectMounted) {
+          console.log("Dashboard: TRACER --- Main fetchData try-catch, but effect unmounted.");
+          return;
+        }
+        console.error("Dashboard: TRACER --- Error in main data fetching logic (outer try-catch):", error);
         if (isEffectMounted) {
           toast({
             title: translate({ en: "Error", pt: "Erro" }),
             description: translate({ en: "Could not load dashboard data. Please check connection.", pt: "Não foi possível carregar dados do painel. Verifique sua conexão." }),
             variant: "destructive",
           });
-          setIsLoadingTransactions(false); // Stop loading on main fetch error
+          console.log("Dashboard: TRACER --- Setting isLoadingTransactions to FALSE (main fetch logic error).");
+          setIsLoadingTransactions(false);
         }
       }
     };
@@ -216,13 +248,14 @@ export default function DashboardPage() {
     fetchData();
 
     return () => {
-      console.log("Dashboard: useEffect cleanup. Unsubscribing from snapshot if active.");
+      console.log("Dashboard: TRACER --- Main data fetching useEffect CLEANUP. Unsubscribing from snapshot if active.");
       isEffectMounted = false;
       if (unsubscribeFromSnapshot) {
         unsubscribeFromSnapshot();
       }
     };
-  }, [userId, authLoading, router, toast, translate, language]);
+  // Removed translate and language from dependencies to test stability
+  }, [userId, authLoading, router, toast]); 
 
   const transactionsThisMonth = useMemo(() => {
     const currentYear = new Date().getFullYear();
@@ -249,12 +282,14 @@ export default function DashboardPage() {
 
 
   if (!isClient || authLoading || isLoadingTransactions) {
+    // console.log("Dashboard: TRACER --- RENDERING LOADING SCREEN. isClient:", isClient, "authLoading:", authLoading, "isLoadingTransactions:", isLoadingTransactions);
     return (
         <div className="flex items-center justify-center h-screen w-full bg-background">
           <p className="text-foreground">{translate({ en: "Loading...", pt: "Carregando..."})}</p>
         </div>
     );
   }
+  // console.log("Dashboard: TRACER --- RENDERING DASHBOARD CONTENT.");
 
 
   return (
@@ -307,3 +342,4 @@ export default function DashboardPage() {
     </AppLayout>
   );
 }
+
