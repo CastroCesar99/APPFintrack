@@ -46,6 +46,7 @@ export default function DashboardPage() {
   const [currentMonthName, setCurrentMonthName] = useState('');
   const [isClient, setIsClient] = useState(false);
 
+  const userId = user?.uid;
 
   useEffect(() => {
     setIsClient(true);
@@ -57,67 +58,72 @@ export default function DashboardPage() {
   }, [language]);
 
   useEffect(() => {
-    if (authLoading) {
-      setIsLoadingTransactions(true); // Keep loading if auth is still pending
-      return;
-    }
-
-    if (!user) {
-      router.push('/login');
-      setIsLoadingTransactions(false); // Not fetching for non-user
-      return;
-    }
-
-    // User is present and authLoading is false.
-    setIsLoadingTransactions(true); // Start loading transactions.
-
     let isEffectMounted = true;
     let unsubscribeFromSnapshot: (() => void) | undefined;
 
     const fetchData = async () => {
-      try {
-        // This check might be redundant if already handled by the effect's user dependency,
-        // but it's a safeguard within the async flow.
-        if (!user) { 
-            if (isEffectMounted) {
-                router.push('/login');
-                setIsLoadingTransactions(false);
-            }
-            return;
-        }
+      if (!isEffectMounted) return;
 
-        const userDocRef = doc(db, "users", user.uid);
+      if (authLoading) {
+        if (isEffectMounted) setIsLoadingTransactions(true);
+        return;
+      }
+
+      if (!userId) { // Use userId here
+        router.push('/login');
+        if (isEffectMounted) setIsLoadingTransactions(false);
+        return;
+      }
+      
+      if (isEffectMounted) setIsLoadingTransactions(true);
+
+      try {
+        const userDocRef = doc(db, "users", userId); // Use userId here
         const userDocSnap = await getDoc(userDocRef);
 
-        if (!isEffectMounted) return;
+        if (!isEffectMounted) {
+          // No need to set loading false here if we are unmounted, cleanup will handle
+          return;
+        }
 
         if (!userDocSnap.exists()) {
-          console.warn("User document not found for UID:", user.uid, "Redirecting to signup.");
-          if (isEffectMounted) {
-            router.push('/signup');
-            setIsLoadingTransactions(false);
-          }
+          console.warn("User document not found for UID:", userId, "Redirecting to signup.");
+          router.push('/signup');
+          if (isEffectMounted) setIsLoadingTransactions(false);
           return;
         }
 
         if (!userDocSnap.data().onboardingComplete) {
-          if (isEffectMounted) {
-            router.push('/onboarding');
-            setIsLoadingTransactions(false);
-          }
+          router.push('/onboarding');
+          if (isEffectMounted) setIsLoadingTransactions(false);
           return;
         }
 
-        // Onboarding complete, setup snapshot listener
-        const transactionsColRef = collection(db, `users/${user.uid}/transactions`);
+        const transactionsColRef = collection(db, `users/${userId}/transactions`); // Use userId here
         const q_transactions = query(transactionsColRef, orderBy("date", "desc"));
 
         unsubscribeFromSnapshot = onSnapshot(q_transactions, async (querySnapshot) => {
           if (!isEffectMounted) return;
 
           if (querySnapshot.empty && !querySnapshot.metadata.hasPendingWrites) {
-            const userTransactionsStatusRef = doc(db, `users/${user.uid}/status`, "transactions");
-            const statusSnap = await getDoc(userTransactionsStatusRef);
+            const userTransactionsStatusRef = doc(db, `users/${userId}/status`, "transactions"); // Use userId here
+            let statusSnap;
+            try {
+              statusSnap = await getDoc(userTransactionsStatusRef);
+            } catch (docError) {
+               console.error("Error fetching transaction status doc:", docError);
+               if (isEffectMounted) {
+                 toast({
+                    title: translate({ en: "Connection Error", pt: "Erro de Conexão" }),
+                    description: translate({ en: "Could not verify transaction status. Please check connection.", pt: "Não foi possível verificar o status das transações. Verifique a conexão."}),
+                    variant: "destructive",
+                  });
+                  setTransactions([]); 
+                  setIsLoadingTransactions(false);
+               }
+               return;
+            }
+            
 
             if (!isEffectMounted) return;
 
@@ -126,8 +132,8 @@ export default function DashboardPage() {
               const seededTxs: Transaction[] = [];
               seedTransactions.forEach(txData => {
                 const id = uuidv4();
-                const docRef = doc(db, `users/${user.uid}/transactions`, id);
-                batch.set(docRef, { ...txData, id, userId: user.uid, createdAt: serverTimestamp() });
+                const docRef = doc(db, `users/${userId}/transactions`, id); // Use userId here
+                batch.set(docRef, { ...txData, id, userId: userId, createdAt: serverTimestamp() }); // Use userId here
                 seededTxs.push({ ...txData, id });
               });
               batch.set(userTransactionsStatusRef, { seeded: true, seededAt: serverTimestamp() });
@@ -165,8 +171,8 @@ export default function DashboardPage() {
             toast({
               title: translate({ en: "Transaction Error", pt: "Erro nas Transações" }),
               description: translate({
-                en: "Could not fetch transactions. Please check your connection and ensure you are online.",
-                pt: "Não foi possível buscar as transações. Verifique sua conexão e se está online."
+                en: "Could not fetch transactions. Please check your connection.",
+                pt: "Não foi possível buscar as transações. Verifique sua conexão."
               }),
               variant: "destructive",
             });
@@ -180,7 +186,7 @@ export default function DashboardPage() {
         if (isEffectMounted) {
           toast({
             title: translate({ en: "Error", pt: "Erro" }),
-            description: translate({ en: "Could not load dashboard data. Please check your connection and try again.", pt: "Não foi possível carregar os dados do painel. Verifique sua conexão e tente novamente." }),
+            description: translate({ en: "Could not load dashboard data. Please check connection.", pt: "Não foi possível carregar dados do painel. Verifique sua conexão." }),
             variant: "destructive",
           });
           setIsLoadingTransactions(false);
@@ -196,13 +202,13 @@ export default function DashboardPage() {
         unsubscribeFromSnapshot();
       }
     };
-  }, [user, authLoading, router, toast, translate, language]);
+  }, [userId, authLoading, router, toast, translate, language]);
 
   const transactionsThisMonth = useMemo(() => {
     const currentYear = new Date().getFullYear();
     const currentMonth = new Date().getMonth();
     return transactions.filter(t => {
-      const transactionDate = new Date(t.date); // Assuming t.date is 'YYYY-MM-DD'
+      const transactionDate = new Date(t.date);
       return transactionDate.getFullYear() === currentYear && transactionDate.getMonth() === currentMonth;
     });
   }, [transactions]);
@@ -281,3 +287,4 @@ export default function DashboardPage() {
     </AppLayout>
   );
 }
+
