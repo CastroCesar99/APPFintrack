@@ -2,7 +2,8 @@
 "use client";
 
 import type React from 'react';
-import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback }
+  from 'react';
 
 type Language = 'en' | 'pt';
 
@@ -15,20 +16,28 @@ interface LanguageContextType {
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
-  const [language, setLanguageState] = useState<Language>('pt'); // Default to Portuguese
-
-  // Memoize setLanguage correctly, ensuring it has access to the latest setLanguageState
-  const setLanguage = useCallback((lang: Language) => {
-    localStorage.setItem('userLanguage', lang);
-    setLanguageState(lang);
-  }, [setLanguageState]); // setLanguageState is stable, listing it is best practice
-
-  useEffect(() => {
-    const storedLanguage = localStorage.getItem('userLanguage') as Language | null;
-    if (storedLanguage && ['en', 'pt'].includes(storedLanguage)) {
-      setLanguage(storedLanguage); // Use the memoized setLanguage to initialize
+  // Initialize state directly from localStorage if available, otherwise default to 'pt'
+  const [language, setLanguageState] = useState<Language>(() => {
+    if (typeof window !== 'undefined') { // Ensure localStorage is available (client-side)
+      const storedLanguage = localStorage.getItem('userLanguage') as Language | null;
+      if (storedLanguage && ['en', 'pt'].includes(storedLanguage)) {
+        return storedLanguage;
+      }
     }
-  }, [setLanguage]); // Depend on the memoized setLanguage
+    return 'pt'; // Default language
+  });
+
+  // Effect to update localStorage whenever the language state changes
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('userLanguage', language);
+    }
+  }, [language]);
+
+  // Callback to set the language state
+  const setLanguage = useCallback((lang: Language) => {
+    setLanguageState(lang); // This will trigger the useEffect above to save to localStorage
+  }, [setLanguageState]); // setLanguageState is stable
 
   const translate = useCallback((translations: Record<Language, string>): string => {
     return translations[language] || translations['en'] || Object.values(translations)[0] || '';
@@ -48,4 +57,3 @@ export function useLanguage(): LanguageContextType {
   }
   return context;
 }
-
