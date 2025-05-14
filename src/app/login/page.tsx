@@ -8,10 +8,12 @@ import { LoginForm } from '@/components/auth/login-form';
 import { useAuth } from '@/context/auth-context';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
+import { useLanguage } from '@/context/language-context';
 
 export default function LoginPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
+  const { translate } = useLanguage();
 
   useEffect(() => {
     if (!loading && user) {
@@ -23,20 +25,26 @@ export default function LoginPage() {
     // Show loading or blank screen while checking auth status or redirecting
     return (
       <div className="flex items-center justify-center h-screen bg-background">
-        <p className="text-foreground">Carregando...</p>
+        <p className="text-foreground">{translate({ en: "Loading...", pt: "Carregando..."})}</p>
       </div>
     );
   }
 
+  const pageTitle = translate({ en: "Welcome Back!", pt: "Bem-vindo(a) de Volta!" });
+  const pageDescription = translate({ en: "Log in to access your FinTrack dashboard.", pt: "Faça login para acessar seu painel FinTrack." });
+  const footerSignUpText = translate({ en: "Sign up", pt: "Cadastre-se" });
+  const footerPromptText = translate({ en: "Don't have an account?", pt: "Não tem uma conta?" });
+
+
   return (
     <AuthFormWrapper
-      title="Bem-vindo(a) de Volta!"
-      description="Faça login para acessar seu painel FinTrack."
+      title={pageTitle}
+      description={pageDescription}
       footerContent={
         <p>
-          Não tem uma conta?{' '}
+          {footerPromptText}{' '}
           <Link href="/signup" className="font-medium text-primary hover:underline">
-            Cadastre-se
+            {footerSignUpText}
           </Link>
         </p>
       }

@@ -18,9 +18,10 @@ import { useAuth } from "@/context/auth-context";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
+import { useLanguage } from "@/context/language-context";
 
 const loginFormSchema = z.object({
-  email: z.string().email({ message: "Por favor, insira um email válido." }),
+  email: z.string().email({ message: "Por favor, insira um email válido." }), // Validation messages can be translated if schema is dynamic
   password: z.string().min(6, { message: "A senha deve ter pelo menos 6 caracteres." }),
 });
 
@@ -31,6 +32,7 @@ export function LoginForm() {
   const router = useRouter();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const { translate } = useLanguage();
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginFormSchema),
@@ -45,12 +47,15 @@ export function LoginForm() {
     const user = await logIn(values.email, values.password);
     setIsLoading(false);
     if (user) {
-      toast({ title: "Login bem-sucedido!", description: "Bem-vindo(a) de volta." });
+      toast({
+        title: translate({ en: "Login successful!", pt: "Login bem-sucedido!" }),
+        description: translate({ en: "Welcome back.", pt: "Bem-vindo(a) de volta." })
+      });
       router.push("/"); // Redirect to dashboard
     } else {
       toast({
-        title: "Erro no Login",
-        description: "Email ou senha inválidos. Por favor, tente novamente.",
+        title: translate({ en: "Login Error", pt: "Erro no Login" }),
+        description: translate({ en: "Invalid email or password. Please try again.", pt: "Email ou senha inválidos. Por favor, tente novamente." }),
         variant: "destructive",
       });
     }
@@ -64,7 +69,7 @@ export function LoginForm() {
           name="email"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Email</FormLabel>
+              <FormLabel>{translate({ en: "Email", pt: "Email" })}</FormLabel>
               <FormControl>
                 <Input type="email" placeholder="seu@email.com" {...field} />
               </FormControl>
@@ -77,7 +82,7 @@ export function LoginForm() {
           name="password"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Senha</FormLabel>
+              <FormLabel>{translate({ en: "Password", pt: "Senha" })}</FormLabel>
               <FormControl>
                 <Input type="password" placeholder="••••••••" {...field} />
               </FormControl>
@@ -86,7 +91,7 @@ export function LoginForm() {
           )}
         />
         <Button type="submit" className="w-full bg-primary hover:bg-primary/90" disabled={isLoading}>
-          {isLoading ? "Entrando..." : "Entrar"}
+          {isLoading ? translate({ en: "Signing in...", pt: "Entrando..." }) : translate({ en: "Sign In", pt: "Entrar" })}
         </Button>
       </form>
     </Form>

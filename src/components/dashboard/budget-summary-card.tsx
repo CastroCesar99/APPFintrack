@@ -4,6 +4,7 @@ import type { LucideIcon } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { formatCurrency, cn } from "@/lib/utils";
+import { useLanguage } from "@/context/language-context";
 
 interface BudgetSummaryCardProps {
   title: string;
@@ -22,6 +23,7 @@ export function BudgetSummaryCard({
   className,
   iconClassName,
 }: BudgetSummaryCardProps) {
+  const { translate } = useLanguage();
   const percentageUsed = totalBudget > 0 ? Math.min(Math.round((spentAmount / totalBudget) * 100), 100) : 0;
 
   return (
@@ -36,11 +38,9 @@ export function BudgetSummaryCard({
         </div>
         <Progress value={percentageUsed} className="mt-2 h-2" />
         <p className="text-xs text-muted-foreground mt-1">
-          {percentageUsed}% of total budget used
+          {percentageUsed}% {translate({ en: "of total budget used", pt: "do orçamento total utilizado" })}
         </p>
       </CardContent>
     </Card>
   );
 }
-
-    

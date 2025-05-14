@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { CategoryIcon } from "@/components/icons";
 import { formatCurrency, cn } from "@/lib/utils";
 import { format, parseISO } from "date-fns";
+import { useLanguage } from "@/context/language-context";
 
 interface RecentTransactionsSectionProps {
   title: string;
@@ -14,6 +15,8 @@ interface RecentTransactionsSectionProps {
 }
 
 export function RecentTransactionsSection({ title, description, transactions, type }: RecentTransactionsSectionProps) {
+  const { translate } = useLanguage();
+
   if (transactions.length === 0) {
     return (
       <Card className="shadow-lg">
@@ -23,7 +26,10 @@ export function RecentTransactionsSection({ title, description, transactions, ty
         </CardHeader>
         <CardContent>
           <p className="text-center text-muted-foreground py-8">
-            No {type === 'income' ? 'income' : 'expense'} transactions yet.
+            {type === 'income' ?
+              translate({ en: "No income transactions yet.", pt: "Nenhuma transação de receita ainda." }) :
+              translate({ en: "No expense transactions yet.", pt: "Nenhuma transação de despesa ainda." })
+            }
           </p>
         </CardContent>
       </Card>
@@ -41,7 +47,7 @@ export function RecentTransactionsSection({ title, description, transactions, ty
           {transactions.map((transaction) => (
             <li key={transaction.id} className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <CategoryIcon categoryName={transaction.category} className="h-6 w-6 text-muted-foreground" />
+                <CategoryIcon iconName={transaction.category} className="h-6 w-6 text-muted-foreground" />
                 <div>
                   <p className="font-medium">{transaction.description}</p>
                   <p className="text-xs text-muted-foreground">
@@ -63,5 +69,3 @@ export function RecentTransactionsSection({ title, description, transactions, ty
     </Card>
   );
 }
-
-    
