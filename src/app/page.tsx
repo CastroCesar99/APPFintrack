@@ -15,7 +15,7 @@ import { useLanguage } from '@/context/language-context';
 import { db } from '@/lib/firebase';
 import { collection, query, orderBy, onSnapshot, doc, getDoc, writeBatch, serverTimestamp } from "firebase/firestore";
 import { v4 as uuidv4 } from 'uuid';
-import { useToast } from "@/hooks/use-toast"; // Import useToast
+import { useToast } from "@/hooks/use-toast";
 
 // This can be used to seed initial transactions if the user has none
 const seedTransactions: Omit<Transaction, 'id'>[] = [
@@ -34,13 +34,13 @@ const seedTransactions: Omit<Transaction, 'id'>[] = [
 ];
 
 
-const MONTHLY_BUDGET = 900; 
+const MONTHLY_BUDGET = 900;
 
 export default function DashboardPage() {
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
   const { translate, language } = useLanguage();
-  const { toast } = useToast(); // Initialize useToast
+  const { toast } = useToast();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isLoadingTransactions, setIsLoadingTransactions] = useState(true);
   const [currentMonthName, setCurrentMonthName] = useState('');
@@ -48,54 +48,57 @@ export default function DashboardPage() {
 
 
   useEffect(() => {
-    setIsClient(true); 
-    if (language) { 
+    setIsClient(true);
+    if (language) {
       const date = new Date();
       const month = date.toLocaleString(language === 'pt' ? 'pt-BR' : 'en-US', { month: 'long' });
       setCurrentMonthName(month.charAt(0).toUpperCase() + month.slice(1));
     }
-  }, [language]); 
+  }, [language]);
 
   useEffect(() => {
-    if (authLoading) return;
+    if (authLoading) {
+      // Still waiting for auth state to resolve, show loading
+      // isLoadingTransactions can remain true or be set true here
+      // but the primary loading screen check will use authLoading.
+      return;
+    }
     if (!user) {
       router.push('/login');
+      // If redirecting, this component instance might unmount or re-render.
+      // The destination page will handle its own loading.
       return;
     }
 
+    // User is authenticated, proceed to check onboarding and fetch transactions.
+    setIsLoadingTransactions(true); // Set loading true before async operations.
+
     const checkOnboardingAndFetchTransactions = async () => {
-      if (!user) return; 
-      
-      let onboardingComplete = false;
       try {
+        // Double check user, though it should be present due to guards above
+        if (!user) {
+            setIsLoadingTransactions(false);
+            router.push('/login'); // Fallback redirect
+            return;
+        }
+
         const userDocRef = doc(db, "users", user.uid);
         const userDocSnap = await getDoc(userDocRef);
-        if (userDocSnap.exists() && userDocSnap.data().onboardingComplete) {
-          onboardingComplete = true;
-        } else if (userDocSnap.exists() && !userDocSnap.data().onboardingComplete) {
-          router.push('/onboarding');
-          return; 
-        } else if (!userDocSnap.exists()) {
+
+        if (!userDocSnap.exists()) {
           console.warn("User document not found for UID:", user.uid, "Redirecting to signup.");
-          router.push('/signup'); 
+          router.push('/signup');
+          setIsLoadingTransactions(false); // Stop loading on redirect
           return;
         }
-      } catch (error) {
-        console.error("Error checking user document for onboarding status:", error);
-        toast({
-          title: translate({ en: "Connection Issue", pt: "Problema de Conexão" }),
-          description: translate({
-            en: "Could not verify user status. Some features might be unavailable. Please check your internet connection.",
-            pt: "Não foi possível verificar o status do usuário. Alguns recursos podem estar indisponíveis. Verifique sua conexão com a internet."
-          }),
-          variant: "destructive",
-        });
-        // Potentially set isLoadingTransactions to false here and show an error state for transactions
-        // For now, allow to proceed, transaction fetching might also show an error.
-      }
 
-      // Proceed to fetch transactions only if onboarding check didn't redirect
-      if (router.pathname !== '/onboarding' && router.pathname !== '/login' && router.pathname !== '/signup') {
+        if (!userDocSnap.data().onboardingComplete) {
+          router.push('/onboarding');
+          setIsLoadingTransactions(false); // Stop loading on redirect
+          return;
+        }
+
+        // If onboarding is complete, proceed to fetch transactions.
         const transactionsColRef = collection(db, `users/${user.uid}/transactions`);
         const q = query(transactionsColRef, orderBy("date", "desc"));
 
@@ -129,7 +132,7 @@ export default function DashboardPage() {
                   });
               }
             } else {
-               setTransactions([]); 
+               setTransactions([]);
             }
           } else {
             const fetchedTransactions = querySnapshot.docs.map(docSnap => ({
@@ -138,7 +141,7 @@ export default function DashboardPage() {
             } as Transaction));
             setTransactions(fetchedTransactions);
           }
-          setIsLoadingTransactions(false);
+          setIsLoadingTransactions(false); // Transactions loaded or seeding attempted
         }, (error) => {
           console.error("Error fetching transactions:", error);
           toast({
@@ -149,21 +152,38 @@ export default function DashboardPage() {
             }),
             variant: "destructive",
           });
-          setIsLoadingTransactions(false);
+          setIsLoadingTransactions(false); // Error occurred, stop loading
         });
-        return () => unsubscribe(); 
-      } else {
-        // If redirected, ensure loading state is handled
-        setIsLoadingTransactions(false);
+        return () => unsubscribe(); // Return unsubscribe for cleanup
+
+      } catch (error) {
+        console.error("Error in checkOnboardingAndFetchTransactions:", error);
+        toast({
+          title: translate({ en: "Error", pt: "Erro" }),
+          description: translate({ en: "Could not load dashboard data. Please check your connection and try again.", pt: "Não foi possível carregar os dados do painel. Verifique sua conexão e tente novamente." }),
+          variant: "destructive",
+        });
+        setIsLoadingTransactions(false); // General error, stop loading
       }
     };
-    checkOnboardingAndFetchTransactions();
 
-  }, [user, authLoading, router, toast, translate]); // Added toast and translate
+    // Call the async function
+    let unsubscribeFromTransactions: (() => void) | undefined;
+    const manageTransactions = async () => {
+        unsubscribeFromTransactions = await checkOnboardingAndFetchTransactions();
+    }
+    manageTransactions();
 
 
-  const MOCK_CURRENT_YEAR = new Date().getFullYear(); 
-  const MOCK_CURRENT_MONTH = new Date().getMonth(); 
+    return () => {
+      if (unsubscribeFromTransactions) {
+        unsubscribeFromTransactions();
+      }
+    };
+  }, [user, authLoading, router, toast, translate, language]); // Added language dependency because it's used in the effect
+
+  const MOCK_CURRENT_YEAR = new Date().getFullYear();
+  const MOCK_CURRENT_MONTH = new Date().getMonth();
 
   const transactionsThisMonth = transactions.filter(t => {
     const transactionDate = new Date(t.date);
@@ -180,7 +200,7 @@ export default function DashboardPage() {
     .sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     .slice(0, 5);
 
-  if (!isClient || authLoading || (!user && !authLoading) || isLoadingTransactions) {
+  if (!isClient || authLoading || isLoadingTransactions) {
     return (
         <div className="flex items-center justify-center h-screen w-full bg-background">
           <p className="text-foreground">{translate({ en: "Loading...", pt: "Carregando..."})}</p>
