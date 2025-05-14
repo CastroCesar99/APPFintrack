@@ -38,7 +38,7 @@ const MONTHLY_BUDGET = 900; // This might come from user preferences in Firestor
 export default function DashboardPage() {
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
-  const { translate, language } = useLanguage(); // Correctly destructure language
+  const { translate, language } = useLanguage();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isLoadingTransactions, setIsLoadingTransactions] = useState(true);
   const [currentMonthName, setCurrentMonthName] = useState('');
@@ -47,12 +47,12 @@ export default function DashboardPage() {
 
   useEffect(() => {
     setIsClient(true); 
-    if (language) { // Ensure language is defined before using it
+    if (language) { 
       const date = new Date();
       const month = date.toLocaleString(language === 'pt' ? 'pt-BR' : 'en-US', { month: 'long' });
       setCurrentMonthName(month.charAt(0).toUpperCase() + month.slice(1));
     }
-  }, [translate, language]);
+  }, [language]); // Removed translate from dependencies as it's stable
 
   useEffect(() => {
     if (authLoading) return;
@@ -62,21 +62,19 @@ export default function DashboardPage() {
     }
 
     const checkOnboarding = async () => {
+      if (!user) return; // Extra safety check
       const userDocRef = doc(db, "users", user.uid);
       const userDocSnap = await getDoc(userDocRef);
       if (userDocSnap.exists() && !userDocSnap.data().onboardingComplete) {
         router.push('/onboarding');
       } else if (!userDocSnap.exists()) {
-        // Should not happen if signup creates user doc, but as a fallback:
-        router.push('/signup'); // Or onboarding
+        router.push('/signup'); 
       } else {
-        // User exists and onboarding is complete, proceed to fetch transactions
         const transactionsColRef = collection(db, `users/${user.uid}/transactions`);
         const q = query(transactionsColRef, orderBy("date", "desc"));
 
         const unsubscribe = onSnapshot(q, async (querySnapshot) => {
           if (querySnapshot.empty && querySnapshot.metadata.hasPendingWrites === false) {
-            // No transactions, let's seed them if it's the first time
             const userTransactionsStatusRef = doc(db, `users/${user.uid}/status`, "transactions");
             const statusSnap = await getDoc(userTransactionsStatusRef);
 
@@ -93,7 +91,7 @@ export default function DashboardPage() {
               await batch.commit();
               setTransactions(seededTxs);
             } else {
-               setTransactions([]); // Already seeded but still empty, show no transactions
+               setTransactions([]); 
             }
           } else {
             const fetchedTransactions = querySnapshot.docs.map(docSnap => ({
@@ -106,9 +104,8 @@ export default function DashboardPage() {
         }, (error) => {
           console.error("Error fetching transactions:", error);
           setIsLoadingTransactions(false);
-          // Potentially set an error state to show in UI
         });
-        return () => unsubscribe(); // Cleanup listener
+        return () => unsubscribe(); 
       }
     };
     checkOnboarding();
@@ -116,8 +113,8 @@ export default function DashboardPage() {
   }, [user, authLoading, router]);
 
 
-  const MOCK_CURRENT_YEAR = new Date().getFullYear(); // Use current year
-  const MOCK_CURRENT_MONTH = new Date().getMonth(); // Use current month (0-indexed)
+  const MOCK_CURRENT_YEAR = new Date().getFullYear(); 
+  const MOCK_CURRENT_MONTH = new Date().getMonth(); 
 
   const transactionsThisMonth = transactions.filter(t => {
     const transactionDate = new Date(t.date);
@@ -136,7 +133,7 @@ export default function DashboardPage() {
 
   if (!isClient || authLoading || (!user && !authLoading) || isLoadingTransactions) {
     return (
-        <div className="flex items-center justify-center h-screen bg-background">
+        <div className="flex items-center justify-center h-screen w-full bg-background">
           <p className="text-foreground">{translate({ en: "Loading...", pt: "Carregando..."})}</p>
         </div>
     );
@@ -193,3 +190,4 @@ export default function DashboardPage() {
     </AppLayout>
   );
 }
+
