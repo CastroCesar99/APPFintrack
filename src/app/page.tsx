@@ -21,7 +21,7 @@ import { CategoryIcon } from "@/components/icons";
 // format, subMonths, addMonths, ptBR, enUS removed, now handled by DateNavigationContext
 import { useDateNavigation } from '@/context/date-navigation-context';
 
-const MONTHLY_BUDGET = 900;
+const MONTHLY_BUDGET = 0; // Changed from 900 to 0
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -45,8 +45,6 @@ export default function DashboardPage() {
     console.log("Dashboard: TRACER --- isClient useEffect running");
     setIsClient(true);
   }, []);
-
-  // useEffect for local displayedMonthYearLabel removed - context handles this now.
 
   useEffect(() => {
     effectMountedRef.current = true;
@@ -73,6 +71,7 @@ export default function DashboardPage() {
 
     if (authLoading) {
       console.log("Dashboard: TRACER --- Main useEffect: Auth is loading, waiting...");
+      // Removed setIsLoadingTransactions(true) here as it's handled below
       return fullCleanup;
     }
 
@@ -91,9 +90,11 @@ export default function DashboardPage() {
     if (mainFetchInitiatedForUser.current !== userId || !unsubscribeSnapshotRef.current) {
       console.log(`Dashboard: TRACER --- Main useEffect: Initiating NEW fetch/listener for UserID: ${userId}. PrevInitiatedFor: ${mainFetchInitiatedForUser.current}. ListenerExisted: ${!!unsubscribeSnapshotRef.current}`);
 
-      cleanupListener();
+      cleanupListener(); // Clean up any old listener
 
       if (effectMountedRef.current) {
+        // Set loading to true ONLY when we are about to initiate a new fetch for a new user or if there's no listener.
+        // This avoids setting it to true if the effect re-runs for other reasons when a listener is already active.
         if (!isLoadingTransactions) {
              console.log("Dashboard: TRACER --- setIsLoadingTransactions(true) for new fetch/setup of user:", userId);
              setIsLoadingTransactions(true);
@@ -102,11 +103,13 @@ export default function DashboardPage() {
         }
       }
 
-      mainFetchInitiatedForUser.current = userId;
+      mainFetchInitiatedForUser.current = userId; // Mark that we've initiated for this user
 
+      // Define the asynchronous data fetching logic within the effect
       const fetchDataInternal = async (currentUserId: string) => {
         if (!effectMountedRef.current) {
             console.log("Dashboard: TRACER --- fetchDataInternal: Effect unmounted early for UserID:", currentUserId);
+            // If the effect unmounted and we were loading, ensure loading is set to false if current effect instance is still valid
             if(isLoadingTransactions && effectMountedRef.current) setIsLoadingTransactions(false);
             return;
         }
@@ -142,10 +145,12 @@ export default function DashboardPage() {
             return;
           }
 
+          // If we reach here, user is onboarded. Set up transaction listener.
           console.log("Dashboard: TRACER --- fetchDataInternal: User onboarding complete for UserID:", currentUserId, ". Setting up onSnapshot listener.");
           const transactionsColRef = collection(db, `users/${currentUserId}/transactions`);
           const q_transactions = query(transactionsColRef, orderBy("date", "desc"));
 
+          // Defensive check: if another listener was somehow set up by a rapid re-render, clean it
           if (unsubscribeSnapshotRef.current) {
               console.warn("Dashboard: TRACER --- fetchDataInternal: Stale snapshot ref found before new onSnapshot. Cleaning up again.");
               unsubscribeSnapshotRef.current();
@@ -162,8 +167,8 @@ export default function DashboardPage() {
             if (querySnapshot.empty) {
               console.log("Dashboard: TRACER --- onSnapshot: Transactions collection empty for UserID:", currentUserId);
               if (effectMountedRef.current) {
-                setTransactions([]);
-                if(isLoadingTransactions) setIsLoadingTransactions(false);
+                setTransactions([]); // Set to empty array
+                if(isLoadingTransactions) setIsLoadingTransactions(false); // Now safe to set loading to false
                 console.log("Dashboard: TRACER --- setIsLoadingTransactions(false) in onSnapshot (empty snapshot) for UserID:", currentUserId);
               }
             } else {
@@ -171,7 +176,7 @@ export default function DashboardPage() {
               if (effectMountedRef.current) {
                 console.log(`Dashboard: TRACER --- onSnapshot: Setting ${fetchedTransactions.length} transactions for UserID: ${currentUserId}.`);
                 setTransactions(fetchedTransactions);
-                if(isLoadingTransactions) setIsLoadingTransactions(false);
+                if(isLoadingTransactions) setIsLoadingTransactions(false); // Data loaded, set loading to false
                 console.log("Dashboard: TRACER --- setIsLoadingTransactions(false) after processing snapshot data for UserID:", currentUserId);
               }
             }
@@ -190,8 +195,8 @@ export default function DashboardPage() {
                 }) + (error.message ? ` (${error.message})` : ''),
                 variant: "destructive",
               });
-              setTransactions([]);
-              if(isLoadingTransactions) setIsLoadingTransactions(false);
+              setTransactions([]); // Clear transactions on error
+              if(isLoadingTransactions) setIsLoadingTransactions(false); // Error occurred, set loading to false
               console.log("Dashboard: TRACER --- setIsLoadingTransactions(false) in onSnapshot (error callback) for UserID:", currentUserId);
             }
           });
@@ -199,10 +204,11 @@ export default function DashboardPage() {
         } catch (error: any) {
           if (!effectMountedRef.current) {
             console.log("Dashboard: TRACER --- fetchDataInternal: Main try-catch, effect unmounted for UserID:", currentUserId);
+            // No need to set loading false here as the cleanup for the effect should handle it or new effect will.
             return;
           }
           console.error("Dashboard: TRACER --- fetchDataInternal: Error in main data fetching logic for UserID:", currentUserId, error);
-          if (effectMountedRef.current) {
+          if (effectMountedRef.current) { // Check mount status again before UI updates
             toast({
               title: translate({ en: "Error", pt: "Erro" }),
               description: translate({ en: "Could not load dashboard data.", pt: "Não foi possível carregar dados do painel." }) + (error.message ? ` (${error.message})` : ''),
@@ -215,25 +221,33 @@ export default function DashboardPage() {
         }
       };
 
-      fetchDataInternal(userId);
+      fetchDataInternal(userId); // Call the async function
 
     } else {
+      // This block means a listener should already be active for the current userId.
+      // We might be here due to a re-render not caused by userId or authLoading changing.
       console.log(`Dashboard: TRACER --- Main useEffect: Listener should be active for UserID: ${userId}. isLoadingTransactions: ${isLoadingTransactions}. Snapshot ref present: ${!!unsubscribeSnapshotRef.current}`);
-      // Ensure loading is false if listener is active and we have transactions or it's confirmed empty
+      // If we are still loading but a listener is active, and we have transactions OR it's confirmed empty (not from cache), turn off loading.
+      // This is a safeguard against getting stuck in loading if initial snapshot was from cache and empty.
       if (isLoadingTransactions && unsubscribeSnapshotRef.current && effectMountedRef.current) {
           // Check if the listener is not from cache OR if we have transactions.
           // This helps ensure we don't turn off loading too early if the first snapshot is cached and empty.
-          if (transactions.length > 0 || (transactions.length === 0 && unsubscribeSnapshotRef.current && !unsubscribeSnapshotRef.current?.INTERNAL?.metadata?.fromCache)) {
+          // The check `!unsubscribeSnapshotRef.current?.INTERNAL?.metadata?.fromCache` is indicative and might not be standard/stable.
+          // A more robust way is often to track if the "first real fetch" has completed.
+          // For now, if we have transactions or the listener exists, it's safer to assume loading might be done.
+          if (transactions.length > 0 || (transactions.length === 0 && unsubscribeSnapshotRef.current )) {
              console.log("Dashboard: TRACER --- Main useEffect: Listener active, forcing isLoadingTransactions to false for UserID:", userId);
              setIsLoadingTransactions(false);
           }
       } else if (isLoadingTransactions && !unsubscribeSnapshotRef.current && effectMountedRef.current) {
+        // If still loading but no listener ref exists, something is wrong.
         console.warn("Dashboard: TRACER --- Main useEffect: No active listener but still loading. This might indicate a problem. Forcing false for UserID:", userId);
         setIsLoadingTransactions(false);
       }
     }
-    return fullCleanup;
-  }, [userId, authLoading, isClient]); // Removed router, toast, translate as per previous optimizations
+
+    return fullCleanup; // Cleanup function for the effect
+  }, [userId, authLoading, isClient]); // Removed router, toast, translate from dependencies
 
 
   const transactionsForDisplayedPeriod = useMemo(() => {
@@ -291,7 +305,6 @@ export default function DashboardPage() {
     return null;
   }, [transactionsForDisplayedPeriod]);
 
-  // handlePreviousMonth and handleNextMonth removed, now in DateNavigationContext
 
   if (!isClient || authLoading || isLoadingTransactions) {
     console.log("Dashboard: TRACER --- RENDERING LOADING SCREEN. isClient:", isClient, "authLoading:", authLoading, "isLoadingTransactions:", isLoadingTransactions);
