@@ -7,16 +7,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch"; // NEW IMPORT
-import { ListChecks, CreditCard, Languages, Mail, Heart, Cog, Sun, Moon } from "lucide-react"; // NEW IMPORTS: Sun, Moon
+import { Switch } from "@/components/ui/switch";
+import { ListChecks, CreditCard, Languages, Mail, Heart, Cog, Sun, Moon } from "lucide-react";
 import { useLanguage } from "@/context/language-context";
 import { useToast } from "@/hooks/use-toast";
 import Link from 'next/link';
-import { useTheme } from "@/context/theme-context"; // NEW IMPORT
+import { useTheme } from "@/context/theme-context";
 
 export default function SettingsPage() {
   const { language, setLanguage, translate } = useLanguage();
-  const { theme, setTheme } = useTheme(); // Use theme context
+  const { theme, setTheme } = useTheme();
   const { toast } = useToast();
 
   const handlePlaceholderClick = (featureName: string) => {
@@ -71,9 +71,11 @@ export default function SettingsPage() {
             </div>
           </CardHeader>
           <CardContent className="pt-4">
-            <Button onClick={() => handlePlaceholderClick(translate({en:"Payment Method Management", pt:"Gerenciamento de Métodos de Pagamento"}))} className="w-full sm:w-auto">
-              {translate({ en: "Go to Payment Methods", pt: "Ir para Métodos de Pagamento" })}
-            </Button>
+            <Link href="/settings/payment-methods" passHref>
+              <Button className="w-full sm:w-auto">
+                {translate({ en: "Go to Payment Methods", pt: "Ir para Métodos de Pagamento" })}
+              </Button>
+            </Link>
           </CardContent>
         </Card>
 
