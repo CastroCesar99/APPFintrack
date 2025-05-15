@@ -118,10 +118,12 @@ export function QuickActionsSection() {
                 {newTransactionDescription}
               </DialogDescription>
             </DialogHeader>
-            <TransactionForm 
+            {isFormOpen && (
+              <TransactionForm
               onAddTransaction={handleAddTransactionToFirestore} 
               initialType={formInitialType}
             />
+            )}
             {/* DialogFooter and DialogClose can be part of TransactionForm's submit or handled here */}
           </DialogContent>
         </Dialog>

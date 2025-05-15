@@ -12,14 +12,9 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { CalendarIcon } from "lucide-react";
@@ -35,11 +30,14 @@ const formSchema = z.object({
   amount: z.coerce.number().positive({ message: "Amount must be positive." }),
   type: z.enum(["income", "expense"], { required_error: "Transaction type is required." }),
   category: z.string().min(1, { message: "Category is required." }),
+  expenseType: z.enum(["fixed", "variable"]).optional(), // Still keep expenseType if used for filtering/analysis
+  paymentMethod: z.string().optional(), // Added for payment method
+  installments: z.coerce.number().int().positive().optional(), // Added for installments
   date: z.date({ required_error: "Date is required." }),
+  isRecurring: z.boolean().optional(), // Added for recurring income
 });
 
 type TransactionFormValues = z.infer<typeof formSchema>;
-
 interface TransactionFormProps {
   onAddTransaction: (transaction: Omit<Transaction, "id">) => Promise<void>;
   initialType: TransactionType;
@@ -48,16 +46,23 @@ interface TransactionFormProps {
 export function TransactionForm({ onAddTransaction, initialType }: TransactionFormProps) {
   const { language, translate } = useLanguage();
   const [availableCategories, setAvailableCategories] = useState(() => getCategoriesByType(initialType, language));
+  const [selectedPaymentMethodType, setSelectedPaymentMethodType] = useState<"upfront" | "installment" | "recurring" | undefined>(undefined); // State for payment method type
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // TODO: Fetch configured payment methods and update the 'paymentMethods' state.
 
   const form = useForm<TransactionFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       description: "",
-      amount: undefined, // Changed from 0 to undefined
+ amount: undefined, // Changed from 0 to undefined
       type: initialType,
       category: "",
       date: new Date(),
+      expenseType: undefined,
+      paymentMethod: undefined, // Initialize new field
+      installments: undefined, // Initialize new field
+      isRecurring: false, // Initialize new field
     },
   });
 
@@ -79,17 +84,28 @@ export function TransactionForm({ onAddTransaction, initialType }: TransactionFo
     setIsSubmitting(true);
     try {
       await onAddTransaction({
-        ...values,
-        date: format(values.date, "yyyy-MM-dd"),
+ description: values.description,
+        amount: values.amount,
+        type: values.type,
         category: values.category as CategoryName,
-      });
+        date: format(values.date, "yyyy-MM-dd"),
+        // Include fields based on transaction type
+        ...(values.type === 'expense' && values.expenseType && { expenseType: values.expenseType }), // Only include if expenseType is selected
+        ...(values.type === 'expense' && selectedPaymentMethodType && { paymentMethod: selectedPaymentMethodType === 'installment' && values.installments ? `installment-${values.installments}` : selectedPaymentMethodType }), // Use selectedPaymentMethodType and format if installment
+        ...(values.type === 'income' && { isRecurring: values.isRecurring || false }),
+      })
+
       form.reset({
-          description: "",
-          amount: undefined, // Also reset to undefined
-          type: initialType,
-          category: "",
+ amount: undefined, // Also reset to undefined
+          // Reset new fields as well
+ expenseType: undefined,
+          paymentMethod: undefined, // Reset to undefined for form state
+ installments: undefined, // Reset installments
+          isRecurring: false,
+ description: "",
           date: new Date(),
-      });
+      },{ keepValues: true, keepDirtyValues: true }); // Keep initialType and category
+ setSelectedPaymentMethodType(undefined); // Reset payment method type
     } catch (error) {
       console.error("Error during transaction submission in TransactionForm:", error);
     } finally {
@@ -104,11 +120,17 @@ export function TransactionForm({ onAddTransaction, initialType }: TransactionFo
   const categoryPlaceholder = translate({ en: "Select a category", pt: "Selecione uma categoria" });
   const dateLabel = translate({ en: "Date", pt: "Data" });
   const pickDateLabel = translate({ en: "Pick a date", pt: "Escolha uma data" });
+  const paymentMethodLabel = translate({ en: "Payment Method", pt: "Forma de Pagamento" });
+  const paymentTypeLabel = translate({ en: "Payment Type", pt: "Método de Pagamento" });
+  const installmentsLabel = translate({ en: "Number of Installments", pt: "Número de Parcelas" });
+  const isRecurringLabel = translate({ en: "Apply to all months", pt: "Aplicar para todos os meses" });
+
   const addTransactionButtonLabel = translate({ en: "Add Transaction", pt: "Adicionar Transação" });
   const submittingButtonLabel = translate({ en: "Adding...", pt: "Adicionando..." });
 
-  return (
-    <Form {...form}>
+ return (
+ <>
+ <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
         <FormField
           control={form.control}
@@ -127,8 +149,8 @@ export function TransactionForm({ onAddTransaction, initialType }: TransactionFo
           control={form.control}
           name="amount"
           render={({ field }) => (
-            <FormItem>
-              <FormLabel>{amountLabel}</FormLabel>
+ <FormItem>
+              <FormLabel>{selectedPaymentMethodType === "installment" ? translate({ en: "Installment Amount", pt: "Valor da Parcela" }) : amountLabel}</FormLabel>
               <FormControl>
                 <Input type="number" step="0.01" placeholder="0.00" {...field} />
               </FormControl>
@@ -201,10 +223,71 @@ export function TransactionForm({ onAddTransaction, initialType }: TransactionFo
             </FormItem>
           )}
         />
+ {form.getValues("type") === "income" && (
+ <FormField
+ control={form.control}
+ name="isRecurring"
+ render={({ field }) => (
+ <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+ <FormControl>
+ <Checkbox
+ checked={field.value}
+ onCheckedChange={field.onChange}
+ />
+ </FormControl>
+ <div className="space-y-1 leading-none"><FormLabel>{isRecurringLabel}</FormLabel></div>
+ <FormMessage />
+ </FormItem>)}
+ />
+ )}
+        {form.getValues("type") === "expense" && (
+          <>
+            <FormField
+              control={form.control}
+              name="expenseType"
+              render={({ field }) => (
+                <>
+                  <FormLabel>{paymentTypeLabel}</FormLabel>
+                  <FormItem {...field}> {/* Corrected FormItem usage */}
+                    <Select onValueChange={setSelectedPaymentMethodType} value={selectedPaymentMethodType}> {/* Simplified onValueChange */}
+                      <FormControl>
+                        <SelectTrigger ref={field.ref}> {/* Add ref */}
+                          <SelectValue placeholder={translate({ en: "Select payment method", pt: "Selecione a forma de pagamento" })} />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="upfront">{translate({ en: "Upfront", pt: "À Vista" })}</SelectItem>
+                        <SelectItem value="installment">{translate({ en: "Installment", pt: "Parcelado" })}</SelectItem>
+                        <SelectItem value="recurring">{translate({ en: "Recurring", pt: "Recorrente" })}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                </>
+              )}
+            />
+            {selectedPaymentMethodType === "installment" && ( // Check selectedPaymentMethodType
+              <FormField
+                control={form.control}
+                name="installments"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{installmentsLabel}</FormLabel>
+                    <FormControl>
+                      <Input type="number" placeholder="e.g., 10" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+          </>
+        )}
         <Button type="submit" className="w-full bg-primary hover:bg-primary/90" disabled={isSubmitting}>
           {isSubmitting ? submittingButtonLabel : addTransactionButtonLabel}
         </Button>
       </form>
     </Form>
+ </>
   );
 }

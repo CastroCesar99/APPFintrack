@@ -1,7 +1,6 @@
 
 "use client";
 
-import type React from 'react';
 import React from 'react';
 import { AppLayout } from "@/components/layout/app-layout";
 import { Button } from "@/components/ui/button";
@@ -58,7 +57,7 @@ export default function ManagePaymentMethodsPage() {
             {userPaymentMethods.length > 0 ? (
               <div className="space-y-4">
                 {userPaymentMethods.map((method, index) => (
-                  <React.Fragment key={method.name}>
+                  <React.Fragment key={method.name as string}>
                     <div className="flex items-center justify-between py-3">
                       <div className="flex items-center gap-3">
                         <PaymentMethodIcon iconName={method.icon} className="h-6 w-6 text-muted-foreground" />

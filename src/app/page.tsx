@@ -255,7 +255,11 @@ export default function DashboardPage() {
     const month = displayedDate.getMonth();
     return transactions.filter(t => {
       const transactionDate = new Date(t.date);
-      return transactionDate.getFullYear() === year && transactionDate.getMonth() === month;
+      const transactionYear = transactionDate.getFullYear();
+      const transactionMonth = transactionDate.getMonth();
+      const isInCurrentMonth = transactionYear === year && transactionMonth === month;
+      const isRecurring = t.isRecurring === true; // Check if isRecurring is explicitly true
+      return isInCurrentMonth || isRecurring;
     });
   }, [transactions, displayedDate]);
 

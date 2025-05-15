@@ -58,7 +58,6 @@ if (!getApps().length) {
     auth = getAuth(app);
     if (typeof window !== 'undefined') { // Ensure this only runs on the client
       enableIndexedDbPersistence(db, { // Pass the specific db instance here
-          synchronizeTabs: true,
           cacheSizeBytes: CACHE_SIZE_UNLIMITED
         })
         .then(() => {

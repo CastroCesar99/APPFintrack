@@ -8,6 +8,9 @@ export interface Transaction {
   amount: number;
   type: TransactionType;
   category: CategoryName; // Still uses the English 'name' as the identifier
+  paymentMethod?: string; // Added paymentMethod as optional string
+  installments?: number; // Added installments as optional number
+  isRecurring?: boolean; // Added isRecurring as optional boolean
 }
 
 export const CATEGORIES = [
