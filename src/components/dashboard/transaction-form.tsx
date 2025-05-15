@@ -20,7 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+// RadioGroup and RadioGroupItem imports removed
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { CalendarIcon } from "lucide-react";
@@ -34,7 +34,7 @@ import { useLanguage } from "@/context/language-context";
 const formSchema = z.object({
   description: z.string().min(2, { message: "Description must be at least 2 characters." }).max(100),
   amount: z.coerce.number().positive({ message: "Amount must be positive." }),
-  type: z.enum(["income", "expense"], { required_error: "Transaction type is required." }),
+  type: z.enum(["income", "expense"], { required_error: "Transaction type is required." }), // Type is still in schema for submission
   category: z.string().min(1, { message: "Category is required." }),
   date: z.date({ required_error: "Date is required." }),
 });
@@ -43,52 +43,41 @@ type TransactionFormValues = z.infer<typeof formSchema>;
 
 interface TransactionFormProps {
   onAddTransaction: (transaction: Omit<Transaction, "id">) => Promise<void>;
-  initialType?: TransactionType;
+  initialType: TransactionType; // Changed to required, as it's now essential
 }
 
-export function TransactionForm({ onAddTransaction, initialType = "expense" }: TransactionFormProps) {
+export function TransactionForm({ onAddTransaction, initialType }: TransactionFormProps) {
   const { language, translate } = useLanguage();
-  const [selectedType, setSelectedType] = useState<TransactionType>(initialType);
+  // selectedType state is no longer needed as type is fixed by initialType
   const [availableCategories, setAvailableCategories] = useState(() => getCategoriesByType(initialType, language));
-  const [isSubmitting, setIsSubmitting] = useState(false); // Added loading state
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const form = useForm<TransactionFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       description: "",
       amount: 0,
-      type: initialType,
+      type: initialType, // Type is set directly from prop
       category: "",
       date: new Date(),
     },
   });
 
-  const typeFieldValue = form.watch("type");
-
+  // Effect to update available categories if initialType or language changes
+  // This is important if the form instance is re-used with a different initialType (though less common for dialogs)
   useEffect(() => {
-    form.setValue("type", initialType);
-    setSelectedType(initialType);
+    form.setValue("type", initialType); // Ensure form's type matches initialType
     const newCategories = getCategoriesByType(initialType, language);
     setAvailableCategories(newCategories);
-    form.setValue("category", "", { shouldValidate: false });
-  }, [initialType, form, language]);
-
-
-  useEffect(() => {
-    if (typeFieldValue !== selectedType) {
-      setSelectedType(typeFieldValue);
-      const newCategories = getCategoriesByType(typeFieldValue, language);
-      setAvailableCategories(newCategories);
-
-      const currentCategoryInForm = form.getValues("category");
-      if (currentCategoryInForm) {
+    // Reset category if the current one is no longer valid for the new type
+    const currentCategoryInForm = form.getValues("category");
+    if (currentCategoryInForm) {
         const isCategoryStillValid = newCategories.some(cat => cat.name === currentCategoryInForm);
         if (!isCategoryStillValid) {
-          form.setValue("category", "", { shouldValidate: true });
+            form.setValue("category", "", { shouldValidate: true });
         }
-      }
     }
-  }, [typeFieldValue, form, language, selectedType]);
+  }, [initialType, language, form]);
 
 
   async function onSubmit(values: TransactionFormValues) {
@@ -96,22 +85,19 @@ export function TransactionForm({ onAddTransaction, initialType = "expense" }: T
     try {
       await onAddTransaction({
         ...values,
+        // type: initialType, // Ensure submitted type is based on initialType
         date: format(values.date, "yyyy-MM-dd"),
         category: values.category as CategoryName,
       });
-      // Form reset is handled here, assuming onAddTransaction might close the dialog
-      // or the user might want to add another transaction if the dialog stays open.
       form.reset({
           description: "",
           amount: 0,
-          type: initialType,
+          type: initialType, // Reset type to initialType
           category: "",
           date: new Date(),
       });
-      setSelectedType(initialType); // Reset internal type state
-      setAvailableCategories(getCategoriesByType(initialType, language)); // Reset categories
+      // No need to reset selectedType or availableCategories related to type change here
     } catch (error) {
-      // Error toast is expected to be handled by the parent component calling onAddTransaction
       console.error("Error during transaction submission in TransactionForm:", error);
     } finally {
       setIsSubmitting(false);
@@ -121,16 +107,13 @@ export function TransactionForm({ onAddTransaction, initialType = "expense" }: T
   const descriptionLabel = translate({ en: "Description", pt: "Descrição" });
   const descriptionPlaceholder = translate({ en: "e.g., Coffee, Salary", pt: "ex: Café, Salário" });
   const amountLabel = translate({ en: "Amount", pt: "Valor" });
-  const typeLabel = translate({ en: "Type", pt: "Tipo" });
-  const incomeLabel = translate({ en: "Income", pt: "Receita" });
-  const expenseLabel = translate({ en: "Expense", pt: "Despesa" });
+  // Type labels (Income/Expense) no longer needed for radio buttons
   const categoryLabel = translate({ en: "Category", pt: "Categoria" });
   const categoryPlaceholder = translate({ en: "Select a category", pt: "Selecione uma categoria" });
   const dateLabel = translate({ en: "Date", pt: "Data" });
   const pickDateLabel = translate({ en: "Pick a date", pt: "Escolha uma data" });
   const addTransactionButtonLabel = translate({ en: "Add Transaction", pt: "Adicionar Transação" });
   const submittingButtonLabel = translate({ en: "Adding...", pt: "Adicionando..." });
-
 
   return (
     <Form {...form}>
@@ -161,38 +144,7 @@ export function TransactionForm({ onAddTransaction, initialType = "expense" }: T
             </FormItem>
           )}
         />
-        <FormField
-          control={form.control}
-          name="type"
-          render={({ field }) => (
-            <FormItem className="space-y-3">
-              <FormLabel>{typeLabel}</FormLabel>
-              <FormControl>
-                <RadioGroup
-                  onValueChange={(value) => {
-                    field.onChange(value);
-                  }}
-                  value={field.value}
-                  className="flex space-x-4"
-                >
-                  <FormItem className="flex items-center space-x-2 space-y-0">
-                    <FormControl>
-                      <RadioGroupItem value="income" />
-                    </FormControl>
-                    <FormLabel className="font-normal">{incomeLabel}</FormLabel>
-                  </FormItem>
-                  <FormItem className="flex items-center space-x-2 space-y-0">
-                    <FormControl>
-                      <RadioGroupItem value="expense" />
-                    </FormControl>
-                    <FormLabel className="font-normal">{expenseLabel}</FormLabel>
-                  </FormItem>
-                </RadioGroup>
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        {/* RadioGroup for Type selection is removed */}
         <FormField
           control={form.control}
           name="category"
@@ -265,4 +217,3 @@ export function TransactionForm({ onAddTransaction, initialType = "expense" }: T
     </Form>
   );
 }
-
