@@ -2,49 +2,27 @@
 "use client";
 import React from "react";
 import { SidebarTrigger } from "@/components/ui/sidebar";
-import { Button } from "@/components/ui/button";
-import { SettingsIcon, AppLogoIcon } from "@/components/icons";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuLabel,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { useLanguage } from "@/context/language-context"; // Import useLanguage
-import { useAuth } from "@/context/auth-context"; // Import useAuth
+import { AppLogoIcon } from "@/components/icons";
+import { useLanguage } from "@/context/language-context";
+import { useAuth } from "@/context/auth-context";
 
 export function AppHeaderContent() {
-  const { language, setLanguage, translate } = useLanguage(); // Use language context
-  const { user, loading: authLoading } = useAuth(); // Use auth context
+  const { translate } = useLanguage();
+  const { user, loading: authLoading } = useAuth();
 
   const appTitle = translate({
     en: "FinTrack",
-    pt: "FinTrack", // Kept as FinTrack based on previous request
-  });
-
-  const languageLabel = translate({
-    en: "Language",
-    pt: "Idioma",
-  });
-
-  const settingsSrLabel = translate({
-    en: "Settings",
-    pt: "Configurações",
+    pt: "FinTrack",
   });
 
   const welcomeMessage = translate({ en: "Welcome,", pt: "Bem Vindo," });
-  let headerDisplayTitle = appTitle; 
+  let headerDisplayTitle = appTitle;
 
   if (!authLoading && user && user.displayName) {
     headerDisplayTitle = `${welcomeMessage} ${user.displayName}`;
   } else if (!authLoading && user && !user.displayName) {
-    // Fallback if user exists but has no displayName, might show only welcome or app title
-    headerDisplayTitle = `${welcomeMessage}`; // Or keep as appTitle
+    headerDisplayTitle = `${welcomeMessage}`;
   }
-
 
   return (
     <div className="flex h-14 items-center justify-between gap-4 border-b bg-background px-4 lg:px-6">
@@ -53,22 +31,7 @@ export function AppHeaderContent() {
         <AppLogoIcon />
         <h1 className="text-lg font-semibold">{headerDisplayTitle}</h1>
       </div>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon" className="rounded-full">
-            <SettingsIcon className="h-5 w-5" />
-            <span className="sr-only">{settingsSrLabel}</span>
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuLabel>{languageLabel}</DropdownMenuLabel>
-          <DropdownMenuSeparator />
-          <DropdownMenuRadioGroup value={language} onValueChange={(val) => setLanguage(val as 'en' | 'pt')}>
-            <DropdownMenuRadioItem value="en">English</DropdownMenuRadioItem>
-            <DropdownMenuRadioItem value="pt">Português</DropdownMenuRadioItem>
-          </DropdownMenuRadioGroup>
-        </DropdownMenuContent>
-      </DropdownMenu>
+      {/* Settings cog and language dropdown removed from here */}
     </div>
   );
 }
