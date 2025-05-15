@@ -3,7 +3,7 @@
 
 import type React from 'react';
 import { OnboardingForm } from '@/components/onboarding/onboarding-form';
-import { AppLogoIcon } from '@/components/icons';
+// AppLogoIcon import removed
 import { useAuth } from '@/context/auth-context';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -71,7 +71,7 @@ export default function OnboardingPage() {
     <div className="w-full min-h-screen bg-background text-foreground flex flex-col items-center justify-center p-4">
       <div className="w-full max-w-2xl">
         <div className="flex flex-col items-center mb-8">
-          <AppLogoIcon className="h-12 w-12 text-primary mb-3" />
+          {/* AppLogoIcon removed from here */}
           <h1 className="text-3xl font-bold text-center mb-2">
             {translate({ en: "Welcome to FinTrack!", pt: "Bem-vindo(a) ao FinTrack!" })}
           </h1>

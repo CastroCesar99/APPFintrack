@@ -194,13 +194,12 @@ export function OnboardingForm() {
     setIsSaving(true);
 
     try {
-      const userDocRef = doc(db, "users", user.uid);
       const preferencesData = {
         language,
         selectedCategories: Array.from(selectedCategories),
         userDefinedCategories: userDefinedCategories.map(cat => ({ name: cat.name, icon: cat.icon, label: cat.label })),
         selectedPaymentMethods: Array.from(selectedPaymentMethods),
-        userDefinedPaymentMethods: userDefinedPaymentMethods.map(pm => ({ name: pm.name, icon: pm.icon, label: pm.label })),
+        userDefinedPaymentMethods: userDefinedPaymentMethods.map(pm => ({ name: pm.name, icon: pm.icon, label: pm.label, isDefault: false })), // Assuming custom methods are not default
         budgetGoals,
         updatedAt: serverTimestamp(),
       };
@@ -208,7 +207,8 @@ export function OnboardingForm() {
       const preferencesDocRef = doc(db, `users/${user.uid}/preferences`, "userPreferences");
       await setDoc(preferencesDocRef, preferencesData, { merge: true });
 
-      await updateDoc(userDocRef, {
+      const userDocRef = doc(db, "users", user.uid);
+      await setDoc(userDocRef, {
         onboardingComplete: true,
         onboardedAt: serverTimestamp(),
       });
