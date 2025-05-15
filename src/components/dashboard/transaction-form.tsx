@@ -20,7 +20,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-// RadioGroup and RadioGroupItem imports removed
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { CalendarIcon } from "lucide-react";
@@ -34,7 +33,7 @@ import { useLanguage } from "@/context/language-context";
 const formSchema = z.object({
   description: z.string().min(2, { message: "Description must be at least 2 characters." }).max(100),
   amount: z.coerce.number().positive({ message: "Amount must be positive." }),
-  type: z.enum(["income", "expense"], { required_error: "Transaction type is required." }), // Type is still in schema for submission
+  type: z.enum(["income", "expense"], { required_error: "Transaction type is required." }),
   category: z.string().min(1, { message: "Category is required." }),
   date: z.date({ required_error: "Date is required." }),
 });
@@ -43,12 +42,11 @@ type TransactionFormValues = z.infer<typeof formSchema>;
 
 interface TransactionFormProps {
   onAddTransaction: (transaction: Omit<Transaction, "id">) => Promise<void>;
-  initialType: TransactionType; // Changed to required, as it's now essential
+  initialType: TransactionType;
 }
 
 export function TransactionForm({ onAddTransaction, initialType }: TransactionFormProps) {
   const { language, translate } = useLanguage();
-  // selectedType state is no longer needed as type is fixed by initialType
   const [availableCategories, setAvailableCategories] = useState(() => getCategoriesByType(initialType, language));
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -56,20 +54,17 @@ export function TransactionForm({ onAddTransaction, initialType }: TransactionFo
     resolver: zodResolver(formSchema),
     defaultValues: {
       description: "",
-      amount: 0,
-      type: initialType, // Type is set directly from prop
+      amount: undefined, // Changed from 0 to undefined
+      type: initialType,
       category: "",
       date: new Date(),
     },
   });
 
-  // Effect to update available categories if initialType or language changes
-  // This is important if the form instance is re-used with a different initialType (though less common for dialogs)
   useEffect(() => {
-    form.setValue("type", initialType); // Ensure form's type matches initialType
+    form.setValue("type", initialType);
     const newCategories = getCategoriesByType(initialType, language);
     setAvailableCategories(newCategories);
-    // Reset category if the current one is no longer valid for the new type
     const currentCategoryInForm = form.getValues("category");
     if (currentCategoryInForm) {
         const isCategoryStillValid = newCategories.some(cat => cat.name === currentCategoryInForm);
@@ -85,18 +80,16 @@ export function TransactionForm({ onAddTransaction, initialType }: TransactionFo
     try {
       await onAddTransaction({
         ...values,
-        // type: initialType, // Ensure submitted type is based on initialType
         date: format(values.date, "yyyy-MM-dd"),
         category: values.category as CategoryName,
       });
       form.reset({
           description: "",
-          amount: 0,
-          type: initialType, // Reset type to initialType
+          amount: undefined, // Also reset to undefined
+          type: initialType,
           category: "",
           date: new Date(),
       });
-      // No need to reset selectedType or availableCategories related to type change here
     } catch (error) {
       console.error("Error during transaction submission in TransactionForm:", error);
     } finally {
@@ -107,7 +100,6 @@ export function TransactionForm({ onAddTransaction, initialType }: TransactionFo
   const descriptionLabel = translate({ en: "Description", pt: "Descrição" });
   const descriptionPlaceholder = translate({ en: "e.g., Coffee, Salary", pt: "ex: Café, Salário" });
   const amountLabel = translate({ en: "Amount", pt: "Valor" });
-  // Type labels (Income/Expense) no longer needed for radio buttons
   const categoryLabel = translate({ en: "Category", pt: "Categoria" });
   const categoryPlaceholder = translate({ en: "Select a category", pt: "Selecione uma categoria" });
   const dateLabel = translate({ en: "Date", pt: "Data" });
@@ -144,7 +136,6 @@ export function TransactionForm({ onAddTransaction, initialType }: TransactionFo
             </FormItem>
           )}
         />
-        {/* RadioGroup for Type selection is removed */}
         <FormField
           control={form.control}
           name="category"
