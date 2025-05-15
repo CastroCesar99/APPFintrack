@@ -101,7 +101,7 @@ export function QuickActionsSection() {
       <CardContent>
         <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <Button onClick={() => handleOpenDialog("expense")} className="w-full">
+            <Button onClick={() => handleOpenDialog("expense")} variant="outline" className="w-full">
               <PlusCircle className="mr-2 h-4 w-4" /> {addExpenseLabel}
             </Button>
             <Button onClick={() => handleOpenDialog("income")} variant="outline" className="w-full">
