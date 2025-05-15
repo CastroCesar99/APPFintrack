@@ -10,13 +10,13 @@ import { useEffect, useState } from 'react';
 import { useLanguage } from '@/context/language-context';
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { useToast } from "@/hooks/use-toast"; // Import useToast
+import { useToast } from "@/hooks/use-toast";
 
 export default function OnboardingPage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const { translate } = useLanguage();
-  const { toast } = useToast(); // Initialize useToast
+  const { toast } = useToast();
   const [onboardingChecked, setOnboardingChecked] = useState(false);
 
   useEffect(() => {
@@ -29,7 +29,7 @@ export default function OnboardingPage() {
     }
 
     const checkOnboardingStatus = async () => {
-      if (!user) return; 
+      if (!user) return;
       const userDocRef = doc(db, "users", user.uid);
       try {
         const userDocSnap = await getDoc(userDocRef);
