@@ -2,7 +2,7 @@
 "use client";
 import React from "react";
 import { SidebarTrigger } from "@/components/ui/sidebar";
-import { AppLogoIcon } from "@/components/icons";
+// AppLogoIcon import removed as it's no longer used in the header
 import { useLanguage } from "@/context/language-context";
 import { useAuth } from "@/context/auth-context";
 import { useDateNavigation } from "@/context/date-navigation-context";
@@ -18,57 +18,56 @@ export function AppHeaderContent() {
     handleNextMonth
   } = useDateNavigation();
 
-  const appName = translate({ en: "FinTrack", pt: "FinTrack" }); 
   const welcomeMessage = translate({ en: "Welcome,", pt: "Bem Vindo," });
   
   let userGreeting: string | null = null;
   if (!authLoading && user && user.displayName) {
     userGreeting = `${welcomeMessage} ${user.displayName}`;
   } else if (!authLoading && user && !user.displayName) {
-    // Display welcome message even if displayName is not set yet for an authenticated user
     userGreeting = `${welcomeMessage}`; 
   }
 
 
   return (
     <div className="flex h-14 items-center justify-between gap-4 border-b bg-background px-4 lg:px-6">
-      {/* Left Section: App Logo and Name */}
-      <div className="flex items-center gap-2 flex-shrink-0">
-        <SidebarTrigger className="md:hidden" />
-        <AppLogoIcon />
-        <h1 className="text-lg font-semibold" title={appName}>{appName}</h1>
-      </div>
-      
-      {/* Right Section: User Greeting (optional) and Month Navigation */}
-      <div className="flex items-center gap-4"> {/* Increased gap for better separation if greeting is present */}
+      {/* Left Section: Sidebar Trigger and User Greeting */}
+      <div className="flex items-center gap-3">
+        <SidebarTrigger className="md:hidden" /> {/* Remains for mobile sidebar toggle */}
         {userGreeting && (
-          <span className="text-sm text-muted-foreground hidden md:block truncate" title={userGreeting}>
+          <span className="text-sm font-semibold text-foreground truncate" title={userGreeting}>
             {userGreeting}
           </span>
         )}
-        <div className="flex items-center gap-1">
-          <Button
-            onClick={handlePreviousMonth}
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 flex-shrink-0"
-            aria-label={translate({en: "Previous Month", pt: "Mês Anterior"})}
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <span className="text-sm font-medium text-foreground w-28 text-center truncate" title={displayedMonthYearLabel}>
-            {displayedMonthYearLabel}
+        {!userGreeting && !authLoading && ( // Fallback if user is not loaded or has no name
+           <span className="text-sm font-semibold text-foreground">
+            {translate({ en: "FinTrack", pt: "FinTrack"})}
           </span>
-          <Button
-            onClick={handleNextMonth}
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 flex-shrink-0"
-            aria-label={translate({en: "Next Month", pt: "Próximo Mês"})}
-          >
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-        </div>
+        )}
+      </div>
+      
+      {/* Right Section: Month Navigation */}
+      <div className="flex items-center gap-1">
+        <Button
+          onClick={handlePreviousMonth}
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 flex-shrink-0"
+          aria-label={translate({en: "Previous Month", pt: "Mês Anterior"})}
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </Button>
+        <span className="text-sm font-medium text-foreground w-28 text-center truncate" title={displayedMonthYearLabel}>
+          {displayedMonthYearLabel}
+        </span>
+        <Button
+          onClick={handleNextMonth}
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 flex-shrink-0"
+          aria-label={translate({en: "Next Month", pt: "Próximo Mês"})}
+        >
+          <ChevronRight className="h-4 w-4" />
+        </Button>
       </div>
     </div>
   );
