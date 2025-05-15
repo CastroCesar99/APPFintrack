@@ -12,7 +12,7 @@ import {
   CreditCard,
   Sparkles,
   Archive, Bell, Box, Camera, Cog, Coins, Flag, Folder, Key, Mail, MapPin, Package, Pen, Phone, Receipt, Shield, Tag, Trash, User, Wrench,
-  Languages // Added Languages
+  Languages
 } from 'lucide-react';
 import type { CategoryName, PaymentMethodName } from '@/types';
 import { CATEGORIES, PAYMENT_METHODS } from '@/types'; // Import CATEGORIES
@@ -23,7 +23,7 @@ export const iconNameToComponentMap: Record<string, LucideIcon> = {
   Film, ShoppingBag, Plane, BookOpen, Gift, TrendingUp, Laptop, DollarSign, CircleHelp, PiggyBank, Settings, LayoutDashboard, FileText,
   ListChecks, PlusCircle, SlidersHorizontal, Wallet, CreditCard, Sparkles,
   Archive, Bell, Box, Camera, Cog, Coins, Flag, Folder, Key, Mail, MapPin, Package, Pen, Phone, Receipt, Shield, Tag, Trash, User, Wrench,
-  Languages // Added Languages
+  Languages
 };
 
 
@@ -65,9 +65,17 @@ export const PaymentMethodIcon: React.FC<PaymentMethodIconProps> = ({ iconName, 
   return <IconComponent {...props} />;
 };
 
-// Export commonly used app icons
-// Changed AppLogoIcon to use PiggyBank from lucide-react
-export const AppLogoIcon = () => <PiggyBank className="h-8 w-8 text-primary" />;
+// AppLogoIcon now uses next/image to load /fintrack-logo.png
+export const AppLogoIcon = () => (
+  <Image
+    src="/fintrack-logo.png"
+    alt="FinTrack Logo"
+    width={32}
+    height={32}
+    className="h-8 w-8" // Maintain size consistency, next/image handles optimization
+  />
+);
+
 export const SettingsIcon = Settings;
 export const DashboardIcon = LayoutDashboard;
 export const ExportIcon = FileText;
@@ -83,4 +91,3 @@ export const getSelectableIcons = () => {
     iconComponent: Component as LucideIcon,
   })).sort((a,b) => a.label.localeCompare(b.label)); // Sort alphabetically by label
 }
-
