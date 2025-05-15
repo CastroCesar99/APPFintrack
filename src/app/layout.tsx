@@ -7,7 +7,7 @@ import { SidebarProvider } from "@/components/ui/sidebar";
 import { LanguageProvider } from '@/context/language-context';
 import { AuthProvider } from '@/context/auth-context';
 import { DateNavigationProvider } from '@/context/date-navigation-context';
-import { ThemeProvider } from '@/context/theme-context'; // NEW IMPORT
+import { ThemeProvider } from '@/context/theme-context';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -30,9 +30,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <ThemeProvider> {/* ThemeProvider wraps everything */}
-      <html lang="en" suppressHydrationWarning> {/* suppressHydrationWarning for client-side class changes */}
-        <body suppressHydrationWarning={true} className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+    <html lang="en" suppressHydrationWarning> {/* suppressHydrationWarning for client-side class changes by ThemeProvider */}
+      <body suppressHydrationWarning={true} className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+        <ThemeProvider> {/* ThemeProvider now wraps content inside body */}
           <AuthProvider>
             <LanguageProvider>
               <DateNavigationProvider>
@@ -43,8 +43,8 @@ export default function RootLayout({
             </LanguageProvider>
           </AuthProvider>
           <Toaster />
-        </body>
-      </html>
-    </ThemeProvider>
+        </ThemeProvider>
+      </body>
+    </html>
   );
 }
