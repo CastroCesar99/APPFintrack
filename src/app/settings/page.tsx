@@ -7,13 +7,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
-import { ListChecks, CreditCard, Languages, Mail, Heart, Cog } from "lucide-react";
+import { Switch } from "@/components/ui/switch"; // NEW IMPORT
+import { ListChecks, CreditCard, Languages, Mail, Heart, Cog, Sun, Moon } from "lucide-react"; // NEW IMPORTS: Sun, Moon
 import { useLanguage } from "@/context/language-context";
 import { useToast } from "@/hooks/use-toast";
 import Link from 'next/link';
+import { useTheme } from "@/context/theme-context"; // NEW IMPORT
 
 export default function SettingsPage() {
   const { language, setLanguage, translate } = useLanguage();
+  const { theme, setTheme } = useTheme(); // Use theme context
   const { toast } = useToast();
 
   const handlePlaceholderClick = (featureName: string) => {
@@ -71,6 +74,35 @@ export default function SettingsPage() {
             <Button onClick={() => handlePlaceholderClick(translate({en:"Payment Method Management", pt:"Gerenciamento de Métodos de Pagamento"}))} className="w-full sm:w-auto">
               {translate({ en: "Go to Payment Methods", pt: "Ir para Métodos de Pagamento" })}
             </Button>
+          </CardContent>
+        </Card>
+
+        {/* Appearance / Theme Selection */}
+        <Card className="shadow-lg">
+          <CardHeader className="flex flex-row items-start gap-4 space-y-0">
+            {theme === 'dark' ? <Moon className="h-8 w-8 text-primary flex-shrink-0 mt-1" /> : <Sun className="h-8 w-8 text-primary flex-shrink-0 mt-1" />}
+            <div className="flex-grow">
+              <CardTitle>{translate({ en: "Appearance", pt: "Aparência" })}</CardTitle>
+              <CardDescription>
+                {translate({
+                  en: "Customize the look and feel of the application.",
+                  pt: "Personalize a aparência da aplicação."
+                })}
+              </CardDescription>
+            </div>
+          </CardHeader>
+          <CardContent className="pt-4">
+            <div className="flex items-center space-x-3">
+              <Switch
+                id="theme-switch"
+                checked={theme === 'dark'}
+                onCheckedChange={(checked) => setTheme(checked ? 'dark' : 'light')}
+                aria-label={translate({ en: "Toggle theme", pt: "Alternar tema"})}
+              />
+              <Label htmlFor="theme-switch" className="cursor-pointer">
+                {theme === 'dark' ? translate({ en: "Dark Mode", pt: "Modo Escuro" }) : translate({ en: "Light Mode", pt: "Modo Claro" })}
+              </Label>
+            </div>
           </CardContent>
         </Card>
 
