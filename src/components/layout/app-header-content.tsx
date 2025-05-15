@@ -18,46 +18,57 @@ export function AppHeaderContent() {
     handleNextMonth
   } = useDateNavigation();
 
+  const appName = translate({ en: "FinTrack", pt: "FinTrack" }); 
   const welcomeMessage = translate({ en: "Welcome,", pt: "Bem Vindo," });
-  let headerDisplayTitle = translate({ en: "FinTrack", pt: "FinTrack" });
-
+  
+  let userGreeting: string | null = null;
   if (!authLoading && user && user.displayName) {
-    headerDisplayTitle = `${welcomeMessage} ${user.displayName}`;
+    userGreeting = `${welcomeMessage} ${user.displayName}`;
   } else if (!authLoading && user && !user.displayName) {
-     headerDisplayTitle = `${welcomeMessage}`; // Or keep FinTrack if no name?
+    // Display welcome message even if displayName is not set yet for an authenticated user
+    userGreeting = `${welcomeMessage}`; 
   }
 
 
   return (
     <div className="flex h-14 items-center justify-between gap-4 border-b bg-background px-4 lg:px-6">
+      {/* Left Section: App Logo and Name */}
       <div className="flex items-center gap-2 flex-shrink-0">
         <SidebarTrigger className="md:hidden" />
         <AppLogoIcon />
-        <h1 className="text-lg font-semibold truncate" title={headerDisplayTitle}>{headerDisplayTitle}</h1>
+        <h1 className="text-lg font-semibold" title={appName}>{appName}</h1>
       </div>
       
-      <div className="flex items-center gap-1 ml-auto">
-        <Button
-          onClick={handlePreviousMonth}
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8 flex-shrink-0"
-          aria-label={translate({en: "Previous Month", pt: "Mês Anterior"})}
-        >
-          <ChevronLeft className="h-4 w-4" />
-        </Button>
-        <span className="text-sm font-medium text-foreground w-28 text-center truncate" title={displayedMonthYearLabel}>
-          {displayedMonthYearLabel}
-        </span>
-        <Button
-          onClick={handleNextMonth}
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8 flex-shrink-0"
-          aria-label={translate({en: "Next Month", pt: "Próximo Mês"})}
-        >
-          <ChevronRight className="h-4 w-4" />
-        </Button>
+      {/* Right Section: User Greeting (optional) and Month Navigation */}
+      <div className="flex items-center gap-4"> {/* Increased gap for better separation if greeting is present */}
+        {userGreeting && (
+          <span className="text-sm text-muted-foreground hidden md:block truncate" title={userGreeting}>
+            {userGreeting}
+          </span>
+        )}
+        <div className="flex items-center gap-1">
+          <Button
+            onClick={handlePreviousMonth}
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 flex-shrink-0"
+            aria-label={translate({en: "Previous Month", pt: "Mês Anterior"})}
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <span className="text-sm font-medium text-foreground w-28 text-center truncate" title={displayedMonthYearLabel}>
+            {displayedMonthYearLabel}
+          </span>
+          <Button
+            onClick={handleNextMonth}
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 flex-shrink-0"
+            aria-label={translate({en: "Next Month", pt: "Próximo Mês"})}
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
     </div>
   );
