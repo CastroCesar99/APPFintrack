@@ -13,7 +13,7 @@ import type { Transaction, CategoryName } from "@/types";
 import { CATEGORIES, getCategoryLabel } from "@/types";
 import { useLanguage } from '@/context/language-context';
 import { db } from '@/lib/firebase';
-import { collection, query, orderBy, onSnapshot, doc, getDoc, addDoc, serverTimestamp } from "firebase/firestore";
+import { collection, query, orderBy, onSnapshot, doc, getDoc, addDoc, serverTimestamp, writeBatch } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/utils";
 import { CategoryIcon } from "@/components/icons";
@@ -68,6 +68,10 @@ export default function DashboardPage() {
 
     if (authLoading) {
       console.log("Dashboard: TRACER --- Main useEffect: Auth is loading, waiting...");
+      // Ensure loading is set to true if auth is still pending, as data fetch depends on user
+      if (effectMountedRef.current && !isLoadingTransactions) {
+          // setIsLoadingTransactions(true); // Potentially re-enable if issues persist with initial load state
+      }
       return fullCleanup;
     }
 
@@ -83,17 +87,14 @@ export default function DashboardPage() {
       return fullCleanup;
     }
 
+    // Core data fetching logic for a specific user
     if (mainFetchInitiatedForUser.current !== userId || !unsubscribeSnapshotRef.current) {
       console.log(`Dashboard: TRACER --- Main useEffect: Initiating NEW fetch/listener for UserID: ${userId}. PrevInitiatedFor: ${mainFetchInitiatedForUser.current}. ListenerExisted: ${!!unsubscribeSnapshotRef.current}`);
       cleanupListener(); 
 
-      if (effectMountedRef.current) {
-        if (!isLoadingTransactions) {
-             console.log("Dashboard: TRACER --- setIsLoadingTransactions(true) for new fetch/setup of user:", userId);
-             setIsLoadingTransactions(true);
-        } else {
-             console.log("Dashboard: TRACER --- isLoadingTransactions is already true for user:", userId, "proceeding with fetch/setup.");
-        }
+      if (effectMountedRef.current && !isLoadingTransactions) {
+        console.log("Dashboard: TRACER --- setIsLoadingTransactions(true) for new fetch/setup of user:", userId);
+        setIsLoadingTransactions(true);
       }
       mainFetchInitiatedForUser.current = userId;
 
@@ -149,13 +150,16 @@ export default function DashboardPage() {
               return;
             }
             console.log(`Dashboard: TRACER --- onSnapshot: Received data for UserID: ${currentUserId}. Empty: ${querySnapshot.empty}, PendingWrites: ${querySnapshot.metadata.hasPendingWrites}`);
-
+            
             const fetchedTransactions = querySnapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as Transaction));
+            
             if (effectMountedRef.current) {
               console.log(`Dashboard: TRACER --- onSnapshot: Setting ${fetchedTransactions.length} transactions for UserID: ${currentUserId}.`);
-              setTransactions(fetchedTransactions); // This will be an empty array if querySnapshot is empty
-              if(isLoadingTransactions) setIsLoadingTransactions(false);
-              console.log("Dashboard: TRACER --- setIsLoadingTransactions(false) after processing snapshot data for UserID:", currentUserId);
+              setTransactions(fetchedTransactions);
+              if(isLoadingTransactions) {
+                setIsLoadingTransactions(false);
+                console.log("Dashboard: TRACER --- setIsLoadingTransactions(false) after processing snapshot data for UserID:", currentUserId);
+              }
             }
           }, (error: any) => {
             if (!effectMountedRef.current) {
@@ -169,12 +173,14 @@ export default function DashboardPage() {
                 description: translate({
                   en: "Could not fetch transactions. Please check your connection.",
                   pt: "Não foi possível buscar as transações. Verifique sua conexão."
-                }) + (error.message ? ` (${error.message})` : ''),
+                }) + (error.message ? ` (Code: ${error.code || 'N/A'})` : ''),
                 variant: "destructive",
               });
               setTransactions([]);
-              if(isLoadingTransactions) setIsLoadingTransactions(false);
-              console.log("Dashboard: TRACER --- setIsLoadingTransactions(false) in onSnapshot (error callback) for UserID:", currentUserId);
+              if(isLoadingTransactions) {
+                setIsLoadingTransactions(false);
+                console.log("Dashboard: TRACER --- setIsLoadingTransactions(false) in onSnapshot (error callback) for UserID:", currentUserId);
+              }
             }
           });
 
@@ -187,30 +193,32 @@ export default function DashboardPage() {
           if (effectMountedRef.current) {
             toast({
               title: translate({ en: "Error", pt: "Erro" }),
-              description: translate({ en: "Could not load dashboard data.", pt: "Não foi possível carregar dados do painel." }) + (error.message ? ` (${error.message})` : ''),
+              description: translate({ en: "Could not load dashboard data.", pt: "Não foi possível carregar dados do painel." }) + (error.message ? ` (Code: ${error.code || 'N/A'})` : ''),
               variant: "destructive",
             });
             setTransactions([]);
-            if(isLoadingTransactions) setIsLoadingTransactions(false);
-            console.log("Dashboard: TRACER --- setIsLoadingTransactions(false) in fetchDataInternal (main catch block) for UserID:", currentUserId);
+            if(isLoadingTransactions) {
+              setIsLoadingTransactions(false);
+              console.log("Dashboard: TRACER --- setIsLoadingTransactions(false) in fetchDataInternal (main catch block) for UserID:", currentUserId);
+            }
           }
         }
       };
       fetchDataInternal(userId);
     } else {
       console.log(`Dashboard: TRACER --- Main useEffect: Listener should be active for UserID: ${userId}. isLoadingTransactions: ${isLoadingTransactions}. Snapshot ref present: ${!!unsubscribeSnapshotRef.current}`);
+      // If listener is active, and we are still loading, but we already have transactions (or it's empty but confirmed by listener), stop loading.
       if (isLoadingTransactions && unsubscribeSnapshotRef.current && effectMountedRef.current) {
-          if (transactions.length > 0 || (transactions.length === 0 && unsubscribeSnapshotRef.current )) {
-             console.log("Dashboard: TRACER --- Main useEffect: Listener active, forcing isLoadingTransactions to false for UserID:", userId);
-             if (effectMountedRef.current) setIsLoadingTransactions(false);
-          }
+          // This condition can be tricky. The listener might be active, but the first snapshot hasn't arrived yet.
+          // Only set to false if there's a reason to believe data state is settled (e.g. transactions array has content, or listener is up and implies it's empty)
+          // For now, will let onSnapshot callback handle setting isLoadingTransactions to false.
       } else if (isLoadingTransactions && !unsubscribeSnapshotRef.current && effectMountedRef.current) {
-        console.warn("Dashboard: TRACER --- Main useEffect: No active listener but still loading. Forcing false for UserID:", userId);
+        console.warn("Dashboard: TRACER --- Main useEffect: No active listener but still loading. This might be an issue. Forcing false for UserID:", userId);
         if (effectMountedRef.current) setIsLoadingTransactions(false);
       }
     }
     return fullCleanup;
-  }, [userId, authLoading, isClient]);
+  }, [userId, authLoading, isClient, router, toast, translate, isLoadingTransactions]); // Added isLoadingTransactions to dependencies
 
 
   const onAddTransaction = async (newTransactionData: Omit<Transaction, "id" | "userId" | "createdAt">) => {
@@ -223,25 +231,16 @@ export default function DashboardPage() {
       return;
     }
 
-    const dataToSave = {
-      ...newTransactionData, 
-      userId: userId,
-      createdAt: serverTimestamp(),
-    };
-
-    // For optimistic update, date should already be an ISO string from TransactionForm
     const optimisticTransaction: Transaction = {
       id: `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       description: newTransactionData.description,
       amount: newTransactionData.amount,
       type: newTransactionData.type,
       category: newTransactionData.category,
-      date: newTransactionData.date, // Already ISO string
+      date: newTransactionData.date,
       paymentMethod: newTransactionData.paymentMethod,
       installments: newTransactionData.installments,
       isRecurring: newTransactionData.isRecurring,
-      // userId: userId, // Can include if needed for immediate UI consistency before Firestore sync
-      // createdAt: new Date().toISOString(), // Client-side timestamp for optimistic rendering if needed
     };
 
     setTransactions(prevTransactions => 
@@ -250,20 +249,50 @@ export default function DashboardPage() {
 
     try {
       const transactionsColRef = collection(db, `users/${userId}/transactions`);
+      
+      // Prepare the object for Firestore, ensuring no undefined properties are sent
+      const fullPayload = {
+        description: newTransactionData.description,
+        amount: newTransactionData.amount,
+        type: newTransactionData.type,
+        category: newTransactionData.category,
+        date: newTransactionData.date,
+        paymentMethod: newTransactionData.paymentMethod,
+        installments: newTransactionData.installments,
+        isRecurring: newTransactionData.isRecurring, // Form default is false, so it should be boolean
+        userId: userId,
+        createdAt: serverTimestamp(),
+      };
+
+      // Clean the payload: remove any properties that have an undefined value
+      const dataToSave = Object.fromEntries(
+        Object.entries(fullPayload).filter(([_, value]) => value !== undefined)
+      );
+      
+      // Ensure isRecurring is present, defaulting to false if it was initially undefined and thus removed.
+      // newTransactionData.isRecurring is expected to be true/false from the form's checkbox.
+      if (!('isRecurring' in dataToSave) && newTransactionData.isRecurring !== undefined) {
+        // This case implies newTransactionData.isRecurring was undefined, which shouldn't happen for a checkbox
+        // but as a safeguard, if it was passed as undefined and then removed:
+         dataToSave.isRecurring = newTransactionData.isRecurring ?? false;
+      } else if (!('isRecurring' in dataToSave)) {
+        // If isRecurring was not in newTransactionData at all (which is unlikely for this field)
+        dataToSave.isRecurring = false;
+      }
+
+
       await addDoc(transactionsColRef, dataToSave);
-      // onSnapshot will handle updating the UI with the Firestore-confirmed transaction
 
       toast({
         title: translate({ en: "Transaction Added", pt: "Transação Adicionada" }),
         description: `${newTransactionData.description} ${translate({ en: "has been successfully added.", pt: "foi adicionada com sucesso." })}`,
       });
     } catch (error: any) {
-      console.error("DashboardPage: Error adding transaction:", error);
-      // Revert optimistic update
+      console.error("DashboardPage: Error adding transaction to Firestore:", error);
       setTransactions(prevTransactions => prevTransactions.filter(t => t.id !== optimisticTransaction.id));
       toast({
         title: translate({ en: "Error adding transaction", pt: "Erro ao adicionar transação" }),
-        description: error.message || translate({ en: "Could not add transaction.", pt: "Não foi possível adicionar a transação." }),
+        description: (error.message || translate({ en: "Could not add transaction.", pt: "Não foi possível adicionar a transação." })) + (error.code ? ` (Code: ${error.code})` : ''),
         variant: "destructive",
       });
     }
@@ -277,7 +306,6 @@ export default function DashboardPage() {
       const transactionDate = new Date(t.date);
       const transactionYear = transactionDate.getFullYear();
       const transactionMonth = transactionDate.getMonth();
-      // Include transactions from the current month OR recurring transactions
       return (transactionYear === year && transactionMonth === month) || t.isRecurring === true;
     });
   }, [transactions, displayedDate]);
@@ -326,7 +354,7 @@ export default function DashboardPage() {
       };
     }
     return null;
-  }, [transactionsForDisplayedPeriod]);
+  }, [transactionsForDisplayedPeriod, language]);
 
 
   if (!isClient || authLoading || isLoadingTransactions) {
@@ -402,3 +430,5 @@ export default function DashboardPage() {
     </AppLayout>
   );
 }
+
+    
