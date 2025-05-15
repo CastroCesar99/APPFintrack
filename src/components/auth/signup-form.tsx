@@ -18,12 +18,14 @@ import { useAuth } from "@/context/auth-context";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
-// import { updateProfile } from "firebase/auth"; // No longer needed
+import { updateProfile } from "firebase/auth"; // Import updateProfile
 import { useLanguage } from "@/context/language-context";
-import { db } from "@/lib/firebase"; // Import db
-import { doc, setDoc, serverTimestamp } from "firebase/firestore"; // Import Firestore functions
+import { db } from "@/lib/firebase";
+import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 
+// Schema com o campo nome
 const signupFormSchema = z.object({
+  name: z.string().min(2, { message: "O nome deve ter pelo menos 2 caracteres." }),
   email: z.string().email({ message: "Por favor, insira um email válido." }),
   password: z.string().min(6, { message: "A senha deve ter pelo menos 6 caracteres." }),
   confirmPassword: z.string(),
@@ -35,7 +37,7 @@ const signupFormSchema = z.object({
 type SignupFormValues = z.infer<typeof signupFormSchema>;
 
 export function SignupForm() {
-  const { signUp } = useAuth();
+  const { signUp, user: authUser } = useAuth(); // authUser pode ser usado para pegar o usuário do auth
   const router = useRouter();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
@@ -44,6 +46,7 @@ export function SignupForm() {
   const form = useForm<SignupFormValues>({
     resolver: zodResolver(signupFormSchema),
     defaultValues: {
+      name: "", // Valor padrão para o nome
       email: "",
       password: "",
       confirmPassword: "",
@@ -56,26 +59,27 @@ export function SignupForm() {
 
     if (user) {
       try {
-        // await updateProfile(user, { displayName: values.name }); // Name field removed
+        // Atualiza o perfil do Firebase Auth com o displayName
+        await updateProfile(user, { displayName: values.name });
 
-        // Create user document in Firestore
+        // Cria o documento do usuário no Firestore
         const userDocRef = doc(db, "users", user.uid);
         await setDoc(userDocRef, {
           uid: user.uid,
-          // name: values.name, // Name field removed
+          name: values.name, // Salva o nome no Firestore
           email: values.email,
           createdAt: serverTimestamp(),
-          onboardingComplete: false, // Initialize onboarding status
+          onboardingComplete: false,
         });
 
         toast({
           title: translate({ en: "Signup successful!", pt: "Cadastro realizado!" }),
           description: translate({ en: "Your account has been created.", pt: "Sua conta foi criada com sucesso." })
         });
-        localStorage.removeItem('onboardingComplete'); // Ensure old localStorage value is cleared
+        localStorage.removeItem('onboardingComplete');
         router.push("/onboarding");
       } catch (error) {
-        console.error("Error creating user document:", error);
+        console.error("Error updating profile or creating user document:", error);
         toast({
           title: translate({ en: "Signup error", pt: "Erro no cadastro" }),
           description: translate({ en: "An error occurred during signup. Please try again.", pt: "Ocorreu um erro durante o cadastro. Por favor, tente novamente." }),
@@ -95,6 +99,19 @@ export function SignupForm() {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        <FormField
+          control={form.control}
+          name="name"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>{translate({ en: "Name", pt: "Nome" })}</FormLabel>
+              <FormControl>
+                <Input placeholder={translate({en: "First name", pt: "Primeiro nome"})} {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
         <FormField
           control={form.control}
           name="email"
