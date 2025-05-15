@@ -30,7 +30,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning> {/* suppressHydrationWarning for client-side class changes by ThemeProvider */}
+    <html lang="en" suppressHydrationWarning>
       <body suppressHydrationWarning={true} className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <ThemeProvider> {/* ThemeProvider now wraps content inside body */}
           <AuthProvider>
