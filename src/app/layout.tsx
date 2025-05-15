@@ -6,6 +6,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { LanguageProvider } from '@/context/language-context';
 import { AuthProvider } from '@/context/auth-context'; // Import AuthProvider
+import { DateNavigationProvider } from '@/context/date-navigation-context'; // NEW IMPORT
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -32,9 +33,11 @@ export default function RootLayout({
       <body suppressHydrationWarning={true} className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <AuthProvider> {/* Wrap with AuthProvider */}
           <LanguageProvider>
-            <SidebarProvider defaultOpen={true}>
-              {children}
-            </SidebarProvider>
+            <DateNavigationProvider> {/* ADDED PROVIDER */}
+              <SidebarProvider defaultOpen={true}>
+                {children}
+              </SidebarProvider>
+            </DateNavigationProvider> {/* ADDED PROVIDER */}
           </LanguageProvider>
         </AuthProvider>
         <Toaster />

@@ -9,8 +9,7 @@ import { SummarySection } from "@/components/dashboard/summary-section";
 import { QuickActionsSection } from "@/components/dashboard/quick-actions-section";
 import { RecentTransactionsSection } from "@/components/dashboard/recent-transactions-section";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+// Button, ChevronLeft, ChevronRight removed as they are in AppHeaderContent
 import type { Transaction, CategoryName } from "@/types";
 import { CATEGORIES, getCategoryLabel } from "@/types";
 import { useLanguage } from '@/context/language-context';
@@ -19,8 +18,8 @@ import { collection, query, orderBy, onSnapshot, doc, getDoc } from "firebase/fi
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/utils";
 import { CategoryIcon } from "@/components/icons";
-import { format, subMonths, addMonths } from "date-fns";
-import { ptBR, enUS } from 'date-fns/locale';
+// format, subMonths, addMonths, ptBR, enUS removed, now handled by DateNavigationContext
+import { useDateNavigation } from '@/context/date-navigation-context';
 
 const MONTHLY_BUDGET = 900;
 
@@ -29,13 +28,12 @@ export default function DashboardPage() {
   const { user, loading: authLoading } = useAuth();
   const { translate, language } = useLanguage();
   const { toast } = useToast();
+  const { displayedDate, displayedMonthYearLabel } = useDateNavigation(); // Using context
 
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isLoadingTransactions, setIsLoadingTransactions] = useState(true);
   const [isClient, setIsClient] = useState(false);
-  const [displayedDate, setDisplayedDate] = useState<Date>(new Date());
-  const [displayedMonthYearLabel, setDisplayedMonthYearLabel] = useState('');
-
+  // Removed local displayedDate and displayedMonthYearLabel state
 
   const effectMountedRef = useRef(true);
   const unsubscribeSnapshotRef = useRef<(() => void) | null>(null);
@@ -48,16 +46,7 @@ export default function DashboardPage() {
     setIsClient(true);
   }, []);
 
-  useEffect(() => {
-    if (language && isClient && displayedDate) {
-      const locale = language === 'pt' ? ptBR : enUS;
-      // Capitalize the first letter of the month
-      const formattedMonth = format(displayedDate, "MMMM yyyy", { locale });
-      setDisplayedMonthYearLabel(formattedMonth.charAt(0).toUpperCase() + formattedMonth.slice(1));
-      console.log("Dashboard: TRACER --- displayedMonthYearLabel set to", formattedMonth.charAt(0).toUpperCase() + formattedMonth.slice(1));
-    }
-  }, [language, isClient, displayedDate]);
-
+  // useEffect for local displayedMonthYearLabel removed - context handles this now.
 
   useEffect(() => {
     effectMountedRef.current = true;
@@ -232,7 +221,9 @@ export default function DashboardPage() {
       console.log(`Dashboard: TRACER --- Main useEffect: Listener should be active for UserID: ${userId}. isLoadingTransactions: ${isLoadingTransactions}. Snapshot ref present: ${!!unsubscribeSnapshotRef.current}`);
       // Ensure loading is false if listener is active and we have transactions or it's confirmed empty
       if (isLoadingTransactions && unsubscribeSnapshotRef.current && effectMountedRef.current) {
-          if (transactions.length > 0 || (transactions.length === 0 && !unsubscribeSnapshotRef.current?.INTERNAL.metadata.fromCache)) { // Check if empty is from server or just initial state
+          // Check if the listener is not from cache OR if we have transactions.
+          // This helps ensure we don't turn off loading too early if the first snapshot is cached and empty.
+          if (transactions.length > 0 || (transactions.length === 0 && unsubscribeSnapshotRef.current && !unsubscribeSnapshotRef.current?.INTERNAL?.metadata?.fromCache)) {
              console.log("Dashboard: TRACER --- Main useEffect: Listener active, forcing isLoadingTransactions to false for UserID:", userId);
              setIsLoadingTransactions(false);
           }
@@ -242,7 +233,7 @@ export default function DashboardPage() {
       }
     }
     return fullCleanup;
-  }, [userId, authLoading, isClient]);
+  }, [userId, authLoading, isClient]); // Removed router, toast, translate as per previous optimizations
 
 
   const transactionsForDisplayedPeriod = useMemo(() => {
@@ -300,15 +291,7 @@ export default function DashboardPage() {
     return null;
   }, [transactionsForDisplayedPeriod]);
 
-
-  const handlePreviousMonth = () => {
-    setDisplayedDate(current => subMonths(current, 1));
-  };
-
-  const handleNextMonth = () => {
-    setDisplayedDate(current => addMonths(current, 1));
-  };
-
+  // handlePreviousMonth and handleNextMonth removed, now in DateNavigationContext
 
   if (!isClient || authLoading || isLoadingTransactions) {
     console.log("Dashboard: TRACER --- RENDERING LOADING SCREEN. isClient:", isClient, "authLoading:", authLoading, "isLoadingTransactions:", isLoadingTransactions);
@@ -324,19 +307,7 @@ export default function DashboardPage() {
   return (
     <AppLayout>
       <div className="space-y-8">
-        <Card className="shadow-md rounded-lg">
-          <CardContent className="p-4 flex items-center justify-between">
-            <Button onClick={handlePreviousMonth} variant="outline" size="icon" aria-label={translate({en: "Previous Month", pt: "Mês Anterior"})}>
-              <ChevronLeft className="h-5 w-5" />
-            </Button>
-            <h2 className="text-xl font-semibold text-center text-primary truncate px-2">
-              {displayedMonthYearLabel}
-            </h2>
-            <Button onClick={handleNextMonth} variant="outline" size="icon" aria-label={translate({en: "Next Month", pt: "Próximo Mês"})}>
-              <ChevronRight className="h-5 w-5" />
-            </Button>
-          </CardContent>
-        </Card>
+        {/* Month Navigation Card REMOVED from here */}
 
         <SummarySection
           transactionsForDisplayedPeriod={transactionsForDisplayedPeriod}
