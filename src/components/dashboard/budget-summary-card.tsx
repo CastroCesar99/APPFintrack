@@ -13,6 +13,7 @@ interface BudgetSummaryCardProps {
   icon: LucideIcon;
   className?: string;
   iconClassName?: string;
+  description?: string;
 }
 
 export function BudgetSummaryCard({
@@ -22,6 +23,7 @@ export function BudgetSummaryCard({
   icon: Icon,
   className,
   iconClassName,
+  description,
 }: BudgetSummaryCardProps) {
   const { translate } = useLanguage();
   const percentageUsed = totalBudget > 0 ? Math.min(Math.round((spentAmount / totalBudget) * 100), 100) : 0;
@@ -36,6 +38,7 @@ export function BudgetSummaryCard({
         <div className="text-2xl font-bold">
           {formatCurrency(spentAmount)} / <span className="text-base text-muted-foreground">{formatCurrency(totalBudget)}</span>
         </div>
+        {description && <p className="text-xs text-muted-foreground">{description}</p>}
         <Progress value={percentageUsed} className="mt-2 h-2" />
         <p className="text-xs text-muted-foreground mt-1">
           {percentageUsed}% {translate({ en: "of total budget used", pt: "do orçamento total utilizado" })}

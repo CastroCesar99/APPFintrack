@@ -8,16 +8,19 @@ import { AppLayout } from "@/components/layout/app-layout";
 import { SummarySection } from "@/components/dashboard/summary-section";
 import { QuickActionsSection } from "@/components/dashboard/quick-actions-section";
 import { RecentTransactionsSection } from "@/components/dashboard/recent-transactions-section";
-// ExpenseCategoryChart import removed as it's no longer used directly on this page
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { Transaction, CategoryName } from "@/types";
-import { CATEGORIES, getCategoryLabel } from "@/types"; // Import CATEGORIES and getCategoryLabel
+import { CATEGORIES, getCategoryLabel } from "@/types";
 import { useLanguage } from '@/context/language-context';
 import { db } from '@/lib/firebase';
 import { collection, query, orderBy, onSnapshot, doc, getDoc } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
-import { formatCurrency } from "@/lib/utils"; // Import formatCurrency
-import { CategoryIcon } from "@/components/icons"; // Import CategoryIcon
+import { formatCurrency } from "@/lib/utils";
+import { CategoryIcon } from "@/components/icons";
+import { format, subMonths, addMonths } from "date-fns";
+import { ptBR, enUS } from 'date-fns/locale';
 
 const MONTHLY_BUDGET = 900;
 
@@ -29,8 +32,10 @@ export default function DashboardPage() {
 
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isLoadingTransactions, setIsLoadingTransactions] = useState(true);
-  const [currentMonthName, setCurrentMonthName] = useState('');
   const [isClient, setIsClient] = useState(false);
+  const [displayedDate, setDisplayedDate] = useState<Date>(new Date());
+  const [displayedMonthYearLabel, setDisplayedMonthYearLabel] = useState('');
+
 
   const effectMountedRef = useRef(true);
   const unsubscribeSnapshotRef = useRef<(() => void) | null>(null);
@@ -44,13 +49,14 @@ export default function DashboardPage() {
   }, []);
 
   useEffect(() => {
-    if (language && isClient) {
-      const date = new Date();
-      const month = date.toLocaleString(language === 'pt' ? 'pt-BR' : 'en-US', { month: 'long' });
-      setCurrentMonthName(month.charAt(0).toUpperCase() + month.slice(1));
-      console.log("Dashboard: TRACER --- currentMonthName set to", month.charAt(0).toUpperCase() + month.slice(1));
+    if (language && isClient && displayedDate) {
+      const locale = language === 'pt' ? ptBR : enUS;
+      // Capitalize the first letter of the month
+      const formattedMonth = format(displayedDate, "MMMM yyyy", { locale });
+      setDisplayedMonthYearLabel(formattedMonth.charAt(0).toUpperCase() + formattedMonth.slice(1));
+      console.log("Dashboard: TRACER --- displayedMonthYearLabel set to", formattedMonth.charAt(0).toUpperCase() + formattedMonth.slice(1));
     }
-  }, [language, isClient]);
+  }, [language, isClient, displayedDate]);
 
 
   useEffect(() => {
@@ -78,8 +84,6 @@ export default function DashboardPage() {
 
     if (authLoading) {
       console.log("Dashboard: TRACER --- Main useEffect: Auth is loading, waiting...");
-      // Do not set isLoadingTransactions to true here if auth is loading,
-      // let the main loading screen handle authLoading state.
       return fullCleanup;
     }
 
@@ -226,26 +230,29 @@ export default function DashboardPage() {
 
     } else {
       console.log(`Dashboard: TRACER --- Main useEffect: Listener should be active for UserID: ${userId}. isLoadingTransactions: ${isLoadingTransactions}. Snapshot ref present: ${!!unsubscribeSnapshotRef.current}`);
-      if(isLoadingTransactions && unsubscribeSnapshotRef.current && effectMountedRef.current && transactions.length > 0){
-        console.log("Dashboard: TRACER --- Main useEffect: Listener active, transactions present, but still loading. Forcing isLoadingTransactions to false for UserID:", userId);
-        setIsLoadingTransactions(false);
+      // Ensure loading is false if listener is active and we have transactions or it's confirmed empty
+      if (isLoadingTransactions && unsubscribeSnapshotRef.current && effectMountedRef.current) {
+          if (transactions.length > 0 || (transactions.length === 0 && !unsubscribeSnapshotRef.current?.INTERNAL.metadata.fromCache)) { // Check if empty is from server or just initial state
+             console.log("Dashboard: TRACER --- Main useEffect: Listener active, forcing isLoadingTransactions to false for UserID:", userId);
+             setIsLoadingTransactions(false);
+          }
       } else if (isLoadingTransactions && !unsubscribeSnapshotRef.current && effectMountedRef.current) {
         console.warn("Dashboard: TRACER --- Main useEffect: No active listener but still loading. This might indicate a problem. Forcing false for UserID:", userId);
         setIsLoadingTransactions(false);
       }
     }
     return fullCleanup;
-  }, [userId, authLoading, isClient, router, toast]);
+  }, [userId, authLoading, isClient]);
 
 
-  const transactionsThisMonth = useMemo(() => {
-    const currentYear = new Date().getFullYear();
-    const currentMonth = new Date().getMonth();
+  const transactionsForDisplayedPeriod = useMemo(() => {
+    const year = displayedDate.getFullYear();
+    const month = displayedDate.getMonth();
     return transactions.filter(t => {
       const transactionDate = new Date(t.date);
-      return transactionDate.getFullYear() === currentYear && transactionDate.getMonth() === currentMonth;
+      return transactionDate.getFullYear() === year && transactionDate.getMonth() === month;
     });
-  }, [transactions]);
+  }, [transactions, displayedDate]);
 
   const recentIncome = useMemo(() => {
     return transactions
@@ -261,14 +268,14 @@ export default function DashboardPage() {
       .slice(0, 5);
   }, [transactions]);
 
-  const largestExpenseCategoryThisMonth = useMemo(() => {
-    const expensesThisMonth = transactionsThisMonth.filter(t => t.type === 'expense');
-    if (expensesThisMonth.length === 0) {
+  const largestExpenseCategoryForDisplayedPeriod = useMemo(() => {
+    const expensesThisPeriod = transactionsForDisplayedPeriod.filter(t => t.type === 'expense');
+    if (expensesThisPeriod.length === 0) {
       return null;
     }
 
-    const expensesByCategory: Record<string, number> = {}; // Use string as key initially
-    for (const transaction of expensesThisMonth) {
+    const expensesByCategory: Record<string, number> = {};
+    for (const transaction of expensesThisPeriod) {
       expensesByCategory[transaction.category] = (expensesByCategory[transaction.category] || 0) + transaction.amount;
     }
 
@@ -283,16 +290,24 @@ export default function DashboardPage() {
     }
 
     if (largestCategoryKey) {
-      // Find the original category object to get its icon
       const categoryDetails = CATEGORIES.find(cat => cat.name === largestCategoryKey);
       return {
-        name: largestCategoryKey as CategoryName, // Cast back to CategoryName
+        name: largestCategoryKey as CategoryName,
         amount: maxAmount,
-        icon: categoryDetails?.icon || 'CircleHelp', // Fallback icon
+        icon: categoryDetails?.icon || 'CircleHelp',
       };
     }
     return null;
-  }, [transactionsThisMonth]);
+  }, [transactionsForDisplayedPeriod]);
+
+
+  const handlePreviousMonth = () => {
+    setDisplayedDate(current => subMonths(current, 1));
+  };
+
+  const handleNextMonth = () => {
+    setDisplayedDate(current => addMonths(current, 1));
+  };
 
 
   if (!isClient || authLoading || isLoadingTransactions) {
@@ -309,10 +324,24 @@ export default function DashboardPage() {
   return (
     <AppLayout>
       <div className="space-y-8">
+        <Card className="shadow-md rounded-lg">
+          <CardContent className="p-4 flex items-center justify-between">
+            <Button onClick={handlePreviousMonth} variant="outline" size="icon" aria-label={translate({en: "Previous Month", pt: "Mês Anterior"})}>
+              <ChevronLeft className="h-5 w-5" />
+            </Button>
+            <h2 className="text-xl font-semibold text-center text-primary truncate px-2">
+              {displayedMonthYearLabel}
+            </h2>
+            <Button onClick={handleNextMonth} variant="outline" size="icon" aria-label={translate({en: "Next Month", pt: "Próximo Mês"})}>
+              <ChevronRight className="h-5 w-5" />
+            </Button>
+          </CardContent>
+        </Card>
+
         <SummarySection
-          transactionsThisMonth={transactionsThisMonth}
+          transactionsForDisplayedPeriod={transactionsForDisplayedPeriod}
           monthlyBudget={MONTHLY_BUDGET}
-          currentMonthName={currentMonthName}
+          displayedMonthYearLabel={displayedMonthYearLabel}
         />
 
         <QuickActionsSection />
@@ -335,18 +364,20 @@ export default function DashboardPage() {
         <Card className="shadow-lg">
           <CardHeader>
             <CardTitle>{translate({ en: "Largest Expense Category", pt: "Principal Categoria de Gasto" })}</CardTitle>
-            <CardDescription>{translate({ en: "Your top spending category this month.", pt: "Sua principal categoria de gasto neste mês." })}</CardDescription>
+            <CardDescription>
+              {translate({ en: "Your top spending category for", pt: "Sua principal categoria de gasto em" })} {displayedMonthYearLabel}
+            </CardDescription>
           </CardHeader>
           <CardContent>
-            {largestExpenseCategoryThisMonth ? (
+            {largestExpenseCategoryForDisplayedPeriod ? (
               <div className="flex items-center space-x-4 p-4 rounded-lg bg-card">
-                <CategoryIcon iconName={largestExpenseCategoryThisMonth.icon} className="h-10 w-10 text-primary flex-shrink-0" />
+                <CategoryIcon iconName={largestExpenseCategoryForDisplayedPeriod.icon} className="h-10 w-10 text-primary flex-shrink-0" />
                 <div className="flex-grow">
                   <p className="text-sm font-medium text-foreground truncate">
-                    {getCategoryLabel(largestExpenseCategoryThisMonth.name, language)}
+                    {getCategoryLabel(largestExpenseCategoryForDisplayedPeriod.name, language)}
                   </p>
                   <p className="text-2xl font-bold text-primary">
-                    {formatCurrency(largestExpenseCategoryThisMonth.amount)}
+                    {formatCurrency(largestExpenseCategoryForDisplayedPeriod.amount)}
                   </p>
                 </div>
               </div>
@@ -354,8 +385,8 @@ export default function DashboardPage() {
               <div className="flex items-center justify-center h-[100px]">
                 <p className="text-muted-foreground">
                   {translate({
-                    en: "No expense data for this month.",
-                    pt: "Sem dados de despesa para este mês."
+                    en: "No expense data for this period.",
+                    pt: "Sem dados de despesa para este período."
                   })}
                 </p>
               </div>
