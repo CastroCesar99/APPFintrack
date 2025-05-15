@@ -8,15 +8,16 @@ import { AppLayout } from "@/components/layout/app-layout";
 import { SummarySection } from "@/components/dashboard/summary-section";
 import { QuickActionsSection } from "@/components/dashboard/quick-actions-section";
 import { RecentTransactionsSection } from "@/components/dashboard/recent-transactions-section";
-import { ExpenseCategoryChart } from "@/components/dashboard/charts/expense-category-chart";
+// ExpenseCategoryChart import removed as it's no longer used directly on this page
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import type { Transaction } from "@/types";
+import type { Transaction, CategoryName } from "@/types";
+import { CATEGORIES, getCategoryLabel } from "@/types"; // Import CATEGORIES and getCategoryLabel
 import { useLanguage } from '@/context/language-context';
 import { db } from '@/lib/firebase';
-import { collection, query, orderBy, onSnapshot, doc, getDoc } from "firebase/firestore"; // Removed writeBatch, serverTimestamp from here as it's not used directly for seeding anymore
+import { collection, query, orderBy, onSnapshot, doc, getDoc } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
-
-// seedTransactions array removed as it's no longer used.
+import { formatCurrency } from "@/lib/utils"; // Import formatCurrency
+import { CategoryIcon } from "@/components/icons"; // Import CategoryIcon
 
 const MONTHLY_BUDGET = 900;
 
@@ -31,11 +32,11 @@ export default function DashboardPage() {
   const [currentMonthName, setCurrentMonthName] = useState('');
   const [isClient, setIsClient] = useState(false);
 
-  const effectMountedRef = useRef(true); 
+  const effectMountedRef = useRef(true);
   const unsubscribeSnapshotRef = useRef<(() => void) | null>(null);
-  const mainFetchInitiatedForUser = useRef<string | null>(null); 
+  const mainFetchInitiatedForUser = useRef<string | null>(null);
 
-  const userId = user?.uid; 
+  const userId = user?.uid;
 
   useEffect(() => {
     console.log("Dashboard: TRACER --- isClient useEffect running");
@@ -53,7 +54,7 @@ export default function DashboardPage() {
 
 
   useEffect(() => {
-    effectMountedRef.current = true; 
+    effectMountedRef.current = true;
     console.log(`Dashboard: TRACER --- Main useEffect START. UserID: ${userId}, AuthLoading: ${authLoading}, isClient: ${isClient}, InitiatedFor: ${mainFetchInitiatedForUser.current}, isLoadingTransactions: ${isLoadingTransactions}`);
 
     const cleanupListener = () => {
@@ -77,6 +78,8 @@ export default function DashboardPage() {
 
     if (authLoading) {
       console.log("Dashboard: TRACER --- Main useEffect: Auth is loading, waiting...");
+      // Do not set isLoadingTransactions to true here if auth is loading,
+      // let the main loading screen handle authLoading state.
       return fullCleanup;
     }
 
@@ -94,8 +97,8 @@ export default function DashboardPage() {
 
     if (mainFetchInitiatedForUser.current !== userId || !unsubscribeSnapshotRef.current) {
       console.log(`Dashboard: TRACER --- Main useEffect: Initiating NEW fetch/listener for UserID: ${userId}. PrevInitiatedFor: ${mainFetchInitiatedForUser.current}. ListenerExisted: ${!!unsubscribeSnapshotRef.current}`);
-      
-      cleanupListener(); 
+
+      cleanupListener();
 
       if (effectMountedRef.current) {
         if (!isLoadingTransactions) {
@@ -105,7 +108,7 @@ export default function DashboardPage() {
              console.log("Dashboard: TRACER --- isLoadingTransactions is already true for user:", userId, "proceeding with fetch/setup.");
         }
       }
-      
+
       mainFetchInitiatedForUser.current = userId;
 
       const fetchDataInternal = async (currentUserId: string) => {
@@ -131,7 +134,7 @@ export default function DashboardPage() {
             if (effectMountedRef.current) {
               if(isLoadingTransactions) setIsLoadingTransactions(false);
               console.log("Dashboard: TRACER --- setIsLoadingTransactions(false) in fetchDataInternal (user doc not found).");
-              router.push('/onboarding'); 
+              router.push('/onboarding');
             }
             return;
           }
@@ -149,7 +152,7 @@ export default function DashboardPage() {
           console.log("Dashboard: TRACER --- fetchDataInternal: User onboarding complete for UserID:", currentUserId, ". Setting up onSnapshot listener.");
           const transactionsColRef = collection(db, `users/${currentUserId}/transactions`);
           const q_transactions = query(transactionsColRef, orderBy("date", "desc"));
-          
+
           if (unsubscribeSnapshotRef.current) {
               console.warn("Dashboard: TRACER --- fetchDataInternal: Stale snapshot ref found before new onSnapshot. Cleaning up again.");
               unsubscribeSnapshotRef.current();
@@ -164,7 +167,6 @@ export default function DashboardPage() {
             console.log(`Dashboard: TRACER --- onSnapshot: Received data for UserID: ${currentUserId}. Empty: ${querySnapshot.empty}, PendingWrites: ${querySnapshot.metadata.hasPendingWrites}`);
 
             if (querySnapshot.empty) {
-              // No seeding logic. If it's empty, it's empty.
               console.log("Dashboard: TRACER --- onSnapshot: Transactions collection empty for UserID:", currentUserId);
               if (effectMountedRef.current) {
                 setTransactions([]);
@@ -195,7 +197,7 @@ export default function DashboardPage() {
                 }) + (error.message ? ` (${error.message})` : ''),
                 variant: "destructive",
               });
-              setTransactions([]); // Clear transactions on error
+              setTransactions([]);
               if(isLoadingTransactions) setIsLoadingTransactions(false);
               console.log("Dashboard: TRACER --- setIsLoadingTransactions(false) in onSnapshot (error callback) for UserID:", currentUserId);
             }
@@ -213,7 +215,7 @@ export default function DashboardPage() {
               description: translate({ en: "Could not load dashboard data.", pt: "Não foi possível carregar dados do painel." }) + (error.message ? ` (${error.message})` : ''),
               variant: "destructive",
             });
-            setTransactions([]); // Clear transactions on error
+            setTransactions([]);
             if(isLoadingTransactions) setIsLoadingTransactions(false);
             console.log("Dashboard: TRACER --- setIsLoadingTransactions(false) in fetchDataInternal (main catch block) for UserID:", currentUserId);
           }
@@ -224,24 +226,16 @@ export default function DashboardPage() {
 
     } else {
       console.log(`Dashboard: TRACER --- Main useEffect: Listener should be active for UserID: ${userId}. isLoadingTransactions: ${isLoadingTransactions}. Snapshot ref present: ${!!unsubscribeSnapshotRef.current}`);
-       // If we are here, it means listener setup was not re-initiated.
-       // If isLoadingTransactions is still true, it might be from a previous cycle that didn't complete a state update.
-       // Or, it could be that the initial snapshot hasn't arrived yet.
-       // We rely on the onSnapshot callback to eventually set isLoadingTransactions to false.
-       // However, if the listener setup failed silently, this might not happen.
-       // Let's check if we have an active listener and if we are still loading without a good reason.
       if(isLoadingTransactions && unsubscribeSnapshotRef.current && effectMountedRef.current && transactions.length > 0){
         console.log("Dashboard: TRACER --- Main useEffect: Listener active, transactions present, but still loading. Forcing isLoadingTransactions to false for UserID:", userId);
         setIsLoadingTransactions(false);
       } else if (isLoadingTransactions && !unsubscribeSnapshotRef.current && effectMountedRef.current) {
         console.warn("Dashboard: TRACER --- Main useEffect: No active listener but still loading. This might indicate a problem. Forcing false for UserID:", userId);
-        setIsLoadingTransactions(false); // A safeguard, though ideally this path isn't hit if logic is sound.
+        setIsLoadingTransactions(false);
       }
     }
-
     return fullCleanup;
-
-  }, [userId, authLoading, isClient, router, toast, translate]);
+  }, [userId, authLoading, isClient, router, toast]);
 
 
   const transactionsThisMonth = useMemo(() => {
@@ -266,6 +260,39 @@ export default function DashboardPage() {
       .sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime())
       .slice(0, 5);
   }, [transactions]);
+
+  const largestExpenseCategoryThisMonth = useMemo(() => {
+    const expensesThisMonth = transactionsThisMonth.filter(t => t.type === 'expense');
+    if (expensesThisMonth.length === 0) {
+      return null;
+    }
+
+    const expensesByCategory: Record<string, number> = {}; // Use string as key initially
+    for (const transaction of expensesThisMonth) {
+      expensesByCategory[transaction.category] = (expensesByCategory[transaction.category] || 0) + transaction.amount;
+    }
+
+    let maxAmount = 0;
+    let largestCategoryKey: string | null = null;
+
+    for (const categoryKey in expensesByCategory) {
+      if (expensesByCategory[categoryKey] > maxAmount) {
+        maxAmount = expensesByCategory[categoryKey];
+        largestCategoryKey = categoryKey;
+      }
+    }
+
+    if (largestCategoryKey) {
+      // Find the original category object to get its icon
+      const categoryDetails = CATEGORIES.find(cat => cat.name === largestCategoryKey);
+      return {
+        name: largestCategoryKey as CategoryName, // Cast back to CategoryName
+        amount: maxAmount,
+        icon: categoryDetails?.icon || 'CircleHelp', // Fallback icon
+      };
+    }
+    return null;
+  }, [transactionsThisMonth]);
 
 
   if (!isClient || authLoading || isLoadingTransactions) {
@@ -307,18 +334,28 @@ export default function DashboardPage() {
 
         <Card className="shadow-lg">
           <CardHeader>
-            <CardTitle>{translate({ en: "Spending by Category", pt: "Gastos por Categoria" })}</CardTitle>
-            <CardDescription>{translate({ en: "Current month's spending distribution.", pt: "Distribuição de gastos do mês atual." })}</CardDescription>
+            <CardTitle>{translate({ en: "Largest Expense Category", pt: "Principal Categoria de Gasto" })}</CardTitle>
+            <CardDescription>{translate({ en: "Your top spending category this month.", pt: "Sua principal categoria de gasto neste mês." })}</CardDescription>
           </CardHeader>
           <CardContent>
-            {transactionsThisMonth.filter(t => t.type === 'expense').length > 0 ? (
-              <ExpenseCategoryChart transactions={transactionsThisMonth} />
+            {largestExpenseCategoryThisMonth ? (
+              <div className="flex items-center space-x-4 p-4 rounded-lg bg-card">
+                <CategoryIcon iconName={largestExpenseCategoryThisMonth.icon} className="h-10 w-10 text-primary flex-shrink-0" />
+                <div className="flex-grow">
+                  <p className="text-sm font-medium text-foreground truncate">
+                    {getCategoryLabel(largestExpenseCategoryThisMonth.name, language)}
+                  </p>
+                  <p className="text-2xl font-bold text-primary">
+                    {formatCurrency(largestExpenseCategoryThisMonth.amount)}
+                  </p>
+                </div>
+              </div>
             ) : (
-              <div className="flex items-center justify-center h-[300px]">
+              <div className="flex items-center justify-center h-[100px]">
                 <p className="text-muted-foreground">
                   {translate({
-                    en: "No expense data for this month to display chart.",
-                    pt: "Sem dados de despesa para este mês para exibir o gráfico."
+                    en: "No expense data for this month.",
+                    pt: "Sem dados de despesa para este mês."
                   })}
                 </p>
               </div>
