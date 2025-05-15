@@ -2,7 +2,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import React, { useState } from "react"; // Added useState
+import React from "react"; // Removed useState
 import {
   SidebarHeader,
   SidebarContent,
@@ -16,24 +16,13 @@ import { AppLogoIcon, DashboardIcon, SettingsIcon } from "@/components/icons";
 import { useLanguage } from "@/context/language-context";
 import { useAuth } from "@/context/auth-context";
 import { LogOut, CreditCard, TrendingUp, ListChecks, FileText } from "lucide-react";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-  DialogFooter,
-  DialogClose,
-} from "@/components/ui/dialog";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Label } from "@/components/ui/label";
+// Dialog imports removed
 
 export function AppSidebarContent() {
   const pathname = usePathname();
-  const { language, setLanguage, translate } = useLanguage();
+  const { language, setLanguage, translate } = useLanguage(); // setLanguage might be unused here now
   const { user, logOut, loading: authLoading } = useAuth();
-  const [isSettingsDialogOpen, setIsSettingsDialogOpen] = useState(false);
+  // Removed isSettingsDialogOpen state
 
   const appTitle = "FinTrack";
 
@@ -74,10 +63,7 @@ export function AppSidebarContent() {
     en: "Settings",
     pt: "Configurações",
   });
-  const settingsDialogTitle = translate({ en: "Settings", pt: "Configurações" });
-  const settingsDialogDescription = translate({ en: "Adjust your preferences.", pt: "Ajuste suas preferências."});
-  const languageLabel = translate({ en: "Language", pt: "Idioma" });
-  const closeButtonLabel = translate({ en: "Close", pt: "Fechar" });
+  // Removed dialog specific translations as dialog is removed
 
   const logoutLabel = translate({
     en: "Logout",
@@ -114,51 +100,21 @@ export function AppSidebarContent() {
         </SidebarMenu>
       </SidebarContent>
       <SidebarFooter className="p-4 border-t space-y-2">
-        <Dialog open={isSettingsDialogOpen} onOpenChange={setIsSettingsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button variant="ghost" className="w-full justify-start gap-2">
+        {/* Settings button now navigates to /settings page */}
+        <Link href="/settings" passHref legacyBehavior>
+          <SidebarMenuButton
+            asChild
+            isActive={pathname.startsWith("/settings")}
+            className="w-full justify-start"
+            tooltip={{ children: settingsLabel, side: "right", align: "center" }}
+          >
+            <a>
               <SettingsIcon className="h-5 w-5" />
               <span>{settingsLabel}</span>
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[425px]">
-            <DialogHeader>
-              <DialogTitle>{settingsDialogTitle}</DialogTitle>
-              <DialogDescription>
-                {settingsDialogDescription}
-              </DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="space-y-2">
-                <Label htmlFor="language-group">{languageLabel}</Label>
-                <RadioGroup
-                  id="language-group"
-                  value={language}
-                  onValueChange={(value) => setLanguage(value as 'en' | 'pt')}
-                  className="flex space-x-4"
-                >
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="en" id="lang-en" />
-                    <Label htmlFor="lang-en">English</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="pt" id="lang-pt" />
-                    <Label htmlFor="lang-pt">Português</Label>
-                  </div>
-                </RadioGroup>
-              </div>
-              {/* Add other settings here in the future */}
-            </div>
-            <DialogFooter>
-              <DialogClose asChild>
-                <Button type="button" variant="outline">
-                  {closeButtonLabel}
-                </Button>
-              </DialogClose>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
+            </a>
+          </SidebarMenuButton>
+        </Link>
+        
         {user && !authLoading && (
           <Button variant="ghost" onClick={logOut} className="w-full justify-start gap-2 text-red-500 hover:text-red-600 hover:bg-red-500/10">
             <LogOut className="h-5 w-5" />
