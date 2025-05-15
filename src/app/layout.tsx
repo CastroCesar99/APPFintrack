@@ -30,9 +30,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning={true}>
       <body suppressHydrationWarning={true} className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-        <ThemeProvider> {/* ThemeProvider now wraps content inside body */}
+        <ThemeProvider>
           <AuthProvider>
             <LanguageProvider>
               <DateNavigationProvider>
