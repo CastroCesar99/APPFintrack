@@ -1,7 +1,7 @@
 
 "use client";
 import type { LucideProps, LucideIcon } from 'lucide-react';
-import Image from 'next/image'; // Added import for next/image
+import Image from 'next/image';
 import {
   Briefcase, ShoppingCart, Home, Zap, Replace, Utensils, Car, HeartPulse,
   Film, ShoppingBag, Plane, BookOpen, Gift, TrendingUp, Laptop, DollarSign, CircleHelp, PiggyBank, Settings, LayoutDashboard, FileText,
@@ -14,15 +14,13 @@ import {
   Archive, Bell, Box, Camera, Cog, Coins, Flag, Folder, Key, Mail, MapPin, Package, Pen, Phone, Receipt, Shield, Tag, Trash, User, Wrench
 } from 'lucide-react';
 import type { CategoryName, PaymentMethodName } from '@/types';
-import { CATEGORIES, PAYMENT_METHODS } from '@/types';
+import { CATEGORIES, PAYMENT_METHODS } from '@/types'; // Import CATEGORIES
 
 // Centralized map of icon string names to Lucide components
-// This map will be used for both predefined and user-selected icons.
 export const iconNameToComponentMap: Record<string, LucideIcon> = {
   Briefcase, ShoppingCart, Home, Zap, Replace, Utensils, Car, HeartPulse,
   Film, ShoppingBag, Plane, BookOpen, Gift, TrendingUp, Laptop, DollarSign, CircleHelp, PiggyBank, Settings, LayoutDashboard, FileText,
   ListChecks, PlusCircle, SlidersHorizontal, Wallet, CreditCard, Sparkles,
-  // Additional icons available for user selection:
   Archive, Bell, Box, Camera, Cog, Coins, Flag, Folder, Key, Mail, MapPin, Package, Pen, Phone, Receipt, Shield, Tag, Trash, User, Wrench
 };
 
@@ -36,15 +34,22 @@ export const DynamicIcon: React.FC<DynamicIconProps> = ({ iconName, ...props }) 
   return <IconComponent {...props} />;
 };
 
-// Keeping CategoryIcon and PaymentMethodIcon for semantic clarity in use,
-// but they will now use DynamicIcon internally or a similar lookup.
-
 interface CategoryIconProps extends LucideProps {
- iconName: string; // Now directly takes the icon name string
+  categoryName?: CategoryName; // Optional: the English name of the category
+  iconName?: string;         // Optional: direct icon name string
 }
 
-export const CategoryIcon: React.FC<CategoryIconProps> = ({ iconName, ...props }) => {
-  const IconComponent = iconNameToComponentMap[iconName] || CircleHelp;
+export const CategoryIcon: React.FC<CategoryIconProps> = ({ categoryName, iconName, ...props }) => {
+  let determinedIconName = iconName;
+
+  if (!determinedIconName && categoryName) {
+    const category = CATEGORIES.find(cat => cat.name === categoryName);
+    if (category) {
+      determinedIconName = category.icon;
+    }
+  }
+
+  const IconComponent = iconNameToComponentMap[determinedIconName || ''] || CircleHelp;
   return <IconComponent {...props} />;
 };
 
@@ -75,4 +80,3 @@ export const getSelectableIcons = () => {
     iconComponent: Component as LucideIcon,
   })).sort((a,b) => a.label.localeCompare(b.label)); // Sort alphabetically by label
 }
-
