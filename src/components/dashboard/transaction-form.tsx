@@ -30,7 +30,7 @@ const formSchema = z.object({
   amount: z.coerce.number().positive({ message: "Amount must be positive." }),
   type: z.enum(["income", "expense"], { required_error: "Transaction type is required." }),
   category: z.string().min(1, { message: "Category is required." }),
-  expenseType: z.enum(["fixed", "variable"]).optional(), // Still keep expenseType if used for filtering/analysis
+  expenseType: z.enum(["upfront", "installment", "recurring"]).optional(), // Updated to reflect payment types
   paymentMethod: z.string().optional(), // Added for payment method
   installments: z.coerce.number().int().positive().optional(), // Added for installments
   date: z.date({ required_error: "Date is required." }),
@@ -83,12 +83,12 @@ export function TransactionForm({ onAddTransaction, initialType }: TransactionFo
   async function onSubmit(values: TransactionFormValues) {
     setIsSubmitting(true);
     try {
+      console.log("Transaction object being sent:", { ...values, category: values.category as CategoryName });
       await onAddTransaction({
  description: values.description,
         amount: values.amount,
         type: values.type,
         category: values.category as CategoryName,
-        date: format(values.date, "yyyy-MM-dd"),
         // Include fields based on transaction type
         ...(values.type === 'expense' && values.expenseType && { expenseType: values.expenseType }), // Only include if expenseType is selected
         ...(values.type === 'expense' && selectedPaymentMethodType && { paymentMethod: selectedPaymentMethodType === 'installment' && values.installments ? `installment-${values.installments}` : selectedPaymentMethodType }), // Use selectedPaymentMethodType and format if installment
@@ -101,7 +101,7 @@ export function TransactionForm({ onAddTransaction, initialType }: TransactionFo
  expenseType: undefined,
           paymentMethod: undefined, // Reset to undefined for form state
  installments: undefined, // Reset installments
-          isRecurring: false,
+ isRecurring: false, // Keep initialType and category
  description: "",
           date: new Date(),
       },{ keepValues: true, keepDirtyValues: true }); // Keep initialType and category
@@ -242,6 +242,29 @@ export function TransactionForm({ onAddTransaction, initialType }: TransactionFo
  )}
         {form.getValues("type") === "expense" && (
           <>
+            <FormField
+ control={form.control}
+ name="paymentMethod"
+ render={({ field }) => (
+ <FormItem>
+ <FormLabel>{paymentMethodLabel}</FormLabel>
+ <Select onValueChange={field.onChange} value={field.value}>
+ <FormControl>
+ <SelectTrigger>
+                      <SelectValue placeholder={translate({ en: "Select payment method", pt: "Selecione a forma de pagamento" })} />
+ </SelectTrigger>
+ </FormControl>
+ <SelectContent>
+                      <SelectItem value="Credit">{translate({ en: "Credit Card", pt: "Cartão de Crédito" })}</SelectItem>
+                      <SelectItem value="Debit">{translate({ en: "Debit Card", pt: "Cartão de Débito" })}</SelectItem>
+                      <SelectItem value="Cash">{translate({ en: "Cash", pt: "Dinheiro" })}</SelectItem>
+ {/* Add more payment methods here if needed */}
+ </SelectContent>
+ </Select>
+ <FormMessage />
+ </FormItem>
+ )}
+ />
             <FormField
               control={form.control}
               name="expenseType"

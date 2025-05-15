@@ -10,22 +10,21 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
-  DialogClose,
-  DialogFooter,
 } from "@/components/ui/dialog";
-import { TransactionForm } from "./transaction-form"; // Assuming TransactionForm is in the same directory
+import { TransactionForm } from "./transaction-form";
 import type { Transaction, TransactionType } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/context/language-context";
-import { useAuth } from "@/context/auth-context";
-import { db } from "@/lib/firebase";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+// Removed Firestore imports as logic moves to DashboardPage
 
-export function QuickActionsSection() {
+interface QuickActionsSectionProps {
+  onAddTransaction: (transactionData: Omit<Transaction, "id" | "userId" | "createdAt">) => Promise<void>;
+}
+
+export function QuickActionsSection({ onAddTransaction }: QuickActionsSectionProps) {
   const { translate } = useLanguage();
   const { toast } = useToast();
-  const { user } = useAuth();
+  // Removed useAuth and db imports
 
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [formInitialType, setFormInitialType] = useState<TransactionType>("expense");
@@ -35,45 +34,17 @@ export function QuickActionsSection() {
     setIsFormOpen(true);
   };
 
-  const handleAddTransactionToFirestore = async (transactionData: Omit<Transaction, "id">) => {
-    if (!user) {
-      toast({
-        title: translate({ en: "Authentication Error", pt: "Erro de Autenticação" }),
-        description: translate({ en: "You must be logged in to add a transaction.", pt: "Você precisa estar logado para adicionar uma transação." }),
-        variant: "destructive",
-      });
-      return;
-    }
-
+  const handleFormSubmit = async (transactionData: Omit<Transaction, "id" | "userId" | "createdAt">) => {
     try {
-      const transactionWithUserAndTimestamp = {
-        ...transactionData,
-        userId: user.uid,
-        createdAt: serverTimestamp(),
-      };
-      const transactionsColRef = collection(db, `users/${user.uid}/transactions`);
-      await addDoc(transactionsColRef, transactionWithUserAndTimestamp);
-
-      toast({
-        title: translate({ en: "Transaction Added", pt: "Transação Adicionada" }),
-        description: translate({
-          en: `${transactionData.description} for ${transactionData.amount} has been successfully added.`,
-          pt: `${transactionData.description} de ${transactionData.amount} foi adicionada com sucesso.`,
-        }),
-      });
-      setIsFormOpen(false); // Close dialog on success
+      await onAddTransaction(transactionData);
+      setIsFormOpen(false); // Close dialog on success (toast is handled by DashboardPage's onAddTransaction)
     } catch (error) {
-      console.error("Error adding transaction to Firestore:", error);
-      toast({
-        title: translate({ en: "Error Adding Transaction", pt: "Erro ao Adicionar Transação" }),
-        description: translate({
-          en: "Could not save the transaction. Please try again.",
-          pt: "Não foi possível salvar a transação. Por favor, tente novamente.",
-        }),
-        variant: "destructive",
-      });
+      // Error toast is handled by DashboardPage's onAddTransaction
+      console.error("Error submitting transaction from QuickActionsSection:", error);
+      // Optionally, keep the form open or handle UI differently here if needed
     }
   };
+
 
   const handleManageBudgets = () => {
     toast({
@@ -120,11 +91,11 @@ export function QuickActionsSection() {
             </DialogHeader>
             {isFormOpen && (
               <TransactionForm
-              onAddTransaction={handleAddTransactionToFirestore} 
-              initialType={formInitialType}
-            />
+                // Pass the new handleFormSubmit which calls the prop
+                onAddTransaction={handleFormSubmit} 
+                initialType={formInitialType}
+              />
             )}
-            {/* DialogFooter and DialogClose can be part of TransactionForm's submit or handled here */}
           </DialogContent>
         </Dialog>
       </CardContent>
