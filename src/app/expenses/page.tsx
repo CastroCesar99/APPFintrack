@@ -10,15 +10,26 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { TransactionsTable } from "@/components/dashboard/transactions-table";
 import { TransactionForm } from "@/components/dashboard/transaction-form";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { PlusCircle } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { PlusCircle, Trash2 } from "lucide-react";
 import type { Transaction } from "@/types";
 import { useAuth } from '@/context/auth-context';
 import { useLanguage } from '@/context/language-context';
 import { useDateNavigation } from '@/context/date-navigation-context';
 import { useToast } from "@/hooks/use-toast";
 import { db } from '@/lib/firebase';
-import { collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, Timestamp } from "firebase/firestore";
+import { collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, Timestamp, doc, deleteDoc } from "firebase/firestore";
 import { format as formatDateFns, parseISO as parseISODateFns } from 'date-fns';
+import { formatCurrency } from '@/lib/utils';
 
 export default function ExpensesPage() {
   const { user, loading: authLoading } = useAuth();
@@ -31,6 +42,8 @@ export default function ExpensesPage() {
   const [isLoadingTransactions, setIsLoadingTransactions] = useState(true);
   const [isAddFormOpen, setIsAddFormOpen] = useState(false);
   const [isClient, setIsClient] = useState(false);
+  const [transactionToDelete, setTransactionToDelete] = useState<Transaction | null>(null);
+
 
   useEffect(() => {
     setIsClient(true);
@@ -147,11 +160,41 @@ export default function ExpensesPage() {
     });
   };
 
-  const handleDeleteTransaction = (transactionId: string) => {
-     toast({
-      title: translate({ en: "Feature In Development", pt: "Funcionalidade em Desenvolvimento" }),
-      description: `${translate({en:"Deleting transaction",pt:"Excluir transação"})} ID: ${transactionId} ${translate({en:"is coming soon.", pt:"está chegando em breve."})}`
-    });
+  const openDeleteConfirmation = (transactionId: string) => {
+    const tx = allTransactions.find(t => t.id === transactionId);
+    if (tx) {
+      setTransactionToDelete(tx);
+    }
+  };
+
+  const confirmDeleteTransaction = async () => {
+    if (!user || !transactionToDelete) {
+      toast({
+        title: translate({ en: "Error", pt: "Erro" }),
+        description: translate({ en: "Transaction not found or user not authenticated.", pt: "Transação não encontrada ou usuário não autenticado." }),
+        variant: "destructive",
+      });
+      setTransactionToDelete(null);
+      return;
+    }
+
+    try {
+      const docRef = doc(db, `users/${user.uid}/transactions`, transactionToDelete.id);
+      await deleteDoc(docRef);
+      toast({
+        title: translate({ en: "Expense Deleted", pt: "Despesa Excluída" }),
+        description: `${transactionToDelete.description} ${translate({en: "has been deleted.", pt: "foi excluída."})}`,
+      });
+    } catch (error) {
+      console.error("ExpensesPage: Error deleting expense:", error);
+      toast({
+        title: translate({ en: "Error Deleting Expense", pt: "Erro ao Excluir Despesa" }),
+        description: translate({ en: "Could not delete the expense.", pt: "Não foi possível excluir a despesa." }),
+        variant: "destructive",
+      });
+    } finally {
+      setTransactionToDelete(null);
+    }
   };
 
 
@@ -190,7 +233,7 @@ export default function ExpensesPage() {
                 onAddTransaction={handleAddExpense}
                 initialType="expense"
                 defaultDate={displayedDate}
-                key={displayedDate.toISOString()} 
+                key={displayedDate.toISOString() + "expense"} 
               />
             </DialogContent>
           </Dialog>
@@ -208,7 +251,7 @@ export default function ExpensesPage() {
               <TransactionsTable 
                 transactions={expensesForDisplayedPeriod} 
                 onEditTransaction={handleEditTransaction}
-                onDeleteTransaction={handleDeleteTransaction}
+                onDeleteTransaction={openDeleteConfirmation}
               />
             ) : (
               <p className="text-center text-muted-foreground py-8">
@@ -218,6 +261,26 @@ export default function ExpensesPage() {
           </CardContent>
         </Card>
       </div>
+      {transactionToDelete && (
+        <AlertDialog open={!!transactionToDelete} onOpenChange={(open) => !open && setTransactionToDelete(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>{translate({en: "Confirm Deletion", pt: "Confirmar Exclusão"})}</AlertDialogTitle>
+              <AlertDialogDescription>
+                {translate({en: "Are you sure you want to delete the expense: ", pt: "Tem certeza que deseja excluir a despesa: "})} 
+                <strong>{transactionToDelete.description}</strong> ({formatCurrency(transactionToDelete.amount)})? 
+                {translate({en: " This action cannot be undone.", pt: " Esta ação não pode ser desfeita."})}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => setTransactionToDelete(null)}>{translate({en: "Cancel", pt: "Cancelar"})}</AlertDialogCancel>
+              <AlertDialogAction onClick={confirmDeleteTransaction} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                {translate({en: "Delete", pt: "Excluir"})}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
     </AppLayout>
   );
 }
