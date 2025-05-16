@@ -109,7 +109,7 @@ export default function ManageCategoriesPage() {
             ) : (
               <p className="text-center text-muted-foreground py-8">
                 {translate({ en: "No categories configured yet.", pt: "Nenhuma categoria configurada ainda." })}
-              </P>
+              </p>
             )}
           </CardContent>
         </Card>
