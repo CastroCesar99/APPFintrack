@@ -2,24 +2,37 @@
 "use client";
 
 import type React from 'react';
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter } from 'next/navigation';
 import { AppLayout } from "@/components/layout/app-layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Terminal, Info, Lightbulb, CheckCircle, TrendingDown, TrendingUp, MinusCircle, PieChart as PieChartIcon, CreditCard, Package, Target } from "lucide-react"; 
-import type { Transaction, CategoryName } from "@/types";
+import { Terminal, Info, Lightbulb, CheckCircle, TrendingDown, TrendingUp, MinusCircle, Package, Target, Wallet } from "lucide-react"; 
+import type { Transaction, CategoryName, DisplayCategory, UserPreferences } from "@/types";
+import { CATEGORIES, getCategoryDisplayLabel } from "@/types";
 import { useAuth } from '@/context/auth-context';
 import { useLanguage } from '@/context/language-context';
 import { useDateNavigation } from '@/context/date-navigation-context';
 import { useToast } from "@/hooks/use-toast";
 import { db } from '@/lib/firebase';
-import { collection, query, orderBy, onSnapshot, Timestamp } from "firebase/firestore";
-import { format as formatDateFns, parseISO as parseISODateFns } from 'date-fns';
+import { collection, query, orderBy, onSnapshot, Timestamp, doc, getDoc } from "firebase/firestore";
+import { format as formatDateFns, parseISO as parseISODateFns, getYear as getYearFns, getMonth as getMonthFns, parse as parseDateFns, startOfMonth, endOfMonth, addMonths, setDate as setDateFnsDate, differenceInCalendarMonths, isWithinInterval, lastDayOfMonth } from 'date-fns';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ExpenseCategoryChart } from '@/components/dashboard/charts/expense-category-chart';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, cn } from '@/lib/utils';
 import { ExportData } from '@/components/dashboard/export-data';
+import { Progress } from "@/components/ui/progress";
+import { CategoryIcon } from "@/components/icons";
+
+
+interface BudgetComparisonItem {
+  categoryName: string;
+  icon: string;
+  budgeted: number;
+  actual: number;
+  difference: number;
+  percentage: number;
+}
 
 export default function ReportsPage() {
   const { user, loading: authLoading } = useAuth();
@@ -32,13 +45,66 @@ export default function ReportsPage() {
   const [isLoadingTransactions, setIsLoadingTransactions] = useState(true);
   const [isClient, setIsClient] = useState(false);
 
+  const [userDisplayCategories, setUserDisplayCategories] = useState<DisplayCategory[]>([]);
+  const [isLoadingPreferences, setIsLoadingPreferences] = useState(true);
+  
+  const [loadedBudgets, setLoadedBudgets] = useState<Record<string, number> | null>(null);
+  const [isLoadingBudgets, setIsLoadingBudgets] = useState(true);
+
   useEffect(() => {
     setIsClient(true);
   }, []);
 
+  // Fetch User Preferences (for category names and icons)
+  useEffect(() => {
+    if (!user || authLoading) {
+      if (!authLoading && !user && isClient) router.push('/login');
+      setIsLoadingPreferences(false); // Stop loading if no user
+      return;
+    }
+    setIsLoadingPreferences(true);
+    const fetchPrefs = async () => {
+      try {
+        const preferencesDocRef = doc(db, `users/${user.uid}/preferences/userPreferences`);
+        const preferencesDocSnap = await getDoc(preferencesDocRef);
+        if (preferencesDocSnap.exists()) {
+          const prefsData = preferencesDocSnap.data() as UserPreferences;
+          const customDefs = prefsData.userDefinedCategories || [];
+          
+          let effectiveCategories: DisplayCategory[] = [...CATEGORIES];
+          const seenNames = new Set(CATEGORIES.map(c => c.name.toLowerCase()));
+
+          customDefs.forEach(customCat => {
+            if (!seenNames.has(customCat.name.toLowerCase())) {
+              effectiveCategories.push(customCat);
+              seenNames.add(customCat.name.toLowerCase());
+            }
+          });
+          setUserDisplayCategories(effectiveCategories);
+        } else {
+          setUserDisplayCategories([...CATEGORIES]); // Default to all predefined if no prefs
+        }
+      } catch (error) {
+        console.error("ReportsPage: Error fetching user preferences:", error);
+        toast({
+          title: translate({ en: "Error Loading Preferences", pt: "Erro ao Carregar Preferências" }),
+          description: translate({ en: "Could not load category details.", pt: "Não foi possível carregar detalhes das categorias." }),
+          variant: "destructive",
+        });
+        setUserDisplayCategories([...CATEGORIES]); // Fallback
+      } finally {
+        setIsLoadingPreferences(false);
+      }
+    };
+    fetchPrefs();
+  }, [user, authLoading, isClient, router, toast, translate]);
+
+
+  // Fetch Transactions
   useEffect(() => {
     if (!user || authLoading || !isClient) {
       if (!authLoading && !user && isClient) router.push('/login');
+      setIsLoadingTransactions(false);
       return;
     }
 
@@ -56,7 +122,7 @@ export default function ReportsPage() {
           try {
             dateString = formatDateFns(parseISODateFns(data.date), "yyyy-MM-dd");
           } catch (e) {
-            console.warn("ReportsPage: Failed to parse ISO date string: " + data.date, e);
+            console.warn("ReportsPage: Failed to parse ISO date string: " + String(data.date), e);
             dateString = formatDateFns(new Date(), "yyyy-MM-dd");
           }
         } else if (typeof data.date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(data.date)) {
@@ -71,6 +137,7 @@ export default function ReportsPage() {
             installments: data.installments,
             isRecurring: data.isRecurring,
             expenseNature: data.expenseNature,
+            expenseType: data.expenseType,
         } as Transaction;
       });
       setAllTransactions(fetchedTransactions);
@@ -88,17 +155,86 @@ export default function ReportsPage() {
     return () => unsubscribe();
   }, [user, authLoading, isClient, toast, translate, router]);
 
-  const transactionsForDisplayedPeriod = useMemo(() => {
-    const targetYear = displayedDate.getFullYear();
-    const targetMonth = displayedDate.getMonth(); 
+  // Fetch Budgets for the displayed month
+  useEffect(() => {
+    if (!user || authLoading || !isClient) {
+      setIsLoadingBudgets(false);
+      setLoadedBudgets(null);
+      return;
+    }
+    setIsLoadingBudgets(true);
+    const budgetMonthKey = formatDateFns(displayedDate, 'yyyy-MM');
+    const budgetDocRef = doc(db, `users/${user.uid}/budgets/${budgetMonthKey}`);
+    
+    const fetchBudgets = async () => {
+      try {
+        const docSnap = await getDoc(budgetDocRef);
+        if (docSnap.exists()) {
+          setLoadedBudgets(docSnap.data() as Record<string, number>);
+        } else {
+          setLoadedBudgets({}); // No budgets set for this month
+        }
+      } catch (error) {
+        console.error("ReportsPage: Error loading budgets:", error);
+        toast({
+          title: translate({ en: "Error Loading Budgets", pt: "Erro ao Carregar Orçamentos" }),
+          description: translate({ en: "Could not load budget data for comparison.", pt: "Não foi possível carregar os dados do orçamento para comparação." }),
+          variant: "destructive"
+        });
+        setLoadedBudgets({});
+      } finally {
+        setIsLoadingBudgets(false);
+      }
+    };
+    fetchBudgets();
+  }, [user, authLoading, isClient, displayedDate, toast, translate]);
 
-    return allTransactions.filter(t => {
-      const dateParts = t.date.split('-');
-      if (dateParts.length !== 3) return false;
-      const transactionYear = parseInt(dateParts[0], 10);
-      const transactionMonth = parseInt(dateParts[1], 10) - 1;
-      return transactionYear === targetYear && transactionMonth === targetMonth;
+
+  const transactionsForDisplayedPeriod = useMemo(() => {
+    const targetYear = getYearFns(displayedDate);
+    const targetMonth = getMonthFns(displayedDate); // 0-indexed
+    const firstDayOfTargetMonth = startOfMonth(displayedDate);
+
+    const filtered: Transaction[] = [];
+    allTransactions.forEach(t => {
+      const originalTransactionDate = parseDateFns(t.date, "yyyy-MM-dd", new Date(0));
+
+      if (t.type === 'expense' && t.expenseType === 'installment' && t.installments && t.installments > 0) {
+        const installmentSeriesStartDate = startOfMonth(originalTransactionDate);
+        const isInstallmentActiveThisMonth = isWithinInterval(firstDayOfTargetMonth, { start: installmentSeriesStartDate, end: endOfMonth(addMonths(installmentSeriesStartDate, t.installments - 1)) });
+        if (isInstallmentActiveThisMonth) {
+           filtered.push(t);
+        }
+      }
+      else if (t.isRecurring === true && t.expenseType !== 'installment') {
+        const originalTransactionYear = getYearFns(originalTransactionDate);
+        const originalTransactionMonth = getMonthFns(originalTransactionDate);
+        const matchesRecurringCriteria = originalTransactionYear < targetYear || (originalTransactionYear === targetYear && originalTransactionMonth <= targetMonth);
+        if (matchesRecurringCriteria) {
+           filtered.push(t);
+        }
+      }
+      else if (!t.isRecurring && t.expenseType !== 'installment') {
+        const transactionYear = getYearFns(originalTransactionDate);
+        const transactionMonth = getMonthFns(originalTransactionDate);
+        if (transactionYear === targetYear && transactionMonth === targetMonth) {
+          filtered.push(t);
+        }
+      } else if (t.type === 'income') { // Include income for totals
+         const transactionYear = getYearFns(originalTransactionDate);
+         const transactionMonth = getMonthFns(originalTransactionDate);
+         if (t.isRecurring) {
+            if (startOfMonth(originalTransactionDate) <= firstDayOfTargetMonth) {
+                filtered.push(t);
+            }
+         } else {
+            if (transactionYear === targetYear && transactionMonth === targetMonth) {
+                filtered.push(t);
+            }
+         }
+      }
     });
+    return filtered;
   }, [allTransactions, displayedDate]);
 
   const totalIncomeForPeriod = useMemo(() =>
@@ -127,10 +263,56 @@ export default function ReportsPage() {
       .reduce((sum, t) => sum + t.amount, 0),
   [transactionsForDisplayedPeriod]);
 
+  const budgetVsActualData = useMemo<BudgetComparisonItem[]>(() => {
+    if (!loadedBudgets || isLoadingPreferences || userDisplayCategories.length === 0) { // Ensure preferences are loaded
+      return [];
+    }
+
+    const actualSpending: Record<string, number> = {};
+    transactionsForDisplayedPeriod
+      .filter(t => t.type === 'expense')
+      .forEach(t => {
+        const categoryKey = t.category as string;
+        actualSpending[categoryKey] = (actualSpending[categoryKey] || 0) + t.amount;
+      });
+
+    // Start with categories that have a budget defined.
+    const categoriesWithBudgets = Object.keys(loadedBudgets).filter(key => loadedBudgets[key] > 0);
+    // Add categories that have spending, even if no budget was explicitly set (budget will be 0).
+    const categoriesWithSpending = Object.keys(actualSpending).filter(key => actualSpending[key] > 0);
+    
+    const allRelevantCategoryNames = new Set<string>([...categoriesWithBudgets, ...categoriesWithSpending]);
+    
+    if (allRelevantCategoryNames.size === 0 && Object.keys(loadedBudgets).every(key => (loadedBudgets[key] || 0) === 0)) {
+        return []; 
+    }
+
+    return Array.from(allRelevantCategoryNames).map(categoryName => {
+      const categoryInfo = userDisplayCategories.find(cat => cat.name === categoryName);
+      const displayName = categoryInfo ? getCategoryDisplayLabel(categoryInfo, language) : categoryName;
+      const budgeted = loadedBudgets[categoryName] || 0;
+      const actual = actualSpending[categoryName] || 0;
+      const difference = budgeted - actual;
+      const percentageRaw = budgeted > 0 ? (actual / budgeted) * 100 : (actual > 0 ? Infinity : 0); 
+      
+      return {
+        categoryName: displayName,
+        icon: categoryInfo?.icon || 'CircleHelp',
+        budgeted,
+        actual,
+        difference,
+        percentage: percentageRaw
+      };
+    }).filter(item => item.budgeted > 0 || item.actual > 0) // Only show items with a budget or actual spending
+      .sort((a,b) => (b.budgeted + b.actual) - (a.budgeted + a.actual));
+  }, [loadedBudgets, transactionsForDisplayedPeriod, userDisplayCategories, language, isLoadingPreferences]);
+
 
   const pageTitle = translate({ en: "Reports", pt: "Relatórios" });
 
-  if (!isClient || authLoading || (isLoadingTransactions && allTransactions.length === 0)) {
+  const overallLoading = !isClient || authLoading || isLoadingTransactions || isLoadingPreferences || isLoadingBudgets;
+
+  if (overallLoading && allTransactions.length === 0 && !loadedBudgets && userDisplayCategories.length === 0) {
     return (
       <AppLayout>
         <div className="flex items-center justify-center h-full w-full">
@@ -193,7 +375,7 @@ export default function ReportsPage() {
           <Card className="shadow-lg">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">{translate({en: "Total Variable Expenses", pt: "Despesas Variáveis Totais"})}</CardTitle>
-              <CreditCard className="h-4 w-4 text-muted-foreground" />
+              <Wallet className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{formatCurrency(totalVariableExpensesForPeriod)}</div>
@@ -209,7 +391,7 @@ export default function ReportsPage() {
               <CardDescription>
                 {translate({ en: "AI-generated summary and advice for", pt: "Resumo e conselhos gerados por IA para" })} {displayedMonthYearLabel}.
                 <br />
-                {translate({ en: "This feature is in development. Budget data from the 'Budgets' page will be used here once fully implemented.", pt: "Esta funcionalidade está em desenvolvimento. Dados de orçamento da página 'Orçamentos' serão usados aqui quando totalmente implementado."})}
+                {translate({ en: "This feature is in development. AI analysis will use transactions and defined budgets once fully integrated.", pt: "Esta funcionalidade está em desenvolvimento. A análise da IA usará transações e orçamentos definidos quando totalmente integrada."})}
               </CardDescription>
             </div>
           </CardHeader>
@@ -222,27 +404,74 @@ export default function ReportsPage() {
         
         <Card className="shadow-lg bg-muted/50">
           <CardHeader>
-            <CardTitle>{translate({ en: "Budget vs. Actual", pt: "Orçamento vs. Real" })}</CardTitle>
+            <CardTitle>{translate({ en: "Budget vs. Actual Spending", pt: "Orçamento vs. Gasto Real" })}</CardTitle>
             <CardDescription>
                {translate({ en: "Comparison of your spending against defined budgets for", pt: "Comparação dos seus gastos com os orçamentos definidos para" })} {displayedMonthYearLabel}.
             </CardDescription>
           </CardHeader>
-          <CardContent className="flex items-center justify-center h-[200px]">
-            <div className="text-center">
-              <Target className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <p className="text-muted-foreground">
-                {translate({ 
-                  en: "Detailed budget comparison is coming soon. Please set and save your budgets on the 'Budgets' page to enable this view.", 
-                  pt: "A comparação detalhada do orçamento estará disponível em breve. Por favor, defina e salve seus orçamentos na página 'Orçamentos' para habilitar esta visualização."
-                })}
-              </p>
-            </div>
+          <CardContent>
+            {isLoadingBudgets || isLoadingTransactions || isLoadingPreferences ? (
+              <div className="space-y-4 py-4">
+                {[...Array(3)].map((_, i) => <Skeleton key={`budget-skeleton-${i}`} className="h-20 w-full rounded-md" />)}
+              </div>
+            ) : budgetVsActualData.length > 0 ? (
+              <div className="space-y-3">
+                {budgetVsActualData.map((item) => (
+                  <div key={item.categoryName} className="p-3 rounded-md border bg-card hover:bg-accent/10 transition-colors">
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="flex items-center gap-2">
+                        <CategoryIcon iconName={item.icon} className="h-5 w-5 text-muted-foreground" />
+                        <span className="font-medium text-sm">{item.categoryName}</span>
+                      </div>
+                      <span className={cn(
+                        "text-xs font-semibold px-2 py-0.5 rounded-full",
+                        item.difference >= 0 ? 'bg-green-100 text-green-700 dark:bg-green-900/70 dark:text-green-300' : 'bg-red-100 text-red-700 dark:bg-red-900/70 dark:text-red-300'
+                      )}>
+                        {item.difference >= 0 
+                          ? `${formatCurrency(item.difference)} ${translate({en: "under", pt: "abaixo"})}`
+                          : `${formatCurrency(Math.abs(item.difference))} ${translate({en: "over", pt: "acima"})}`
+                        }
+                      </span>
+                    </div>
+                    <Progress 
+                      value={item.budgeted > 0 ? Math.min(item.percentage, 100) : 0} 
+                      className="h-2 mb-1" 
+                      indicatorClassName={
+                        item.percentage > 100 ? "bg-destructive" 
+                        : item.percentage > 80 ? "bg-yellow-500" 
+                        : "bg-primary"
+                      }
+                    />
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>{translate({en: "Spent:", pt: "Gasto:"})} {formatCurrency(item.actual)}</span>
+                      <span>{translate({en: "Budget:", pt: "Orçado:"})} {formatCurrency(item.budgeted)}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center h-[150px] text-center">
+                <Target className="h-10 w-10 text-muted-foreground mb-3" />
+                <p className="text-sm text-muted-foreground">
+                  {translate({ 
+                    en: "No budget data set for this month, or no expenses recorded to compare.", 
+                    pt: "Nenhum dado de orçamento definido para este mês, ou nenhuma despesa registrada para comparar."
+                  })}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {translate({ 
+                    en: "Set your budgets on the 'Budgets' page.", 
+                    pt: "Defina seus orçamentos na página 'Orçamentos'."
+                  })}
+                </p>
+              </div>
+            )}
           </CardContent>
         </Card>
 
         <Card className="shadow-lg">
           <CardHeader>
-            <CardTitle>{translate({ en: "Expense Breakdown", pt: "Detalhamento de Despesas" })}</CardTitle>
+            <CardTitle>{translate({ en: "Expense Breakdown by Category", pt: "Detalhamento de Despesas por Categoria" })}</CardTitle>
             <CardDescription>
                {translate({ en: "How your expenses were distributed in", pt: "Como suas despesas foram distribuídas em" })} {displayedMonthYearLabel}.
             </CardDescription>
@@ -261,6 +490,5 @@ export default function ReportsPage() {
     </AppLayout>
   );
 }
-
 
     
