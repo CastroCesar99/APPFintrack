@@ -71,11 +71,6 @@ export default function DashboardPage() {
 
     if (authLoading) {
       console.log("Dashboard: TRACER --- Main useEffect: Auth is loading, waiting...");
-      if (effectMountedRef.current && !isLoadingTransactions) {
-        // If auth is loading but we previously finished loading transactions,
-        // we might want to show loading again, or just let current data persist.
-        // For now, let current data persist, don't set isLoadingTransactions to true here.
-      }
       return fullCleanup;
     }
 
@@ -109,7 +104,6 @@ export default function DashboardPage() {
         }
         console.log("Dashboard: TRACER --- fetchDataInternal: Starting for UserID:", currentUserId);
 
-        // Ensure loading is true if we are starting a new fetch for a user
         if (effectMountedRef.current && !isLoadingTransactions) {
              console.log("Dashboard: TRACER --- fetchDataInternal: Ensuring isLoadingTransactions is true for new fetch of user:", currentUserId);
              setIsLoadingTransactions(true);
@@ -241,11 +235,8 @@ export default function DashboardPage() {
     } else {
       console.log(`Dashboard: TRACER --- Main useEffect: Listener should be active for UserID: ${userId}. isLoadingTransactions: ${isLoadingTransactions}. Snapshot ref present: ${!!unsubscribeSnapshotRef.current}`);
       if (isLoadingTransactions && effectMountedRef.current && transactions.length > 0 && unsubscribeSnapshotRef.current) {
-        // If listener is active and we have transactions, but still loading, it means initial onSnapshot hasn't set loading to false yet.
-        // Or, if there are no transactions but listener is active, also wait.
         console.log("Dashboard: TRACER --- Main useEffect: Listener active. Waiting for onSnapshot to set isLoadingTransactions to false for UserID:", userId);
       } else if (isLoadingTransactions && effectMountedRef.current) {
-        // Fallback: if still loading for some reason and conditions above aren't met, ensure loading eventually stops.
         console.warn("Dashboard: TRACER --- Main useEffect: Fallback - still loading, forcing to false for UserID:", userId);
         setIsLoadingTransactions(false);
       }
@@ -274,7 +265,7 @@ export default function DashboardPage() {
         amount: newTransactionData.amount,
         type: newTransactionData.type,
         category: newTransactionData.category,
-        date: newTransactionData.date, // This is "yyyy-MM-dd"
+        date: newTransactionData.date, // This is "yyyy-MM-dd" from form
         paymentMethod: newTransactionData.paymentMethod,
         installments: newTransactionData.installments,
         isRecurring: newTransactionData.isRecurring,
@@ -290,14 +281,11 @@ export default function DashboardPage() {
       if (dataToSave.isRecurring === undefined && typeof newTransactionData.isRecurring === 'boolean') {
          dataToSave.isRecurring = newTransactionData.isRecurring;
       } else if (dataToSave.isRecurring === undefined) {
-        dataToSave.isRecurring = false;
+        dataToSave.isRecurring = false; // Default to false if not provided at all
       }
 
-
       await addDoc(transactionsColRef, dataToSave);
-
-      // No optimistic update here. Let onSnapshot handle UI changes.
-      // setTransactions will be called by the onSnapshot listener once Firestore confirms the write.
+      // Let onSnapshot handle UI changes.
 
       toast({
         title: translate({ en: "Transaction Added", pt: "Transação Adicionada" }),
@@ -318,7 +306,6 @@ export default function DashboardPage() {
     const targetYear = displayedDate.getFullYear();
     const targetMonth = displayedDate.getMonth(); // 0-indexed
 
-    // Using displayedMonthYearLabel here is for the log message consistency, actual filter uses targetYear/targetMonth
     console.log(`Dashboard: TRACER --- transactionsForDisplayedPeriod: Filtering for Year: ${targetYear}, Month: ${targetMonth} (0-indexed for ${displayedMonthYearLabel})`);
     
     const filtered = transactions.filter(t => {
@@ -331,12 +318,12 @@ export default function DashboardPage() {
       const transactionMonth = parseInt(dateParts[1], 10) - 1; // 0-indexed
 
       const matches = transactionYear === targetYear && transactionMonth === targetMonth;
-      console.log(`Dashboard: TRACER --- Tx Filter: ID: ${t.id}, DateStr: ${t.date}, TxY: ${transactionYear}, TxM: ${transactionMonth}, Matches: ${matches}, isRec: ${t.isRecurring}`);
+      // console.log(`Dashboard: TRACER --- Tx Filter: ID: ${t.id}, DateStr: ${t.date}, TxY: ${transactionYear}, TxM: ${transactionMonth}, Matches: ${matches}, isRec: ${t.isRecurring}`);
       return matches;
     });
     console.log(`Dashboard: TRACER --- transactionsForDisplayedPeriod: Found ${filtered.length} transactions for the period.`);
     return filtered;
-  }, [transactions, displayedDate, displayedMonthYearLabel]); // displayedMonthYearLabel for log only
+  }, [transactions, displayedDate, displayedMonthYearLabel]);
 
 
   const recentIncome = useMemo(() => {
@@ -418,7 +405,10 @@ export default function DashboardPage() {
           displayedMonthYearLabel={displayedMonthYearLabel}
         />
 
-        <QuickActionsSection onAddTransaction={onAddTransaction} />
+        <QuickActionsSection 
+          onAddTransaction={onAddTransaction} 
+          currentDisplayedDate={displayedDate} 
+        />
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <RecentTransactionsSection
@@ -498,3 +488,5 @@ export default function DashboardPage() {
     </AppLayout>
   );
 }
+
+    

@@ -15,16 +15,15 @@ import { TransactionForm } from "./transaction-form";
 import type { Transaction, TransactionType } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/context/language-context";
-// Removed Firestore imports as logic moves to DashboardPage
 
 interface QuickActionsSectionProps {
   onAddTransaction: (transactionData: Omit<Transaction, "id" | "userId" | "createdAt">) => Promise<void>;
+  currentDisplayedDate: Date; // New prop for the current displayed date
 }
 
-export function QuickActionsSection({ onAddTransaction }: QuickActionsSectionProps) {
+export function QuickActionsSection({ onAddTransaction, currentDisplayedDate }: QuickActionsSectionProps) {
   const { translate } = useLanguage();
   const { toast } = useToast();
-  // Removed useAuth and db imports
 
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [formInitialType, setFormInitialType] = useState<TransactionType>("expense");
@@ -37,14 +36,11 @@ export function QuickActionsSection({ onAddTransaction }: QuickActionsSectionPro
   const handleFormSubmit = async (transactionData: Omit<Transaction, "id" | "userId" | "createdAt">) => {
     try {
       await onAddTransaction(transactionData);
-      setIsFormOpen(false); // Close dialog on success (toast is handled by DashboardPage's onAddTransaction)
+      setIsFormOpen(false); 
     } catch (error) {
-      // Error toast is handled by DashboardPage's onAddTransaction
       console.error("Error submitting transaction from QuickActionsSection:", error);
-      // Optionally, keep the form open or handle UI differently here if needed
     }
   };
-
 
   const handleManageBudgets = () => {
     toast({
@@ -62,7 +58,6 @@ export function QuickActionsSection({ onAddTransaction }: QuickActionsSectionPro
   const manageBudgetsLabel = translate({ en: "Manage Budgets", pt: "Gerenciar Orçamentos" });
   const newTransactionTitle = translate({ en: "New Transaction", pt: "Nova Transação" });
   const newTransactionDescription = translate({ en: "Fill in the details for your new transaction.", pt: "Preencha os detalhes da sua nova transação." });
-
 
   return (
     <Card className="shadow-md">
@@ -91,9 +86,9 @@ export function QuickActionsSection({ onAddTransaction }: QuickActionsSectionPro
             </DialogHeader>
             {isFormOpen && (
               <TransactionForm
-                // Pass the new handleFormSubmit which calls the prop
                 onAddTransaction={handleFormSubmit} 
                 initialType={formInitialType}
+                defaultDate={currentDisplayedDate} // Pass the current displayed date
               />
             )}
           </DialogContent>
@@ -102,3 +97,5 @@ export function QuickActionsSection({ onAddTransaction }: QuickActionsSectionPro
     </Card>
   );
 }
+
+    
