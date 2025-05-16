@@ -48,7 +48,7 @@ export default function ManageCategoriesPage() {
           <h1 className="text-3xl font-bold tracking-tight text-foreground">
             {translate({ en: "Manage Categories", pt: "Gerenciar Categorias" })}
           </h1>
-          <Button onClick={handleAddNewCategory} className="w-full sm:w-auto">
+          <Button onClick={handleAddNewCategory} variant="outline" className="w-full sm:w-auto">
             <PlusCircle className="mr-2 h-4 w-4" />
             {translate({ en: "Add New Category", pt: "Adicionar Nova Categoria" })}
           </Button>
@@ -68,7 +68,7 @@ export default function ManageCategoriesPage() {
                   <React.Fragment key={category.name as string}>
                     <div className="flex items-center justify-between py-3">
                       <div className="flex items-center gap-3">
-                        <CategoryIcon iconName={category.icon} className="h-6 w-6 text-muted-foreground" />
+                        <CategoryIcon categoryName={category.name} className="h-6 w-6 text-muted-foreground" />
                         <div className="flex flex-col">
                            <span className="font-medium">
                             {getCategoryLabel(category.name, language)}

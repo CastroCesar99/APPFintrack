@@ -13,9 +13,8 @@ import {
 } from "@/components/ui/dialog";
 import { TransactionForm } from "./transaction-form";
 import type { Transaction, TransactionType } from "@/types";
-// useToast import removed as it's no longer directly used here for "Manage Budgets"
 import { useLanguage } from "@/context/language-context";
-import Link from "next/link"; // Import Link
+import Link from "next/link"; 
 
 interface QuickActionsSectionProps {
   onAddTransaction: (transactionData: Omit<Transaction, "id" | "userId" | "createdAt">) => Promise<void>;
@@ -39,7 +38,6 @@ export function QuickActionsSection({ onAddTransaction, currentDisplayedDate }: 
       setIsFormOpen(false); 
     } catch (error) {
       console.error("Error submitting transaction from QuickActionsSection:", error);
-      // Toast for error is handled in onAddTransaction in DashboardPage
     }
   };
   
@@ -51,7 +49,7 @@ export function QuickActionsSection({ onAddTransaction, currentDisplayedDate }: 
   const newTransactionDescription = translate({ en: "Fill in the details for your new transaction.", pt: "Preencha os detalhes da sua nova transação." });
 
   return (
-    <Card className="shadow-md">
+    <Card className="shadow-md bg-muted/50">
       <CardHeader>
         <CardTitle className="text-base font-semibold">{quickActionsTitle}</CardTitle>
       </CardHeader>
@@ -82,7 +80,7 @@ export function QuickActionsSection({ onAddTransaction, currentDisplayedDate }: 
                 onAddTransaction={handleFormSubmit} 
                 initialType={formInitialType}
                 defaultDate={currentDisplayedDate}
-                key={currentDisplayedDate.toISOString() + formInitialType} // Ensure re-mount on date or type change
+                key={currentDisplayedDate.toISOString() + formInitialType} 
               />
             )}
           </DialogContent>

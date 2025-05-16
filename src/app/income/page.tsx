@@ -106,7 +106,7 @@ export default function IncomePage() {
 
     const fullPayload = {
       ...newTransactionData,
-      type: 'income' as 'income', // Ensure type is explicitly income
+      type: 'income' as 'income', 
       userId: user.uid,
       createdAt: serverTimestamp(),
     };
@@ -128,7 +128,7 @@ export default function IncomePage() {
         title: translate({ en: "Income Added", pt: "Receita Adicionada" }),
         description: `${newTransactionData.description} ${translate({ en: "has been successfully added.", pt: "foi adicionada com sucesso." })}`,
       });
-      setIsAddFormOpen(false); // Close dialog on success
+      setIsAddFormOpen(false); 
     } catch (error: any) {
       console.error("IncomePage: Error adding income:", error);
       toast({
@@ -156,7 +156,7 @@ export default function IncomePage() {
   if (!isClient || authLoading || isLoadingTransactions) {
     return (
       <AppLayout>
-        <div className="flex items-center justify-center h-full">
+        <div className="flex items-center justify-center h-full w-full">
           <p className="text-foreground">{translate({ en: "Loading income...", pt: "Carregando receitas..." })}</p>
         </div>
       </AppLayout>
@@ -172,7 +172,7 @@ export default function IncomePage() {
           </h1>
           <Dialog open={isAddFormOpen} onOpenChange={setIsAddFormOpen}>
             <DialogTrigger asChild>
-              <Button className="w-full sm:w-auto">
+              <Button variant="outline" className="w-full sm:w-auto">
                 <PlusCircle className="mr-2 h-4 w-4" />
                 {translate({ en: "Add New Income", pt: "Adicionar Nova Receita" })}
               </Button>
@@ -188,7 +188,7 @@ export default function IncomePage() {
                 onAddTransaction={handleAddIncome}
                 initialType="income"
                 defaultDate={displayedDate}
-                key={displayedDate.toISOString()} // Force re-mount on date change
+                key={displayedDate.toISOString()} 
               />
             </DialogContent>
           </Dialog>

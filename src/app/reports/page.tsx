@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import { AppLayout } from "@/components/layout/app-layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Terminal, Info, Lightbulb, CheckCircle, TrendingDown, TrendingUp, MinusCircle, PieChart as PieChartIcon, CreditCard, Package, Target } from "lucide-react"; // Added Target
+import { Terminal, Info, Lightbulb, CheckCircle, TrendingDown, TrendingUp, MinusCircle, PieChart as PieChartIcon, CreditCard, Package, Target } from "lucide-react"; 
 import type { Transaction, CategoryName } from "@/types";
 import { useAuth } from '@/context/auth-context';
 import { useLanguage } from '@/context/language-context';
@@ -16,7 +16,6 @@ import { useToast } from "@/hooks/use-toast";
 import { db } from '@/lib/firebase';
 import { collection, query, orderBy, onSnapshot, Timestamp } from "firebase/firestore";
 import { format as formatDateFns, parseISO as parseISODateFns } from 'date-fns';
-// import { generateFinancialSummary, type FinancialSummaryOutput, type FinancialSummaryInput } from '@/ai/flows/financial-summary-flow';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ExpenseCategoryChart } from '@/components/dashboard/charts/expense-category-chart';
 import { formatCurrency } from '@/lib/utils';
@@ -31,8 +30,6 @@ export default function ReportsPage() {
 
   const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
   const [isLoadingTransactions, setIsLoadingTransactions] = useState(true);
-  // const [financialInsights, setFinancialInsights] = useState<FinancialSummaryOutput | null>(null);
-  // const [isLoadingInsights, setIsLoadingInsights] = useState(false);
   const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
@@ -130,74 +127,13 @@ export default function ReportsPage() {
       .reduce((sum, t) => sum + t.amount, 0),
   [transactionsForDisplayedPeriod]);
 
-  // useEffect(() => {
-  //   const fetchInsights = async () => {
-  //     if (transactionsForDisplayedPeriod.length === 0 && !isLoadingTransactions) {
-  //       setFinancialInsights({
-  //         overallStatus: translate({ en: "No data for insights.", pt: "Sem dados para insights." }),
-  //         keyObservations: [translate({ en: "Add transactions to see your financial summary.", pt: "Adicione transações para ver seu resumo financeiro." })],
-  //         actionableAdvice: []
-  //       });
-  //       return;
-  //     }
-      
-  //     if (transactionsForDisplayedPeriod.length > 0) {
-  //       setIsLoadingInsights(true);
-  //       setFinancialInsights(null); 
-
-  //       const simulatedBudgetsForMonth: Record<CategoryName, number> = {};
-        
-  //       const plainTransactions = transactionsForDisplayedPeriod.map(t => ({
-  //         id: t.id,
-  //         date: t.date,
-  //         description: t.description,
-  //         amount: t.amount,
-  //         type: t.type,
-  //         category: t.category,
-  //         paymentMethod: t.paymentMethod,
-  //         installments: t.installments,
-  //         isRecurring: t.isRecurring,
-  //         expenseNature: t.expenseNature,
-  //       }));
-
-  //       try {
-  //         const input: FinancialSummaryInput = {
-  //           transactionsForMonth: plainTransactions,
-  //           budgetsForMonth: Object.keys(simulatedBudgetsForMonth).length > 0 ? simulatedBudgetsForMonth : undefined,
-  //           monthYearLabel: displayedMonthYearLabel,
-  //         };
-  //         // const insights = await generateFinancialSummary(input);
-  //         // setFinancialInsights(insights);
-  //       } catch (error) {
-  //         console.error("ReportsPage: Error generating financial insights:", error);
-  //         // setFinancialInsights({
-  //         //   overallStatus: translate({ en: "Could not load insights.", pt: "Não foi possível carregar os insights." }),
-  //         //   keyObservations: [translate({ en: "An error occurred while generating the summary.", pt: "Ocorreu um erro ao gerar o resumo." })],
-  //         //   actionableAdvice: []
-  //         // });
-  //         toast({
-  //           title: translate({ en: "AI Insights Error", pt: "Erro nos Insights da IA" }),
-  //           description: translate({ en: "Could not generate financial summary.", pt: "Não foi possível gerar o resumo financeiro." }),
-  //           variant: "destructive",
-  //         });
-  //       } finally {
-  //         // setIsLoadingInsights(false);
-  //       }
-  //     }
-  //   };
-
-  //   if (!isLoadingTransactions && isClient) {
-  //     fetchInsights();
-  //   }
-  // }, [transactionsForDisplayedPeriod, isLoadingTransactions, displayedMonthYearLabel, translate, toast, isClient]);
-
 
   const pageTitle = translate({ en: "Reports", pt: "Relatórios" });
 
   if (!isClient || authLoading || (isLoadingTransactions && allTransactions.length === 0)) {
     return (
       <AppLayout>
-        <div className="flex items-center justify-center h-full">
+        <div className="flex items-center justify-center h-full w-full">
           <p className="text-foreground">{translate({ en: "Loading reports...", pt: "Carregando relatórios..." })}</p>
         </div>
       </AppLayout>
@@ -215,7 +151,7 @@ export default function ReportsPage() {
         </div>
 
         <div className="grid gap-4 md:grid-cols-3">
-          <Card>
+          <Card className="shadow-lg">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">{translate({en: "Total Income", pt: "Receita Total"})}</CardTitle>
               <TrendingUp className="h-4 w-4 text-green-500" />
@@ -224,7 +160,7 @@ export default function ReportsPage() {
               <div className="text-2xl font-bold">{formatCurrency(totalIncomeForPeriod)}</div>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="shadow-lg">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">{translate({en: "Total Expenses", pt: "Despesa Total"})}</CardTitle>
               <TrendingDown className="h-4 w-4 text-red-500" />
@@ -233,7 +169,7 @@ export default function ReportsPage() {
               <div className="text-2xl font-bold">{formatCurrency(totalExpensesForPeriod)}</div>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="shadow-lg">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">{translate({en: "Net Cash Flow", pt: "Fluxo de Caixa Líquido"})}</CardTitle>
               <MinusCircle className={`h-4 w-4 ${netFlowForPeriod >= 0 ? 'text-green-500' : 'text-red-500'}`} />
@@ -245,7 +181,7 @@ export default function ReportsPage() {
         </div>
 
         <div className="grid gap-4 md:grid-cols-2">
-          <Card>
+          <Card className="shadow-lg">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">{translate({en: "Total Fixed Expenses", pt: "Despesas Fixas Totais"})}</CardTitle>
               <Package className="h-4 w-4 text-muted-foreground" />
@@ -254,7 +190,7 @@ export default function ReportsPage() {
               <div className="text-2xl font-bold">{formatCurrency(totalFixedExpensesForPeriod)}</div>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="shadow-lg">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">{translate({en: "Total Variable Expenses", pt: "Despesas Variáveis Totais"})}</CardTitle>
               <CreditCard className="h-4 w-4 text-muted-foreground" />
@@ -273,7 +209,7 @@ export default function ReportsPage() {
               <CardDescription>
                 {translate({ en: "AI-generated summary and advice for", pt: "Resumo e conselhos gerados por IA para" })} {displayedMonthYearLabel}.
                 <br />
-                {translate({ en: "This feature is in development. Saving and loading budgets is required for full insights.", pt: "Esta funcionalidade está em desenvolvimento. Salvar e carregar orçamentos é necessário para insights completos."})}
+                {translate({ en: "This feature is in development. Budget data from the 'Budgets' page will be used here once fully implemented.", pt: "Esta funcionalidade está em desenvolvimento. Dados de orçamento da página 'Orçamentos' serão usados aqui quando totalmente implementado."})}
               </CardDescription>
             </div>
           </CardHeader>
@@ -284,14 +220,14 @@ export default function ReportsPage() {
           </CardContent>
         </Card>
         
-        <Card>
+        <Card className="shadow-lg bg-muted/50">
           <CardHeader>
             <CardTitle>{translate({ en: "Budget vs. Actual", pt: "Orçamento vs. Real" })}</CardTitle>
             <CardDescription>
                {translate({ en: "Comparison of your spending against defined budgets for", pt: "Comparação dos seus gastos com os orçamentos definidos para" })} {displayedMonthYearLabel}.
             </CardDescription>
           </CardHeader>
-          <CardContent className="flex items-center justify-center h-[200px]"> {/* Adjusted height */}
+          <CardContent className="flex items-center justify-center h-[200px]">
             <div className="text-center">
               <Target className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
               <p className="text-muted-foreground">
@@ -304,7 +240,7 @@ export default function ReportsPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="shadow-lg">
           <CardHeader>
             <CardTitle>{translate({ en: "Expense Breakdown", pt: "Detalhamento de Despesas" })}</CardTitle>
             <CardDescription>

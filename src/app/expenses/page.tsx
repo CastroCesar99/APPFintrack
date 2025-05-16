@@ -106,7 +106,7 @@ export default function ExpensesPage() {
 
     const fullPayload = {
       ...newTransactionData,
-      type: 'expense' as 'expense', // Ensure type is explicitly expense
+      type: 'expense' as 'expense', 
       userId: user.uid,
       createdAt: serverTimestamp(),
     };
@@ -129,7 +129,7 @@ export default function ExpensesPage() {
         title: translate({ en: "Expense Added", pt: "Despesa Adicionada" }),
         description: `${newTransactionData.description} ${translate({ en: "has been successfully added.", pt: "foi adicionada com sucesso." })}`,
       });
-      setIsAddFormOpen(false); // Close dialog on success
+      setIsAddFormOpen(false); 
     } catch (error: any) {
       console.error("ExpensesPage: Error adding expense:", error);
       toast({
@@ -158,7 +158,7 @@ export default function ExpensesPage() {
   if (!isClient || authLoading || isLoadingTransactions) {
     return (
       <AppLayout>
-        <div className="flex items-center justify-center h-full">
+        <div className="flex items-center justify-center h-full w-full">
           <p className="text-foreground">{translate({ en: "Loading expenses...", pt: "Carregando despesas..." })}</p>
         </div>
       </AppLayout>
@@ -174,7 +174,7 @@ export default function ExpensesPage() {
           </h1>
           <Dialog open={isAddFormOpen} onOpenChange={setIsAddFormOpen}>
             <DialogTrigger asChild>
-              <Button className="w-full sm:w-auto">
+              <Button variant="outline" className="w-full sm:w-auto">
                 <PlusCircle className="mr-2 h-4 w-4" />
                 {translate({ en: "Add New Expense", pt: "Adicionar Nova Despesa" })}
               </Button>
@@ -190,7 +190,7 @@ export default function ExpensesPage() {
                 onAddTransaction={handleAddExpense}
                 initialType="expense"
                 defaultDate={displayedDate}
-                key={displayedDate.toISOString()} // Force re-mount on date change
+                key={displayedDate.toISOString()} 
               />
             </DialogContent>
           </Dialog>

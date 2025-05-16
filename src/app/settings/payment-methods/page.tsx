@@ -40,7 +40,7 @@ export default function ManagePaymentMethodsPage() {
           <h1 className="text-3xl font-bold tracking-tight text-foreground">
             {translate({ en: "Manage Payment Methods", pt: "Gerenciar Métodos de Pagamento" })}
           </h1>
-          <Button onClick={handleAddNewMethod} className="w-full sm:w-auto">
+          <Button onClick={handleAddNewMethod} variant="outline" className="w-full sm:w-auto">
             <PlusCircle className="mr-2 h-4 w-4" />
             {translate({ en: "Add New Method", pt: "Adicionar Novo Método" })}
           </Button>
@@ -63,7 +63,6 @@ export default function ManagePaymentMethodsPage() {
                         <PaymentMethodIcon iconName={method.icon} className="h-6 w-6 text-muted-foreground" />
                         <span className="font-medium">
                           {getPaymentMethodLabel(method.name, language)}
-                          {/* Removed: {method.isDefault && ` (${translate({en: "Default", pt: "Padrão"})})`} */}
                         </span>
                       </div>
                       <div className="flex items-center gap-2">
