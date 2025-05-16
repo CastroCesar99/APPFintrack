@@ -50,9 +50,11 @@ export default function SettingsPage() {
             </div>
           </CardHeader>
           <CardContent className="pt-4">
-            <Button onClick={() => handlePlaceholderClick(translate({en: "Category Management", pt:"Gerenciamento de Categorias"}))} className="w-full sm:w-auto">
-              {translate({ en: "Go to Categories", pt: "Ir para Categorias" })}
-            </Button>
+            <Link href="/settings/categories" passHref>
+              <Button className="w-full sm:w-auto">
+                {translate({ en: "Go to Categories", pt: "Ir para Categorias" })}
+              </Button>
+            </Link>
           </CardContent>
         </Card>
 
