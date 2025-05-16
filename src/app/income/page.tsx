@@ -55,8 +55,8 @@ export default function IncomePage() {
 
   const fetchUserPreferences = useCallback(async () => {
     if (!user) {
-      const allPredefinedCategories: DisplayCategory[] = [...CATEGORIES];
-      setUserCategories(allPredefinedCategories);
+      const allSystemCategories: DisplayCategory[] = [...CATEGORIES];
+      setUserCategories(allSystemCategories);
       setUserPaymentMethods([...PAYMENT_METHODS]);
       setIsLoadingPreferences(false);
       return;
@@ -297,38 +297,34 @@ export default function IncomePage() {
   return (
     <AppLayout>
       <div className="space-y-6">
-        {/* Title and Add Button Block */}
-        <div className="space-y-4"> 
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">
-            {translate({ en: "Income", pt: "Receitas" })} - {displayedMonthYearLabel}
-          </h1>
-          <Dialog open={isAddFormOpen} onOpenChange={setIsAddFormOpen} modal={false}>
-            <DialogTrigger asChild>
-              <Button variant="outline" className="w-full sm:w-auto">
-                <PlusCircle className="mr-2 h-4 w-4" />
-                {translate({ en: "Add New Income", pt: "Adicionar Nova Receita" })}
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px]">
-              <DialogHeader>
-                <DialogTitle>{translate({ en: "New Income", pt: "Nova Receita" })}</DialogTitle>
-                <DialogDescription>
-                  {translate({ en: "Fill in the details for your new income.", pt: "Preencha os detalhes da sua nova receita." })}
-                </DialogDescription>
-              </DialogHeader>
-              <TransactionForm
-                onAddTransaction={handleAddIncome}
-                initialType="income"
-                defaultDate={displayedDate}
-                userCategories={userCategories}
-                userPaymentMethods={userPaymentMethods}
-                key={displayedDate.toISOString() + "income" + userCategories.length + userPaymentMethods.length} 
-              />
-            </DialogContent>
-          </Dialog>
-        </div>
+        <h1 className="text-3xl font-bold tracking-tight text-foreground mb-4">
+          {translate({ en: "Income", pt: "Receitas" })} - {displayedMonthYearLabel}
+        </h1>
+        <Dialog open={isAddFormOpen} onOpenChange={setIsAddFormOpen} modal={false}>
+          <DialogTrigger asChild>
+            <Button variant="outline" className="w-full sm:w-auto">
+              <PlusCircle className="mr-2 h-4 w-4" />
+              {translate({ en: "Add New Income", pt: "Adicionar Nova Receita" })}
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle>{translate({ en: "New Income", pt: "Nova Receita" })}</DialogTitle>
+              <DialogDescription>
+                {translate({ en: "Fill in the details for your new income.", pt: "Preencha os detalhes da sua nova receita." })}
+              </DialogDescription>
+            </DialogHeader>
+            <TransactionForm
+              onAddTransaction={handleAddIncome}
+              initialType="income"
+              defaultDate={displayedDate}
+              userCategories={userCategories}
+              userPaymentMethods={userPaymentMethods}
+              key={displayedDate.toISOString() + "income" + userCategories.length + userPaymentMethods.length} 
+            />
+          </DialogContent>
+        </Dialog>
 
-        {/* Transactions Card */}
         <Card className="shadow-lg">
           <CardHeader>
             <CardTitle>{translate({ en: "Income List", pt: "Lista de Receitas" })}</CardTitle>
@@ -374,6 +370,8 @@ export default function IncomePage() {
     </AppLayout>
   );
 }
+    
+
     
 
     

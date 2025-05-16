@@ -56,8 +56,8 @@ export default function ExpensesPage() {
 
   const fetchUserPreferences = useCallback(async () => {
     if (!user) {
-      const allPredefinedCategories: DisplayCategory[] = [...CATEGORIES];
-      setUserCategories(allPredefinedCategories);
+      const allSystemCategories: DisplayCategory[] = [...CATEGORIES];
+      setUserCategories(allSystemCategories);
       setUserPaymentMethods([...PAYMENT_METHODS]);
       setIsLoadingPreferences(false);
       return;
@@ -301,39 +301,35 @@ export default function ExpensesPage() {
 
   return (
     <AppLayout>
-      <div className="space-y-6">
-        {/* Title and Add Button Block */}
-        <div className="space-y-4"> 
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">
-            {translate({ en: "Expenses", pt: "Despesas" })} - {displayedMonthYearLabel}
-          </h1>
-          <Dialog open={isAddFormOpen} onOpenChange={setIsAddFormOpen} modal={false}>
-            <DialogTrigger asChild>
-              <Button variant="outline" className="w-full sm:w-auto">
-                <PlusCircle className="mr-2 h-4 w-4" />
-                {translate({ en: "Add New Expense", pt: "Adicionar Nova Despesa" })}
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px]">
-              <DialogHeader>
-                <DialogTitle>{translate({ en: "New Expense", pt: "Nova Despesa" })}</DialogTitle>
-                <DialogDescription>
-                  {translate({ en: "Fill in the details for your new expense.", pt: "Preencha os detalhes da sua nova despesa." })}
-                </DialogDescription>
-              </DialogHeader>
-              <TransactionForm
-                onAddTransaction={handleAddExpense}
-                initialType="expense"
-                defaultDate={displayedDate}
-                userCategories={userCategories}
-                userPaymentMethods={userPaymentMethods}
-                key={displayedDate.toISOString() + "expense" + userCategories.length + userPaymentMethods.length} 
-              />
-            </DialogContent>
-          </Dialog>
-        </div>
+      <div className="space-y-6"> 
+        <h1 className="text-3xl font-bold tracking-tight text-foreground mb-4">
+          {translate({ en: "Expenses", pt: "Despesas" })} - {displayedMonthYearLabel}
+        </h1>
+        <Dialog open={isAddFormOpen} onOpenChange={setIsAddFormOpen} modal={false}>
+          <DialogTrigger asChild>
+            <Button variant="outline" className="w-full sm:w-auto">
+              <PlusCircle className="mr-2 h-4 w-4" />
+              {translate({ en: "Add New Expense", pt: "Adicionar Nova Despesa" })}
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle>{translate({ en: "New Expense", pt: "Nova Despesa" })}</DialogTitle>
+              <DialogDescription>
+                {translate({ en: "Fill in the details for your new expense.", pt: "Preencha os detalhes da sua nova despesa." })}
+              </DialogDescription>
+            </DialogHeader>
+            <TransactionForm
+              onAddTransaction={handleAddExpense}
+              initialType="expense"
+              defaultDate={displayedDate}
+              userCategories={userCategories}
+              userPaymentMethods={userPaymentMethods}
+              key={displayedDate.toISOString() + "expense" + userCategories.length + userPaymentMethods.length} 
+            />
+          </DialogContent>
+        </Dialog>
 
-        {/* Transactions Card */}
         <Card className="shadow-lg">
           <CardHeader>
             <CardTitle>{translate({ en: "Expense List", pt: "Lista de Despesas" })}</CardTitle>
@@ -379,6 +375,8 @@ export default function ExpensesPage() {
     </AppLayout>
   );
 }
+    
+
     
 
     
