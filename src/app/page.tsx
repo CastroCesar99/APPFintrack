@@ -13,12 +13,12 @@ import type { Transaction, CategoryName, ExpenseNature } from "@/types";
 import { CATEGORIES, getCategoryLabel } from "@/types";
 import { useLanguage } from '@/context/language-context';
 import { db } from '@/lib/firebase';
-import { collection, query, orderBy, onSnapshot, doc, getDoc, addDoc, serverTimestamp, Timestamp } from "firebase/firestore";
+import { collection, query, orderBy, onSnapshot, doc, getDoc, addDoc, serverTimestamp, Timestamp, writeBatch } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/utils";
 import { CategoryIcon } from "@/components/icons";
 import { useDateNavigation } from '@/context/date-navigation-context';
-import { format as formatDateFns, parse as parseDateFns, parseISO as parseISODateFns } from 'date-fns';
+import { format as formatDateFns, parse as parseDateFns, parseISO as parseISODateFns, subMonths, addMonths } from 'date-fns';
 
 
 export default function DashboardPage() {
@@ -40,7 +40,7 @@ export default function DashboardPage() {
   const userId = user?.uid;
 
   useEffect(() => {
-    console.log("Dashboard: TRACER --- isClient useEffect running");
+    // console.log("Dashboard: TRACER --- isClient useEffect running");
     setIsClient(true);
   }, []);
 
@@ -50,28 +50,27 @@ export default function DashboardPage() {
 
     const loadBudgets = async () => {
       const currentMonthYearKey = formatDateFns(displayedDate, 'yyyy-MM');
-      console.log(`Dashboard: TRACER --- Loading budgets for user ${userId}, month: ${currentMonthYearKey}`);
+      // console.log(`Dashboard: TRACER --- Loading budgets for user ${userId}, month: ${currentMonthYearKey}`);
       const budgetDocRef = doc(db, `users/${userId}/budgets/${currentMonthYearKey}`);
       try {
         const docSnap = await getDoc(budgetDocRef);
         if (docSnap.exists()) {
           const budgetData = docSnap.data() as Record<CategoryName, number>;
-          // Filter out non-numeric or Firestore specific fields like lastUpdated
           const validBudgets: Record<CategoryName, number> = {};
           for (const key in budgetData) {
-            if (typeof budgetData[key as CategoryName] === 'number') {
+            if (Object.prototype.hasOwnProperty.call(budgetData, key) && typeof budgetData[key as CategoryName] === 'number') {
               validBudgets[key as CategoryName] = budgetData[key as CategoryName];
             }
           }
           setLoadedBudgetsForMonth(validBudgets);
-          console.log(`Dashboard: TRACER --- Budgets loaded for ${currentMonthYearKey}:`, validBudgets);
+          // console.log(`Dashboard: TRACER --- Budgets loaded for ${currentMonthYearKey}:`, validBudgets);
         } else {
-          setLoadedBudgetsForMonth({}); // No budget set for this month
-          console.log(`Dashboard: TRACER --- No budget document found for ${currentMonthYearKey}.`);
+          setLoadedBudgetsForMonth({}); 
+          // console.log(`Dashboard: TRACER --- No budget document found for ${currentMonthYearKey}.`);
         }
       } catch (error) {
         console.error("Dashboard: TRACER --- Error loading budgets:", error);
-        setLoadedBudgetsForMonth({}); // Set to empty on error to avoid blocking UI
+        setLoadedBudgetsForMonth({}); 
         toast({
           title: translate({ en: "Error Loading Budgets", pt: "Erro ao Carregar Orçamentos" }),
           description: translate({ en: "Could not load your budgets for the summary.", pt: "Não foi possível carregar seus orçamentos para o resumo." }),
@@ -86,36 +85,36 @@ export default function DashboardPage() {
 
   useEffect(() => {
     effectMountedRef.current = true;
-    console.log(`Dashboard: TRACER --- Main useEffect START. UserID: ${userId}, AuthLoading: ${authLoading}, isClient: ${isClient}, InitiatedFor: ${mainFetchInitiatedForUser.current}, isLoadingTransactions: ${isLoadingTransactions}`);
+    // console.log(`Dashboard: TRACER --- Main useEffect START. UserID: ${userId}, AuthLoading: ${authLoading}, isClient: ${isClient}, InitiatedFor: ${mainFetchInitiatedForUser.current}, isLoadingTransactions: ${isLoadingTransactions}`);
 
     const cleanupListener = () => {
       if (unsubscribeSnapshotRef.current && typeof unsubscribeSnapshotRef.current === 'function') {
-        console.log("Dashboard: TRACER --- cleanupListener: Unsubscribing snapshot for UserID:", mainFetchInitiatedForUser.current);
+        // console.log("Dashboard: TRACER --- cleanupListener: Unsubscribing snapshot for UserID:", mainFetchInitiatedForUser.current);
         unsubscribeSnapshotRef.current();
         unsubscribeSnapshotRef.current = null;
       } else {
-        console.log("Dashboard: TRACER --- cleanupListener: No snapshot to unsubscribe or ref is not a function for UserID:", mainFetchInitiatedForUser.current);
+        // console.log("Dashboard: TRACER --- cleanupListener: No snapshot to unsubscribe or ref is not a function for UserID:", mainFetchInitiatedForUser.current);
       }
     };
 
     const fullCleanup = () => {
-      console.log("Dashboard: TRACER --- Main useEffect FULL CLEANUP for UserID:", mainFetchInitiatedForUser.current);
+      // console.log("Dashboard: TRACER --- Main useEffect FULL CLEANUP for UserID:", mainFetchInitiatedForUser.current);
       cleanupListener();
       effectMountedRef.current = false;
     };
 
     if (!isClient) {
-      console.log("Dashboard: TRACER --- Main useEffect: Not client yet, waiting.");
+      // console.log("Dashboard: TRACER --- Main useEffect: Not client yet, waiting.");
       return fullCleanup;
     }
 
     if (authLoading) {
-      console.log("Dashboard: TRACER --- Main useEffect: Auth is loading, waiting...");
+      // console.log("Dashboard: TRACER --- Main useEffect: Auth is loading, waiting...");
       return fullCleanup;
     }
 
     if (!userId) {
-      console.log("Dashboard: TRACER --- Main useEffect: No userId. User logged out. Redirecting to login.");
+      // console.log("Dashboard: TRACER --- Main useEffect: No userId. User logged out. Redirecting to login.");
       cleanupListener();
       if (effectMountedRef.current) {
         setTransactions([]);
@@ -125,27 +124,27 @@ export default function DashboardPage() {
       if (effectMountedRef.current) router.push('/login');
       return fullCleanup;
     }
-
+    
     if (mainFetchInitiatedForUser.current !== userId || !unsubscribeSnapshotRef.current) {
-      console.log(`Dashboard: TRACER --- Main useEffect: Initiating NEW fetch/listener for UserID: ${userId}. PrevInitiatedFor: ${mainFetchInitiatedForUser.current}. ListenerExisted: ${!!unsubscribeSnapshotRef.current}`);
+      // console.log(`Dashboard: TRACER --- Main useEffect: Initiating NEW fetch/listener for UserID: ${userId}. PrevInitiatedFor: ${mainFetchInitiatedForUser.current}. ListenerExisted: ${!!unsubscribeSnapshotRef.current}`);
       cleanupListener(); 
 
       if (effectMountedRef.current) {
-        console.log("Dashboard: TRACER --- setIsLoadingTransactions(true) for new fetch/setup of user:", userId);
+        // console.log("Dashboard: TRACER --- setIsLoadingTransactions(true) for new fetch/setup of user:", userId);
         setIsLoadingTransactions(true); 
       }
       mainFetchInitiatedForUser.current = userId;
 
-      const fetchDataInternal = async (currentUserId: string) => {
+      const fetchData = async (currentUserId: string) => {
         if (!effectMountedRef.current) {
-          console.log("Dashboard: TRACER --- fetchDataInternal: Effect unmounted early for UserID:", currentUserId);
+          // console.log("Dashboard: TRACER --- fetchData: Effect unmounted early for UserID:", currentUserId);
           if (isLoadingTransactions && effectMountedRef.current) setIsLoadingTransactions(false);
           return;
         }
-        console.log("Dashboard: TRACER --- fetchDataInternal: Starting for UserID:", currentUserId);
+        // console.log("Dashboard: TRACER --- fetchData: Starting for UserID:", currentUserId);
 
         if (effectMountedRef.current && !isLoadingTransactions) {
-             console.log("Dashboard: TRACER --- fetchDataInternal: Ensuring isLoadingTransactions is true for new fetch of user:", currentUserId);
+            //  console.log("Dashboard: TRACER --- fetchData: Ensuring isLoadingTransactions is true for new fetch of user:", currentUserId);
              setIsLoadingTransactions(true);
         }
         
@@ -154,13 +153,13 @@ export default function DashboardPage() {
           const userDocSnap = await getDoc(userDocRef);
 
           if (!effectMountedRef.current) {
-            console.log("Dashboard: TRACER --- fetchDataInternal: Effect unmounted while fetching user doc for UserID:", currentUserId);
+            // console.log("Dashboard: TRACER --- fetchData: Effect unmounted while fetching user doc for UserID:", currentUserId);
             if (isLoadingTransactions && effectMountedRef.current) setIsLoadingTransactions(false);
             return;
           }
 
           if (!userDocSnap.exists()) {
-            console.warn("Dashboard: TRACER --- fetchDataInternal: User document NOT FOUND for UserID:", currentUserId, ". Redirecting to onboarding.");
+            // console.warn("Dashboard: TRACER --- fetchData: User document NOT FOUND for UserID:", currentUserId, ". Redirecting to onboarding.");
             if (effectMountedRef.current) {
               if (isLoadingTransactions) setIsLoadingTransactions(false);
               router.push('/onboarding');
@@ -169,7 +168,7 @@ export default function DashboardPage() {
           }
 
           if (!userDocSnap.data().onboardingComplete) {
-            console.log("Dashboard: TRACER --- fetchDataInternal: User onboarding NOT complete for UserID:", currentUserId, ". Redirecting to onboarding.");
+            // console.log("Dashboard: TRACER --- fetchData: User onboarding NOT complete for UserID:", currentUserId, ". Redirecting to onboarding.");
             if (effectMountedRef.current) {
               if (isLoadingTransactions) setIsLoadingTransactions(false);
               router.push('/onboarding');
@@ -177,22 +176,22 @@ export default function DashboardPage() {
             return;
           }
 
-          console.log("Dashboard: TRACER --- fetchDataInternal: User onboarding complete for UserID:", currentUserId, ". Setting up onSnapshot listener.");
+          // console.log("Dashboard: TRACER --- fetchData: User onboarding complete for UserID:", currentUserId, ". Setting up onSnapshot listener.");
           const transactionsColRef = collection(db, `users/${currentUserId}/transactions`);
           const q_transactions = query(transactionsColRef, orderBy("date", "desc"));
           
           if (unsubscribeSnapshotRef.current && typeof unsubscribeSnapshotRef.current === 'function') {
-            console.warn("Dashboard: TRACER --- fetchDataInternal: Stale snapshot ref found before new onSnapshot. Cleaning up again.");
+            // console.warn("Dashboard: TRACER --- fetchData: Stale snapshot ref found before new onSnapshot. Cleaning up again.");
             unsubscribeSnapshotRef.current(); 
             unsubscribeSnapshotRef.current = null;
           }
 
           unsubscribeSnapshotRef.current = onSnapshot(q_transactions, (querySnapshot) => {
             if (!effectMountedRef.current) {
-              console.log("Dashboard: TRACER --- onSnapshot: Effect unmounted for UserID:", currentUserId, ". Skipping state update.");
+              // console.log("Dashboard: TRACER --- onSnapshot: Effect unmounted for UserID:", currentUserId, ". Skipping state update.");
               return;
             }
-            console.log(`Dashboard: TRACER --- onSnapshot: Received data for UserID: ${currentUserId}. Empty: ${querySnapshot.empty}, PendingWrites: ${querySnapshot.metadata.hasPendingWrites}`);
+            // console.log(`Dashboard: TRACER --- onSnapshot: Received data for UserID: ${currentUserId}. Empty: ${querySnapshot.empty}, PendingWrites: ${querySnapshot.metadata.hasPendingWrites}`);
 
             const fetchedTransactions = querySnapshot.docs.map(docSnap => {
               const data = docSnap.data();
@@ -214,21 +213,25 @@ export default function DashboardPage() {
               return {
                 ...data,
                 id: docSnap.id,
-                date: dateString, 
+                date: dateString,
+                paymentMethod: data.paymentMethod,
+                installments: data.installments,
+                isRecurring: data.isRecurring,
+                expenseNature: data.expenseNature,
               } as Transaction;
             });
 
             if (effectMountedRef.current) {
-              console.log(`Dashboard: TRACER --- onSnapshot: Setting ${fetchedTransactions.length} transactions for UserID: ${currentUserId}.`);
+              // console.log(`Dashboard: TRACER --- onSnapshot: Setting ${fetchedTransactions.length} transactions for UserID: ${currentUserId}.`);
               setTransactions(fetchedTransactions);
               if (isLoadingTransactions) {
                 setIsLoadingTransactions(false);
-                console.log("Dashboard: TRACER --- setIsLoadingTransactions(false) after processing snapshot data for UserID:", currentUserId);
+                // console.log("Dashboard: TRACER --- setIsLoadingTransactions(false) after processing snapshot data for UserID:", currentUserId);
               }
             }
           }, (error: any) => {
             if (!effectMountedRef.current) {
-              console.log("Dashboard: TRACER --- onSnapshot error callback: Effect unmounted for UserID:", currentUserId);
+              // console.log("Dashboard: TRACER --- onSnapshot error callback: Effect unmounted for UserID:", currentUserId);
               return;
             }
             console.error("Dashboard: TRACER --- onSnapshot: Error listening to transactions snapshot for UserID:", currentUserId, error);
@@ -238,53 +241,52 @@ export default function DashboardPage() {
                 description: translate({
                   en: "Could not fetch transactions. Please check your connection.",
                   pt: "Não foi possível buscar as transações. Verifique sua conexão."
-                }) + (error.message ? ` (Code: ${error.code || 'N/A'})` : ''),
+                }) + (error.code ? ` (Code: ${error.code || 'N/A'})` : ''),
                 variant: "destructive",
               });
               setTransactions([]);
               if (isLoadingTransactions) {
                 setIsLoadingTransactions(false);
-                console.log("Dashboard: TRACER --- setIsLoadingTransactions(false) in onSnapshot (error callback) for UserID:", currentUserId);
+                // console.log("Dashboard: TRACER --- setIsLoadingTransactions(false) in onSnapshot (error callback) for UserID:", currentUserId);
               }
             }
           });
 
         } catch (error: any) {
           if (!effectMountedRef.current) {
-            console.log("Dashboard: TRACER --- fetchDataInternal: Main try-catch, effect unmounted for UserID:", currentUserId);
+            // console.log("Dashboard: TRACER --- fetchData: Main try-catch, effect unmounted for UserID:", currentUserId);
             if (isLoadingTransactions && effectMountedRef.current) setIsLoadingTransactions(false);
             return;
           }
-          console.error("Dashboard: TRACER --- fetchDataInternal: Error in main data fetching logic for UserID:", currentUserId, error);
+          console.error("Dashboard: TRACER --- fetchData: Error in main data fetching logic for UserID:", currentUserId, error);
           if (effectMountedRef.current) {
             toast({
               title: translate({ en: "Error", pt: "Erro" }),
-              description: translate({ en: "Could not load dashboard data.", pt: "Não foi possível carregar dados do painel." }) + (error.message ? ` (Code: ${error.code || 'N/A'})` : ''),
+              description: translate({ en: "Could not load dashboard data.", pt: "Não foi possível carregar dados do painel." }) + (error.code ? ` (Code: ${error.code || 'N/A'})` : ''),
               variant: "destructive",
             });
             setTransactions([]);
             if (isLoadingTransactions) {
               setIsLoadingTransactions(false);
-              console.log("Dashboard: TRACER --- setIsLoadingTransactions(false) in fetchDataInternal (main catch block) for UserID:", currentUserId);
+              // console.log("Dashboard: TRACER --- setIsLoadingTransactions(false) in fetchData (main catch block) for UserID:", currentUserId);
             }
           }
         }
       };
 
-      fetchDataInternal(userId);
+      fetchData(userId);
     } else {
-      console.log(`Dashboard: TRACER --- Main useEffect: Listener should be active for UserID: ${userId}. isLoadingTransactions: ${isLoadingTransactions}. Snapshot ref present: ${!!unsubscribeSnapshotRef.current}`);
+      // console.log(`Dashboard: TRACER --- Main useEffect: Listener should be active for UserID: ${userId}. isLoadingTransactions: ${isLoadingTransactions}. Snapshot ref present: ${!!unsubscribeSnapshotRef.current}`);
       if (isLoadingTransactions && effectMountedRef.current && transactions.length > 0 && unsubscribeSnapshotRef.current) {
-        console.log("Dashboard: TRACER --- Main useEffect: Listener active. Waiting for onSnapshot to set isLoadingTransactions to false for UserID:", userId);
+        // console.log("Dashboard: TRACER --- Main useEffect: Listener active. Waiting for onSnapshot to set isLoadingTransactions to false for UserID:", userId);
       } else if (isLoadingTransactions && effectMountedRef.current) {
-        console.warn("Dashboard: TRACER --- Main useEffect: Fallback - still loading, forcing to false for UserID:", userId);
+        // console.warn("Dashboard: TRACER --- Main useEffect: Fallback - still loading, forcing to false for UserID:", userId);
         setIsLoadingTransactions(false);
       }
     }
 
     return fullCleanup;
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userId, authLoading, isClient]); 
+  }, [userId, authLoading, isClient, router, toast, translate]); 
 
   const onAddTransaction = async (newTransactionData: Omit<Transaction, "id" | "userId" | "createdAt">) => {
     if (!userId) {
@@ -295,37 +297,29 @@ export default function DashboardPage() {
       });
       return;
     }
-    console.log("Dashboard: TRACER --- onAddTransaction: Received date from form:", newTransactionData.date);
-    console.log("Dashboard: TRACER --- onAddTransaction: Full newTransactionData from form:", newTransactionData);
+    
+    // console.log("Dashboard: TRACER --- onAddTransaction: Received date from form:", newTransactionData.date); 
+    
+    const fullPayload = {
+      ...newTransactionData, 
+      userId: userId,
+      createdAt: serverTimestamp(),
+    };
+
+    const dataToSave = Object.fromEntries(
+        Object.entries(fullPayload).filter(([_, value]) => value !== undefined)
+    ) as Partial<Transaction & { createdAt: any; userId: string }>;
+
+    if (dataToSave.isRecurring === undefined && typeof newTransactionData.isRecurring === 'boolean') {
+        dataToSave.isRecurring = newTransactionData.isRecurring;
+    } else if (dataToSave.isRecurring === undefined) {
+       dataToSave.isRecurring = false; 
+    }
+
+    // console.log("Dashboard: TRACER --- onAddTransaction: Saving to Firestore with date:", dataToSave.date, "Full dataToSave:", dataToSave);
 
     try {
       const transactionsColRef = collection(db, `users/${userId}/transactions`);
-      
-      const transactionDataForFirestore = {
-        description: newTransactionData.description,
-        amount: newTransactionData.amount,
-        type: newTransactionData.type,
-        category: newTransactionData.category,
-        date: newTransactionData.date, 
-        paymentMethod: newTransactionData.paymentMethod,
-        installments: newTransactionData.installments,
-        isRecurring: newTransactionData.isRecurring,
-        expenseNature: newTransactionData.expenseNature,
-        userId: userId,
-        createdAt: serverTimestamp(),
-      };
-
-      const dataToSave = Object.fromEntries(
-        Object.entries(transactionDataForFirestore).filter(([_, value]) => value !== undefined)
-      ) as Partial<Transaction & { createdAt: any; userId: string }>;
-
-      if (dataToSave.isRecurring === undefined && typeof newTransactionData.isRecurring === 'boolean') {
-         dataToSave.isRecurring = newTransactionData.isRecurring;
-      } else if (dataToSave.isRecurring === undefined) {
-        dataToSave.isRecurring = false; 
-      }
-      
-      console.log("Dashboard: TRACER --- onAddTransaction: Saving to Firestore with date:", dataToSave.date, "Full dataToSave:", dataToSave);
       await addDoc(transactionsColRef, dataToSave);
 
       toast({
@@ -336,34 +330,32 @@ export default function DashboardPage() {
       console.error("DashboardPage: Error adding transaction to Firestore:", error);
       toast({
         title: translate({ en: "Error adding transaction", pt: "Erro ao adicionar transação" }),
-        description: (error.message || translate({ en: "Could not add transaction.", pt: "Não foi possível adicionar a transação." })) + (error.code ? ` (Code: ${error.code})` : ''),
+        description: (error.message || translate({ en: "Could not add transaction.", pt: "Não foi possível adicionar a transação." })) + (error.code ? ` (Code: ${error.code || 'N/A'})` : ''),
         variant: "destructive",
       });
     }
   };
 
   const transactionsForDisplayedPeriod = useMemo(() => {
-    const targetYear = displayedDate.getFullYear();
-    const targetMonth = displayedDate.getMonth(); 
+    const targetYearMonth = formatDateFns(displayedDate, 'yyyy-MM');
 
-    console.log(`Dashboard: TRACER --- transactionsForDisplayedPeriod: Filtering for Year: ${targetYear}, Month: ${targetMonth} (0-indexed for ${displayedMonthYearLabel})`);
+    console.log(`Dashboard: TRACER --- transactionsForDisplayedPeriod: Filtering for target YYYY-MM: ${targetYearMonth}`);
     
     const filtered = transactions.filter(t => {
-      const dateParts = t.date.split('-');
-      if (dateParts.length !== 3) {
-        console.warn(`Dashboard: TRACER --- Tx Filter: ID: ${t.id}, Invalid date format: ${t.date}, Matches: false`);
+      if (typeof t.date !== 'string' || t.date.length < 7) {
+        console.warn(`Dashboard: TRACER --- Tx Filter: ID: ${t.id}, Invalid date format: ${t.date}, Skipping.`);
         return false;
       }
-      const transactionYear = parseInt(dateParts[0], 10);
-      const transactionMonth = parseInt(dateParts[1], 10) - 1; 
-
-      const matches = transactionYear === targetYear && transactionMonth === targetMonth;
-      console.log(`Dashboard: TRACER --- Tx Filter: ID: ${t.id}, DateStr: ${t.date}, Parsed Date (not used in filter): ${parseDateFns(t.date, "yyyy-MM-dd", new Date())}, TxY: ${transactionYear}, TxM: ${transactionMonth}, Matches: ${matches}, isRec: ${t.isRecurring}`);
+      const transactionYearMonth = t.date.substring(0, 7); // Extract "YYYY-MM"
+      
+      const matches = transactionYearMonth === targetYearMonth;
+      console.log(`Dashboard: TRACER --- Tx Filter: ID: ${t.id}, DateStr: ${t.date}, Tx YYYY-MM: ${transactionYearMonth}, Target YYYY-MM: ${targetYearMonth}, Matches: ${matches}`);
       return matches;
     });
     console.log(`Dashboard: TRACER --- transactionsForDisplayedPeriod: Found ${filtered.length} transactions for the period.`);
     return filtered;
-  }, [transactions, displayedDate, displayedMonthYearLabel]);
+  }, [transactions, displayedDate]);
+
 
   const recentIncome = useMemo(() => {
     return transactions
@@ -394,9 +386,11 @@ export default function DashboardPage() {
     let largestCategoryKey: string | null = null;
 
     for (const categoryKey in expensesByCategory) {
-      if (expensesByCategory[categoryKey] > maxAmount) {
-        maxAmount = expensesByCategory[categoryKey];
-        largestCategoryKey = categoryKey;
+       if (Object.prototype.hasOwnProperty.call(expensesByCategory, categoryKey)) {
+        if (expensesByCategory[categoryKey] > maxAmount) {
+          maxAmount = expensesByCategory[categoryKey];
+          largestCategoryKey = categoryKey;
+        }
       }
     }
 
@@ -430,14 +424,14 @@ export default function DashboardPage() {
 
 
   if (!isClient || authLoading || isLoadingTransactions) {
-    console.log("Dashboard: TRACER --- RENDERING LOADING SCREEN. isClient:", isClient, "authLoading:", authLoading, "isLoadingTransactions:", isLoadingTransactions);
+    // console.log("Dashboard: TRACER --- RENDERING LOADING SCREEN. isClient:", isClient, "authLoading:", authLoading, "isLoadingTransactions:", isLoadingTransactions);
     return (
       <div className="flex items-center justify-center h-screen w-full bg-background">
         <p className="text-foreground">{translate({ en: "Loading...", pt: "Carregando..." })}</p>
       </div>
     );
   }
-  console.log("Dashboard: TRACER --- RENDERING DASHBOARD CONTENT. Transactions:", transactions.length, "isLoadingTransactions:", isLoadingTransactions, "Displayed Period Transactions:", transactionsForDisplayedPeriod.length);
+  // console.log("Dashboard: TRACER --- RENDERING DASHBOARD CONTENT. Transactions:", transactions.length, "isLoadingTransactions:", isLoadingTransactions, "Displayed Period Transactions:", transactionsForDisplayedPeriod.length);
 
 
   return (
@@ -533,3 +527,4 @@ export default function DashboardPage() {
   );
 }
 
+    
