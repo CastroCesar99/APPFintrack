@@ -191,23 +191,20 @@ export default function DashboardPage() {
             const preferencesDocSnap = await getDoc(preferencesDocRef);
             if (preferencesDocSnap.exists()) {
               const preferencesData = preferencesDocSnap.data() as UserPreferences;
-              const selectedCategoryNames = preferencesData.selectedCategories || [];
               const customCategoryDefs = preferencesData.userDefinedCategories || [];
-              const customCategoryMap = new Map(customCategoryDefs.map(cd => [cd.name, cd]));
+              
+              // Start with all predefined categories (income and expense)
+              const allSystemCategories: DisplayCategory[] = [...CATEGORIES];
+              const finalUserCategories: DisplayCategory[] = [...allSystemCategories];
+              const existingNames = new Set(allSystemCategories.map(c => c.name.toLowerCase()));
 
-              const effectiveCategories: DisplayCategory[] = [];
-              selectedCategoryNames.forEach(name => {
-                  const predefinedCat = CATEGORIES.find(pCat => pCat.name === name);
-                  if (predefinedCat) {
-                      effectiveCategories.push(predefinedCat);
-                  } else if (customCategoryMap.has(name)) {
-                      effectiveCategories.push(customCategoryMap.get(name)!);
+              customCategoryDefs.forEach(customCat => {
+                  if (!existingNames.has(customCat.name.toLowerCase())) {
+                      finalUserCategories.push(customCat);
+                      existingNames.add(customCat.name.toLowerCase());
                   }
               });
-              if (effectiveCategories.length === 0 && CATEGORIES.length > 0) { 
-                  effectiveCategories.push(...CATEGORIES.filter(c => c.type === 'expense'), ...CATEGORIES.filter(c => c.type === 'income'));
-              }
-              
+
               const selectedPaymentMethodNames = preferencesData.selectedPaymentMethods || [];
               const customPaymentMethodDefs = preferencesData.userDefinedPaymentMethods || [];
               const customPaymentMethodMap = new Map(customPaymentMethodDefs.map(pm => [pm.name, pm]));
@@ -225,8 +222,8 @@ export default function DashboardPage() {
               }
               
                if (effectMountedRef.current) {
-                  console.log("Dashboard: TRACER --- fetchDataInternal: Setting user preferences for UserID:", currentUserId, "Categories:", effectiveCategories.length, "Payment Methods:", effectivePaymentMethods.length);
-                  setUserCategories(effectiveCategories);
+                  console.log("Dashboard: TRACER --- fetchDataInternal: Setting user preferences for UserID:", currentUserId, "Categories:", finalUserCategories.length, "Payment Methods:", effectivePaymentMethods.length);
+                  setUserCategories(finalUserCategories);
                   setUserPaymentMethods(effectivePaymentMethods);
               }
             } else {
@@ -236,7 +233,7 @@ export default function DashboardPage() {
                 setUserPaymentMethods([...PAYMENT_METHODS]); 
                }
             }
-          } catch (prefError) {
+          } catch (prefError: any) {
              console.error("Dashboard: TRACER --- fetchDataInternal: Error fetching user preferences for UserID:", currentUserId, prefError);
              if (effectMountedRef.current) {
                 setUserCategories([...CATEGORIES]); 
@@ -289,8 +286,8 @@ export default function DashboardPage() {
                 id: docSnap.id,
                 date: dateString, 
                 isRecurring: isRecurringVal,
-                expenseType: data.expenseType,
-                installments: data.installments, 
+                expenseType: data.expenseType, // Ensure this is mapped
+                installments: data.installments, // Ensure this is mapped
                 paymentMethod: data.paymentMethod,
                 expenseNature: data.expenseNature
               } as Transaction;
@@ -537,11 +534,14 @@ export default function DashboardPage() {
 
         if (t.expenseType === 'installment' && t.installments && t.installments > 0) {
             const installmentSeriesStartDate = startOfMonth(originalTransactionDate);
-            const currentInstallmentNum = differenceInCalendarMonths(targetMonthStart, installmentSeriesStartDate) + 1;
+            // Calculate month difference correctly
+            const monthDiff = differenceInCalendarMonths(targetMonthStart, installmentSeriesStartDate);
+            const currentInstallmentNum = monthDiff + 1;
 
-            console.log(`Dashboard: TRACER --- recentExpenses (Installment Check): ID: ${t.id}, OrigDate: ${t.date}, currentInstallmentNum: ${currentInstallmentNum}, totalInstallments: ${t.installments}`);
 
-            if (currentInstallmentNum >= 1 && currentInstallmentNum <= t.installments) {
+            console.log(`Dashboard: TRACER --- recentExpenses (Installment Check): ID: ${t.id}, OrigDate: ${t.date}, currentInstallmentNum: ${currentInstallmentNum}, totalInstallments: ${t.installments}, monthDiff: ${monthDiff}`);
+
+            if (monthDiff >= 0 && monthDiff < t.installments) { // Check if current month is within the installment period
                 let projectedDateForMonth = setDateFnsDate(targetMonthStart, originalTransactionDay);
                 if (getMonthFns(projectedDateForMonth) !== targetMonth) {
                     projectedDateForMonth = lastDayOfMonth(targetMonthStart);
@@ -640,6 +640,7 @@ export default function DashboardPage() {
       }
     }
     return null;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [transactionsForDisplayedPeriod, language, userCategories]); 
 
   const totalFixedExpensesForDisplayedPeriod = useMemo(() => {
