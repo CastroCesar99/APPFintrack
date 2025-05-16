@@ -8,8 +8,8 @@ import { AppLayout } from "@/components/layout/app-layout";
 // Button import removed as ExportData has its own
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Terminal, Info, Lightbulb, CheckCircle, TrendingDown, TrendingUp, MinusCircle } from "lucide-react";
-import type { Transaction } from "@/types"; // CategoryName import removed as it's not directly used
+import { Terminal, Info, Lightbulb, CheckCircle, TrendingDown, TrendingUp, MinusCircle, Cog } from "lucide-react"; // Added Cog for placeholder
+import type { Transaction } from "@/types";
 import { useAuth } from '@/context/auth-context';
 import { useLanguage } from '@/context/language-context';
 import { useDateNavigation } from '@/context/date-navigation-context';
@@ -17,7 +17,8 @@ import { useToast } from "@/hooks/use-toast";
 import { db } from '@/lib/firebase';
 import { collection, query, orderBy, onSnapshot, Timestamp } from "firebase/firestore";
 import { format as formatDateFns, parseISO as parseISODateFns } from 'date-fns';
-import { generateFinancialSummary, type FinancialSummaryOutput, type FinancialSummaryInput } from '@/ai/flows/financial-summary-flow';
+// AI Flow import removed
+// import { generateFinancialSummary, type FinancialSummaryOutput, type FinancialSummaryInput } from '@/ai/flows/financial-summary-flow';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ExpenseCategoryChart } from '@/components/dashboard/charts/expense-category-chart';
 import { formatCurrency } from '@/lib/utils';
@@ -32,8 +33,7 @@ export default function ReportsPage() {
 
   const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
   const [isLoadingTransactions, setIsLoadingTransactions] = useState(true);
-  const [isLoadingInsights, setIsLoadingInsights] = useState(false);
-  const [financialInsights, setFinancialInsights] = useState<FinancialSummaryOutput | null>(null);
+  // isLoadingInsights and financialInsights state removed
   const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
@@ -47,8 +47,7 @@ export default function ReportsPage() {
     }
 
     setIsLoadingTransactions(true);
-    // Changed template literal to string concatenation
-    const transactionsColRef = collection(db, 'users/' + user.uid + '/transactions'); 
+    const transactionsColRef = collection(db, 'users/' + user.uid + '/transactions');
     const q_transactions = query(transactionsColRef, orderBy("date", "desc"));
 
     const unsubscribe = onSnapshot(q_transactions, (querySnapshot) => {
@@ -61,20 +60,19 @@ export default function ReportsPage() {
           try {
             dateString = formatDateFns(parseISODateFns(data.date), "yyyy-MM-dd");
           } catch (e) {
-            console.warn(`ReportsPage: Failed to parse ISO date string: ${data.date}`, e);
+            console.warn("ReportsPage: Failed to parse ISO date string: " + data.date, e);
             dateString = formatDateFns(new Date(), "yyyy-MM-dd");
           }
         } else if (typeof data.date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(data.date)) {
            console.warn("ReportsPage: Transaction has unexpected date format. Fallback to current date. Date was:", data.date);
            dateString = formatDateFns(new Date(), "yyyy-MM-dd");
         }
-        // Include createdAt and userId from Firestore, but they won't be sent to AI flow
-        return { 
-            ...data, 
-            id: docSnap.id, 
+        return {
+            ...data,
+            id: docSnap.id,
             date: dateString,
-            createdAt: data.createdAt, // Keep original createdAt if needed elsewhere
-            userId: data.userId      // Keep original userId if needed elsewhere
+            createdAt: data.createdAt,
+            userId: data.userId
         } as Transaction & { createdAt?: any, userId?: string };
       });
       setAllTransactions(fetchedTransactions);
@@ -105,10 +103,10 @@ export default function ReportsPage() {
     });
   }, [allTransactions, displayedDate]);
 
-  const totalIncomeForPeriod = useMemo(() => 
+  const totalIncomeForPeriod = useMemo(() =>
     transactionsForDisplayedPeriod
       .filter(t => t.type === 'income')
-      .reduce((sum, t) => sum + t.amount, 0), 
+      .reduce((sum, t) => sum + t.amount, 0),
   [transactionsForDisplayedPeriod]);
 
   const totalExpensesForPeriod = useMemo(() =>
@@ -116,61 +114,10 @@ export default function ReportsPage() {
       .filter(t => t.type === 'expense')
       .reduce((sum, t) => sum + t.amount, 0),
   [transactionsForDisplayedPeriod]);
-  
+
   const netFlowForPeriod = useMemo(() => totalIncomeForPeriod - totalExpensesForPeriod, [totalIncomeForPeriod, totalExpensesForPeriod]);
 
-
-  useEffect(() => {
-    const fetchInsights = async () => {
-      if (transactionsForDisplayedPeriod.length > 0 || (!isLoadingTransactions && transactionsForDisplayedPeriod.length === 0)) {
-        setIsLoadingInsights(true);
-        setFinancialInsights(null); // Clear previous insights
-        try {
-          // For now, budgetsForMonth is passed as an empty object.
-          // Later, this would be fetched from Firestore based on displayedDate.
-          const plainTransactionsForAI = transactionsForDisplayedPeriod.map(t => ({
-            id: t.id,
-            date: t.date, // Already YYYY-MM-DD string
-            description: t.description,
-            amount: t.amount,
-            type: t.type,
-            category: t.category as string, // Cast CategoryName to string for Genkit Zod schema
-            // Optional fields, only add if they exist
-            ...(t.paymentMethod && { paymentMethod: t.paymentMethod }),
-            ...(t.installments && { installments: t.installments }),
-            ...(typeof t.isRecurring === 'boolean' && { isRecurring: t.isRecurring }),
-            ...(t.expenseNature && { expenseNature: t.expenseNature }),
-          }));
-
-          const input: FinancialSummaryInput = {
-            transactionsForMonth: plainTransactionsForAI,
-            budgetsForMonth: {}, // Placeholder for budget data
-            monthYearLabel: displayedMonthYearLabel,
-          };
-          const insights = await generateFinancialSummary(input);
-          setFinancialInsights(insights);
-        } catch (error) {
-          console.error("Error generating financial insights:", error);
-          toast({
-            title: translate({ en: "AI Insight Error", pt: "Erro ao Gerar Insight" }),
-            description: translate({ en: "Could not generate financial insights.", pt: "Não foi possível gerar os insights financeiros." }),
-            variant: "destructive",
-          });
-          setFinancialInsights({
-            overallStatus: translate({en:"Could not load insights.", pt:"Não foi possível carregar os insights."}),
-            keyObservations: [],
-            actionableAdvice: []
-          });
-        } finally {
-          setIsLoadingInsights(false);
-        }
-      }
-    };
-
-    if (!isLoadingTransactions && isClient) { // Only fetch if transactions are loaded and client is ready
-      fetchInsights();
-    }
-  }, [transactionsForDisplayedPeriod, isLoadingTransactions, isClient, displayedMonthYearLabel, translate, toast]);
+  // useEffect for fetching insights removed
 
   const pageTitle = translate({ en: "Reports", pt: "Relatórios" });
 
@@ -224,58 +171,22 @@ export default function ReportsPage() {
             </CardContent>
           </Card>
         </div>
-        
-        {/* AI Financial Insights Section */}
-        <Card>
-          <CardHeader>
-            <CardTitle>{translate({ en: "Financial Insights", pt: "Insights Financeiros" })}</CardTitle>
-            <CardDescription>
-              {translate({ en: "AI-generated summary and advice for", pt: "Resumo e conselhos gerados por IA para" })} {displayedMonthYearLabel}.
-            </CardDescription>
+
+        {/* AI Financial Insights Section - Replaced with "Coming Soon" placeholder */}
+        <Card className="shadow-lg bg-muted/50 border-dashed">
+          <CardHeader className="flex flex-row items-start gap-4 space-y-0">
+             <Cog className="h-8 w-8 text-primary flex-shrink-0 mt-1" />
+            <div className="flex-grow">
+                <CardTitle>{translate({ en: "Financial Insights", pt: "Insights Financeiros" })}</CardTitle>
+                <CardDescription>
+                {translate({ en: "AI-generated summary and advice for", pt: "Resumo e conselhos gerados por IA para" })} {displayedMonthYearLabel}.
+                </CardDescription>
+            </div>
           </CardHeader>
-          <CardContent className="space-y-4">
-            {isLoadingInsights ? (
-              <>
-                <Skeleton className="h-8 w-3/4" />
-                <Skeleton className="h-4 w-full" />
-                <Skeleton className="h-4 w-5/6" />
-                <Skeleton className="h-4 w-full" />
-              </>
-            ) : financialInsights ? (
-              <>
-                <Alert variant={financialInsights.overallStatus.toLowerCase().includes("negativ") || financialInsights.overallStatus.toLowerCase().includes("atenção") || financialInsights.overallStatus.toLowerCase().includes("could not") ? "destructive" : "default"}>
-                  <Info className="h-4 w-4" />
-                  <AlertTitle>{translate({en: "Overall Status", pt: "Status Geral"})}</AlertTitle>
-                  <AlertDescription>{financialInsights.overallStatus}</AlertDescription>
-                </Alert>
-
-                {financialInsights.keyObservations.length > 0 && (
-                  <Alert>
-                    <Terminal className="h-4 w-4" />
-                    <AlertTitle>{translate({en: "Key Observations", pt: "Observações Chave"})}</AlertTitle>
-                    <AlertDescription>
-                      <ul className="list-disc pl-5 space-y-1">
-                        {financialInsights.keyObservations.map((obs, index) => <li key={index}>{obs}</li>)}
-                      </ul>
-                    </AlertDescription>
-                  </Alert>
-                )}
-
-                {financialInsights.actionableAdvice.length > 0 && (
-                  <Alert variant="default" className="bg-accent/20 border-accent">
-                     <Lightbulb className="h-4 w-4 text-accent-foreground" />
-                    <AlertTitle className="text-accent-foreground">{translate({en: "Actionable Advice", pt: "Conselhos Práticos"})}</AlertTitle>
-                    <AlertDescription className="text-accent-foreground/90">
-                       <ul className="list-disc pl-5 space-y-1">
-                        {financialInsights.actionableAdvice.map((adv, index) => <li key={index}>{adv}</li>)}
-                      </ul>
-                    </AlertDescription>
-                  </Alert>
-                )}
-              </>
-            ) : (
-              <p>{translate({ en: "No insights available for this period.", pt: "Nenhum insight disponível para este período." })}</p>
-            )}
+          <CardContent className="pt-4 text-center">
+            <p className="text-muted-foreground">
+              {translate({ en: "This feature is coming soon!", pt: "Esta funcionalidade estará disponível em breve!" })}
+            </p>
           </CardContent>
         </Card>
 
@@ -301,5 +212,3 @@ export default function ReportsPage() {
     </AppLayout>
   );
 }
-
-    
