@@ -68,7 +68,14 @@ export default function ReportsPage() {
            console.warn("ReportsPage: Transaction has unexpected date format. Fallback to current date. Date was:", data.date);
            dateString = formatDateFns(new Date(), "yyyy-MM-dd");
         }
-        return { ...data, id: docSnap.id, date: dateString } as Transaction;
+        // Include createdAt and userId from Firestore, but they won't be sent to AI flow
+        return { 
+            ...data, 
+            id: docSnap.id, 
+            date: dateString,
+            createdAt: data.createdAt, // Keep original createdAt if needed elsewhere
+            userId: data.userId      // Keep original userId if needed elsewhere
+        } as Transaction & { createdAt?: any, userId?: string };
       });
       setAllTransactions(fetchedTransactions);
       setIsLoadingTransactions(false);
@@ -121,15 +128,22 @@ export default function ReportsPage() {
         try {
           // For now, budgetsForMonth is passed as an empty object.
           // Later, this would be fetched from Firestore based on displayedDate.
+          const plainTransactionsForAI = transactionsForDisplayedPeriod.map(t => ({
+            id: t.id,
+            date: t.date, // Already YYYY-MM-DD string
+            description: t.description,
+            amount: t.amount,
+            type: t.type,
+            category: t.category as string, // Cast CategoryName to string for Genkit Zod schema
+            // Optional fields, only add if they exist
+            ...(t.paymentMethod && { paymentMethod: t.paymentMethod }),
+            ...(t.installments && { installments: t.installments }),
+            ...(typeof t.isRecurring === 'boolean' && { isRecurring: t.isRecurring }),
+            ...(t.expenseNature && { expenseNature: t.expenseNature }),
+          }));
+
           const input: FinancialSummaryInput = {
-            transactionsForMonth: transactionsForDisplayedPeriod.map(t => ({
-              ...t,
-              category: t.category as string, // Cast CategoryName to string for Genkit Zod schema
-              expenseNature: t.expenseNature ? t.expenseNature : undefined,
-              paymentMethod: t.paymentMethod ? t.paymentMethod : undefined,
-              installments: t.installments ? t.installments : undefined,
-              isRecurring: t.isRecurring ? t.isRecurring : undefined,
-            })),
+            transactionsForMonth: plainTransactionsForAI,
             budgetsForMonth: {}, // Placeholder for budget data
             monthYearLabel: displayedMonthYearLabel,
           };
@@ -287,3 +301,5 @@ export default function ReportsPage() {
     </AppLayout>
   );
 }
+
+    
