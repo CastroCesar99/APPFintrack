@@ -21,7 +21,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
-import type { Transaction, TransactionType, ExpenseNature } from "@/types";
+import type { Transaction, TransactionType, ExpenseNature, Category } from "@/types"; // Added Category type
 import { CATEGORIES, getCategoriesByType, CategoryName, getCategoryLabel } from "@/types";
 import { useState, useEffect } from "react";
 import { useLanguage } from "@/context/language-context";
@@ -35,7 +35,7 @@ const formSchema = z.object({
   paymentMethod: z.string().optional(),
   installments: z.coerce.number().int().positive().optional(),
   isRecurring: z.boolean().optional(),
-  expenseNature: z.enum(["fixed", "variable"]).optional(), // Added expenseNature
+  expenseNature: z.enum(["fixed", "variable"]).optional(),
 });
 
 type TransactionFormValues = z.infer<typeof formSchema>;
@@ -47,7 +47,7 @@ interface TransactionFormProps {
 
 export function TransactionForm({ onAddTransaction, initialType }: TransactionFormProps) {
   const { language, translate } = useLanguage();
-  const [availableCategories, setAvailableCategories] = useState(() => getCategoriesByType(initialType));
+  const [availableCategories, setAvailableCategories] = useState<Category[]>(() => getCategoriesByType(initialType));
   const [selectedPaymentMethodType, setSelectedPaymentMethodType] = useState<"upfront" | "installment" | "recurring" | undefined>(undefined);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -63,7 +63,7 @@ export function TransactionForm({ onAddTransaction, initialType }: TransactionFo
       paymentMethod: undefined,
       installments: undefined,
       isRecurring: false,
-      expenseNature: undefined, // Default value for expenseNature
+      expenseNature: undefined,
     },
   });
 
@@ -71,25 +71,19 @@ export function TransactionForm({ onAddTransaction, initialType }: TransactionFo
     const newCategories = getCategoriesByType(initialType);
     setAvailableCategories(newCategories);
     const currentCategoryInForm = form.getValues("category");
-    if (currentCategoryInForm) {
-        const isCategoryStillValid = newCategories.some(cat => cat.name === currentCategoryInForm);
-        if (!isCategoryStillValid) {
-            form.setValue("category", "", { shouldValidate: true });
-        }
-    }
-    // Reset expense-specific fields if type changes to income
-    if (initialType === 'income') {
-      form.setValue('expenseType', undefined);
-      form.setValue('paymentMethod', undefined);
-      form.setValue('installments', undefined);
-      form.setValue('expenseNature', undefined);
-      setSelectedPaymentMethodType(undefined);
-    }
+
+    const isCategoryStillValid = (category: string, validCategories: Category[]) => {
+      return validCategories.some(cat => cat.name === category);
+    };
+    
+    const categoryToSet = currentCategoryInForm && isCategoryStillValid(currentCategoryInForm, newCategories) 
+                          ? currentCategoryInForm 
+                          : "";
+
     form.reset({
-        ...form.getValues(), // keep existing values
         description: form.getValues('description') || "",
         amount: form.getValues('amount') || undefined,
-        category: isCategoryStillValid(form.getValues('category'), newCategories) ? form.getValues('category') : "",
+        category: categoryToSet,
         date: form.getValues('date') || new Date(),
         expenseType: initialType === 'expense' ? form.getValues('expenseType') : undefined,
         paymentMethod: initialType === 'expense' ? form.getValues('paymentMethod') : undefined,
@@ -97,16 +91,25 @@ export function TransactionForm({ onAddTransaction, initialType }: TransactionFo
         isRecurring: form.getValues('isRecurring') || false,
         expenseNature: initialType === 'expense' ? form.getValues('expenseNature') : undefined,
     });
-  }, [initialType, form]);
 
-  const isCategoryStillValid = (category: string, validCategories: Category[]) => {
-    return validCategories.some(cat => cat.name === category);
-  };
+    if (initialType === 'income') {
+      setSelectedPaymentMethodType(undefined);
+    } else {
+      // Ensure expenseType is kept if it was already set for an expense form
+      setSelectedPaymentMethodType(form.getValues('expenseType'));
+    }
+
+  }, [initialType, form]);
 
 
   async function onSubmit(values: TransactionFormValues) {
     setIsSubmitting(true);
     try {
+      let finalIsRecurring = values.isRecurring || false;
+      if (initialType === 'expense' && values.expenseType === 'recurring') {
+        finalIsRecurring = true;
+      }
+
       const transactionData: Omit<Transaction, "id" | "userId" | "createdAt"> = {
         description: values.description,
         amount: values.amount,
@@ -115,8 +118,8 @@ export function TransactionForm({ onAddTransaction, initialType }: TransactionFo
         date: values.date.toISOString(),
         paymentMethod: values.paymentMethod,
         installments: values.installments,
-        isRecurring: values.isRecurring,
-        expenseNature: values.expenseNature as ExpenseNature | undefined, // Include expenseNature
+        isRecurring: finalIsRecurring,
+        expenseNature: values.expenseNature as ExpenseNature | undefined,
       };
       await onAddTransaction(transactionData);
 
@@ -131,9 +134,10 @@ export function TransactionForm({ onAddTransaction, initialType }: TransactionFo
         isRecurring: false,
         expenseNature: undefined,
       });
-      setSelectedPaymentMethodType(undefined);
+      setSelectedPaymentMethodType(undefined); // Reset this as well
     } catch (error) {
       console.error("Error during transaction submission in TransactionForm:", error);
+      // Parent component (QuickActionsSection) handles toast for submission errors
     } finally {
       setIsSubmitting(false);
     }
@@ -147,7 +151,7 @@ export function TransactionForm({ onAddTransaction, initialType }: TransactionFo
   const dateLabel = translate({ en: "Date", pt: "Data" });
   const pickDateLabel = translate({ en: "Pick a date", pt: "Escolha uma data" });
   const paymentMethodLabel = translate({ en: "Payment Method", pt: "Forma de Pagamento" });
-  const paymentTypeLabel = translate({ en: "Payment Type", pt: "Método de Pagamento" });
+  const paymentTypeLabel = translate({ en: "Payment Type", pt: "Método de Pagamento" }); // Renamed for clarity
   const installmentsLabel = translate({ en: "Number of Installments", pt: "Número de Parcelas" });
   const isRecurringLabel = translate({ en: "Apply to all months", pt: "Aplicar para todos os meses" });
   const expenseNatureLabel = translate({ en: "Expense Nature", pt: "Natureza da Despesa" });
@@ -311,6 +315,18 @@ export function TransactionForm({ onAddTransaction, initialType }: TransactionFo
                     <Select onValueChange={(value) => {
                         field.onChange(value);
                         setSelectedPaymentMethodType(value as "upfront" | "installment" | "recurring" | undefined);
+                        // Automatically set isRecurring if expenseType is 'recurring'
+                        if (value === 'recurring') {
+                          form.setValue('isRecurring', true);
+                        } else if (form.getValues('isRecurring') && (value === 'upfront' || value === 'installment')) {
+                          // If user previously selected recurring then switched away, uncheck it
+                          // But only if isRecurring was actually set by the "recurring" expense type
+                          // This condition might need refinement based on desired UX
+                          // For now, let's assume isRecurring is only driven by this dropdown for expenses.
+                          // And for income, it's driven by the checkbox.
+                          // A simpler approach: isRecurring is ONLY true if expenseType is 'recurring' for expenses.
+                          // form.setValue('isRecurring', false); // This might be too aggressive if user wants a recurring upfront payment
+                        }
                     }} 
                     value={field.value}
                     >
@@ -393,3 +409,4 @@ export function TransactionForm({ onAddTransaction, initialType }: TransactionFo
     </Form>
   );
 }
+

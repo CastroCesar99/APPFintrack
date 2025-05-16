@@ -9,7 +9,7 @@ import { SummarySection } from "@/components/dashboard/summary-section";
 import { QuickActionsSection } from "@/components/dashboard/quick-actions-section";
 import { RecentTransactionsSection } from "@/components/dashboard/recent-transactions-section";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import type { Transaction, CategoryName, ExpenseNature } from "@/types"; // Added ExpenseNature
+import type { Transaction, CategoryName, ExpenseNature } from "@/types";
 import { CATEGORIES, getCategoryLabel } from "@/types";
 import { useLanguage } from '@/context/language-context';
 import { db } from '@/lib/firebase';
@@ -68,7 +68,6 @@ export default function DashboardPage() {
 
     if (authLoading) {
       console.log("Dashboard: TRACER --- Main useEffect: Auth is loading, waiting...");
-      // No need to set isLoadingTransactions(true) here, main loading overlay covers authLoading
       return fullCleanup;
     }
 
@@ -102,12 +101,10 @@ export default function DashboardPage() {
         }
         console.log("Dashboard: TRACER --- fetchDataInternal: Starting for UserID:", currentUserId);
         
-        // Ensure loading state is true at the start of any new data fetch attempt for a user
         if (effectMountedRef.current && !isLoadingTransactions) {
              console.log("Dashboard: TRACER --- fetchDataInternal: Ensuring isLoadingTransactions is true for new fetch/setup of user:", currentUserId);
              setIsLoadingTransactions(true);
         }
-
 
         try {
           const userDocRef = doc(db, "users", currentUserId);
@@ -154,7 +151,23 @@ export default function DashboardPage() {
             }
             console.log(`Dashboard: TRACER --- onSnapshot: Received data for UserID: ${currentUserId}. Empty: ${querySnapshot.empty}, PendingWrites: ${querySnapshot.metadata.hasPendingWrites}`);
             
-            const fetchedTransactions = querySnapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as Transaction));
+            const fetchedTransactions = querySnapshot.docs.map(docSnap => {
+              const data = docSnap.data();
+              let dateString = data.date; // Default if it's already a string
+              if (data.date && typeof data.date.toDate === 'function') {
+                // If it's a Firestore Timestamp object, convert it to ISO string
+                dateString = data.date.toDate().toISOString();
+              } else if (typeof data.date !== 'string') {
+                // Fallback or error for unexpected date format
+                console.warn("Transaction has unexpected date format, using current date as fallback", data);
+                dateString = new Date().toISOString(); 
+              }
+              return {
+                ...data, // Spread raw data first
+                id: docSnap.id, // Then overwrite id
+                date: dateString, // Then overwrite date with processed ISO string
+              } as Transaction;
+            });
             
             if (effectMountedRef.current) {
               console.log(`Dashboard: TRACER --- onSnapshot: Setting ${fetchedTransactions.length} transactions for UserID: ${currentUserId}.`);
@@ -211,14 +224,14 @@ export default function DashboardPage() {
     } else {
       console.log(`Dashboard: TRACER --- Main useEffect: Listener should be active for UserID: ${userId}. isLoadingTransactions: ${isLoadingTransactions}. Snapshot ref present: ${!!unsubscribeSnapshotRef.current}`);
        if (isLoadingTransactions && effectMountedRef.current) {
-           if (!unsubscribeSnapshotRef.current) {
-                console.warn("Dashboard: TRACER --- Main useEffect: No active listener but still loading. This might be an issue. Forcing false for UserID:", userId);
+           if (!unsubscribeSnapshotRef.current && transactions.length === 0) { // Only force false if no listener AND no transactions yet
+                console.warn("Dashboard: TRACER --- Main useEffect: No active listener but still loading and no transactions. Forcing loading to false for UserID:", userId);
                 if (effectMountedRef.current) setIsLoadingTransactions(false);
            }
        }
     }
     return fullCleanup;
-  }, [userId, authLoading, isClient, router, toast, translate]);
+  }, [userId, authLoading, isClient]);
 
 
   const onAddTransaction = async (newTransactionData: Omit<Transaction, "id" | "userId" | "createdAt">) => {
@@ -237,11 +250,11 @@ export default function DashboardPage() {
       amount: newTransactionData.amount,
       type: newTransactionData.type,
       category: newTransactionData.category,
-      date: newTransactionData.date,
+      date: newTransactionData.date, // This is an ISO string from TransactionForm
       paymentMethod: newTransactionData.paymentMethod,
       installments: newTransactionData.installments,
       isRecurring: newTransactionData.isRecurring,
-      expenseNature: newTransactionData.expenseNature, // Include expenseNature
+      expenseNature: newTransactionData.expenseNature,
     };
 
     setTransactions(prevTransactions => 
@@ -256,11 +269,11 @@ export default function DashboardPage() {
         amount: newTransactionData.amount,
         type: newTransactionData.type,
         category: newTransactionData.category,
-        date: newTransactionData.date,
+        date: newTransactionData.date, // Save ISO string to Firestore
         paymentMethod: newTransactionData.paymentMethod,
         installments: newTransactionData.installments,
         isRecurring: newTransactionData.isRecurring, 
-        expenseNature: newTransactionData.expenseNature, // Add expenseNature to payload
+        expenseNature: newTransactionData.expenseNature,
         userId: userId,
         createdAt: serverTimestamp(),
       };
@@ -272,9 +285,8 @@ export default function DashboardPage() {
       if (!('isRecurring' in dataToSave) && typeof newTransactionData.isRecurring === 'boolean') {
          dataToSave.isRecurring = newTransactionData.isRecurring;
       } else if (!('isRecurring' in dataToSave)) {
-        dataToSave.isRecurring = false; // Default to false if not provided and not already set
+        dataToSave.isRecurring = false; 
       }
-      // No special handling for expenseNature needed here if undefined means it's omitted by the filter
 
       await addDoc(transactionsColRef, dataToSave);
 
@@ -296,12 +308,20 @@ export default function DashboardPage() {
 
   const transactionsForDisplayedPeriod = useMemo(() => {
     const year = displayedDate.getFullYear();
-    const month = displayedDate.getMonth();
+    const month = displayedDate.getMonth(); // 0-indexed
+    
     return transactions.filter(t => {
-      const transactionDate = new Date(t.date);
+      // For recurring transactions, include them regardless of their specific date
+      if (t.isRecurring === true) {
+        return true;
+      }
+      
+      // For non-recurring, check if their date falls within the displayed month/year
+      const transactionDate = new Date(t.date); // t.date should be a valid ISO string
       const transactionYear = transactionDate.getFullYear();
-      const transactionMonth = transactionDate.getMonth();
-      return (transactionYear === year && transactionMonth === month) || t.isRecurring === true;
+      const transactionMonth = transactionDate.getMonth(); // 0-indexed
+      
+      return transactionYear === year && transactionMonth === month;
     });
   }, [transactions, displayedDate]);
 
