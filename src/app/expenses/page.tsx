@@ -74,7 +74,9 @@ export default function ExpensesPage() {
         const allSystemCategories: DisplayCategory[] = [...CATEGORIES];
         const finalUserCategoriesMap = new Map<string, DisplayCategory>();
 
+        // Add all predefined categories first
         allSystemCategories.forEach(cat => finalUserCategoriesMap.set(cat.name.toLowerCase(), cat));
+        // Then add/overwrite with custom ones (though names should be unique in practice)
         customCategoryDefs.forEach(customCat => {
              finalUserCategoriesMap.set(customCat.name.toLowerCase(), customCat);
         });
@@ -86,7 +88,7 @@ export default function ExpensesPage() {
 
         basePaymentMethodsList.forEach(pm => finalPaymentMethodsMap.set(pm.name.toLowerCase(), pm));
         customPaymentMethodDefs.forEach(customPm => {
-             finalPaymentMethodsMap.set(customPm.name.toLowerCase(), customPm);
+            finalPaymentMethodsMap.set(customPm.name.toLowerCase(), customPm);
         });
         
         const selectedPaymentMethodNames = preferencesData.selectedPaymentMethods || [];
@@ -96,9 +98,11 @@ export default function ExpensesPage() {
             );
             setUserPaymentMethods(effectivePMs.length > 0 ? effectivePMs : Array.from(finalPaymentMethodsMap.values()));
         } else {
+            // If no payment methods were specifically selected in onboarding, show all (predefined + custom)
             setUserPaymentMethods(Array.from(finalPaymentMethodsMap.values()));
         }
       } else {
+        // No preferences doc found, default to all predefined
         setUserCategories([...CATEGORIES]);
         setUserPaymentMethods([...PAYMENT_METHODS]);
       }
@@ -302,8 +306,8 @@ export default function ExpensesPage() {
   return (
     <AppLayout>
       <div className="space-y-6">
-        <div className="flex flex-col items-start gap-4">
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">
+        <div> {/* Wrapper for title and button for vertical stacking */}
+          <h1 className="text-3xl font-bold tracking-tight text-foreground mb-4">
             {translate({ en: "Expenses", pt: "Despesas" })} - {displayedMonthYearLabel}
           </h1>
           <Dialog open={isAddFormOpen} onOpenChange={setIsAddFormOpen} modal={false}>
@@ -377,3 +381,5 @@ export default function ExpensesPage() {
     </AppLayout>
   );
 }
+
+    

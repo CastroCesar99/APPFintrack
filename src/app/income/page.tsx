@@ -297,8 +297,8 @@ export default function IncomePage() {
   return (
     <AppLayout>
       <div className="space-y-6">
-        <div className="flex flex-col items-start gap-4">
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">
+        <div> {/* Wrapper for title and button for vertical stacking */}
+          <h1 className="text-3xl font-bold tracking-tight text-foreground mb-4">
             {translate({ en: "Income", pt: "Receitas" })} - {displayedMonthYearLabel}
           </h1>
           <Dialog open={isAddFormOpen} onOpenChange={setIsAddFormOpen} modal={false}>
@@ -372,3 +372,5 @@ export default function IncomePage() {
     </AppLayout>
   );
 }
+
+    
