@@ -10,7 +10,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { CATEGORIES, Category, CategoryName, PAYMENT_METHODS, PaymentMethod, PaymentMethodName, getCategoryLabel, getPaymentMethodLabel } from '@/types';
+import type { Category, CategoryName, PaymentMethod, PaymentMethodName } from '@/types';
+import { CATEGORIES, PAYMENT_METHODS, getCategoryLabel, getPaymentMethodLabel } from '@/types';
 import { CategoryIcon, PaymentMethodIcon, getSelectableIcons, iconNameToComponentMap } from '@/components/icons';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
@@ -18,22 +19,22 @@ import { PlusCircle, CircleHelp, type LucideIcon } from 'lucide-react';
 import { useLanguage } from '@/context/language-context';
 import { useAuth } from '@/context/auth-context';
 import { db } from '@/lib/firebase';
-import { doc, setDoc, updateDoc, serverTimestamp, getDoc } from "firebase/firestore";
+import { doc, setDoc, serverTimestamp, getDoc } from "firebase/firestore"; // Removed updateDoc, getDoc is still used for initial check
 
 const predefinedExpenseCategories = CATEGORIES.filter(cat => cat.type === 'expense');
 const predefinedPaymentMethods = PAYMENT_METHODS;
 
 interface CustomCategory {
-  name: CategoryName; // Treat custom category names as CategoryName for consistency in state
-  type: 'expense'; // All custom categories are expenses for now
-  icon: string; // Icon key string
-  label: { en: string; pt: string }; // User-provided name, used for both languages
+  name: CategoryName; 
+  type: 'expense'; 
+  icon: string; 
+  label: { en: string; pt: string }; 
 }
 
 interface CustomPaymentMethod {
-  name: PaymentMethodName; // Treat custom method names as PaymentMethodName
-  icon: string; // Icon key string
-  label: { en: string; pt: string }; // User-provided name, used for both languages
+  name: PaymentMethodName; 
+  icon: string; 
+  label: { en: string; pt: string }; 
 }
 
 type DisplayCategory = Category | CustomCategory;
@@ -41,14 +42,10 @@ type DisplayPaymentMethod = PaymentMethod | CustomPaymentMethod;
 
 const selectableIconsList = getSelectableIcons();
 
-// Helper to get the display label for a category, handling predefined and custom
 const getDisplayCategoryLabelFromList = (category: DisplayCategory, lang: 'en' | 'pt'): string => {
   if ('label' in category && category.label && typeof category.label === 'object' && category.label[lang]) {
-    // This handles both predefined Category (which has label: {en, pt})
-    // and CustomCategory (which also has label: {en, pt})
     return category.label[lang];
   }
-  // Fallback for safety, though all items should have a label object
   return category.name;
 };
 
@@ -116,16 +113,16 @@ export function OnboardingForm() {
       toast({ title: translate({en: "Icon Required", pt: "Ícone Necessário"}), description: translate({en: "Please select an icon for the category.", pt: "Por favor, selecione um ícone para a categoria."}), variant: "destructive" });
       return;
     }
-    const isDuplicate = allDisplayCategories.some(cat => cat.name.toLowerCase() === newCategoryName.toLowerCase());
+    const isDuplicate = allDisplayCategories.some(cat => getDisplayCategoryLabelFromList(cat, language).toLowerCase() === newCategoryName.toLowerCase() || cat.name.toLowerCase() === newCategoryName.toLowerCase());
     if (isDuplicate) {
       toast({ title: translate({en: "Duplicate Category", pt: "Categoria Duplicada"}), description: translate({en: "This category already exists.", pt: "Essa categoria já existe."}), variant: "destructive" });
       return;
     }
     const newCustomCategory: CustomCategory = {
-      name: newCategoryName as CategoryName, // Cast, as we are treating it as such
+      name: newCategoryName as CategoryName, 
       type: 'expense',
       icon: selectedCustomCategoryIcon,
-      label: { en: newCategoryName, pt: newCategoryName } // User-provided name for both
+      label: { en: newCategoryName, pt: newCategoryName } 
     };
     setUserDefinedCategories(prev => [...prev, newCustomCategory]);
     setSelectedCategories(prev => new Set(prev).add(newCustomCategory.name));
@@ -156,13 +153,13 @@ export function OnboardingForm() {
       toast({ title: translate({en: "Icon Required", pt: "Ícone Necessário"}), description: translate({en: "Please select an icon for the method.", pt: "Por favor, selecione um ícone para o método."}), variant: "destructive" });
       return;
     }
-    const isDuplicate = allDisplayPaymentMethods.some(pm => pm.name.toLowerCase() === newMethodName.toLowerCase());
+    const isDuplicate = allDisplayPaymentMethods.some(pm => getDisplayPaymentMethodLabelFromList(pm, language).toLowerCase() === newMethodName.toLowerCase() || pm.name.toLowerCase() === newMethodName.toLowerCase());
     if (isDuplicate) {
       toast({ title: translate({en: "Duplicate Method", pt: "Método Duplicado"}), description: translate({en: "This payment method already exists.", pt: "Esse método de pagamento já existe."}), variant: "destructive" });
       return;
     }
     const newCustomMethod: CustomPaymentMethod = {
-      name: newMethodName as PaymentMethodName, // Cast
+      name: newMethodName as PaymentMethodName, 
       icon: selectedCustomPaymentMethodIcon,
       label: { en: newMethodName, pt: newMethodName }
     };
@@ -174,7 +171,6 @@ export function OnboardingForm() {
   };
 
   const handleBudgetChange = (categoryName: CategoryName, amount: string) => {
-    // Allow empty string or valid numbers (including decimals)
     if (amount === '' || /^\d*\.?\d*$/.test(amount)) {
       setBudgetGoals(prev => ({
         ...prev,
@@ -200,7 +196,6 @@ export function OnboardingForm() {
     setIsSaving(true);
 
     try {
-      // Filter out empty budget goals and convert valid ones to numbers
       const finalBudgetGoals: Record<CategoryName, number> = {};
       for (const [catName, amountStr] of Object.entries(budgetGoals)) {
         if (amountStr && amountStr.trim() !== '') {
@@ -217,7 +212,7 @@ export function OnboardingForm() {
         userDefinedCategories: userDefinedCategories.map(cat => ({ name: cat.name, icon: cat.icon, label: cat.label, type: cat.type })),
         selectedPaymentMethods: Array.from(selectedPaymentMethods),
         userDefinedPaymentMethods: userDefinedPaymentMethods.map(pm => ({ name: pm.name, icon: pm.icon, label: pm.label })),
-        budgetGoals: finalBudgetGoals, // Save the cleaned and numeric budget goals
+        budgetGoals: finalBudgetGoals, 
         updatedAt: serverTimestamp(),
       };
       
@@ -225,10 +220,11 @@ export function OnboardingForm() {
       await setDoc(preferencesDocRef, preferencesData, { merge: true });
 
       const userDocRef = doc(db, "users", user.uid);
-      await updateDoc(userDocRef, {
-        onboardingComplete: true,
-        onboardedAt: serverTimestamp(),
-      });
+      // Use setDoc with merge: true to create or update the user document
+      await setDoc(userDocRef, { 
+        onboardingComplete: true, 
+        onboardedAt: serverTimestamp() 
+      }, { merge: true });
       
       localStorage.setItem('onboardingComplete', 'true'); 
       localStorage.setItem('userLanguage', language);
@@ -250,13 +246,10 @@ export function OnboardingForm() {
     }
   };
 
-
   useEffect(() => {
-    // This effect redirects if user is already onboarded
-    // No need to fetch preferences here as this form is for setting them
     if (user && !authLoading) {
       const checkOnboardingStatus = async () => {
-        if (!user) return; // Should not happen if authLoading is false and user exists
+        if (!user) return; 
         const userDocRef = doc(db, "users", user.uid);
         try {
           const userDocSnap = await getDoc(userDocRef);
@@ -267,7 +260,7 @@ export function OnboardingForm() {
             localStorage.removeItem('onboardingComplete');
           }
         } catch (error) {
-           console.error("OnboardingPage: Error checking onboarding status (getDoc failed):", error);
+           console.error("OnboardingForm: Error checking onboarding status (getDoc failed):", error);
         }
       };
       checkOnboardingStatus();
@@ -430,7 +423,6 @@ export function OnboardingForm() {
           <div className="space-y-4">
             {Array.from(selectedCategories).map(categoryKey => {
               const categoryDetails = allDisplayCategories.find(c => c.name === categoryKey);
-              // Ensure we only show budget inputs for expense categories
               if (!categoryDetails || categoryDetails.type !== 'expense') {
                 return null;
               }
