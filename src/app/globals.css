@@ -24,8 +24,8 @@ body {
     --accent-foreground: 0 0% 98%; /* Changed for better contrast on bright blue */
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 89.8%;
-    --input: 0 0% 89.8%;
+    --border: 0 0% 83%; /* Darkened for better card visibility */
+    --input: 0 0% 83%; /* Darkened to match new border */
     --ring: 208 100% 20%; /* Matches new primary */
     --chart-1: hsl(var(--primary));
     --chart-2: hsl(var(--accent));
