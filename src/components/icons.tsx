@@ -15,7 +15,8 @@ import {
   Languages
 } from 'lucide-react';
 import type { CategoryName, PaymentMethodName } from '@/types';
-import { CATEGORIES, PAYMENT_METHODS } from '@/types'; // Import CATEGORIES
+import { CATEGORIES, PAYMENT_METHODS } from '@/types';
+import { useTheme } from '@/context/theme-context'; // Import useTheme
 
 // Centralized map of icon string names to Lucide components
 export const iconNameToComponentMap: Record<string, LucideIcon> = {
@@ -65,16 +66,22 @@ export const PaymentMethodIcon: React.FC<PaymentMethodIconProps> = ({ iconName, 
   return <IconComponent {...props} />;
 };
 
-// AppLogoIcon now uses next/image to load /fintrack-logo.png
-export const AppLogoIcon = () => (
-  <Image
-    src="/fintrack-logo.png"
-    alt="FinTrack Logo"
-    width={32}
-    height={32}
-    className="h-8 w-8" // Maintain size consistency, next/image handles optimization
-  />
-);
+// AppLogoIcon now conditionally renders based on the theme
+export const AppLogoIcon = () => {
+  const { theme } = useTheme();
+  const logoSrc = theme === 'dark' ? '/white fintrack logo.ico' : '/fintrack-logo.png';
+  const altText = theme === 'dark' ? 'FinTrack Logo (Dark Mode)' : 'FinTrack Logo (Light Mode)';
+
+  return (
+    <Image
+      src={logoSrc}
+      alt={altText}
+      width={32}
+      height={32}
+      className="h-8 w-8" // Maintain size consistency, next/image handles optimization
+    />
+  );
+};
 
 export const SettingsIcon = Settings;
 export const DashboardIcon = LayoutDashboard;
@@ -91,3 +98,4 @@ export const getSelectableIcons = () => {
     iconComponent: Component as LucideIcon,
   })).sort((a,b) => a.label.localeCompare(b.label)); // Sort alphabetically by label
 }
+
