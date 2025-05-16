@@ -63,7 +63,7 @@ export default function ManagePaymentMethodsPage() {
                         <PaymentMethodIcon iconName={method.icon} className="h-6 w-6 text-muted-foreground" />
                         <span className="font-medium">
                           {getPaymentMethodLabel(method.name, language)}
-                          {method.isDefault && ` (${translate({en: "Default", pt: "Padrão"})})`}
+                          {/* Removed: {method.isDefault && ` (${translate({en: "Default", pt: "Padrão"})})`} */}
                         </span>
                       </div>
                       <div className="flex items-center gap-2">
