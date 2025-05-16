@@ -38,11 +38,11 @@ export function TransactionsTable({ transactions, onEditTransaction, onDeleteTra
 
 
   return (
-    <div className="overflow-x-auto">
+    <div className="w-full"> {/* Adjusted div to take full width */}
       <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>{translate({en:"Date", pt:"Data"})}</TableHead>
+        <TableHeader className="hidden sm:table-header-group"> {/* Hide header on small screens */}
+          <TableRow className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted"> {/* Added base TableRow classes */}
+            <TableHead className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">{translate({en:"Date", pt:"Data"})}</TableHead> {/* Added base TableHead classes */}
             <TableHead>{translate({en:"Description", pt:"Descrição"})}</TableHead>
             <TableHead>{translate({en:"Category", pt:"Categoria"})}</TableHead>
             <TableHead className="text-right">{translate({en:"Amount", pt:"Valor"})}</TableHead>
@@ -61,21 +61,31 @@ export function TransactionsTable({ transactions, onEditTransaction, onDeleteTra
                 console.warn(`Could not parse date string for display in table: ${transaction.date}`, e);
             }
             return (
-              <TableRow key={transaction.id}>
-                <TableCell className="whitespace-nowrap">
-                  {displayDate}
+              <TableRow key={transaction.id} className="flex flex-col mb-4 p-4 border rounded-md sm:table-row sm:mb-0 sm:p-0 sm:border-none sm:rounded-none"> {/* Stack cells vertically on mobile */}
+                {/* Mobile label and data */}
+                <TableCell className="flex justify-between items-center sm:table-cell sm:whitespace-nowrap sm:block"> {/* Revert to table cell on sm */}
+                  <span className="font-bold mr-2 sm:hidden">{translate({en:"Date:", pt:"Data:"})}</span> {/* Label for mobile */}
+                  <span className="whitespace-nowrap">{displayDate}</span>
                 </TableCell>
-                <TableCell>{transaction.description}</TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-2">
-                    <CategoryIcon categoryName={transaction.category} className="h-4 w-4 text-muted-foreground" />
-                    <span>{getCategoryLabel(transaction.category, language)}</span>
+
+                <TableCell className="flex justify-between items-center sm:table-cell sm:block"> {/* Revert to table cell on sm */}
+                  <span className="font-bold mr-2 sm:hidden">{translate({en:"Description:", pt:"Descrição:"})}</span> {/* Label for mobile */}
+                  <span>{transaction.description}</span>
+                </TableCell>
+
+                <TableCell className="flex justify-between items-center sm:table-cell sm:block"> {/* Revert to table cell on sm */}
+                  <span className="font-bold mr-2 sm:hidden">{translate({en:"Category:", pt:"Categoria:"})}</span> {/* Label for mobile */}
+                  <div className="flex items-center gap-2 sm:justify-start"> {/* Adjust alignment on mobile */}
+                    <CategoryIcon categoryName={transaction.category} className="h-4 w-4 text-muted-foreground flex-shrink-0" /> {/* Prevent shrinking */}
+                    <span className="truncate">{getCategoryLabel(transaction.category, language)}</span> {/* Truncate long category names */}
                   </div>
                 </TableCell>
+
                 <TableCell className={cn(
-                    "text-right font-medium",
-                    transaction.type === "income" ? "text-green-500" : "text-red-500"
+                    "flex justify-between items-center font-medium sm:table-cell sm:text-right sm:block", // Adjust for mobile and sm
+                    transaction.type === "income" ? "text-green-500" : "text-red-500",
                   )}>
+                  <span className="font-bold mr-2 sm:hidden">{translate({en:"Amount:", pt:"Valor:"})}</span> {/* Label for mobile */}
                   {transaction.type === "income" ? "+" : "-"}
                   {formatCurrency(transaction.amount)}
                 </TableCell>
