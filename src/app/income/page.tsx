@@ -29,7 +29,7 @@ import { useDateNavigation } from '@/context/date-navigation-context';
 import { useToast } from "@/hooks/use-toast";
 import { db } from '@/lib/firebase';
 import { collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, Timestamp, doc, deleteDoc, getDoc } from "firebase/firestore";
-import { format as formatDateFns, parseISO as parseISODateFns } from 'date-fns';
+import { format as formatDateFns, parseISO as parseISODateFns, getYear as getYearFns, getMonth as getMonthFns, parse as parseDateFns } from 'date-fns';
 import { formatCurrency } from '@/lib/utils';
 
 export default function IncomePage() {
@@ -55,7 +55,8 @@ export default function IncomePage() {
 
   const fetchUserPreferences = useCallback(async () => {
     if (!user) {
-      setUserCategories([...CATEGORIES]);
+      const allPredefinedCategories: DisplayCategory[] = [...CATEGORIES];
+      setUserCategories(allPredefinedCategories);
       setUserPaymentMethods([...PAYMENT_METHODS]);
       setIsLoadingPreferences(false);
       return;
@@ -67,38 +68,36 @@ export default function IncomePage() {
 
       if (preferencesDocSnap.exists()) {
         const preferencesData = preferencesDocSnap.data() as UserPreferences;
-        const customCategoryDefs = preferencesData.userDefinedCategories || [];
         
+        const customCategoryDefs = preferencesData.userDefinedCategories || [];
         const allSystemCategories: DisplayCategory[] = [...CATEGORIES];
         const finalUserCategoriesSet = new Map<string, DisplayCategory>();
 
         allSystemCategories.forEach(cat => finalUserCategoriesSet.set(cat.name.toLowerCase(), cat));
         customCategoryDefs.forEach(customCat => {
-             // Ensure custom categories are also added if they don't conflict by name
-            if (!finalUserCategoriesSet.has(customCat.name.toLowerCase())) {
-                 finalUserCategoriesSet.set(customCat.name.toLowerCase(), customCat);
-            }
+             finalUserCategoriesSet.set(customCat.name.toLowerCase(), customCat);
         });
         setUserCategories(Array.from(finalUserCategoriesSet.values()));
 
-        const selectedPaymentMethodNames = preferencesData.selectedPaymentMethods || [];
         const customPaymentMethodDefs = preferencesData.userDefinedPaymentMethods || [];
-        const basePaymentMethods: DisplayPaymentMethod[] = [...PAYMENT_METHODS, ...customPaymentMethodDefs];
+        const basePaymentMethodsList: DisplayPaymentMethod[] = [...PAYMENT_METHODS];
+        const customMethodMap = new Map<string, DisplayPaymentMethod>();
+        customPaymentMethodDefs.forEach(customPm => customMethodMap.set(customPm.name.toLowerCase(), customPm));
+
+        customMethodMap.forEach(customPm => {
+            if (!basePaymentMethodsList.some(pm => pm.name.toLowerCase() === customPm.name.toLowerCase())) {
+                basePaymentMethodsList.push(customPm);
+            }
+        });
         
+        const selectedPaymentMethodNames = preferencesData.selectedPaymentMethods || [];
         if (selectedPaymentMethodNames.length > 0) {
-            const customMap = new Map(customPaymentMethodDefs.map(pm => [pm.name, pm]));
-            const effectivePMs: DisplayPaymentMethod[] = [];
-            selectedPaymentMethodNames.forEach(name => {
-                const predefinedPM = PAYMENT_METHODS.find(pPM => pPM.name === name);
-                if (predefinedPM) { 
-                    effectivePMs.push(predefinedPM);
-                } else if (customMap.has(name)) {
-                    effectivePMs.push(customMap.get(name)!);
-                }
-            });
-            setUserPaymentMethods(effectivePMs.length > 0 ? effectivePMs : basePaymentMethods);
+            const effectivePMs = basePaymentMethodsList.filter(pm => 
+                selectedPaymentMethodNames.some(name => name.toLowerCase() === pm.name.toLowerCase())
+            );
+            setUserPaymentMethods(effectivePMs.length > 0 ? effectivePMs : basePaymentMethodsList);
         } else {
-            setUserPaymentMethods(basePaymentMethods);
+            setUserPaymentMethods(basePaymentMethodsList);
         }
       } else {
         setUserCategories([...CATEGORIES]);
@@ -175,15 +174,24 @@ export default function IncomePage() {
   }, [user, authLoading, isClient, toast, translate, router]);
 
   const incomeForDisplayedPeriod = useMemo(() => {
-    const targetYear = displayedDate.getFullYear();
-    const targetMonth = displayedDate.getMonth(); // 0-indexed
+    const targetYear = getYearFns(displayedDate);
+    const targetMonth = getMonthFns(displayedDate); // 0-indexed
 
     return allTransactions.filter(t => {
       if (t.type !== 'income') return false;
+      
       const dateParts = t.date.split('-');
-      if (dateParts.length !== 3) return false;
+       if (dateParts.length !== 3) {
+        console.warn(`IncomePage: Invalid date format for transaction ID ${t.id}: ${t.date}`);
+        return false;
+      }
       const transactionYear = parseInt(dateParts[0], 10);
-      const transactionMonth = parseInt(dateParts[1], 10) - 1;
+      const transactionMonth = parseInt(dateParts[1], 10) - 1; // 0-indexed for JS Date
+
+      if (isNaN(transactionYear) || isNaN(transactionMonth)) {
+        console.warn(`IncomePage: Could not parse year/month for transaction ID ${t.id}: ${t.date}`);
+        return false;
+      }
       return transactionYear === targetYear && transactionMonth === targetMonth;
     });
   }, [allTransactions, displayedDate]);
@@ -209,6 +217,7 @@ export default function IncomePage() {
         Object.entries(fullPayload).filter(([_, value]) => value !== undefined)
     ) as Partial<Transaction & { createdAt: any; userId: string }>;
 
+    // Ensure isRecurring is explicitly false if not set otherwise
     if (dataToSave.isRecurring === undefined && typeof newTransactionData.isRecurring === 'boolean') {
         dataToSave.isRecurring = newTransactionData.isRecurring;
     } else if (dataToSave.isRecurring === undefined) {
@@ -315,7 +324,7 @@ export default function IncomePage() {
                 defaultDate={displayedDate}
                 userCategories={userCategories}
                 userPaymentMethods={userPaymentMethods}
-                key={displayedDate.toISOString() + "income"} 
+                key={displayedDate.toISOString() + "income" + userCategories.length + userPaymentMethods.length} 
               />
             </DialogContent>
           </Dialog>

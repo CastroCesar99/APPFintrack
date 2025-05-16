@@ -29,7 +29,7 @@ import { useDateNavigation } from '@/context/date-navigation-context';
 import { useToast } from "@/hooks/use-toast";
 import { db } from '@/lib/firebase';
 import { collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, Timestamp, doc, deleteDoc, getDoc } from "firebase/firestore";
-import { format as formatDateFns, parseISO as parseISODateFns } from 'date-fns';
+import { format as formatDateFns, parseISO as parseISODateFns, getYear as getYearFns, getMonth as getMonthFns, parse as parseDateFns } from 'date-fns';
 import { formatCurrency } from '@/lib/utils';
 
 export default function ExpensesPage() {
@@ -56,7 +56,9 @@ export default function ExpensesPage() {
 
   const fetchUserPreferences = useCallback(async () => {
     if (!user) {
-      setUserCategories([...CATEGORIES]);
+      // Default to all predefined if no user (though page should be protected)
+      const allPredefinedCategories: DisplayCategory[] = [...CATEGORIES];
+      setUserCategories(allPredefinedCategories);
       setUserPaymentMethods([...PAYMENT_METHODS]);
       setIsLoadingPreferences(false);
       return;
@@ -68,37 +70,40 @@ export default function ExpensesPage() {
 
       if (preferencesDocSnap.exists()) {
         const preferencesData = preferencesDocSnap.data() as UserPreferences;
-        const customCategoryDefs = preferencesData.userDefinedCategories || [];
         
+        // Combine predefined categories with user-defined ones
+        const customCategoryDefs = preferencesData.userDefinedCategories || [];
         const allSystemCategories: DisplayCategory[] = [...CATEGORIES];
         const finalUserCategoriesSet = new Map<string, DisplayCategory>();
 
+        // Add all system categories first
         allSystemCategories.forEach(cat => finalUserCategoriesSet.set(cat.name.toLowerCase(), cat));
+        // Then add/overwrite with custom ones if names match, or just add if new
         customCategoryDefs.forEach(customCat => {
-            if (!finalUserCategoriesSet.has(customCat.name.toLowerCase())) {
-                 finalUserCategoriesSet.set(customCat.name.toLowerCase(), customCat);
-            }
+            finalUserCategoriesSet.set(customCat.name.toLowerCase(), customCat);
         });
         setUserCategories(Array.from(finalUserCategoriesSet.values()));
-
-        const selectedPaymentMethodNames = preferencesData.selectedPaymentMethods || [];
-        const customPaymentMethodDefs = preferencesData.userDefinedPaymentMethods || [];
-        const basePaymentMethods: DisplayPaymentMethod[] = [...PAYMENT_METHODS, ...customPaymentMethodDefs];
         
+        // Combine predefined payment methods with user-defined ones, then filter by selected
+        const customPaymentMethodDefs = preferencesData.userDefinedPaymentMethods || [];
+        const basePaymentMethodsList: DisplayPaymentMethod[] = [...PAYMENT_METHODS];
+        const customMethodMap = new Map<string, DisplayPaymentMethod>();
+        customPaymentMethodDefs.forEach(customPm => customMethodMap.set(customPm.name.toLowerCase(), customPm));
+
+        customMethodMap.forEach(customPm => {
+            if (!basePaymentMethodsList.some(pm => pm.name.toLowerCase() === customPm.name.toLowerCase())) {
+                basePaymentMethodsList.push(customPm);
+            }
+        });
+        
+        const selectedPaymentMethodNames = preferencesData.selectedPaymentMethods || [];
         if (selectedPaymentMethodNames.length > 0) {
-            const customMap = new Map(customPaymentMethodDefs.map(pm => [pm.name, pm]));
-            const effectivePMs: DisplayPaymentMethod[] = [];
-            selectedPaymentMethodNames.forEach(name => {
-                const predefinedPM = PAYMENT_METHODS.find(pPM => pPM.name === name);
-                if (predefinedPM) { 
-                    effectivePMs.push(predefinedPM);
-                } else if (customMap.has(name)) {
-                    effectivePMs.push(customMap.get(name)!);
-                }
-            });
-            setUserPaymentMethods(effectivePMs.length > 0 ? effectivePMs : basePaymentMethods);
+            const effectivePMs = basePaymentMethodsList.filter(pm => 
+                selectedPaymentMethodNames.some(name => name.toLowerCase() === pm.name.toLowerCase())
+            );
+            setUserPaymentMethods(effectivePMs.length > 0 ? effectivePMs : basePaymentMethodsList);
         } else {
-            setUserPaymentMethods(basePaymentMethods);
+            setUserPaymentMethods(basePaymentMethodsList);
         }
 
       } else {
@@ -181,15 +186,24 @@ export default function ExpensesPage() {
   }, [user, authLoading, isClient, toast, translate, router]);
 
   const expensesForDisplayedPeriod = useMemo(() => {
-    const targetYear = displayedDate.getFullYear();
-    const targetMonth = displayedDate.getMonth(); // 0-indexed
+    const targetYear = getYearFns(displayedDate);
+    const targetMonth = getMonthFns(displayedDate); // 0-indexed
 
     return allTransactions.filter(t => {
       if (t.type !== 'expense') return false;
+      
       const dateParts = t.date.split('-');
-      if (dateParts.length !== 3) return false;
+      if (dateParts.length !== 3) {
+        console.warn(`ExpensesPage: Invalid date format for transaction ID ${t.id}: ${t.date}`);
+        return false;
+      }
       const transactionYear = parseInt(dateParts[0], 10);
-      const transactionMonth = parseInt(dateParts[1], 10) - 1;
+      const transactionMonth = parseInt(dateParts[1], 10) - 1; // 0-indexed for JS Date
+
+      if (isNaN(transactionYear) || isNaN(transactionMonth)) {
+        console.warn(`ExpensesPage: Could not parse year/month for transaction ID ${t.id}: ${t.date}`);
+        return false;
+      }
       return transactionYear === targetYear && transactionMonth === targetMonth;
     });
   }, [allTransactions, displayedDate]);
@@ -215,6 +229,7 @@ export default function ExpensesPage() {
         Object.entries(fullPayload).filter(([_, value]) => value !== undefined)
     ) as Partial<Transaction & { createdAt: any; userId: string }>;
 
+    // Ensure isRecurring is explicitly false if not set otherwise, especially for non-recurring expense types
     if (dataToSave.isRecurring === undefined && typeof newTransactionData.isRecurring === 'boolean') {
         dataToSave.isRecurring = newTransactionData.isRecurring;
     } else if (dataToSave.isRecurring === undefined) {
@@ -322,7 +337,7 @@ export default function ExpensesPage() {
                 defaultDate={displayedDate}
                 userCategories={userCategories}
                 userPaymentMethods={userPaymentMethods}
-                key={displayedDate.toISOString() + "expense"} 
+                key={displayedDate.toISOString() + "expense" + userCategories.length + userPaymentMethods.length} 
               />
             </DialogContent>
           </Dialog>
