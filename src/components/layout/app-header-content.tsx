@@ -34,12 +34,12 @@ export function AppHeaderContent() {
       <div className="flex items-center gap-3">
         <SidebarTrigger className="md:hidden" /> {/* Remains for mobile sidebar toggle */}
         {userGreeting && (
-          <span className="text-sm font-semibold text-foreground truncate" title={userGreeting}>
+          <span className="text-base font-semibold text-foreground truncate" title={userGreeting}>
             {userGreeting}
           </span>
         )}
         {!userGreeting && !authLoading && ( // Fallback if user is not loaded or has no name
-           <span className="text-sm font-semibold text-foreground">
+           <span className="text-base font-semibold text-foreground">
             {translate({ en: "FinTrack", pt: "FinTrack"})}
           </span>
         )}
@@ -56,7 +56,7 @@ export function AppHeaderContent() {
         >
           <ChevronLeft className="h-4 w-4" />
         </Button>
-        <span className="text-sm font-medium text-foreground w-28 text-center truncate" title={displayedMonthYearLabel}>
+        <span className="text-base font-medium text-foreground w-32 text-center truncate" title={displayedMonthYearLabel}>
           {displayedMonthYearLabel}
         </span>
         <Button
