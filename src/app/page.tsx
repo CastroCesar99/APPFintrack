@@ -10,7 +10,7 @@ import { QuickActionsSection } from "@/components/dashboard/quick-actions-sectio
 import { RecentTransactionsSection } from "@/components/dashboard/recent-transactions-section";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import type { Transaction, CategoryName, DisplayCategory, UserPreferences, DisplayPaymentMethod } from "@/types";
-import { CATEGORIES, getCategoryDisplayLabel, getCategoryLabel } from "@/types";
+import { CATEGORIES, PAYMENT_METHODS, getCategoryDisplayLabel, getCategoryLabel } from "@/types"; // Added PAYMENT_METHODS
 import { useLanguage } from '@/context/language-context';
 import { db } from '@/lib/firebase';
 import { collection, query, orderBy, onSnapshot, doc, getDoc, addDoc, serverTimestamp, Timestamp, writeBatch, setDoc } from "firebase/firestore";
@@ -186,7 +186,7 @@ export default function DashboardPage() {
           
           console.log("Dashboard: TRACER --- fetchDataInternal: User onboarding complete for UserID:", currentUserId, ". Setting up onSnapshot listener.");
           
-          const preferencesDocRef = doc(db, `users/${currentUserId}/preferences/userPreferences`);
+          const preferencesDocRef = doc(db, 'users/' + currentUserId + '/preferences/userPreferences');
           try {
             const preferencesDocSnap = await getDoc(preferencesDocRef);
             if (preferencesDocSnap.exists()) {
@@ -289,8 +289,8 @@ export default function DashboardPage() {
                 id: docSnap.id,
                 date: dateString, 
                 isRecurring: isRecurringVal,
-                expenseType: data.expenseType, // Make sure this is loaded
-                installments: data.installments, // Make sure this is loaded
+                expenseType: data.expenseType,
+                installments: data.installments, 
                 paymentMethod: data.paymentMethod,
                 expenseNature: data.expenseNature
               } as Transaction;
@@ -396,20 +396,12 @@ export default function DashboardPage() {
         Object.entries(fullPayload).filter(([_, value]) => value !== undefined)
     ) as Partial<Transaction & { createdAt: any; userId: string }>;
 
-    // This logic should now be handled by TransactionForm before calling onAddTransaction
-    // if (newTransactionData.installments && newTransactionData.installments > 0) {
-    //   dataToSave.expenseType = 'installment';
-    // }
 
-    // if (dataToSave.isRecurring === undefined && typeof newTransactionData.isRecurring === 'boolean') {
-    //     dataToSave.isRecurring = newTransactionData.isRecurring;
-    // } else if (dataToSave.isRecurring === undefined) {
-    //    dataToSave.isRecurring = false; 
-    // }
-
-    // if (newTransactionData.installments && newTransactionData.installments > 0 && dataToSave.expenseNature === undefined) {
-    //   dataToSave.expenseNature = 'variable';
-    // }
+    if (dataToSave.isRecurring === undefined && typeof newTransactionData.isRecurring === 'boolean') {
+        dataToSave.isRecurring = newTransactionData.isRecurring;
+    } else if (dataToSave.isRecurring === undefined) {
+       dataToSave.isRecurring = false; 
+    }
 
 
     console.log("Dashboard: TRACER --- onAddTransaction: Saving to Firestore with date:", dataToSave.date, "Full dataToSave:", JSON.stringify(dataToSave));
@@ -525,7 +517,6 @@ export default function DashboardPage() {
 
     const sorted = monthlyDisplayTransactions
       .sort((a, b) => parseDateFns(b.date, "yyyy-MM-dd", new Date(0)).getTime() - parseDateFns(a.date, "yyyy-MM-dd", new Date(0)).getTime());
-    //   .slice(0, 5); 
     console.log(`Dashboard: TRACER --- recentIncome: Found ${sorted.length} items for display.`);
     return sorted;
   }, [transactions, displayedDate, language, translate, displayedMonthYearLabel]); 
@@ -589,7 +580,6 @@ export default function DashboardPage() {
 
     const sorted = monthlyDisplayTransactions
       .sort((a, b) => parseDateFns(b.date, "yyyy-MM-dd", new Date(0)).getTime() - parseDateFns(a.date, "yyyy-MM-dd", new Date(0)).getTime());
-    //   .slice(0, 5); 
     console.log(`Dashboard: TRACER --- recentExpenses: Found ${sorted.length} items for display.`);
     return sorted;
   }, [transactions, displayedDate, language, translate, displayedMonthYearLabel]); 
@@ -784,3 +774,5 @@ export default function DashboardPage() {
     </AppLayout>
   );
 }
+
+    
