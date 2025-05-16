@@ -5,14 +5,14 @@ import type React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { CategoryIcon } from '@/components/icons';
-import type { Category, CategoryName } from '@/types';
-import { getCategoryLabel } from '@/types';
-import { useLanguage } from '@/context/language-context'; // Import useLanguage
+import type { DisplayCategory } from '@/types'; // Use DisplayCategory
+import { getCategoryDisplayLabel } from '@/types';
+import { useLanguage } from '@/context/language-context';
 
 interface BudgetCategoryItemProps {
-  category: Category;
-  value: string; // Budget amount as string
-  onBudgetChange: (categoryName: CategoryName, amount: string) => void;
+  category: DisplayCategory; // Updated to DisplayCategory
+  value: string;
+  onBudgetChange: (categoryName: string, amount: string) => void; // categoryName is now string
 }
 
 export function BudgetCategoryItem({ category, value, onBudgetChange }: BudgetCategoryItemProps) {
@@ -20,19 +20,18 @@ export function BudgetCategoryItem({ category, value, onBudgetChange }: BudgetCa
 
   const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const newAmount = event.target.value;
-    // Allow empty string or valid numbers (including decimals)
     if (newAmount === '' || /^\d*\.?\d*$/.test(newAmount)) {
       onBudgetChange(category.name, newAmount);
     }
   };
   
-  const categoryDisplayName = getCategoryLabel(category.name, language);
+  const categoryDisplayName = getCategoryDisplayLabel(category, language);
 
   return (
-    <Card className="w-full shadow-lg"> {/* Changed width to w-full */}
+    <Card className="w-full shadow-lg">
       <CardHeader className="pb-2">
         <div className="flex items-center gap-2">
-          <CategoryIcon categoryName={category.name} className="h-6 w-6 text-primary" />
+          <CategoryIcon iconName={category.icon} className="h-6 w-6 text-primary" />
           <CardTitle className="text-md font-semibold truncate" title={categoryDisplayName}>
             {categoryDisplayName}
           </CardTitle>
@@ -48,9 +47,6 @@ export function BudgetCategoryItem({ category, value, onBudgetChange }: BudgetCa
           min="0"
           step="0.01"
         />
-        {/* Future: Add progress bar here */}
-        {/* <Progress value={50} className="mt-2 h-2" /> */}
-        {/* <p className="text-xs text-muted-foreground mt-1">Spent $50 / $100</p> */}
       </CardContent>
     </Card>
   );

@@ -1,18 +1,20 @@
 
 export type TransactionType = 'income' | 'expense';
-export type ExpenseNature = 'fixed' | 'variable'; // New type for expense nature
+export type ExpenseNature = 'fixed' | 'variable';
 
 export interface Transaction {
   id: string;
-  date: string; // ISO string for date, e.g., "2024-07-15"
+  date: string; // YYYY-MM-DD string
   description: string;
   amount: number;
   type: TransactionType;
-  category: CategoryName; // Still uses the English 'name' as the identifier
+  category: CategoryName | string; // Can be predefined CategoryName or custom string
   paymentMethod?: string;
   installments?: number;
   isRecurring?: boolean;
-  expenseNature?: ExpenseNature; // Added expenseNature as optional
+  expenseNature?: ExpenseNature;
+  userId?: string; // Optional, as it's often contextually known
+  createdAt?: any; // Firestore ServerTimestamp
 }
 
 export const CATEGORIES = [
@@ -37,38 +39,93 @@ export const CATEGORIES = [
   { name: 'Other Expense', icon: 'CircleHelp', type: 'expense', label: { en: 'Other Expense', pt: 'Outras Despesas'} },
 ] as const;
 
-export type CategoryName = typeof CATEGORIES[number]['name']; // English name as the identifier
+export type CategoryName = typeof CATEGORIES[number]['name'];
 export type Category = typeof CATEGORIES[number];
+
+// For custom categories defined during onboarding
+export interface CustomCategoryData {
+  name: string; // Custom name, not restricted by CategoryName
+  type: 'expense'; // Onboarding currently only allows custom expense categories
+  icon: string; // Icon string key
+  label: { en: string; pt: string }; // For display
+}
+
+// Union type for display purposes on budget page etc.
+export type DisplayCategory = Category | CustomCategoryData;
 
 export const getCategoriesByType = (type: TransactionType): Category[] => {
   return CATEGORIES.filter(cat => cat.type === type);
 };
 
-export const getCategoryLabel = (categoryName: CategoryName, currentLanguage: 'en' | 'pt'): string => {
-  const category = CATEGORIES.find(cat => cat.name === categoryName);
-  if (category && category.label) {
-    return category.label[currentLanguage] || category.name;
+// Function to get label for DisplayCategory objects (predefined or custom with full data)
+export const getCategoryDisplayLabel = (category: DisplayCategory, currentLanguage: 'en' | 'pt'): string => {
+  if (category.label && typeof category.label === 'object' && category.label[currentLanguage]) {
+    return category.label[currentLanguage];
   }
-  // Fallback for custom categories not in the predefined list
+  // Fallback for custom categories where label might just be the name
+  if (typeof category.label === 'string') {
+    return category.label;
+  }
+  return category.name; // Final fallback
+};
+
+// Function to get label for CategoryName string (predefined or custom name string)
+export const getCategoryLabel = (categoryName: CategoryName | string, currentLanguage: 'en' | 'pt'): string => {
+  const predefinedCategory = CATEGORIES.find(cat => cat.name === categoryName);
+  if (predefinedCategory && predefinedCategory.label && predefinedCategory.label[currentLanguage]) {
+    return predefinedCategory.label[currentLanguage];
+  }
+  // If it's not a predefined category (i.e., it's a custom category name string),
+  // or if the predefined category somehow doesn't have a label for the current language,
+  // return the categoryName string itself.
   return categoryName;
 };
 
 
-// Payment Methods
 export const PAYMENT_METHODS = [
   { name: 'Cash', icon: 'Wallet', isDefault: false, label: { en: 'Cash', pt: 'Dinheiro' } },
   { name: 'Debit Card', icon: 'CreditCard', isDefault: false, label: { en: 'Debit Card', pt: 'Cartão de Débito' } },
   { name: 'Credit Card', icon: 'CreditCard', isDefault: true, label: { en: 'Credit Card', pt: 'Cartão de Crédito' } },
 ] as const;
 
-export type PaymentMethodName = typeof PAYMENT_METHODS[number]['name']; // English name as the identifier
+export type PaymentMethodName = typeof PAYMENT_METHODS[number]['name'];
 export type PaymentMethod = typeof PAYMENT_METHODS[number];
 
-export const getPaymentMethodLabel = (methodName: PaymentMethodName, currentLanguage: 'en' | 'pt'): string => {
-  const method = PAYMENT_METHODS.find(m => m.name === methodName);
-  if (method && method.label) {
-    return method.label[currentLanguage] || method.name;
+export interface CustomPaymentMethodData {
+  name: string;
+  icon: string;
+  label: { en: string; pt: string };
+}
+
+export type DisplayPaymentMethod = PaymentMethod | CustomPaymentMethodData;
+
+
+export const getPaymentMethodDisplayLabel = (method: DisplayPaymentMethod, currentLanguage: 'en' | 'pt'): string => {
+  if (method.label && typeof method.label === 'object' && method.label[currentLanguage]) {
+    return method.label[currentLanguage];
   }
-  // Fallback for custom payment methods
+   if (typeof method.label === 'string') {
+    return method.label;
+  }
+  return method.name;
+};
+
+// Function to get label for PaymentMethodName string (predefined or custom name string)
+export const getPaymentMethodLabel = (methodName: PaymentMethodName | string, currentLanguage: 'en' | 'pt'): string => {
+  const predefinedMethod = PAYMENT_METHODS.find(pm => pm.name === methodName);
+  if (predefinedMethod && predefinedMethod.label && predefinedMethod.label[currentLanguage]) {
+    return predefinedMethod.label[currentLanguage];
+  }
   return methodName;
 };
+
+
+// For user preferences document in Firestore
+export interface UserPreferences {
+  language: 'en' | 'pt';
+  selectedCategories: string[]; // Array of category names (can be predefined or custom)
+  userDefinedCategories: CustomCategoryData[];
+  selectedPaymentMethods: string[]; // Array of payment method names
+  userDefinedPaymentMethods: CustomPaymentMethodData[];
+  updatedAt?: any; // Firestore ServerTimestamp
+}
