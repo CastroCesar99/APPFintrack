@@ -29,7 +29,7 @@ import { useDateNavigation } from '@/context/date-navigation-context';
 import { useToast } from "@/hooks/use-toast";
 import { db } from '@/lib/firebase';
 import { collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, Timestamp, doc, deleteDoc, getDoc } from "firebase/firestore";
-import { format as formatDateFns, parseISO as parseISODateFns, getYear as getYearFns, getMonth as getMonthFns, parse as parseDateFns } from 'date-fns';
+import { format as formatDateFns, parseISO as parseISODateFns, getYear as getYearFns, getMonth as getMonthFns } from 'date-fns';
 import { formatCurrency } from '@/lib/utils';
 
 export default function ExpensesPage() {
@@ -56,7 +56,6 @@ export default function ExpensesPage() {
 
   const fetchUserPreferences = useCallback(async () => {
     if (!user) {
-      // Default to all predefined if no user (though page should be protected)
       const allPredefinedCategories: DisplayCategory[] = [...CATEGORIES];
       setUserCategories(allPredefinedCategories);
       setUserPaymentMethods([...PAYMENT_METHODS]);
@@ -71,43 +70,35 @@ export default function ExpensesPage() {
       if (preferencesDocSnap.exists()) {
         const preferencesData = preferencesDocSnap.data() as UserPreferences;
         
-        // Combine predefined categories with user-defined ones
         const customCategoryDefs = preferencesData.userDefinedCategories || [];
         const allSystemCategories: DisplayCategory[] = [...CATEGORIES];
-        const finalUserCategoriesSet = new Map<string, DisplayCategory>();
+        const finalUserCategoriesMap = new Map<string, DisplayCategory>();
 
-        // Add all system categories first
-        allSystemCategories.forEach(cat => finalUserCategoriesSet.set(cat.name.toLowerCase(), cat));
-        // Then add/overwrite with custom ones if names match, or just add if new
+        allSystemCategories.forEach(cat => finalUserCategoriesMap.set(cat.name.toLowerCase(), cat));
         customCategoryDefs.forEach(customCat => {
-            finalUserCategoriesSet.set(customCat.name.toLowerCase(), customCat);
+             finalUserCategoriesMap.set(customCat.name.toLowerCase(), customCat);
         });
-        setUserCategories(Array.from(finalUserCategoriesSet.values()));
-        
-        // Combine predefined payment methods with user-defined ones, then filter by selected
+        setUserCategories(Array.from(finalUserCategoriesMap.values()));
+
         const customPaymentMethodDefs = preferencesData.userDefinedPaymentMethods || [];
         const basePaymentMethodsList: DisplayPaymentMethod[] = [...PAYMENT_METHODS];
-        const customMethodMap = new Map<string, DisplayPaymentMethod>();
-        customPaymentMethodDefs.forEach(customPm => customMethodMap.set(customPm.name.toLowerCase(), customPm));
+        const finalPaymentMethodsMap = new Map<string, DisplayPaymentMethod>();
 
-        customMethodMap.forEach(customPm => {
-            if (!basePaymentMethodsList.some(pm => pm.name.toLowerCase() === customPm.name.toLowerCase())) {
-                basePaymentMethodsList.push(customPm);
-            }
+        basePaymentMethodsList.forEach(pm => finalPaymentMethodsMap.set(pm.name.toLowerCase(), pm));
+        customPaymentMethodDefs.forEach(customPm => {
+             finalPaymentMethodsMap.set(customPm.name.toLowerCase(), customPm);
         });
         
         const selectedPaymentMethodNames = preferencesData.selectedPaymentMethods || [];
         if (selectedPaymentMethodNames.length > 0) {
-            const effectivePMs = basePaymentMethodsList.filter(pm => 
+            const effectivePMs = Array.from(finalPaymentMethodsMap.values()).filter(pm => 
                 selectedPaymentMethodNames.some(name => name.toLowerCase() === pm.name.toLowerCase())
             );
-            setUserPaymentMethods(effectivePMs.length > 0 ? effectivePMs : basePaymentMethodsList);
+            setUserPaymentMethods(effectivePMs.length > 0 ? effectivePMs : Array.from(finalPaymentMethodsMap.values()));
         } else {
-            setUserPaymentMethods(basePaymentMethodsList);
+            setUserPaymentMethods(Array.from(finalPaymentMethodsMap.values()));
         }
-
       } else {
-        // No preferences found, default to all predefined categories and payment methods
         setUserCategories([...CATEGORIES]);
         setUserPaymentMethods([...PAYMENT_METHODS]);
       }
@@ -187,7 +178,7 @@ export default function ExpensesPage() {
 
   const expensesForDisplayedPeriod = useMemo(() => {
     const targetYear = getYearFns(displayedDate);
-    const targetMonth = getMonthFns(displayedDate); // 0-indexed
+    const targetMonth = getMonthFns(displayedDate);
 
     return allTransactions.filter(t => {
       if (t.type !== 'expense') return false;
@@ -198,7 +189,7 @@ export default function ExpensesPage() {
         return false;
       }
       const transactionYear = parseInt(dateParts[0], 10);
-      const transactionMonth = parseInt(dateParts[1], 10) - 1; // 0-indexed for JS Date
+      const transactionMonth = parseInt(dateParts[1], 10) - 1; 
 
       if (isNaN(transactionYear) || isNaN(transactionMonth)) {
         console.warn(`ExpensesPage: Could not parse year/month for transaction ID ${t.id}: ${t.date}`);
@@ -229,13 +220,11 @@ export default function ExpensesPage() {
         Object.entries(fullPayload).filter(([_, value]) => value !== undefined)
     ) as Partial<Transaction & { createdAt: any; userId: string }>;
 
-    // Ensure isRecurring is explicitly false if not set otherwise, especially for non-recurring expense types
     if (dataToSave.isRecurring === undefined && typeof newTransactionData.isRecurring === 'boolean') {
         dataToSave.isRecurring = newTransactionData.isRecurring;
     } else if (dataToSave.isRecurring === undefined) {
        dataToSave.isRecurring = false; 
     }
-
 
     try {
       const transactionsColRef = collection(db, `users/${user.uid}/transactions`);
@@ -313,7 +302,7 @@ export default function ExpensesPage() {
   return (
     <AppLayout>
       <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div className="flex flex-col items-start gap-4">
           <h1 className="text-3xl font-bold tracking-tight text-foreground">
             {translate({ en: "Expenses", pt: "Despesas" })} - {displayedMonthYearLabel}
           </h1>

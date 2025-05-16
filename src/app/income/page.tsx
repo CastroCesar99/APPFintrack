@@ -29,7 +29,7 @@ import { useDateNavigation } from '@/context/date-navigation-context';
 import { useToast } from "@/hooks/use-toast";
 import { db } from '@/lib/firebase';
 import { collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, Timestamp, doc, deleteDoc, getDoc } from "firebase/firestore";
-import { format as formatDateFns, parseISO as parseISODateFns, getYear as getYearFns, getMonth as getMonthFns, parse as parseDateFns } from 'date-fns';
+import { format as formatDateFns, parseISO as parseISODateFns, getYear as getYearFns, getMonth as getMonthFns } from 'date-fns';
 import { formatCurrency } from '@/lib/utils';
 
 export default function IncomePage() {
@@ -71,33 +71,31 @@ export default function IncomePage() {
         
         const customCategoryDefs = preferencesData.userDefinedCategories || [];
         const allSystemCategories: DisplayCategory[] = [...CATEGORIES];
-        const finalUserCategoriesSet = new Map<string, DisplayCategory>();
+        const finalUserCategoriesMap = new Map<string, DisplayCategory>();
 
-        allSystemCategories.forEach(cat => finalUserCategoriesSet.set(cat.name.toLowerCase(), cat));
+        allSystemCategories.forEach(cat => finalUserCategoriesMap.set(cat.name.toLowerCase(), cat));
         customCategoryDefs.forEach(customCat => {
-             finalUserCategoriesSet.set(customCat.name.toLowerCase(), customCat);
+             finalUserCategoriesMap.set(customCat.name.toLowerCase(), customCat);
         });
-        setUserCategories(Array.from(finalUserCategoriesSet.values()));
+        setUserCategories(Array.from(finalUserCategoriesMap.values()));
 
         const customPaymentMethodDefs = preferencesData.userDefinedPaymentMethods || [];
         const basePaymentMethodsList: DisplayPaymentMethod[] = [...PAYMENT_METHODS];
-        const customMethodMap = new Map<string, DisplayPaymentMethod>();
-        customPaymentMethodDefs.forEach(customPm => customMethodMap.set(customPm.name.toLowerCase(), customPm));
-
-        customMethodMap.forEach(customPm => {
-            if (!basePaymentMethodsList.some(pm => pm.name.toLowerCase() === customPm.name.toLowerCase())) {
-                basePaymentMethodsList.push(customPm);
-            }
+        const finalPaymentMethodsMap = new Map<string, DisplayPaymentMethod>();
+        
+        basePaymentMethodsList.forEach(pm => finalPaymentMethodsMap.set(pm.name.toLowerCase(), pm));
+        customPaymentMethodDefs.forEach(customPm => {
+            finalPaymentMethodsMap.set(customPm.name.toLowerCase(), customPm);
         });
         
         const selectedPaymentMethodNames = preferencesData.selectedPaymentMethods || [];
         if (selectedPaymentMethodNames.length > 0) {
-            const effectivePMs = basePaymentMethodsList.filter(pm => 
+            const effectivePMs = Array.from(finalPaymentMethodsMap.values()).filter(pm => 
                 selectedPaymentMethodNames.some(name => name.toLowerCase() === pm.name.toLowerCase())
             );
-            setUserPaymentMethods(effectivePMs.length > 0 ? effectivePMs : basePaymentMethodsList);
+            setUserPaymentMethods(effectivePMs.length > 0 ? effectivePMs : Array.from(finalPaymentMethodsMap.values()));
         } else {
-            setUserPaymentMethods(basePaymentMethodsList);
+            setUserPaymentMethods(Array.from(finalPaymentMethodsMap.values()));
         }
       } else {
         setUserCategories([...CATEGORIES]);
@@ -175,7 +173,7 @@ export default function IncomePage() {
 
   const incomeForDisplayedPeriod = useMemo(() => {
     const targetYear = getYearFns(displayedDate);
-    const targetMonth = getMonthFns(displayedDate); // 0-indexed
+    const targetMonth = getMonthFns(displayedDate); 
 
     return allTransactions.filter(t => {
       if (t.type !== 'income') return false;
@@ -186,7 +184,7 @@ export default function IncomePage() {
         return false;
       }
       const transactionYear = parseInt(dateParts[0], 10);
-      const transactionMonth = parseInt(dateParts[1], 10) - 1; // 0-indexed for JS Date
+      const transactionMonth = parseInt(dateParts[1], 10) - 1; 
 
       if (isNaN(transactionYear) || isNaN(transactionMonth)) {
         console.warn(`IncomePage: Could not parse year/month for transaction ID ${t.id}: ${t.date}`);
@@ -217,7 +215,6 @@ export default function IncomePage() {
         Object.entries(fullPayload).filter(([_, value]) => value !== undefined)
     ) as Partial<Transaction & { createdAt: any; userId: string }>;
 
-    // Ensure isRecurring is explicitly false if not set otherwise
     if (dataToSave.isRecurring === undefined && typeof newTransactionData.isRecurring === 'boolean') {
         dataToSave.isRecurring = newTransactionData.isRecurring;
     } else if (dataToSave.isRecurring === undefined) {
@@ -300,7 +297,7 @@ export default function IncomePage() {
   return (
     <AppLayout>
       <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div className="flex flex-col items-start gap-4">
           <h1 className="text-3xl font-bold tracking-tight text-foreground">
             {translate({ en: "Income", pt: "Receitas" })} - {displayedMonthYearLabel}
           </h1>
