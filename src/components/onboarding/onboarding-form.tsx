@@ -19,22 +19,23 @@ import { PlusCircle, CircleHelp, type LucideIcon } from 'lucide-react';
 import { useLanguage } from '@/context/language-context';
 import { useAuth } from '@/context/auth-context';
 import { db } from '@/lib/firebase';
-import { doc, setDoc, serverTimestamp, getDoc } from "firebase/firestore"; // Removed updateDoc, getDoc is still used for initial check
+import { doc, setDoc, serverTimestamp, getDoc } from "firebase/firestore";
+import { format as formatDateFns } from 'date-fns'; // For formatting the current month key
 
 const predefinedExpenseCategories = CATEGORIES.filter(cat => cat.type === 'expense');
 const predefinedPaymentMethods = PAYMENT_METHODS;
 
 interface CustomCategory {
-  name: CategoryName; 
-  type: 'expense'; 
-  icon: string; 
-  label: { en: string; pt: string }; 
+  name: CategoryName;
+  type: 'expense';
+  icon: string;
+  label: { en: string; pt: string };
 }
 
 interface CustomPaymentMethod {
-  name: PaymentMethodName; 
-  icon: string; 
-  label: { en: string; pt: string }; 
+  name: PaymentMethodName;
+  icon: string;
+  label: { en: string; pt: string };
 }
 
 type DisplayCategory = Category | CustomCategory;
@@ -119,10 +120,10 @@ export function OnboardingForm() {
       return;
     }
     const newCustomCategory: CustomCategory = {
-      name: newCategoryName as CategoryName, 
+      name: newCategoryName as CategoryName,
       type: 'expense',
       icon: selectedCustomCategoryIcon,
-      label: { en: newCategoryName, pt: newCategoryName } 
+      label: { en: newCategoryName, pt: newCategoryName }
     };
     setUserDefinedCategories(prev => [...prev, newCustomCategory]);
     setSelectedCategories(prev => new Set(prev).add(newCustomCategory.name));
@@ -159,7 +160,7 @@ export function OnboardingForm() {
       return;
     }
     const newCustomMethod: CustomPaymentMethod = {
-      name: newMethodName as PaymentMethodName, 
+      name: newMethodName as PaymentMethodName,
       icon: selectedCustomPaymentMethodIcon,
       label: { en: newMethodName, pt: newMethodName }
     };
@@ -196,43 +197,51 @@ export function OnboardingForm() {
     setIsSaving(true);
 
     try {
-      const finalBudgetGoals: Record<CategoryName, number> = {};
-      for (const [catName, amountStr] of Object.entries(budgetGoals)) {
-        if (amountStr && amountStr.trim() !== '') {
-          const amountNum = parseFloat(amountStr);
-          if (!isNaN(amountNum)) {
-            finalBudgetGoals[catName as CategoryName] = amountNum;
-          }
-        }
-      }
-
       const preferencesData = {
         language,
         selectedCategories: Array.from(selectedCategories),
         userDefinedCategories: userDefinedCategories.map(cat => ({ name: cat.name, icon: cat.icon, label: cat.label, type: cat.type })),
         selectedPaymentMethods: Array.from(selectedPaymentMethods),
         userDefinedPaymentMethods: userDefinedPaymentMethods.map(pm => ({ name: pm.name, icon: pm.icon, label: pm.label })),
-        budgetGoals: finalBudgetGoals, 
+        // budgetGoals removed from here
         updatedAt: serverTimestamp(),
       };
-      
+
       const preferencesDocRef = doc(db, `users/${user.uid}/preferences`, "userPreferences");
       await setDoc(preferencesDocRef, preferencesData, { merge: true });
 
+      // Save initial budget goals to the current month's budget document
+      const finalBudgetGoalsToSave: Record<CategoryName, number> = {};
+      let hasBudgetGoals = false;
+      for (const [catName, amountStr] of Object.entries(budgetGoals)) {
+        if (selectedCategories.has(catName as CategoryName) && amountStr && amountStr.trim() !== '') {
+          const amountNum = parseFloat(amountStr);
+          if (!isNaN(amountNum) && amountNum > 0) {
+            finalBudgetGoalsToSave[catName as CategoryName] = amountNum;
+            hasBudgetGoals = true;
+          }
+        }
+      }
+
+      if (hasBudgetGoals) {
+        const currentMonthYearKey = formatDateFns(new Date(), 'yyyy-MM');
+        const budgetDocRef = doc(db, `users/${user.uid}/budgets/${currentMonthYearKey}`);
+        await setDoc(budgetDocRef, { ...finalBudgetGoalsToSave, lastUpdated: serverTimestamp() }, { merge: true });
+      }
+
       const userDocRef = doc(db, "users", user.uid);
-      // Use setDoc with merge: true to create or update the user document
-      await setDoc(userDocRef, { 
-        onboardingComplete: true, 
-        onboardedAt: serverTimestamp() 
+      await setDoc(userDocRef, {
+        onboardingComplete: true,
+        onboardedAt: serverTimestamp()
       }, { merge: true });
-      
-      localStorage.setItem('onboardingComplete', 'true'); 
+
+      localStorage.setItem('onboardingComplete', 'true');
       localStorage.setItem('userLanguage', language);
 
       toast({ title: translate({en: "Setup Saved!", pt: "Configuração Salva!"}), description: translate({en: "Welcome to FinTrack!", pt: "Bem-vindo(a) ao FinTrack!"}) });
       router.push('/');
     } catch (error) {
-      console.error("Error saving onboarding data (handleSubmit):", error); 
+      console.error("Error saving onboarding data (handleSubmit):", error);
       toast({
         title: translate({en: "Save Error", pt: "Erro ao Salvar"}),
         description: translate({
@@ -249,7 +258,7 @@ export function OnboardingForm() {
   useEffect(() => {
     if (user && !authLoading) {
       const checkOnboardingStatus = async () => {
-        if (!user) return; 
+        if (!user) return;
         const userDocRef = doc(db, "users", user.uid);
         try {
           const userDocSnap = await getDoc(userDocRef);
@@ -426,7 +435,7 @@ export function OnboardingForm() {
               if (!categoryDetails || categoryDetails.type !== 'expense') {
                 return null;
               }
-              
+
               const IconComponent = iconNameToComponentMap[categoryDetails.icon] || CircleHelp;
 
               return (
@@ -466,3 +475,5 @@ export function OnboardingForm() {
     </Card>
   );
 }
+
+    
