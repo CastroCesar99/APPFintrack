@@ -5,39 +5,90 @@ import type React from 'react';
 import { useState, useEffect } from 'react';
 import { AppLayout } from "@/components/layout/app-layout";
 import { Button } from "@/components/ui/button";
-// import { Input } from '@/components/ui/input'; // Removed problematic import
-import { CATEGORIES, getCategoryLabel, type Category, type CategoryName } from "@/types";
+import { CATEGORIES, type CategoryName } from "@/types";
 import { useLanguage } from "@/context/language-context";
 import { useAuth } from "@/context/auth-context";
 import { useToast } from "@/hooks/use-toast";
 import { useDateNavigation } from '@/context/date-navigation-context';
 import { BudgetCategoryItem } from '@/components/budgets/budget-category-item';
 import { Separator } from '@/components/ui/separator';
-// Firebase imports for future save/load
-// import { db } from '@/lib/firebase';
-// import { doc, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
-// import { format, getMonth, getYear } from 'date-fns';
+import { db } from '@/lib/firebase';
+import { doc, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
+import { format as formatDateFns } from 'date-fns'; // Renamed to avoid conflict
+import { Skeleton } from '@/components/ui/skeleton';
+
 
 export default function BudgetsPage() {
   const { user, loading: authLoading } = useAuth();
-  const { language, translate } = useLanguage();
+  const { translate } = useLanguage();
   const { displayedDate, displayedMonthYearLabel } = useDateNavigation();
   const { toast } = useToast();
 
   const [budgets, setBudgets] = useState<Record<CategoryName, string>>({});
-  const [isLoading, setIsLoading] = useState(true); // For future data loading
+  const [isLoadingBudgets, setIsLoadingBudgets] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
 
   const expenseCategories = CATEGORIES.filter(cat => cat.type === 'expense');
+  const currentMonthYearKey = formatDateFns(displayedDate, 'yyyy-MM');
 
-  // Placeholder for loading budgets - replace with Firestore logic later
   useEffect(() => {
-    if (user) {
-      // const currentMonthYearKey = format(displayedDate, 'yyyy-MM');
-      // console.log(`Fetching budgets for user ${user.uid}, month: ${currentMonthYearKey}`);
-      // Example: loadBudgetsForMonth(currentMonthYearKey);
-      setIsLoading(false); // Assume loading is done for now
+    const loadBudgetsForMonth = async () => {
+      if (!user) {
+        setIsLoadingBudgets(false);
+        return;
+      }
+      setIsLoadingBudgets(true);
+      console.log(`BudgetsPage: Loading budgets for user ${user.uid}, month: ${currentMonthYearKey}`);
+      const budgetDocRef = doc(db, `users/${user.uid}/budgets/${currentMonthYearKey}`);
+      try {
+        const docSnap = await getDoc(budgetDocRef);
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          const loadedBudgets: Record<CategoryName, string> = {};
+          expenseCategories.forEach(cat => {
+            if (data[cat.name] !== undefined) {
+              loadedBudgets[cat.name] = String(data[cat.name]);
+            } else {
+              loadedBudgets[cat.name] = ''; // Default to empty string if not set
+            }
+          });
+          setBudgets(loadedBudgets);
+        } else {
+          // No budget set for this month, initialize with empty strings
+          const initialBudgets: Record<CategoryName, string> = {};
+          expenseCategories.forEach(cat => {
+            initialBudgets[cat.name] = '';
+          });
+          setBudgets(initialBudgets);
+          console.log(`BudgetsPage: No budget document found for ${currentMonthYearKey}. Initializing empty budgets.`);
+        }
+      } catch (error) {
+        console.error("Error loading budgets:", error);
+        toast({
+          title: translate({ en: "Error Loading Budgets", pt: "Erro ao Carregar Orçamentos" }),
+          description: translate({ en: "Could not load your budgets.", pt: "Não foi possível carregar seus orçamentos." }),
+          variant: "destructive",
+        });
+        // Initialize with empty strings on error as well
+        const errorBudgets: Record<CategoryName, string> = {};
+        expenseCategories.forEach(cat => {
+          errorBudgets[cat.name] = '';
+        });
+        setBudgets(errorBudgets);
+      } finally {
+        setIsLoadingBudgets(false);
+      }
+    };
+
+    if (!authLoading && user) {
+      loadBudgetsForMonth();
+    } else if (!authLoading && !user) {
+      // User is not logged in, clear budgets and stop loading
+      setBudgets({});
+      setIsLoadingBudgets(false);
     }
-  }, [user, displayedDate]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, authLoading, currentMonthYearKey, toast, translate]); // Removed expenseCategories from deps as it's stable
 
   const handleBudgetChange = (categoryName: CategoryName, amount: string) => {
     setBudgets(prevBudgets => ({
@@ -55,34 +106,34 @@ export default function BudgetsPage() {
       });
       return;
     }
+    setIsSaving(true);
 
-    // const currentMonthYearKey = format(displayedDate, 'yyyy-MM');
-    // const budgetDocRef = doc(db, `users/${user.uid}/budgets/${currentMonthYearKey}`);
-    // const budgetsToSave = Object.fromEntries(
-    //   Object.entries(budgets).map(([key, value]) => [key, parseFloat(value) || 0])
-    // );
+    const budgetDocRef = doc(db, `users/${user.uid}/budgets/${currentMonthYearKey}`);
+    
+    const budgetsToSave = Object.fromEntries(
+      Object.entries(budgets)
+        .map(([key, value]) => {
+          const numValue = parseFloat(value);
+          return [key, isNaN(numValue) ? 0 : numValue]; // Save 0 if input is not a valid number
+        })
+    );
 
-    // try {
-    //   await setDoc(budgetDocRef, { ...budgetsToSave, lastUpdated: serverTimestamp() }, { merge: true });
-    //   toast({
-    //     title: translate({ en: "Budgets Saved", pt: "Orçamentos Salvos" }),
-    //     description: translate({ en: "Your budgets for", pt: "Seus orçamentos para" }) + ` ${displayedMonthYearLabel} ` + translate({ en: "have been saved.", pt: "foram salvos." }),
-    //   });
-    // } catch (error) {
-    //   console.error("Error saving budgets:", error);
-    //   toast({
-    //     title: translate({ en: "Error Saving Budgets", pt: "Erro ao Salvar Orçamentos" }),
-    //     description: translate({ en: "Could not save your budgets.", pt: "Não foi possível salvar seus orçamentos." }),
-    //     variant: "destructive",
-    //   });
-    // }
-
-    // For now, just a toast
-    console.log("Current budget state:", budgets);
-    toast({
-      title: translate({ en: "Feature In Development", pt: "Funcionalidade em Desenvolvimento" }),
-      description: translate({ en: "Saving budgets is coming soon.", pt: "Salvar orçamentos estará disponível em breve."}) + ` (${displayedMonthYearLabel})`,
-    });
+    try {
+      await setDoc(budgetDocRef, { ...budgetsToSave, lastUpdated: serverTimestamp() }, { merge: true });
+      toast({
+        title: translate({ en: "Budgets Saved", pt: "Orçamentos Salvos" }),
+        description: translate({ en: "Your budgets for", pt: "Seus orçamentos para" }) + ` ${displayedMonthYearLabel} ` + translate({ en: "have been saved.", pt: "foram salvos." }),
+      });
+    } catch (error) {
+      console.error("Error saving budgets:", error);
+      toast({
+        title: translate({ en: "Error Saving Budgets", pt: "Erro ao Salvar Orçamentos" }),
+        description: translate({ en: "Could not save your budgets.", pt: "Não foi possível salvar seus orçamentos." }),
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
+    }
   };
   
   const pageTitle = translate({ en: "Budgets", pt: "Orçamentos" });
@@ -92,11 +143,11 @@ export default function BudgetsPage() {
   });
   const saveButtonLabel = translate({ en: "Save Budgets", pt: "Salvar Orçamentos" });
 
-  if (authLoading || isLoading) {
+  if (authLoading) {
     return (
       <AppLayout>
         <div className="flex items-center justify-center h-full">
-          <p className="text-foreground">{translate({ en: "Loading budgets...", pt: "Carregando orçamentos..." })}</p>
+          <p className="text-foreground">{translate({ en: "Loading user...", pt: "Carregando usuário..." })}</p>
         </div>
       </AppLayout>
     );
@@ -112,14 +163,27 @@ export default function BudgetsPage() {
             </h1>
             <p className="text-muted-foreground">{pageDescription}</p>
           </div>
-          <Button onClick={handleSaveBudgets} className="w-full sm:w-auto">
-            {saveButtonLabel}
+          <Button onClick={handleSaveBudgets} className="w-full sm:w-auto" disabled={isSaving || isLoadingBudgets}>
+            {isSaving ? translate({en: "Saving...", pt: "Salvando..."}) : saveButtonLabel}
           </Button>
         </div>
         
         <Separator />
 
-        {expenseCategories.length > 0 ? (
+        {isLoadingBudgets ? (
+           <div className="grid grid-cols-1 gap-4 p-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+            {expenseCategories.map(category => (
+              <Card key={category.name} className="w-full shadow-lg">
+                <CardHeader className="pb-2">
+                  <Skeleton className="h-6 w-3/4" />
+                </CardHeader>
+                <CardContent>
+                  <Skeleton className="h-10 w-full" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        ) : expenseCategories.length > 0 ? (
           <div className="grid grid-cols-1 gap-4 p-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
             {expenseCategories.map(category => (
               <BudgetCategoryItem
@@ -139,3 +203,7 @@ export default function BudgetsPage() {
     </AppLayout>
   );
 }
+
+// Added Card, CardHeader, CardContent imports for Skeleton
+import { Card, CardHeader, CardContent } from "@/components/ui/card";
+
