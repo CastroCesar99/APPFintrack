@@ -48,7 +48,7 @@ export default function DashboardPage() {
     console.log(`Dashboard: TRACER --- Main useEffect START. UserID: ${userId}, AuthLoading: ${authLoading}, isClient: ${isClient}, InitiatedFor: ${mainFetchInitiatedForUser.current}, isLoadingTransactions: ${isLoadingTransactions}`);
 
     const cleanupListener = () => {
-      if (unsubscribeSnapshotRef.current) {
+      if (unsubscribeSnapshotRef.current && typeof unsubscribeSnapshotRef.current === 'function') {
         console.log("Dashboard: TRACER --- cleanupListener: Unsubscribing snapshot for UserID:", mainFetchInitiatedForUser.current);
         unsubscribeSnapshotRef.current();
         unsubscribeSnapshotRef.current = null;
@@ -68,10 +68,6 @@ export default function DashboardPage() {
 
     if (authLoading) {
       console.log("Dashboard: TRACER --- Main useEffect: Auth is loading, waiting...");
-      // Ensure loading is set to true if auth is still pending, as data fetch depends on user
-      if (effectMountedRef.current && !isLoadingTransactions) {
-          // setIsLoadingTransactions(true); // Potentially re-enable if issues persist with initial load state
-      }
       return fullCleanup;
     }
 
@@ -87,7 +83,6 @@ export default function DashboardPage() {
       return fullCleanup;
     }
 
-    // Core data fetching logic for a specific user
     if (mainFetchInitiatedForUser.current !== userId || !unsubscribeSnapshotRef.current) {
       console.log(`Dashboard: TRACER --- Main useEffect: Initiating NEW fetch/listener for UserID: ${userId}. PrevInitiatedFor: ${mainFetchInitiatedForUser.current}. ListenerExisted: ${!!unsubscribeSnapshotRef.current}`);
       cleanupListener(); 
@@ -138,7 +133,7 @@ export default function DashboardPage() {
           const transactionsColRef = collection(db, `users/${currentUserId}/transactions`);
           const q_transactions = query(transactionsColRef, orderBy("date", "desc"));
 
-          if (unsubscribeSnapshotRef.current) {
+          if (unsubscribeSnapshotRef.current && typeof unsubscribeSnapshotRef.current === 'function') {
               console.warn("Dashboard: TRACER --- fetchDataInternal: Stale snapshot ref found before new onSnapshot. Cleaning up again.");
               unsubscribeSnapshotRef.current();
               unsubscribeSnapshotRef.current = null;
@@ -207,18 +202,19 @@ export default function DashboardPage() {
       fetchDataInternal(userId);
     } else {
       console.log(`Dashboard: TRACER --- Main useEffect: Listener should be active for UserID: ${userId}. isLoadingTransactions: ${isLoadingTransactions}. Snapshot ref present: ${!!unsubscribeSnapshotRef.current}`);
-      // If listener is active, and we are still loading, but we already have transactions (or it's empty but confirmed by listener), stop loading.
-      if (isLoadingTransactions && unsubscribeSnapshotRef.current && effectMountedRef.current) {
-          // This condition can be tricky. The listener might be active, but the first snapshot hasn't arrived yet.
-          // Only set to false if there's a reason to believe data state is settled (e.g. transactions array has content, or listener is up and implies it's empty)
-          // For now, will let onSnapshot callback handle setting isLoadingTransactions to false.
-      } else if (isLoadingTransactions && !unsubscribeSnapshotRef.current && effectMountedRef.current) {
-        console.warn("Dashboard: TRACER --- Main useEffect: No active listener but still loading. This might be an issue. Forcing false for UserID:", userId);
-        if (effectMountedRef.current) setIsLoadingTransactions(false);
-      }
+       if (isLoadingTransactions && effectMountedRef.current) {
+           // This part is tricky. If the listener IS active, but the first snapshot hasn't arrived,
+           // we don't want to set isLoadingTransactions to false prematurely.
+           // The onSnapshot callback is now solely responsible for setting it to false once data arrives or an error occurs.
+           // If no listener is present but we are still loading, it suggests an issue we should force resolve.
+           if (!unsubscribeSnapshotRef.current) {
+                console.warn("Dashboard: TRACER --- Main useEffect: No active listener but still loading. This might be an issue. Forcing false for UserID:", userId);
+                if (effectMountedRef.current) setIsLoadingTransactions(false);
+           }
+       }
     }
     return fullCleanup;
-  }, [userId, authLoading, isClient, router, toast, translate, isLoadingTransactions]); // Added isLoadingTransactions to dependencies
+  }, [userId, authLoading, isClient, router, toast, translate]);
 
 
   const onAddTransaction = async (newTransactionData: Omit<Transaction, "id" | "userId" | "createdAt">) => {
@@ -250,7 +246,6 @@ export default function DashboardPage() {
     try {
       const transactionsColRef = collection(db, `users/${userId}/transactions`);
       
-      // Prepare the object for Firestore, ensuring no undefined properties are sent
       const fullPayload = {
         description: newTransactionData.description,
         amount: newTransactionData.amount,
@@ -259,27 +254,20 @@ export default function DashboardPage() {
         date: newTransactionData.date,
         paymentMethod: newTransactionData.paymentMethod,
         installments: newTransactionData.installments,
-        isRecurring: newTransactionData.isRecurring, // Form default is false, so it should be boolean
+        isRecurring: newTransactionData.isRecurring, 
         userId: userId,
         createdAt: serverTimestamp(),
       };
 
-      // Clean the payload: remove any properties that have an undefined value
       const dataToSave = Object.fromEntries(
         Object.entries(fullPayload).filter(([_, value]) => value !== undefined)
       );
       
-      // Ensure isRecurring is present, defaulting to false if it was initially undefined and thus removed.
-      // newTransactionData.isRecurring is expected to be true/false from the form's checkbox.
-      if (!('isRecurring' in dataToSave) && newTransactionData.isRecurring !== undefined) {
-        // This case implies newTransactionData.isRecurring was undefined, which shouldn't happen for a checkbox
-        // but as a safeguard, if it was passed as undefined and then removed:
-         dataToSave.isRecurring = newTransactionData.isRecurring ?? false;
+      if (!('isRecurring' in dataToSave) && typeof newTransactionData.isRecurring === 'boolean') {
+         dataToSave.isRecurring = newTransactionData.isRecurring;
       } else if (!('isRecurring' in dataToSave)) {
-        // If isRecurring was not in newTransactionData at all (which is unlikely for this field)
         dataToSave.isRecurring = false;
       }
-
 
       await addDoc(transactionsColRef, dataToSave);
 
@@ -303,9 +291,14 @@ export default function DashboardPage() {
     const year = displayedDate.getFullYear();
     const month = displayedDate.getMonth();
     return transactions.filter(t => {
-      const transactionDate = new Date(t.date);
+      const transactionDate = new Date(t.date); // Ensure date is a Date object for comparison
       const transactionYear = transactionDate.getFullYear();
       const transactionMonth = transactionDate.getMonth();
+      // Check if the transaction falls in the displayed month and year OR if it's a recurring transaction
+      // For recurring transactions, we might want a different logic, e.g., show all or handle based on start date.
+      // For now, this logic includes recurring transactions in every period if their base date matches OR if isRecurring is true.
+      // A more refined logic would be to check if the recurring transaction is active for the displayedDate.
+      // For simplicity: include if date matches OR if it is marked as recurring.
       return (transactionYear === year && transactionMonth === month) || t.isRecurring === true;
     });
   }, [transactions, displayedDate]);
@@ -430,5 +423,4 @@ export default function DashboardPage() {
     </AppLayout>
   );
 }
-
     
