@@ -170,7 +170,15 @@ export default function ReportsPage() {
       try {
         const docSnap = await getDoc(budgetDocRef);
         if (docSnap.exists()) {
-          setLoadedBudgets(docSnap.data() as Record<string, number>);
+          const budgetData = docSnap.data() as Record<string, number>;
+          // Filter out non-numeric values if necessary, though Firestore should store numbers
+          const validBudgets: Record<string, number> = {};
+          for (const key in budgetData) {
+            if (key !== 'lastUpdated' && typeof budgetData[key] === 'number') {
+              validBudgets[key] = budgetData[key];
+            }
+          }
+          setLoadedBudgets(validBudgets);
         } else {
           setLoadedBudgets({}); // No budgets set for this month
         }
@@ -206,7 +214,7 @@ export default function ReportsPage() {
            filtered.push(t);
         }
       }
-      else if (t.isRecurring === true && t.expenseType !== 'installment') {
+      else if (t.isRecurring === true && t.expenseType !== 'installment') { // Generic recurring (not an installment)
         const originalTransactionYear = getYearFns(originalTransactionDate);
         const originalTransactionMonth = getMonthFns(originalTransactionDate);
         const matchesRecurringCriteria = originalTransactionYear < targetYear || (originalTransactionYear === targetYear && originalTransactionMonth <= targetMonth);
@@ -214,20 +222,20 @@ export default function ReportsPage() {
            filtered.push(t);
         }
       }
-      else if (!t.isRecurring && t.expenseType !== 'installment') {
+      else if (!t.isRecurring && t.expenseType !== 'installment') { // Non-recurring, non-installment
         const transactionYear = getYearFns(originalTransactionDate);
         const transactionMonth = getMonthFns(originalTransactionDate);
         if (transactionYear === targetYear && transactionMonth === targetMonth) {
           filtered.push(t);
         }
-      } else if (t.type === 'income') { // Include income for totals
+      } else if (t.type === 'income') { // Include income for totals, handling recurring
          const transactionYear = getYearFns(originalTransactionDate);
          const transactionMonth = getMonthFns(originalTransactionDate);
          if (t.isRecurring) {
-            if (startOfMonth(originalTransactionDate) <= firstDayOfTargetMonth) {
+            if (startOfMonth(originalTransactionDate) <= firstDayOfTargetMonth) { // Recurring income started on or before current month
                 filtered.push(t);
             }
-         } else {
+         } else { // Non-recurring income
             if (transactionYear === targetYear && transactionMonth === targetMonth) {
                 filtered.push(t);
             }
@@ -264,7 +272,7 @@ export default function ReportsPage() {
   [transactionsForDisplayedPeriod]);
 
   const budgetVsActualData = useMemo<BudgetComparisonItem[]>(() => {
-    if (!loadedBudgets || isLoadingPreferences || userDisplayCategories.length === 0) { // Ensure preferences are loaded
+    if (!loadedBudgets || isLoadingPreferences || userDisplayCategories.length === 0) {
       return [];
     }
 
@@ -276,14 +284,11 @@ export default function ReportsPage() {
         actualSpending[categoryKey] = (actualSpending[categoryKey] || 0) + t.amount;
       });
 
-    // Start with categories that have a budget defined.
-    const categoriesWithBudgets = Object.keys(loadedBudgets).filter(key => loadedBudgets[key] > 0);
-    // Add categories that have spending, even if no budget was explicitly set (budget will be 0).
-    const categoriesWithSpending = Object.keys(actualSpending).filter(key => actualSpending[key] > 0);
+    const budgetKeys = Object.keys(loadedBudgets || {}).filter(key => key !== 'lastUpdated');
+    const spendingKeys = Object.keys(actualSpending);
+    const allRelevantCategoryNames = new Set<string>([...budgetKeys, ...spendingKeys]);
     
-    const allRelevantCategoryNames = new Set<string>([...categoriesWithBudgets, ...categoriesWithSpending]);
-    
-    if (allRelevantCategoryNames.size === 0 && Object.keys(loadedBudgets).every(key => (loadedBudgets[key] || 0) === 0)) {
+    if (allRelevantCategoryNames.size === 0 && budgetKeys.every(key => (loadedBudgets[key] || 0) === 0)) {
         return []; 
     }
 
@@ -303,7 +308,7 @@ export default function ReportsPage() {
         difference,
         percentage: percentageRaw
       };
-    }).filter(item => item.budgeted > 0 || item.actual > 0) // Only show items with a budget or actual spending
+    }).filter(item => item.budgeted > 0 || item.actual > 0) 
       .sort((a,b) => (b.budgeted + b.actual) - (a.budgeted + a.actual));
   }, [loadedBudgets, transactionsForDisplayedPeriod, userDisplayCategories, language, isLoadingPreferences]);
 
@@ -490,5 +495,3 @@ export default function ReportsPage() {
     </AppLayout>
   );
 }
-
-    
