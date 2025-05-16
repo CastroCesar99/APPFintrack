@@ -2,7 +2,7 @@
 "use client";
 
 import type React from 'react';
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter } from 'next/navigation';
 import { AppLayout } from "@/components/layout/app-layout";
 import { Button } from "@/components/ui/button";
@@ -21,13 +21,14 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { PlusCircle } from "lucide-react";
-import type { Transaction } from "@/types";
+import type { Transaction, DisplayCategory, DisplayPaymentMethod, UserPreferences } from "@/types";
+import { CATEGORIES, PAYMENT_METHODS } from "@/types";
 import { useAuth } from '@/context/auth-context';
 import { useLanguage } from '@/context/language-context';
 import { useDateNavigation } from '@/context/date-navigation-context';
 import { useToast } from "@/hooks/use-toast";
 import { db } from '@/lib/firebase';
-import { collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, Timestamp, doc, deleteDoc } from "firebase/firestore";
+import { collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, Timestamp, doc, deleteDoc, getDoc } from "firebase/firestore";
 import { format as formatDateFns, parseISO as parseISODateFns } from 'date-fns';
 import { formatCurrency } from '@/lib/utils';
 
@@ -44,10 +45,87 @@ export default function ExpensesPage() {
   const [isClient, setIsClient] = useState(false);
   const [transactionToDelete, setTransactionToDelete] = useState<Transaction | null>(null);
 
+  const [userCategories, setUserCategories] = useState<DisplayCategory[]>([]);
+  const [userPaymentMethods, setUserPaymentMethods] = useState<DisplayPaymentMethod[]>([]);
+  const [isLoadingPreferences, setIsLoadingPreferences] = useState(true);
+
 
   useEffect(() => {
     setIsClient(true);
   }, []);
+
+  const fetchUserPreferences = useCallback(async () => {
+    if (!user) {
+      setUserCategories([...CATEGORIES]);
+      setUserPaymentMethods([...PAYMENT_METHODS]);
+      setIsLoadingPreferences(false);
+      return;
+    }
+    setIsLoadingPreferences(true);
+    try {
+      const preferencesDocRef = doc(db, `users/${user.uid}/preferences/userPreferences`);
+      const preferencesDocSnap = await getDoc(preferencesDocRef);
+
+      if (preferencesDocSnap.exists()) {
+        const preferencesData = preferencesDocSnap.data() as UserPreferences;
+        const customCategoryDefs = preferencesData.userDefinedCategories || [];
+        
+        const allSystemCategories: DisplayCategory[] = [...CATEGORIES];
+        const finalUserCategoriesSet = new Map<string, DisplayCategory>();
+
+        allSystemCategories.forEach(cat => finalUserCategoriesSet.set(cat.name.toLowerCase(), cat));
+        customCategoryDefs.forEach(customCat => {
+            if (!finalUserCategoriesSet.has(customCat.name.toLowerCase())) {
+                 finalUserCategoriesSet.set(customCat.name.toLowerCase(), customCat);
+            }
+        });
+        setUserCategories(Array.from(finalUserCategoriesSet.values()));
+
+        const selectedPaymentMethodNames = preferencesData.selectedPaymentMethods || [];
+        const customPaymentMethodDefs = preferencesData.userDefinedPaymentMethods || [];
+        const basePaymentMethods: DisplayPaymentMethod[] = [...PAYMENT_METHODS, ...customPaymentMethodDefs];
+        
+        if (selectedPaymentMethodNames.length > 0) {
+            const customMap = new Map(customPaymentMethodDefs.map(pm => [pm.name, pm]));
+            const effectivePMs: DisplayPaymentMethod[] = [];
+            selectedPaymentMethodNames.forEach(name => {
+                const predefinedPM = PAYMENT_METHODS.find(pPM => pPM.name === name);
+                if (predefinedPM) { 
+                    effectivePMs.push(predefinedPM);
+                } else if (customMap.has(name)) {
+                    effectivePMs.push(customMap.get(name)!);
+                }
+            });
+            setUserPaymentMethods(effectivePMs.length > 0 ? effectivePMs : basePaymentMethods);
+        } else {
+            setUserPaymentMethods(basePaymentMethods);
+        }
+
+      } else {
+        // No preferences found, default to all predefined categories and payment methods
+        setUserCategories([...CATEGORIES]);
+        setUserPaymentMethods([...PAYMENT_METHODS]);
+      }
+    } catch (error) {
+      console.error("ExpensesPage: Error fetching user preferences:", error);
+      toast({
+        title: translate({ en: "Error Loading Preferences", pt: "Erro ao Carregar Preferências" }),
+        description: translate({ en: "Could not load your preferences for the form.", pt: "Não foi possível carregar suas preferências para o formulário." }),
+        variant: "destructive",
+      });
+      setUserCategories([...CATEGORIES]);
+      setUserPaymentMethods([...PAYMENT_METHODS]);
+    } finally {
+      setIsLoadingPreferences(false);
+    }
+  }, [user, toast, translate]);
+
+  useEffect(() => {
+    if (user && !authLoading) {
+      fetchUserPreferences();
+    }
+  }, [user, authLoading, fetchUserPreferences]);
+
 
   useEffect(() => {
     if (!user || authLoading || !isClient) {
@@ -76,7 +154,16 @@ export default function ExpensesPage() {
            console.warn("ExpensesPage: Transaction has unexpected date format. Fallback to current date. Date was:", data.date);
            dateString = formatDateFns(new Date(), "yyyy-MM-dd");
         }
-        return { ...data, id: docSnap.id, date: dateString } as Transaction;
+        return { 
+          ...data, 
+          id: docSnap.id, 
+          date: dateString,
+          expenseType: data.expenseType,
+          installments: data.installments,
+          paymentMethod: data.paymentMethod,
+          isRecurring: data.isRecurring,
+          expenseNature: data.expenseNature 
+        } as Transaction;
       });
       setAllTransactions(fetchedTransactions);
       setIsLoadingTransactions(false);
@@ -198,7 +285,7 @@ export default function ExpensesPage() {
   };
 
 
-  if (!isClient || authLoading || isLoadingTransactions) {
+  if (!isClient || authLoading || isLoadingTransactions || isLoadingPreferences) {
     return (
       <AppLayout>
         <div className="flex items-center justify-center h-full w-full">
@@ -215,7 +302,7 @@ export default function ExpensesPage() {
           <h1 className="text-3xl font-bold tracking-tight text-foreground">
             {translate({ en: "Expenses", pt: "Despesas" })} - {displayedMonthYearLabel}
           </h1>
-          <Dialog open={isAddFormOpen} onOpenChange={setIsAddFormOpen}>
+          <Dialog open={isAddFormOpen} onOpenChange={setIsAddFormOpen} modal={false}>
             <DialogTrigger asChild>
               <Button variant="outline" className="w-full sm:w-auto">
                 <PlusCircle className="mr-2 h-4 w-4" />
@@ -233,6 +320,8 @@ export default function ExpensesPage() {
                 onAddTransaction={handleAddExpense}
                 initialType="expense"
                 defaultDate={displayedDate}
+                userCategories={userCategories}
+                userPaymentMethods={userPaymentMethods}
                 key={displayedDate.toISOString() + "expense"} 
               />
             </DialogContent>
