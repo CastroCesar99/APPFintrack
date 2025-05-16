@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import { AppLayout } from "@/components/layout/app-layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Terminal, Info, Lightbulb, CheckCircle, TrendingDown, TrendingUp, MinusCircle, PieChart as PieChartIcon, CreditCard, Package } from "lucide-react";
+import { Terminal, Info, Lightbulb, CheckCircle, TrendingDown, TrendingUp, MinusCircle, PieChart as PieChartIcon, CreditCard, Package, Target } from "lucide-react"; // Added Target
 import type { Transaction, CategoryName } from "@/types";
 import { useAuth } from '@/context/auth-context';
 import { useLanguage } from '@/context/language-context';
@@ -16,7 +16,7 @@ import { useToast } from "@/hooks/use-toast";
 import { db } from '@/lib/firebase';
 import { collection, query, orderBy, onSnapshot, Timestamp } from "firebase/firestore";
 import { format as formatDateFns, parseISO as parseISODateFns } from 'date-fns';
-import { generateFinancialSummary, type FinancialSummaryOutput, type FinancialSummaryInput } from '@/ai/flows/financial-summary-flow';
+// import { generateFinancialSummary, type FinancialSummaryOutput, type FinancialSummaryInput } from '@/ai/flows/financial-summary-flow';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ExpenseCategoryChart } from '@/components/dashboard/charts/expense-category-chart';
 import { formatCurrency } from '@/lib/utils';
@@ -25,14 +25,14 @@ import { ExportData } from '@/components/dashboard/export-data';
 export default function ReportsPage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
-  const { translate, language } = useLanguage(); // Added language
+  const { translate, language } = useLanguage();
   const { displayedDate, displayedMonthYearLabel } = useDateNavigation();
   const { toast } = useToast();
 
   const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
   const [isLoadingTransactions, setIsLoadingTransactions] = useState(true);
-  const [financialInsights, setFinancialInsights] = useState<FinancialSummaryOutput | null>(null);
-  const [isLoadingInsights, setIsLoadingInsights] = useState(false);
+  // const [financialInsights, setFinancialInsights] = useState<FinancialSummaryOutput | null>(null);
+  // const [isLoadingInsights, setIsLoadingInsights] = useState(false);
   const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
@@ -70,7 +70,6 @@ export default function ReportsPage() {
             ...data,
             id: docSnap.id,
             date: dateString,
-            // Ensure optional fields are present or undefined
             paymentMethod: data.paymentMethod,
             installments: data.installments,
             isRecurring: data.isRecurring,
@@ -131,72 +130,66 @@ export default function ReportsPage() {
       .reduce((sum, t) => sum + t.amount, 0),
   [transactionsForDisplayedPeriod]);
 
-  useEffect(() => {
-    const fetchInsights = async () => {
-      if (transactionsForDisplayedPeriod.length === 0 && !isLoadingTransactions) {
-        setFinancialInsights({
-          overallStatus: translate({ en: "No data for insights.", pt: "Sem dados para insights." }),
-          keyObservations: [translate({ en: "Add transactions to see your financial summary.", pt: "Adicione transações para ver seu resumo financeiro." })],
-          actionableAdvice: []
-        });
-        return;
-      }
+  // useEffect(() => {
+  //   const fetchInsights = async () => {
+  //     if (transactionsForDisplayedPeriod.length === 0 && !isLoadingTransactions) {
+  //       setFinancialInsights({
+  //         overallStatus: translate({ en: "No data for insights.", pt: "Sem dados para insights." }),
+  //         keyObservations: [translate({ en: "Add transactions to see your financial summary.", pt: "Adicione transações para ver seu resumo financeiro." })],
+  //         actionableAdvice: []
+  //       });
+  //       return;
+  //     }
       
-      if (transactionsForDisplayedPeriod.length > 0) {
-        setIsLoadingInsights(true);
-        setFinancialInsights(null); // Clear previous insights
+  //     if (transactionsForDisplayedPeriod.length > 0) {
+  //       setIsLoadingInsights(true);
+  //       setFinancialInsights(null); 
 
-        // Simulate fetching budget data - REPLACE with actual Firestore fetch later
-        const simulatedBudgetsForMonth: Record<CategoryName, number> = {
-          // Example:
-          // 'Groceries': 300,
-          // 'Dining Out': 150,
-        };
-        // In a real app, load budgets for displayedDate.getFullYear() and displayedDate.getMonth()
+  //       const simulatedBudgetsForMonth: Record<CategoryName, number> = {};
+        
+  //       const plainTransactions = transactionsForDisplayedPeriod.map(t => ({
+  //         id: t.id,
+  //         date: t.date,
+  //         description: t.description,
+  //         amount: t.amount,
+  //         type: t.type,
+  //         category: t.category,
+  //         paymentMethod: t.paymentMethod,
+  //         installments: t.installments,
+  //         isRecurring: t.isRecurring,
+  //         expenseNature: t.expenseNature,
+  //       }));
 
-        const plainTransactions = transactionsForDisplayedPeriod.map(t => ({
-          id: t.id,
-          date: t.date, // Already YYYY-MM-DD string
-          description: t.description,
-          amount: t.amount,
-          type: t.type,
-          category: t.category, // This is CategoryName (string)
-          paymentMethod: t.paymentMethod,
-          installments: t.installments,
-          isRecurring: t.isRecurring,
-          expenseNature: t.expenseNature,
-        }));
+  //       try {
+  //         const input: FinancialSummaryInput = {
+  //           transactionsForMonth: plainTransactions,
+  //           budgetsForMonth: Object.keys(simulatedBudgetsForMonth).length > 0 ? simulatedBudgetsForMonth : undefined,
+  //           monthYearLabel: displayedMonthYearLabel,
+  //         };
+  //         // const insights = await generateFinancialSummary(input);
+  //         // setFinancialInsights(insights);
+  //       } catch (error) {
+  //         console.error("ReportsPage: Error generating financial insights:", error);
+  //         // setFinancialInsights({
+  //         //   overallStatus: translate({ en: "Could not load insights.", pt: "Não foi possível carregar os insights." }),
+  //         //   keyObservations: [translate({ en: "An error occurred while generating the summary.", pt: "Ocorreu um erro ao gerar o resumo." })],
+  //         //   actionableAdvice: []
+  //         // });
+  //         toast({
+  //           title: translate({ en: "AI Insights Error", pt: "Erro nos Insights da IA" }),
+  //           description: translate({ en: "Could not generate financial summary.", pt: "Não foi possível gerar o resumo financeiro." }),
+  //           variant: "destructive",
+  //         });
+  //       } finally {
+  //         // setIsLoadingInsights(false);
+  //       }
+  //     }
+  //   };
 
-        try {
-          const input: FinancialSummaryInput = {
-            transactionsForMonth: plainTransactions,
-            budgetsForMonth: Object.keys(simulatedBudgetsForMonth).length > 0 ? simulatedBudgetsForMonth : undefined, // Pass undefined if no budgets
-            monthYearLabel: displayedMonthYearLabel,
-          };
-          const insights = await generateFinancialSummary(input);
-          setFinancialInsights(insights);
-        } catch (error) {
-          console.error("ReportsPage: Error generating financial insights:", error);
-          setFinancialInsights({
-            overallStatus: translate({ en: "Could not load insights.", pt: "Não foi possível carregar os insights." }),
-            keyObservations: [translate({ en: "An error occurred while generating the summary.", pt: "Ocorreu um erro ao gerar o resumo." })],
-            actionableAdvice: []
-          });
-          toast({
-            title: translate({ en: "AI Insights Error", pt: "Erro nos Insights da IA" }),
-            description: translate({ en: "Could not generate financial summary.", pt: "Não foi possível gerar o resumo financeiro." }),
-            variant: "destructive",
-          });
-        } finally {
-          setIsLoadingInsights(false);
-        }
-      }
-    };
-
-    if (!isLoadingTransactions && isClient) { // Ensure transactions are loaded and component is client-side
-      fetchInsights();
-    }
-  }, [transactionsForDisplayedPeriod, isLoadingTransactions, displayedMonthYearLabel, translate, toast, isClient]);
+  //   if (!isLoadingTransactions && isClient) {
+  //     fetchInsights();
+  //   }
+  // }, [transactionsForDisplayedPeriod, isLoadingTransactions, displayedMonthYearLabel, translate, toast, isClient]);
 
 
   const pageTitle = translate({ en: "Reports", pt: "Relatórios" });
@@ -221,7 +214,6 @@ export default function ReportsPage() {
           <ExportData transactions={transactionsForDisplayedPeriod} />
         </div>
 
-        {/* Basic Financial Summary Cards */}
         <div className="grid gap-4 md:grid-cols-3">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -252,7 +244,6 @@ export default function ReportsPage() {
           </Card>
         </div>
 
-        {/* Fixed vs Variable Expenses Cards */}
         <div className="grid gap-4 md:grid-cols-2">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -274,64 +265,45 @@ export default function ReportsPage() {
           </Card>
         </div>
 
-        {/* AI Financial Insights Section */}
         <Card className="shadow-lg bg-muted/50">
           <CardHeader className="flex flex-row items-start gap-4 space-y-0">
-             <Terminal className="h-8 w-8 text-primary flex-shrink-0 mt-1" />
+            <Terminal className="h-8 w-8 text-primary flex-shrink-0 mt-1" />
             <div className="flex-grow">
-                <CardTitle>{translate({ en: "Financial Insights by AI", pt: "Insights Financeiros por IA" })}</CardTitle>
-                <CardDescription>
+              <CardTitle>{translate({ en: "Financial Insights by AI", pt: "Insights Financeiros por IA" })}</CardTitle>
+              <CardDescription>
                 {translate({ en: "AI-generated summary and advice for", pt: "Resumo e conselhos gerados por IA para" })} {displayedMonthYearLabel}.
-                </CardDescription>
+                <br />
+                {translate({ en: "This feature is in development. Saving and loading budgets is required for full insights.", pt: "Esta funcionalidade está em desenvolvimento. Salvar e carregar orçamentos é necessário para insights completos."})}
+              </CardDescription>
             </div>
           </CardHeader>
-          <CardContent className="pt-4 space-y-4">
-            {isLoadingInsights ? (
-              <div className="space-y-2">
-                <Skeleton className="h-6 w-3/4" />
-                <Skeleton className="h-4 w-full" />
-                <Skeleton className="h-4 w-5/6" />
-                <Skeleton className="h-4 w-full" />
-              </div>
-            ) : financialInsights ? (
-              <>
-                <Alert>
-                  <Info className="h-4 w-4" />
-                  <AlertTitle>{translate({ en: "Overall Status", pt: "Status Geral" })}</AlertTitle>
-                  <AlertDescription>{financialInsights.overallStatus}</AlertDescription>
-                </Alert>
-                {financialInsights.keyObservations && financialInsights.keyObservations.length > 0 && (
-                  <Alert variant="default">
-                     <CheckCircle className="h-4 w-4" />
-                    <AlertTitle>{translate({ en: "Key Observations", pt: "Observações Chave" })}</AlertTitle>
-                    <AlertDescription>
-                      <ul className="list-disc pl-5 space-y-1">
-                        {financialInsights.keyObservations.map((obs, index) => <li key={index}>{obs}</li>)}
-                      </ul>
-                    </AlertDescription>
-                  </Alert>
-                )}
-                {financialInsights.actionableAdvice && financialInsights.actionableAdvice.length > 0 && (
-                  <Alert variant="default">
-                    <Lightbulb className="h-4 w-4" />
-                    <AlertTitle>{translate({ en: "Actionable Advice", pt: "Conselhos Práticos" })}</AlertTitle>
-                    <AlertDescription>
-                      <ul className="list-disc pl-5 space-y-1">
-                        {financialInsights.actionableAdvice.map((adv, index) => <li key={index}>{adv}</li>)}
-                      </ul>
-                    </AlertDescription>
-                  </Alert>
-                )}
-              </>
-            ) : (
-              <p className="text-muted-foreground text-center">
-                {translate({ en: "No insights available for this period.", pt: "Nenhum insight disponível para este período."})}
+          <CardContent className="pt-4">
+             <p className="text-muted-foreground text-center">
+              {translate({ en: "AI insights are coming soon!", pt: "Insights da IA em breve!"})}
+            </p>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader>
+            <CardTitle>{translate({ en: "Budget vs. Actual", pt: "Orçamento vs. Real" })}</CardTitle>
+            <CardDescription>
+               {translate({ en: "Comparison of your spending against defined budgets for", pt: "Comparação dos seus gastos com os orçamentos definidos para" })} {displayedMonthYearLabel}.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex items-center justify-center h-[200px]"> {/* Adjusted height */}
+            <div className="text-center">
+              <Target className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <p className="text-muted-foreground">
+                {translate({ 
+                  en: "Detailed budget comparison is coming soon. Please set and save your budgets on the 'Budgets' page to enable this view.", 
+                  pt: "A comparação detalhada do orçamento estará disponível em breve. Por favor, defina e salve seus orçamentos na página 'Orçamentos' para habilitar esta visualização."
+                })}
               </p>
-            )}
+            </div>
           </CardContent>
         </Card>
 
-        {/* Expense Category Chart */}
         <Card>
           <CardHeader>
             <CardTitle>{translate({ en: "Expense Breakdown", pt: "Detalhamento de Despesas" })}</CardTitle>
@@ -353,3 +325,6 @@ export default function ReportsPage() {
     </AppLayout>
   );
 }
+
+
+    
