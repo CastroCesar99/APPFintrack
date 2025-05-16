@@ -208,7 +208,7 @@ export function OnboardingForm() {
       await setDoc(preferencesDocRef, preferencesData, { merge: true });
 
       const userDocRef = doc(db, "users", user.uid);
-      await setDoc(userDocRef, {
+      await updateDoc(userDocRef, { // Use updateDoc to merge fields, setDoc would overwrite if not careful with merge
         onboardingComplete: true,
         onboardedAt: serverTimestamp(),
       });
@@ -219,7 +219,7 @@ export function OnboardingForm() {
       toast({ title: translate({en: "Setup Saved!", pt: "Configuração Salva!"}), description: translate({en: "Welcome to FinTrack!", pt: "Bem-vindo(a) ao FinTrack!"}) });
       router.push('/');
     } catch (error) {
-      console.error("Error saving onboarding data (handleSubmit):", error); // Specific log for this function's catch block
+      console.error("Error saving onboarding data (handleSubmit):", error); 
       toast({
         title: translate({en: "Save Error", pt: "Erro ao Salvar"}),
         description: translate({
@@ -235,31 +235,20 @@ export function OnboardingForm() {
 
 
   useEffect(() => {
-    // This effect runs when user, authLoading, or router changes.
-    // It checks if the user is authenticated and not loading.
-    // If so, it proceeds to check their onboarding status from Firestore.
     if (user && !authLoading) {
       const checkOnboardingStatus = async () => {
-        if (!user) { // Double check user, though outer if should cover
-            // console.log("OnboardingPage: checkOnboardingStatus - no user, exiting.");
-            return;
-        }
-        // console.log("OnboardingPage: Checking onboarding status for user:", user.uid);
+        if (!user) return;
         const userDocRef = doc(db, "users", user.uid);
         try {
           const userDocSnap = await getDoc(userDocRef);
           if (userDocSnap.exists() && userDocSnap.data().onboardingComplete) {
-            // console.log("OnboardingPage: User has completed onboarding, redirecting to /");
-            localStorage.setItem('onboardingComplete', 'true'); // Keep localStorage for quick checks elsewhere if needed
+            localStorage.setItem('onboardingComplete', 'true');
             router.push('/');
           } else {
-            // console.log("OnboardingPage: User has not completed onboarding or doc doesn't exist.");
             localStorage.removeItem('onboardingComplete');
           }
         } catch (error) {
-           // This catch is for errors during getDoc itself (e.g., network offline)
            console.error("OnboardingPage: Error checking onboarding status (getDoc failed):", error);
-           // Toast for this specific error is in the OnboardingPage component's useEffect
         }
       };
       checkOnboardingStatus();
@@ -367,7 +356,6 @@ export function OnboardingForm() {
                 <PaymentMethodIcon iconName={method.icon} className="h-5 w-5 text-muted-foreground" />
                 <Label htmlFor={`payment-${method.name}`} className="font-normal cursor-pointer">
                   {getDisplayPaymentMethodLabelFromList(method, language)}
-                  {'isDefault' in method && method.isDefault ? ` (${translate({en: "Default", pt: "Padrão"})})` : ''}
                 </Label>
               </div>
             ))}
@@ -454,5 +442,3 @@ export function OnboardingForm() {
     </Card>
   );
 }
-
-    
