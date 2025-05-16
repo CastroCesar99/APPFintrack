@@ -12,12 +12,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { TransactionForm } from "./transaction-form";
-import type { Transaction, TransactionType } from "@/types";
+import { TransactionForm } from "./transaction-form"; // Ensure this import is correct
+import type { Transaction, TransactionType, DisplayCategory, DisplayPaymentMethod } from "@/types"; // Added DisplayCategory, DisplayPaymentMethod
 import { useLanguage } from "@/context/language-context";
 import Link from "next/link"; 
 
 interface QuickActionsSectionProps {
+  userCategories: DisplayCategory[]; // Added
+  userPaymentMethods: DisplayPaymentMethod[]; // Added
   onAddTransaction: (transactionData: Omit<Transaction, "id" | "userId" | "createdAt">) => Promise<void>;
   currentDisplayedDate: Date;
 }
@@ -86,6 +88,8 @@ export function QuickActionsSection({ onAddTransaction, currentDisplayedDate }: 
                 onAddTransaction={handleFormSubmit} 
                 initialType={formInitialType}
                 defaultDate={currentDisplayedDate}
+ userCategories={userCategories} // Added
+ userPaymentMethods={userPaymentMethods} // Added
                 key={currentDisplayedDate.toISOString() + formInitialType} 
               />
             )}
