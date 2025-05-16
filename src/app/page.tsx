@@ -18,7 +18,7 @@ import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/utils";
 import { CategoryIcon } from "@/components/icons";
 import { useDateNavigation } from '@/context/date-navigation-context';
-import { format as formatDateFns, parse as parseDateFns, getYear as getYearFns, getMonth as getMonthFns, parseISO as parseISODateFns, startOfMonth, setDate as setDateFns } from 'date-fns';
+import { format as formatDateFns, parse as parseDateFns, getYear as getYearFns, getMonth as getMonthFns, parseISO as parseISODateFns, startOfMonth, setDate as setDateFns, addMonths } from 'date-fns';
 
 
 export default function DashboardPage() {
@@ -110,6 +110,11 @@ export default function DashboardPage() {
 
     if (authLoading) {
       console.log("Dashboard: TRACER --- Main useEffect: Auth is loading, waiting...");
+      if (!isLoadingTransactions && mainFetchInitiatedForUser.current !== userId) {
+         // If auth is loading for a *new user* or initial load, ensure we show loading for transactions too.
+         console.log("Dashboard: TRACER --- Main useEffect: AuthLoading is true, and user might be changing or initial. Setting isLoadingTransactions to true.");
+         setIsLoadingTransactions(true);
+      }
       return fullCleanup;
     }
 
@@ -189,20 +194,22 @@ export default function DashboardPage() {
 
               if (data.date && typeof data.date === 'object' && data.date instanceof Timestamp) {
                 dateString = formatDateFns(data.date.toDate(), "yyyy-MM-dd");
-              } else if (typeof data.date === 'string' && data.date.includes('T')) {
+              } else if (typeof data.date === 'string' && data.date.includes('T')) { // Handle ISO datetime strings
                 try {
                   dateString = formatDateFns(parseISODateFns(data.date), "yyyy-MM-dd");
                 } catch (e) {
                   console.warn("Dashboard: TRACER --- Failed to parse existing ISO datetime string to yyyy-MM-dd: " + data.date, e);
-                  dateString = formatDateFns(new Date(), "yyyy-MM-dd"); 
+                  dateString = formatDateFns(new Date(), "yyyy-MM-dd"); // Fallback
                 }
               } else if (typeof data.date !== 'string' || (typeof data.date === 'string' && !/^\d{4}-\d{2}-\d{2}$/.test(data.date))) {
+                 // This handles cases where date is not a string or not in YYYY-MM-DD format
                  console.warn("Dashboard: TRACER --- Transaction has unexpected date format, or not YYYY-MM-DD. Fallback to current date YYYY-MM-DD. Date was:", data.date);
                  dateString = formatDateFns(new Date(), "yyyy-MM-dd");
               }
               
-              let isRecurring = data.isRecurring === true;
+              let isRecurring = data.isRecurring === true; // Ensure it's explicitly boolean
               if (data.isRecurring !== true && data.isRecurring !== false) {
+                  // Handle cases where isRecurring might be undefined or some other value
                   console.warn("Dashboard: TRACER --- Transaction ID: " + docSnap.id + " has unexpected isRecurring value: " + data.isRecurring + ". Defaulting to false.");
                   isRecurring = false;
               }
@@ -210,8 +217,8 @@ export default function DashboardPage() {
               return {
                 ...data,
                 id: docSnap.id,
-                date: dateString,
-                isRecurring: isRecurring,
+                date: dateString, // Ensure date is always YYYY-MM-DD string
+                isRecurring: isRecurring, // Ensure isRecurring is always boolean
               } as Transaction;
             });
 
@@ -275,6 +282,8 @@ export default function DashboardPage() {
         console.log("Dashboard: TRACER --- setIsLoadingTransactions(true) for new fetch/setup of user (condition: !isLoadingTransactions):", userId);
         setIsLoadingTransactions(true);
       } else if (effectMountedRef.current && isLoadingTransactions && mainFetchInitiatedForUser.current !== userId){ 
+         // This ensures if the user changes *while* we were already loading for a *different* user,
+         // we keep isLoadingTransactions true for the new user's fetch.
          console.log("Dashboard: TRACER --- setIsLoadingTransactions(true) because user changed while already loading. New User:", userId, "Old User:", mainFetchInitiatedForUser.current );
       }
 
@@ -282,9 +291,18 @@ export default function DashboardPage() {
       fetchDataInternal(userId);
     } else {
       console.log("Dashboard: TRACER --- Main useEffect: Listener should be active for UserID: " + userId + ". isLoadingTransactions: " + isLoadingTransactions + ". Snapshot ref present: " + (!!unsubscribeSnapshotRef.current));
+       // If listener is active, and we are not in loading state for transactions, ensure it's false.
+       // This can happen if e.g. language changes, causing re-render but not needing new transaction fetch.
+      if (isLoadingTransactions && mainFetchInitiatedForUser.current === userId && unsubscribeSnapshotRef.current) {
+         console.log("Dashboard: TRACER --- Main useEffect: Listener active, setting isLoadingTransactions to false as fetch is not new for this user. UserID:", userId);
+         // This case is a bit tricky; if transactions haven't arrived yet, this might hide loading.
+         // However, onSnapshot should handle setting it false once data arrives or fails.
+         // Consider if this specific call is needed or if onSnapshot's handling is sufficient.
+         // For now, let's let onSnapshot manage this.
+      }
     }
     return fullCleanup;
-  }, [userId, authLoading, isClient, router, toast, translate]);
+  }, [userId, authLoading, isClient, router, toast, translate]); // Removed isLoadingTransactions
 
 
  const onAddTransaction = useCallback(async (newTransactionData: Omit<Transaction, "id" | "userId" | "createdAt">) => {
@@ -304,15 +322,17 @@ export default function DashboardPage() {
       userId: userId,
       createdAt: serverTimestamp(),
     };
-
+    
+    // Filter out undefined values before saving to Firestore
     const dataToSave = Object.fromEntries(
         Object.entries(fullPayload).filter(([_, value]) => value !== undefined)
     ) as Partial<Transaction & { createdAt: any; userId: string }>;
 
+    // Ensure boolean isRecurring is present, defaulting to false if not explicitly set.
     if (dataToSave.isRecurring === undefined && typeof newTransactionData.isRecurring === 'boolean') {
         dataToSave.isRecurring = newTransactionData.isRecurring;
     } else if (dataToSave.isRecurring === undefined) {
-       dataToSave.isRecurring = false; 
+       dataToSave.isRecurring = false; // Default to false if not provided
     }
     
     console.log("Dashboard: TRACER --- onAddTransaction: Saving to Firestore with date:", dataToSave.date, "Full dataToSave:", JSON.stringify(dataToSave));
@@ -349,7 +369,7 @@ export default function DashboardPage() {
         return false;
       }
       try {
-        const [yearStr, monthStr, dayStr] = t.date.split('-');
+        const [yearStr, monthStr, dayStr] = t.date.split('-'); // Date is YYYY-MM-DD
         const transactionYear = parseInt(yearStr, 10);
         const transactionMonth = parseInt(monthStr, 10) - 1; // 0-indexed for Date object
         
@@ -358,13 +378,13 @@ export default function DashboardPage() {
         let matches = false;
         if (isItemRecurring) {
             // A recurring transaction's financial impact applies if its original date is in or before the target month/year.
-            // It will contribute to the sum for the target month.
             matches = transactionYear < targetYear || (transactionYear === targetYear && transactionMonth <= targetMonth);
         } else { 
           // Non-recurring transactions only match if they are *in* the target month.
           matches = transactionYear === targetYear && transactionMonth === targetMonth;
         }
-        console.log(`Dashboard: TRACER --- Tx Filter: ID: ${t.id}, DateStr: ${t.date}, TxY: ${transactionYear}, TxM: ${transactionMonth}, TargetM: ${targetMonth}, TargetY: ${targetYear}, Matches: ${matches}, isRec: ${t.isRecurring}`);
+        // This specific log for each transaction was removed as it was very verbose.
+        // console.log(`Dashboard: TRACER --- Tx Filter: ID: ${t.id}, DateStr: ${t.date}, TxY: ${transactionYear}, TxM: ${transactionMonth}, TargetM: ${targetMonth}, TargetY: ${targetYear}, Matches: ${matches}, isRec: ${t.isRecurring}`);
         return matches;
       } catch (e) {
         console.warn("Dashboard: TRACER --- Tx Filter: ID: " + t.id + ", Error parsing date " + t.date + ": ", e);
@@ -397,14 +417,12 @@ export default function DashboardPage() {
             if (originalTransactionDate <= displayedDate || 
                 (transactionOriginalYear === targetYear && transactionOriginalMonth === targetMonth) ) {
 
-                // Project to the 1st of the target month, or the original day if within the same month
+                // Project to the original day of the target month
                 let projectedDateForMonth = setDateFns(targetMonthStart, transactionOriginalDay);
                  // Handle if original day is > days in target month (e.g. 31st for April)
-                if (getMonthFns(projectedDateForMonth) !== targetMonth) {
-                    projectedDateForMonth = startOfMonth(addMonths(targetMonthStart,1)); // first of next month
-                    projectedDateForMonth = setDateFns(projectedDateForMonth, 0); // last day of target month
+                if (getMonthFns(projectedDateForMonth) !== targetMonth) { // If setDateFns rolled over to next month
+                    projectedDateForMonth = setDateFns(addMonths(targetMonthStart,1), 0); // last day of target month
                 }
-
 
                 // Ensure the projected recurring item is only added if its original start is not after the current displayed month
                 const firstDayOfOriginalMonth = startOfMonth(originalTransactionDate);
@@ -450,9 +468,8 @@ export default function DashboardPage() {
                 (transactionOriginalYear === targetYear && transactionOriginalMonth === targetMonth) ) {
 
                 let projectedDateForMonth = setDateFns(targetMonthStart, transactionOriginalDay);
-                if (getMonthFns(projectedDateForMonth) !== targetMonth) {
-                    projectedDateForMonth = startOfMonth(addMonths(targetMonthStart,1));
-                    projectedDateForMonth = setDateFns(projectedDateForMonth, 0); 
+                if (getMonthFns(projectedDateForMonth) !== targetMonth) { // If setDateFns rolled over
+                    projectedDateForMonth = setDateFns(addMonths(targetMonthStart,1), 0); // last day of target month
                 }
                 
                 const firstDayOfOriginalMonth = startOfMonth(originalTransactionDate);
@@ -510,12 +527,16 @@ export default function DashboardPage() {
           label: predefinedCategory.label, 
           type: 'expense'
         } as DisplayCategory & { amount: number };
-      } else {
+      } else { // Assume it's a custom category name
+        // For custom categories, we don't have predefined icon/label objects in CATEGORIES
+        // We should try to find it in user's custom categories if we had them loaded here,
+        // or use the name as label and a default icon.
+        // For now, this part remains simplified as the dashboard doesn't load custom category definitions.
         return {
           name: largestCategoryKey, 
           amount: maxAmount,
-          icon: 'CircleHelp', 
-          label: { en: largestCategoryKey, pt: largestCategoryKey }, 
+          icon: 'CircleHelp', // Default icon for custom categories not found in predefined
+          label: { en: largestCategoryKey, pt: largestCategoryKey }, // Use name as label
           type: 'expense',
         } as DisplayCategory & { amount: number };
       }
@@ -542,7 +563,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     loadBudgets();
-  }, [loadBudgets]);
+  }, [loadBudgets]); // loadBudgets is memoized with useCallback and its dependencies are userId, displayedDate, etc.
 
   const totalIncomeForSummary = transactionsForDisplayedPeriod.filter(t => t.type === "income").reduce((sum, t) => sum + t.amount, 0);
   const totalExpensesForSummary = transactionsForDisplayedPeriod.filter(t => t.type === "expense").reduce((sum, t) => sum + t.amount, 0);
@@ -559,6 +580,7 @@ export default function DashboardPage() {
       </AppLayout>
     );
   }
+  console.log("Dashboard: TRACER --- RENDERING DASHBOARD CONTENT. Transactions:", transactions.length, "isLoadingTransactions:", isLoadingTransactions, "Displayed Period Transactions:", transactionsForDisplayedPeriod.length);
 
   return (
     <AppLayout>
@@ -652,5 +674,3 @@ export default function DashboardPage() {
     </AppLayout>
   );
 }
-
-    
