@@ -16,6 +16,8 @@ import { db } from '@/lib/firebase';
 import { doc, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
 import { format as formatDateFns } from 'date-fns'; // Renamed to avoid conflict
 import { Skeleton } from '@/components/ui/skeleton';
+// Added Card, CardHeader, CardContent imports for Skeleton display
+import { Card, CardHeader, CardContent } from "@/components/ui/card";
 
 
 export default function BudgetsPage() {
@@ -44,6 +46,8 @@ export default function BudgetsPage() {
         const docSnap = await getDoc(budgetDocRef);
         if (docSnap.exists()) {
           const data = docSnap.data();
+          // Detailed log of data found
+          console.log(`BudgetsPage: Budget data found for ${currentMonthYearKey}:`, JSON.stringify(data, null, 2));
           const loadedBudgets: Record<CategoryName, string> = {};
           expenseCategories.forEach(cat => {
             if (data[cat.name] !== undefined) {
@@ -88,7 +92,7 @@ export default function BudgetsPage() {
       setIsLoadingBudgets(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, authLoading, currentMonthYearKey, toast, translate]); // Removed expenseCategories from deps as it's stable
+  }, [user, authLoading, currentMonthYearKey, toast, translate]);
 
   const handleBudgetChange = (categoryName: CategoryName, amount: string) => {
     setBudgets(prevBudgets => ({
@@ -203,7 +207,3 @@ export default function BudgetsPage() {
     </AppLayout>
   );
 }
-
-// Added Card, CardHeader, CardContent imports for Skeleton
-import { Card, CardHeader, CardContent } from "@/components/ui/card";
-
