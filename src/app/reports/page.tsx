@@ -5,11 +5,11 @@ import type React from 'react';
 import { useState, useEffect, useMemo } from "react";
 import { useRouter } from 'next/navigation';
 import { AppLayout } from "@/components/layout/app-layout";
-import { Button } from "@/components/ui/button";
+// Button import removed as ExportData has its own
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Terminal, Info, Lightbulb, CheckCircle, TrendingDown, TrendingUp, MinusCircle } from "lucide-react";
-import type { Transaction, CategoryName } from "@/types";
+import type { Transaction } from "@/types"; // CategoryName import removed as it's not directly used
 import { useAuth } from '@/context/auth-context';
 import { useLanguage } from '@/context/language-context';
 import { useDateNavigation } from '@/context/date-navigation-context';
@@ -47,7 +47,8 @@ export default function ReportsPage() {
     }
 
     setIsLoadingTransactions(true);
-    const transactionsColRef = collection(db, \`users/\${user.uid}/transactions\`);
+    // Changed template literal to string concatenation
+    const transactionsColRef = collection(db, 'users/' + user.uid + '/transactions'); 
     const q_transactions = query(transactionsColRef, orderBy("date", "desc"));
 
     const unsubscribe = onSnapshot(q_transactions, (querySnapshot) => {
@@ -60,10 +61,10 @@ export default function ReportsPage() {
           try {
             dateString = formatDateFns(parseISODateFns(data.date), "yyyy-MM-dd");
           } catch (e) {
-            console.warn(\`ReportsPage: Failed to parse ISO date string: \${data.date}\`, e);
+            console.warn(`ReportsPage: Failed to parse ISO date string: ${data.date}`, e);
             dateString = formatDateFns(new Date(), "yyyy-MM-dd");
           }
-        } else if (typeof data.date !== 'string' || !/^\\d{4}-\\d{2}-\\d{2}$/.test(data.date)) {
+        } else if (typeof data.date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(data.date)) {
            console.warn("ReportsPage: Transaction has unexpected date format. Fallback to current date. Date was:", data.date);
            dateString = formatDateFns(new Date(), "yyyy-MM-dd");
         }
