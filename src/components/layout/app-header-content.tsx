@@ -2,7 +2,6 @@
 "use client";
 import React from "react";
 import { SidebarTrigger } from "@/components/ui/sidebar";
-// AppLogoIcon import removed as it's no longer used in the header
 import { useLanguage } from "@/context/language-context";
 import { useAuth } from "@/context/auth-context";
 import { useDateNavigation } from "@/context/date-navigation-context";
@@ -32,7 +31,7 @@ export function AppHeaderContent() {
     <div className="flex h-14 items-center justify-between gap-4 border-b bg-background px-4 lg:px-6">
       {/* Left Section: Sidebar Trigger and User Greeting */}
       <div className="flex items-center gap-3">
-        <SidebarTrigger className="md:hidden" /> {/* Remains for mobile sidebar toggle */}
+        <SidebarTrigger className="md:hidden" />
         {userGreeting && (
           <span className="text-base font-semibold text-foreground truncate" title={userGreeting}>
             {userGreeting}
@@ -56,7 +55,7 @@ export function AppHeaderContent() {
         >
           <ChevronLeft className="h-4 w-4" />
         </Button>
-        <span className="text-base font-medium text-foreground w-32 text-center truncate" title={displayedMonthYearLabel}>
+        <span className="text-base font-medium text-foreground w-28 sm:w-32 text-center truncate" title={displayedMonthYearLabel}>
           {displayedMonthYearLabel}
         </span>
         <Button
