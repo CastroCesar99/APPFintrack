@@ -5,7 +5,7 @@ import type React from 'react';
 import { useState, useEffect } from 'react';
 import { AppLayout } from "@/components/layout/app-layout";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input'; // Not directly used here, but BudgetCategoryItem uses it
+// import { Input } from '@/components/ui/input'; // Removed problematic import
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { CATEGORIES, getCategoryLabel, type Category, type CategoryName } from "@/types";
 import { useLanguage } from "@/context/language-context";
@@ -143,3 +143,5 @@ export default function BudgetsPage() {
     </AppLayout>
   );
 }
+
+    
