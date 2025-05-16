@@ -19,9 +19,8 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import { PlusCircle, Trash2 } from "lucide-react";
+} from "@/components/ui/alert-dialog"; // AlertDialogTrigger was removed as it's not directly used.
+import { PlusCircle } from "lucide-react"; // Trash2 icon was removed as it's handled by TransactionsTable
 import type { Transaction } from "@/types";
 import { useAuth } from '@/context/auth-context';
 import { useLanguage } from '@/context/language-context';
@@ -30,6 +29,7 @@ import { useToast } from "@/hooks/use-toast";
 import { db } from '@/lib/firebase';
 import { collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, Timestamp, doc, deleteDoc } from "firebase/firestore";
 import { format as formatDateFns, parseISO as parseISODateFns } from 'date-fns';
+import { formatCurrency } from '@/lib/utils';
 
 export default function IncomePage() {
   const { user, loading: authLoading } = useAuth();
@@ -282,5 +282,3 @@ export default function IncomePage() {
     </AppLayout>
   );
 }
-
-    
