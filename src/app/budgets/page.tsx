@@ -28,7 +28,7 @@ export default function BudgetsPage() {
   const [budgets, setBudgets] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const [isReplicating, setIsReplicating] = useState(false); // New state for replication
+  const [isReplicating, setIsReplicating] = useState(false);
 
   const currentMonthYearKey = formatDateFns(displayedDate, 'yyyy-MM');
 
@@ -69,6 +69,7 @@ export default function BudgetsPage() {
             effectiveCategories = CATEGORIES.filter(cat => cat.type === 'expense');
         }
       } else {
+        // If no preferences, default to all predefined expense categories
         effectiveCategories = CATEGORIES.filter(cat => cat.type === 'expense');
       }
     } catch (error) {
@@ -89,7 +90,7 @@ export default function BudgetsPage() {
       const newBudgetsState: Record<string, string> = {};
       
       if (budgetSnap.exists()) {
-        const budgetData = budgetSnap.data();
+        const budgetData = budgetSnap.data() as Record<string, number>; // Firestore stores numbers
         console.log(`BudgetsPage: Budget data found for ${currentMonthYearKey}:`, JSON.stringify(budgetData, null, 2));
         effectiveCategories.forEach(cat => {
           newBudgetsState[cat.name] = budgetData[cat.name] !== undefined ? String(budgetData[cat.name]) : '';
@@ -123,6 +124,7 @@ export default function BudgetsPage() {
     if (!authLoading && user) {
       fetchPreferencesAndBudgets();
     } else if (!authLoading && !user) {
+      // Not logged in, clear data and stop loading
       setUserDisplayCategories([]);
       setBudgets({});
       setIsLoading(false);
@@ -150,10 +152,12 @@ export default function BudgetsPage() {
 
     const budgetDocRef = doc(db, `users/${user.uid}/budgets/${currentMonthYearKey}`);
     
+    // Prepare data for saving: convert to numbers, filter out non-displayed or empty
     const budgetsToSave = Object.fromEntries(
       Object.entries(budgets)
         .map(([key, value]) => {
           const numValue = parseFloat(value);
+          // Save 0 if empty or NaN, otherwise the parsed number
           return [key, isNaN(numValue) ? 0 : numValue]; 
         })
         .filter(([key]) => userDisplayCategories.some(cat => cat.name === key))
@@ -183,14 +187,16 @@ export default function BudgetsPage() {
       return;
     }
 
+    // Only replicate budgets that have a valid positive value
     const budgetsToReplicate = Object.fromEntries(
       Object.entries(budgets)
         .map(([key, value]) => {
           const numValue = parseFloat(value);
+          // Only include if it's a valid number and greater than 0
           return [key, isNaN(numValue) || numValue <= 0 ? undefined : numValue];
         })
-        .filter(([, value]) => value !== undefined) 
-        .filter(([key]) => userDisplayCategories.some(cat => cat.name === key))
+        .filter(([, value]) => value !== undefined) // Remove entries where value became undefined
+        .filter(([key]) => userDisplayCategories.some(cat => cat.name === key)) // Ensure it's a displayed category
     );
 
     if (Object.keys(budgetsToReplicate).length === 0) {
@@ -267,7 +273,7 @@ export default function BudgetsPage() {
         <Separator />
 
         {isLoading ? (
-           <div className="grid grid-cols-1 gap-4 p-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
             {(userDisplayCategories.length > 0 ? userDisplayCategories : Array(10).fill(0)).map((_, index) => (
               <Card key={index} className="w-full shadow-lg">
                 <CardHeader className="pb-2">
@@ -280,7 +286,7 @@ export default function BudgetsPage() {
             ))}
           </div>
         ) : userDisplayCategories.length > 0 ? (
-          <div className="grid grid-cols-1 gap-4 p-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
             {userDisplayCategories.map(category => (
               <BudgetCategoryItem
                 key={category.name}
