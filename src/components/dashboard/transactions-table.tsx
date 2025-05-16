@@ -9,27 +9,30 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Edit, Trash2 } from "lucide-react";
 import { formatCurrency, cn } from "@/lib/utils";
 import { CategoryIcon } from "@/components/icons";
-import { format as formatDateFns, parse as parseDateFns } from "date-fns"; // Import parse for YYYY-MM-DD
+import { format as formatDateFns, parse as parseDateFns } from "date-fns";
 import { useLanguage } from "@/context/language-context";
 import { getCategoryLabel } from "@/types"; 
 
 interface TransactionsTableProps {
   transactions: Transaction[];
+  onEditTransaction?: (transactionId: string) => void;
+  onDeleteTransaction?: (transactionId: string) => void;
 }
 
-export function TransactionsTable({ transactions }: TransactionsTableProps) {
-  const { language } = useLanguage();
+export function TransactionsTable({ transactions, onEditTransaction, onDeleteTransaction }: TransactionsTableProps) {
+  const { language, translate } = useLanguage();
 
   if (transactions.length === 0) {
-    return <p className="text-center text-muted-foreground py-8">No transactions yet. Add one to get started!</p>;
+    return <p className="text-center text-muted-foreground py-8">
+      {translate({en: "No transactions yet.", pt: "Nenhuma transação ainda."})}
+    </p>;
   }
 
-  // Sort transactions by date, most recent first
   const sortedTransactions = [...transactions].sort((a, b) => {
-    // Parse YYYY-MM-DD strings for comparison
     return parseDateFns(b.date, "yyyy-MM-dd", new Date()).getTime() - parseDateFns(a.date, "yyyy-MM-dd", new Date()).getTime();
   });
 
@@ -39,10 +42,13 @@ export function TransactionsTable({ transactions }: TransactionsTableProps) {
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Date</TableHead>
-            <TableHead>Description</TableHead>
-            <TableHead>Category</TableHead>
-            <TableHead className="text-right">Amount</TableHead>
+            <TableHead>{translate({en:"Date", pt:"Data"})}</TableHead>
+            <TableHead>{translate({en:"Description", pt:"Descrição"})}</TableHead>
+            <TableHead>{translate({en:"Category", pt:"Categoria"})}</TableHead>
+            <TableHead className="text-right">{translate({en:"Amount", pt:"Valor"})}</TableHead>
+            {(onEditTransaction || onDeleteTransaction) && (
+              <TableHead className="text-center">{translate({en:"Actions", pt:"Ações"})}</TableHead>
+            )}
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -73,6 +79,33 @@ export function TransactionsTable({ transactions }: TransactionsTableProps) {
                   {transaction.type === "income" ? "+" : "-"}
                   {formatCurrency(transaction.amount)}
                 </TableCell>
+                {(onEditTransaction || onDeleteTransaction) && (
+                  <TableCell className="text-center">
+                    <div className="flex items-center justify-center gap-1">
+                      {onEditTransaction && (
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          onClick={() => onEditTransaction(transaction.id)}
+                          aria-label={translate({en: "Edit", pt: "Editar"}) + " " + transaction.description}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                      )}
+                      {onDeleteTransaction && (
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          onClick={() => onDeleteTransaction(transaction.id)}
+                          className="text-destructive hover:text-destructive/90 hover:bg-destructive/10"
+                          aria-label={translate({en: "Delete", pt: "Excluir"}) + " " + transaction.description}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </TableCell>
+                )}
               </TableRow>
             );
           })}
@@ -82,3 +115,4 @@ export function TransactionsTable({ transactions }: TransactionsTableProps) {
   );
 }
 
+    
