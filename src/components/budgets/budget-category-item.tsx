@@ -13,7 +13,6 @@ interface BudgetCategoryItemProps {
   category: Category;
   value: string; // Budget amount as string
   onBudgetChange: (categoryName: CategoryName, amount: string) => void;
-  // language prop removed, will use context instead
 }
 
 export function BudgetCategoryItem({ category, value, onBudgetChange }: BudgetCategoryItemProps) {
@@ -30,7 +29,7 @@ export function BudgetCategoryItem({ category, value, onBudgetChange }: BudgetCa
   const categoryDisplayName = getCategoryLabel(category.name, language);
 
   return (
-    <Card className="w-64 flex-shrink-0 shadow-lg">
+    <Card className="w-full shadow-lg"> {/* Changed width to w-full */}
       <CardHeader className="pb-2">
         <div className="flex items-center gap-2">
           <CategoryIcon categoryName={category.name} className="h-6 w-6 text-primary" />

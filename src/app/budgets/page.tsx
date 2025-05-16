@@ -6,7 +6,6 @@ import { useState, useEffect } from 'react';
 import { AppLayout } from "@/components/layout/app-layout";
 import { Button } from "@/components/ui/button";
 // import { Input } from '@/components/ui/input'; // Removed problematic import
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { CATEGORIES, getCategoryLabel, type Category, type CategoryName } from "@/types";
 import { useLanguage } from "@/context/language-context";
 import { useAuth } from "@/context/auth-context";
@@ -120,8 +119,8 @@ export default function BudgetsPage() {
         
         <Separator />
 
-        <ScrollArea className="w-full whitespace-nowrap rounded-md border">
-          <div className="flex space-x-4 p-4">
+        {expenseCategories.length > 0 ? (
+          <div className="grid grid-cols-1 gap-4 p-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
             {expenseCategories.map(category => (
               <BudgetCategoryItem
                 key={category.name}
@@ -131,10 +130,7 @@ export default function BudgetsPage() {
               />
             ))}
           </div>
-          <ScrollBar orientation="horizontal" />
-        </ScrollArea>
-
-        {expenseCategories.length === 0 && (
+        ) : (
           <p className="text-center text-muted-foreground py-8">
             {translate({ en: "No expense categories found to set budgets for.", pt: "Nenhuma categoria de despesa encontrada para definir orçamentos."})}
           </p>
@@ -143,5 +139,3 @@ export default function BudgetsPage() {
     </AppLayout>
   );
 }
-
-    
