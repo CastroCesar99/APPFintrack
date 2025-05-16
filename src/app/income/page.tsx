@@ -297,8 +297,9 @@ export default function IncomePage() {
   return (
     <AppLayout>
       <div className="space-y-6">
-        <div> {/* Wrapper for title and button for vertical stacking */}
-          <h1 className="text-3xl font-bold tracking-tight text-foreground mb-4">
+        {/* Title and Add Button Block */}
+        <div className="space-y-4"> 
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">
             {translate({ en: "Income", pt: "Receitas" })} - {displayedMonthYearLabel}
           </h1>
           <Dialog open={isAddFormOpen} onOpenChange={setIsAddFormOpen} modal={false}>
@@ -327,6 +328,7 @@ export default function IncomePage() {
           </Dialog>
         </div>
 
+        {/* Transactions Card */}
         <Card className="shadow-lg">
           <CardHeader>
             <CardTitle>{translate({ en: "Income List", pt: "Lista de Receitas" })}</CardTitle>
@@ -372,5 +374,6 @@ export default function IncomePage() {
     </AppLayout>
   );
 }
+    
 
     
