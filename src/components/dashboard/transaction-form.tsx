@@ -1,5 +1,6 @@
 
 "use client";
+import type React from 'react';
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -20,7 +21,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { CalendarIcon } from "lucide-react";
 import { format } from "date-fns"; 
-import { ptBR, enUS } from 'date-fns/locale'; // Import locales directly
+import { ptBR, enUS } from 'date-fns/locale';
 import { cn } from "@/lib/utils";
 import type { Transaction, TransactionType, ExpenseNature, Category } from "@/types";
 import { CATEGORIES, getCategoriesByType, CategoryName, getCategoryLabel } from "@/types";
@@ -53,6 +54,8 @@ export function TransactionForm({ onAddTransaction, initialType, defaultDate }: 
   const [selectedPaymentMethodType, setSelectedPaymentMethodType] = useState<"upfront" | "installment" | "recurring" | undefined>(undefined);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  console.log("TransactionForm TRACER --- Initializing/Re-rendering with defaultDate:", defaultDate?.toISOString(), "and initialType:", initialType);
+
   const form = useForm<TransactionFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -69,6 +72,7 @@ export function TransactionForm({ onAddTransaction, initialType, defaultDate }: 
   });
 
   useEffect(() => {
+    console.log("TransactionForm TRACER --- useEffect running. initialType:", initialType, "defaultDate:", defaultDate?.toISOString(), "Current form date:", form.getValues('date')?.toISOString());
     const newCategories = getCategoriesByType(initialType);
     setAvailableCategories(newCategories);
     const currentCategoryInForm = form.getValues("category");
@@ -81,11 +85,12 @@ export function TransactionForm({ onAddTransaction, initialType, defaultDate }: 
                           ? currentCategoryInForm 
                           : "";
 
+    // Reset form values, prioritizing the passed defaultDate for the date field
     form.reset({
         description: form.getValues('description') || "",
-        amount: form.getValues('amount') === 0 ? 0 : form.getValues('amount') || undefined, // Preserve 0 if it was intentionally set
+        amount: form.getValues('amount') === 0 ? 0 : form.getValues('amount') || undefined,
         category: categoryToSet,
-        date: defaultDate || form.getValues('date') || new Date(), 
+        date: defaultDate || new Date(), // Use defaultDate if provided, otherwise current date
         expenseType: initialType === 'expense' ? form.getValues('expenseType') : undefined,
         paymentMethod: initialType === 'expense' ? form.getValues('paymentMethod') : undefined,
         installments: initialType === 'expense' ? form.getValues('installments') : undefined,
@@ -95,19 +100,21 @@ export function TransactionForm({ onAddTransaction, initialType, defaultDate }: 
 
     if (initialType === 'income') {
       setSelectedPaymentMethodType(undefined);
+      // Explicitly clear expense-specific fields for income type
       form.setValue('expenseType', undefined);
       form.setValue('paymentMethod', undefined);
       form.setValue('installments', undefined);
       form.setValue('expenseNature', undefined);
     } else {
+      // For expense type, ensure selectedPaymentMethodType reflects current form value
       setSelectedPaymentMethodType(form.getValues('expenseType'));
     }
 
-  }, [initialType, form, defaultDate]); 
-
+  }, [initialType, defaultDate]); // Removed `form` from dependencies, as form.reset/form.setValue can cause loops if form itself is a dep.
 
   async function onSubmit(values: TransactionFormValues) {
     setIsSubmitting(true);
+    console.log("TransactionForm TRACER --- onSubmit with values.date:", values.date.toISOString());
     try {
       let finalIsRecurring = values.isRecurring || false;
       if (initialType === 'expense' && values.expenseType === 'recurring') {
@@ -127,6 +134,7 @@ export function TransactionForm({ onAddTransaction, initialType, defaultDate }: 
       };
       await onAddTransaction(transactionData);
 
+      // Reset form to initial state, using defaultDate again
       form.reset({
         description: "",
         amount: undefined,
@@ -139,14 +147,12 @@ export function TransactionForm({ onAddTransaction, initialType, defaultDate }: 
         expenseNature: undefined,
       });
       setSelectedPaymentMethodType(undefined); 
-      // If the form was for income, reset relevant expense fields that might have been touched
       if (initialType === 'income') {
           form.setValue('expenseType', undefined);
           form.setValue('paymentMethod', undefined);
           form.setValue('installments', undefined);
           form.setValue('expenseNature', undefined);
       } else {
-        // Ensure expenseType is reset if needed, though form.reset should handle it
         setSelectedPaymentMethodType(undefined);
       }
 
@@ -265,7 +271,7 @@ export function TransactionForm({ onAddTransaction, initialType, defaultDate }: 
                     mode="single"
                     selected={field.value}
                     onSelect={field.onChange}
-                    defaultMonth={field.value} 
+                    defaultMonth={field.value || defaultDate || new Date()} 
                     disabled={(date) =>
                       date > new Date(new Date().setFullYear(new Date().getFullYear() + 5)) || date < new Date("1900-01-01")
                     }
@@ -415,5 +421,3 @@ export function TransactionForm({ onAddTransaction, initialType, defaultDate }: 
     </Form>
   );
 }
-
-    

@@ -1,6 +1,7 @@
 
 "use client";
 import { useState } from "react";
+import type React from 'react';
 import { Button } from "@/components/ui/button";
 import { PlusCircle, SlidersHorizontal } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -38,6 +39,7 @@ export function QuickActionsSection({ onAddTransaction, currentDisplayedDate }: 
       setIsFormOpen(false); 
     } catch (error) {
       console.error("Error submitting transaction from QuickActionsSection:", error);
+      // Optionally, re-throw or show a toast from here if needed
     }
   };
   
@@ -47,6 +49,10 @@ export function QuickActionsSection({ onAddTransaction, currentDisplayedDate }: 
   const manageBudgetsLabel = translate({ en: "Manage Budgets", pt: "Gerenciar Orçamentos" });
   const newTransactionTitle = translate({ en: "New Transaction", pt: "Nova Transação" });
   const newTransactionDescription = translate({ en: "Fill in the details for your new transaction.", pt: "Preencha os detalhes da sua nova transação." });
+
+  if (isFormOpen) {
+    console.log("QuickActionsSection TRACER --- Rendering TransactionForm with defaultDate:", currentDisplayedDate.toISOString());
+  }
 
   return (
     <Card className="shadow-md bg-muted/50">
