@@ -1,7 +1,6 @@
 
 "use client";
-import { useState } from "react";
-import type React from 'react';
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { PlusCircle, SlidersHorizontal } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -35,17 +34,23 @@ export function QuickActionsSection({
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [formInitialType, setFormInitialType] = useState<TransactionType>("expense");
   const [dateForForm, setDateForForm] = useState<Date>(currentDisplayedDate);
+  
+  console.log("QuickActionsSection TRACER --- Rendering. currentDisplayedDate prop:", currentDisplayedDate.toISOString(), "dateForForm state:", dateForForm.toISOString());
 
-  React.useEffect(() => {
+  // Effect to sync dateForForm when currentDisplayedDate changes AND the dialog is NOT open
+  // This ensures that if the user navigates months on the dashboard, the next time they open the dialog,
+  // it reflects the new dashboard month.
+  useEffect(() => {
+    console.log("QuickActionsSection TRACER --- useEffect for currentDisplayedDate running. isFormOpen:", isFormOpen, "New currentDisplayedDate:", currentDisplayedDate.toISOString());
     if (!isFormOpen) {
       setDateForForm(currentDisplayedDate);
     }
   }, [currentDisplayedDate, isFormOpen]);
 
   const handleOpenDialog = (type: TransactionType) => {
-    console.log("QuickActionsSection TRACER --- handleOpenDialog, currentDisplayedDate:", currentDisplayedDate.toISOString());
-    setFormInitialType(type);
+    console.log("QuickActionsSection TRACER --- handleOpenDialog. currentDisplayedDate prop:", currentDisplayedDate.toISOString(), "Setting dateForForm.");
     setDateForForm(currentDisplayedDate); // Capture the date when dialog is opened
+    setFormInitialType(type);
     setIsFormOpen(true);
   };
 
@@ -55,6 +60,7 @@ export function QuickActionsSection({
       setIsFormOpen(false); 
     } catch (error) {
       console.error("Error submitting transaction from QuickActionsSection:", error);
+      // Potentially show a toast error here if onAddTransaction doesn't handle it
     }
   };
   
@@ -66,9 +72,8 @@ export function QuickActionsSection({
   const newTransactionDescription = translate({ en: "Fill in the details for your new transaction.", pt: "Preencha os detalhes da sua nova transação." });
 
   if (isFormOpen) {
-    console.log("QuickActionsSection TRACER --- Rendering TransactionForm with defaultDate (dateForForm):", dateForForm.toISOString());
+    console.log("QuickActionsSection TRACER --- Rendering TransactionForm with defaultDate (dateForForm):", dateForForm.toISOString(), "and key:", dateForForm.toISOString() + formInitialType);
   }
-
 
   return (
     <Card className="shadow-md bg-muted/50">
@@ -101,7 +106,7 @@ export function QuickActionsSection({
               <TransactionForm
                 onAddTransaction={handleFormSubmit} 
                 initialType={formInitialType}
-                defaultDate={dateForForm}
+                defaultDate={dateForForm} 
                 userCategories={userCategories} 
                 userPaymentMethods={userPaymentMethods} 
                 key={dateForForm.toISOString() + formInitialType} 
