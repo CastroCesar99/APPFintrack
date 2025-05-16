@@ -14,13 +14,13 @@ import { BudgetCategoryItem } from '@/components/budgets/budget-category-item';
 import { Separator } from '@/components/ui/separator';
 import { db } from '@/lib/firebase';
 import { doc, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
-import { format as formatDateFns } from 'date-fns';
+import { format as formatDateFns, addMonths } from 'date-fns';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Card, CardHeader, CardContent } from "@/components/ui/card"; // For skeleton
+import { Card, CardHeader, CardContent } from "@/components/ui/card";
 
 export default function BudgetsPage() {
   const { user, loading: authLoading } = useAuth();
-  const { translate, language } = useLanguage(); // Added language
+  const { translate } = useLanguage();
   const { displayedDate, displayedMonthYearLabel } = useDateNavigation();
   const { toast } = useToast();
 
@@ -28,6 +28,7 @@ export default function BudgetsPage() {
   const [budgets, setBudgets] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isReplicating, setIsReplicating] = useState(false); // New state for replication
 
   const currentMonthYearKey = formatDateFns(displayedDate, 'yyyy-MM');
 
@@ -42,7 +43,6 @@ export default function BudgetsPage() {
 
     let effectiveCategories: DisplayCategory[] = [];
 
-    // 1. Fetch User Preferences to determine categories to display
     try {
       const prefsDocRef = doc(db, `users/${user.uid}/preferences/userPreferences`);
       const prefsSnap = await getDoc(prefsDocRef);
@@ -60,18 +60,15 @@ export default function BudgetsPage() {
             effectiveCategories.push(predefinedCat);
           } else if (customMap.has(name)) {
             const customCat = customMap.get(name);
-            if (customCat && customCat.type === 'expense') { // Ensure custom is also expense type
+            if (customCat && customCat.type === 'expense') {
                  effectiveCategories.push(customCat);
             }
           }
         });
-        // If after processing selectedCategories, effectiveCategories is still empty, default to all predefined expense categories
-        if (effectiveCategories.length === 0) {
+        if (effectiveCategories.length === 0 && CATEGORIES.filter(cat => cat.type === 'expense').length > 0) {
             effectiveCategories = CATEGORIES.filter(cat => cat.type === 'expense');
         }
-
       } else {
-        // No preferences found, default to all predefined expense categories
         effectiveCategories = CATEGORIES.filter(cat => cat.type === 'expense');
       }
     } catch (error) {
@@ -81,13 +78,11 @@ export default function BudgetsPage() {
         description: translate({ en: "Could not load your category preferences.", pt: "Não foi possível carregar suas preferências de categoria." }),
         variant: "destructive",
       });
-      // Fallback to predefined expense categories on error
       effectiveCategories = CATEGORIES.filter(cat => cat.type === 'expense');
     }
     
     setUserDisplayCategories(effectiveCategories);
 
-    // 2. Fetch Budgets for the currentMonthYearKey using the effectiveCategories
     const budgetDocRef = doc(db, `users/${user.uid}/budgets/${currentMonthYearKey}`);
     try {
       const budgetSnap = await getDoc(budgetDocRef);
@@ -113,23 +108,21 @@ export default function BudgetsPage() {
         description: translate({ en: "Could not load your budgets for this month.", pt: "Não foi possível carregar seus orçamentos para este mês." }),
         variant: "destructive",
       });
-      // Initialize with empty strings on error for the determined categories
       const errorBudgets: Record<string, string> = {};
-        effectiveCategories.forEach(cat => {
-          errorBudgets[cat.name] = '';
-        });
+      effectiveCategories.forEach(cat => {
+        errorBudgets[cat.name] = '';
+      });
       setBudgets(errorBudgets);
     } finally {
       setIsLoading(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, currentMonthYearKey, toast, translate]); // Removed authLoading, language
+  }, [user, currentMonthYearKey, toast, translate]); 
 
   useEffect(() => {
     if (!authLoading && user) {
       fetchPreferencesAndBudgets();
     } else if (!authLoading && !user) {
-      // User is not logged in, clear categories/budgets and stop loading
       setUserDisplayCategories([]);
       setBudgets({});
       setIsLoading(false);
@@ -163,7 +156,7 @@ export default function BudgetsPage() {
           const numValue = parseFloat(value);
           return [key, isNaN(numValue) ? 0 : numValue]; 
         })
-        .filter(([key]) => userDisplayCategories.some(cat => cat.name === key)) // Only save budgets for displayed categories
+        .filter(([key]) => userDisplayCategories.some(cat => cat.name === key))
     );
 
     try {
@@ -183,6 +176,54 @@ export default function BudgetsPage() {
       setIsSaving(false);
     }
   };
+
+  const handleReplicateToNextMonth = async () => {
+    if (!user) {
+      toast({ title: translate({ en: "Error", pt: "Erro" }), description: translate({ en: "User not authenticated.", pt: "Usuário não autenticado." }), variant: "destructive" });
+      return;
+    }
+
+    const budgetsToReplicate = Object.fromEntries(
+      Object.entries(budgets)
+        .map(([key, value]) => {
+          const numValue = parseFloat(value);
+          return [key, isNaN(numValue) || numValue <= 0 ? undefined : numValue];
+        })
+        .filter(([, value]) => value !== undefined) 
+        .filter(([key]) => userDisplayCategories.some(cat => cat.name === key))
+    );
+
+    if (Object.keys(budgetsToReplicate).length === 0) {
+      toast({ title: translate({ en: "No Budgets to Replicate", pt: "Nenhum Orçamento para Replicar" }), description: translate({ en: "Please set some budgets for the current month first.", pt: "Por favor, defina alguns orçamentos para o mês atual primeiro." }), variant: "default" });
+      return;
+    }
+    
+    setIsReplicating(true);
+    try {
+      const nextMonthDate = addMonths(displayedDate, 1);
+      const nextMonthKey = formatDateFns(nextMonthDate, 'yyyy-MM');
+      const nextMonthLabel = formatDateFns(nextMonthDate, 'MMMM yyyy', { locale: translate({en: undefined, pt: require('date-fns/locale/pt-BR').default}) || require('date-fns/locale/en-US').default });
+
+
+      const budgetDocRef = doc(db, `users/${user.uid}/budgets/${nextMonthKey}`);
+      await setDoc(budgetDocRef, { ...budgetsToReplicate, lastUpdated: serverTimestamp() }, { merge: true });
+
+      toast({
+        title: translate({ en: "Budgets Replicated", pt: "Orçamentos Replicados" }),
+        description: translate({ en: "Current budgets have been replicated to", pt: "Os orçamentos atuais foram replicados para" }) + ` ${nextMonthLabel}.`,
+      });
+
+    } catch (error) {
+      console.error("Error replicating budgets:", error);
+      toast({
+        title: translate({ en: "Error Replicating Budgets", pt: "Erro ao Replicar Orçamentos" }),
+        description: translate({ en: "Could not replicate your budgets.", pt: "Não foi possível replicar seus orçamentos." }),
+        variant: "destructive",
+      });
+    } finally {
+      setIsReplicating(false);
+    }
+  };
   
   const pageTitle = translate({ en: "Budgets", pt: "Orçamentos" });
   const pageDescription = translate({ 
@@ -190,8 +231,10 @@ export default function BudgetsPage() {
     pt: "Defina e gerencie seus orçamentos mensais para cada categoria de despesa." 
   });
   const saveButtonLabel = translate({ en: "Save Budgets", pt: "Salvar Orçamentos" });
+  const replicateButtonLabel = translate({ en: "Replicate to Next Month", pt: "Replicar para Mês Seguinte" });
 
-  if (authLoading) { // Still show basic auth loading if needed
+
+  if (authLoading) {
     return (
       <AppLayout>
         <div className="flex items-center justify-center h-full">
@@ -211,16 +254,21 @@ export default function BudgetsPage() {
             </h1>
             <p className="text-muted-foreground">{pageDescription}</p>
           </div>
-          <Button onClick={handleSaveBudgets} className="w-full sm:w-auto" disabled={isSaving || isLoading}>
-            {isSaving ? translate({en: "Saving...", pt: "Salvando..."}) : saveButtonLabel}
-          </Button>
+          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+            <Button onClick={handleSaveBudgets} className="w-full sm:w-auto" disabled={isSaving || isLoading || isReplicating}>
+              {isSaving ? translate({en: "Saving...", pt: "Salvando..."}) : saveButtonLabel}
+            </Button>
+            <Button onClick={handleReplicateToNextMonth} variant="outline" className="w-full sm:w-auto" disabled={isSaving || isLoading || isReplicating}>
+              {isReplicating ? translate({en: "Replicating...", pt: "Replicando..."}) : replicateButtonLabel}
+            </Button>
+          </div>
         </div>
         
         <Separator />
 
         {isLoading ? (
            <div className="grid grid-cols-1 gap-4 p-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-            {(userDisplayCategories.length > 0 ? userDisplayCategories : Array(10).fill(0)).map((_, index) => ( // Use a placeholder array for skeletons if userDisplayCategories is empty
+            {(userDisplayCategories.length > 0 ? userDisplayCategories : Array(10).fill(0)).map((_, index) => (
               <Card key={index} className="w-full shadow-lg">
                 <CardHeader className="pb-2">
                   <Skeleton className="h-6 w-3/4" />
