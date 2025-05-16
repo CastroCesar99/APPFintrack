@@ -35,11 +35,7 @@ export function QuickActionsSection({
   const [formInitialType, setFormInitialType] = useState<TransactionType>("expense");
   const [dateForForm, setDateForForm] = useState<Date>(currentDisplayedDate);
   
-  console.log("QuickActionsSection TRACER --- Rendering. currentDisplayedDate prop:", currentDisplayedDate.toISOString(), "dateForForm state:", dateForForm.toISOString());
-
   // Effect to sync dateForForm when currentDisplayedDate changes AND the dialog is NOT open
-  // This ensures that if the user navigates months on the dashboard, the next time they open the dialog,
-  // it reflects the new dashboard month.
   useEffect(() => {
     console.log("QuickActionsSection TRACER --- useEffect for currentDisplayedDate running. isFormOpen:", isFormOpen, "New currentDisplayedDate:", currentDisplayedDate.toISOString());
     if (!isFormOpen) {
@@ -48,9 +44,9 @@ export function QuickActionsSection({
   }, [currentDisplayedDate, isFormOpen]);
 
   const handleOpenDialog = (type: TransactionType) => {
-    console.log("QuickActionsSection TRACER --- handleOpenDialog. currentDisplayedDate prop:", currentDisplayedDate.toISOString(), "Setting dateForForm.");
-    setDateForForm(currentDisplayedDate); // Capture the date when dialog is opened
-    setFormInitialType(type);
+    console.log("QuickActionsSection TRACER --- handleOpenDialog. Type:", type, "currentDisplayedDate prop:", currentDisplayedDate.toISOString());
+    setFormInitialType(type); // Set the type for the form
+    setDateForForm(currentDisplayedDate); // Capture the date from dashboard when dialog is opened
     setIsFormOpen(true);
   };
 
@@ -60,7 +56,7 @@ export function QuickActionsSection({
       setIsFormOpen(false); 
     } catch (error) {
       console.error("Error submitting transaction from QuickActionsSection:", error);
-      // Potentially show a toast error here if onAddTransaction doesn't handle it
+      // Potentially show a toast error here if onAddTransaction doesn't handle it in DashboardPage
     }
   };
   
@@ -70,10 +66,6 @@ export function QuickActionsSection({
   const manageBudgetsLabel = translate({ en: "Manage Budgets", pt: "Gerenciar Orçamentos" });
   const newTransactionTitle = translate({ en: "New Transaction", pt: "Nova Transação" });
   const newTransactionDescription = translate({ en: "Fill in the details for your new transaction.", pt: "Preencha os detalhes da sua nova transação." });
-
-  if (isFormOpen) {
-    console.log("QuickActionsSection TRACER --- Rendering TransactionForm with defaultDate (dateForForm):", dateForForm.toISOString(), "and key:", dateForForm.toISOString() + formInitialType);
-  }
 
   return (
     <Card className="shadow-md bg-muted/50">
@@ -103,14 +95,18 @@ export function QuickActionsSection({
               </DialogDescription>
             </DialogHeader>
             {isFormOpen && (
-              <TransactionForm
-                onAddTransaction={handleFormSubmit} 
-                initialType={formInitialType}
-                defaultDate={dateForForm} 
-                userCategories={userCategories} 
-                userPaymentMethods={userPaymentMethods} 
-                key={dateForForm.toISOString() + formInitialType} 
-              />
+              <>
+                {/* THIS IS THE NEW DIAGNOSTIC LOG */}
+                {console.log("QuickActionsSection TRACER --- Rendering TransactionForm with formInitialType:", formInitialType, "userCategories length:", userCategories?.length, "first category type:", userCategories?.[0]?.type)}
+                <TransactionForm
+                  onAddTransaction={handleFormSubmit} 
+                  initialType={formInitialType}
+                  defaultDate={dateForForm} 
+                  userCategories={userCategories} 
+                  userPaymentMethods={userPaymentMethods} 
+                  key={dateForForm.toISOString() + formInitialType} 
+                />
+              </>
             )}
           </DialogContent>
         </Dialog>
