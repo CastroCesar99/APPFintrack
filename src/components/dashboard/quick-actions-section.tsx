@@ -12,26 +12,40 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { TransactionForm } from "./transaction-form"; // Ensure this import is correct
-import type { Transaction, TransactionType, DisplayCategory, DisplayPaymentMethod } from "@/types"; // Added DisplayCategory, DisplayPaymentMethod
+import { TransactionForm } from "./transaction-form"; 
+import type { Transaction, TransactionType, DisplayCategory, DisplayPaymentMethod } from "@/types"; 
 import { useLanguage } from "@/context/language-context";
 import Link from "next/link"; 
 
 interface QuickActionsSectionProps {
-  userCategories: DisplayCategory[]; // Added
-  userPaymentMethods: DisplayPaymentMethod[]; // Added
   onAddTransaction: (transactionData: Omit<Transaction, "id" | "userId" | "createdAt">) => Promise<void>;
   currentDisplayedDate: Date;
+  userCategories: DisplayCategory[]; 
+  userPaymentMethods: DisplayPaymentMethod[]; 
 }
 
-export function QuickActionsSection({ onAddTransaction, currentDisplayedDate }: QuickActionsSectionProps) {
+export function QuickActionsSection({ 
+  onAddTransaction, 
+  currentDisplayedDate,
+  userCategories,
+  userPaymentMethods 
+}: QuickActionsSectionProps) {
   const { translate } = useLanguage();
 
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [formInitialType, setFormInitialType] = useState<TransactionType>("expense");
+  const [dateForForm, setDateForForm] = useState<Date>(currentDisplayedDate);
+
+  React.useEffect(() => {
+    if (!isFormOpen) {
+      setDateForForm(currentDisplayedDate);
+    }
+  }, [currentDisplayedDate, isFormOpen]);
 
   const handleOpenDialog = (type: TransactionType) => {
+    console.log("QuickActionsSection TRACER --- handleOpenDialog, currentDisplayedDate:", currentDisplayedDate.toISOString());
     setFormInitialType(type);
+    setDateForForm(currentDisplayedDate); // Capture the date when dialog is opened
     setIsFormOpen(true);
   };
 
@@ -41,7 +55,6 @@ export function QuickActionsSection({ onAddTransaction, currentDisplayedDate }: 
       setIsFormOpen(false); 
     } catch (error) {
       console.error("Error submitting transaction from QuickActionsSection:", error);
-      // Optionally, re-throw or show a toast from here if needed
     }
   };
   
@@ -53,8 +66,9 @@ export function QuickActionsSection({ onAddTransaction, currentDisplayedDate }: 
   const newTransactionDescription = translate({ en: "Fill in the details for your new transaction.", pt: "Preencha os detalhes da sua nova transação." });
 
   if (isFormOpen) {
-    console.log("QuickActionsSection TRACER --- Rendering TransactionForm with defaultDate:", currentDisplayedDate.toISOString());
+    console.log("QuickActionsSection TRACER --- Rendering TransactionForm with defaultDate (dateForForm):", dateForForm.toISOString());
   }
+
 
   return (
     <Card className="shadow-md bg-muted/50">
@@ -87,10 +101,10 @@ export function QuickActionsSection({ onAddTransaction, currentDisplayedDate }: 
               <TransactionForm
                 onAddTransaction={handleFormSubmit} 
                 initialType={formInitialType}
-                defaultDate={currentDisplayedDate}
- userCategories={userCategories} // Added
- userPaymentMethods={userPaymentMethods} // Added
-                key={currentDisplayedDate.toISOString() + formInitialType} 
+                defaultDate={dateForForm}
+                userCategories={userCategories} 
+                userPaymentMethods={userPaymentMethods} 
+                key={dateForForm.toISOString() + formInitialType} 
               />
             )}
           </DialogContent>

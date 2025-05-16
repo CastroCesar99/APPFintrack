@@ -13,8 +13,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-// RadioGroup and RadioGroupItem are not used if type is fixed by initialType
-// import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -23,8 +22,8 @@ import { CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR, enUS } from 'date-fns/locale';
 import { cn } from "@/lib/utils";
-import type { Transaction, TransactionType, ExpenseNature, CategoryName, DisplayCategory, DisplayPaymentMethod, ExpenseType } from "@/types"; // Added ExpenseType
-import { CATEGORIES, getCategoryDisplayLabel, PAYMENT_METHODS, getPaymentMethodDisplayLabel } from "@/types"; // Ensure PAYMENT_METHODS and getPaymentMethodDisplayLabel are imported
+import type { Transaction, TransactionType, ExpenseNature, CategoryName, DisplayCategory, DisplayPaymentMethod, ExpenseType } from "@/types";
+import { CATEGORIES, getCategoryDisplayLabel, PAYMENT_METHODS, getPaymentMethodDisplayLabel } from "@/types"; 
 import { useState, useEffect } from "react";
 import { useLanguage } from "@/context/language-context";
 import { Calendar } from "@/components/ui/calendar";
@@ -34,12 +33,21 @@ const formSchema = z.object({
   amount: z.coerce.number().positive({ message: "Amount must be positive." }),
   category: z.string().min(1, { message: "Category is required." }),
   date: z.date({ required_error: "Date is required." }),
-  expenseType: z.enum(["upfront", "installment", "recurring"] as [ExpenseType, ...ExpenseType[]]).optional(), // Ensure ExpenseType is used here
+  expenseType: z.enum(["upfront", "installment", "recurring"] as [ExpenseType, ...ExpenseType[]]).optional(),
   paymentMethod: z.string().optional(),
-  installments: z.coerce.number().int().min(1, "Installments must be at least 1 if provided.").optional(), // min(1) if installments are active
+  installments: z.coerce.number().int().min(1, "Installments must be at least 1 if selected.").optional(),
   isRecurring: z.boolean().optional(),
   expenseNature: z.enum(["fixed", "variable"] as [ExpenseNature, ...ExpenseNature[]]).optional(),
+}).refine(data => {
+    if (data.expenseType === 'installment' && (data.installments === undefined || data.installments < 1)) {
+        return false;
+    }
+    return true;
+}, {
+    message: "Number of installments is required for installment type expenses and must be at least 1.",
+    path: ["installments"],
 });
+
 
 type TransactionFormValues = z.infer<typeof formSchema>;
 
@@ -83,7 +91,7 @@ export function TransactionForm({ onAddTransaction, initialType, defaultDate, us
   }, [defaultDate, form.resetField]);
 
   useEffect(() => {
-    console.log("TransactionForm TRACER --- useEffect for initialType running. initialType:", initialType);
+    console.log("TransactionForm TRACER --- useEffect for initialType running. initialType:", initialType, "defaultDate:", defaultDate?.toISOString());
     
     const relevantUserCategories = userCategories.filter(cat => cat.type === initialType);
     setAvailableCategories(relevantUserCategories);
@@ -92,18 +100,29 @@ export function TransactionForm({ onAddTransaction, initialType, defaultDate, us
     if (currentCategoryInForm && !relevantUserCategories.some(cat => cat.name === currentCategoryInForm)) {
       form.setValue("category", "");
     }
+    
+    const currentExpenseType = form.getValues('expenseType');
+    setSelectedExpenseType(currentExpenseType);
 
     if (initialType === 'income') {
-      setSelectedExpenseType(undefined);
       form.setValue('expenseType', undefined);
       form.setValue('paymentMethod', undefined);
       form.setValue('installments', undefined);
       form.setValue('expenseNature', undefined);
-    } else { // initialType === 'expense'
-      const currentExpenseTypeInForm = form.getValues('expenseType');
-      setSelectedExpenseType(currentExpenseTypeInForm);
+      setSelectedExpenseType(undefined); // Clear visual state as well
+    } else { // expense
+      // Ensure isRecurring is correctly set based on expenseType for expenses
+      if (currentExpenseType === 'recurring') {
+        form.setValue('isRecurring', true);
+      } else {
+        form.setValue('isRecurring', false);
+        if (currentExpenseType !== 'installment') {
+            form.setValue('installments', undefined);
+        }
+      }
     }
-  }, [initialType, form, userCategories]); // form is a stable dependency from useForm
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialType, form.setValue, form.getValues, userCategories]); // form.setValue and getValues are stable
 
   async function onSubmit(values: TransactionFormValues) {
     setIsSubmitting(true);
@@ -115,12 +134,13 @@ export function TransactionForm({ onAddTransaction, initialType, defaultDate, us
       if (initialType === 'expense') {
         if (values.expenseType === 'recurring') {
           finalIsRecurring = true;
-        } else {
-          finalIsRecurring = false;
+        } else { // 'upfront' or 'installment'
+          finalIsRecurring = false; // Installments and upfront are not "recurring" in the same sense
         }
       } else { // initialType === 'income'
-         finalExpenseType = undefined;
-         // isRecurring is controlled by its own checkbox for income
+         // For income, isRecurring is directly from its checkbox
+         finalIsRecurring = values.isRecurring || false;
+         finalExpenseType = undefined; // Income doesn't have expenseType
       }
 
       const transactionData: Omit<Transaction, "id" | "userId" | "createdAt"> = {
@@ -130,10 +150,10 @@ export function TransactionForm({ onAddTransaction, initialType, defaultDate, us
         category: values.category as CategoryName,
         date: format(values.date, "yyyy-MM-dd"),
         paymentMethod: values.paymentMethod,
-        installments: values.installments,
+        installments: values.expenseType === 'installment' ? values.installments : undefined, // Only pass installments if type is installment
         isRecurring: finalIsRecurring,
         expenseNature: values.expenseNature,
-        expenseType: finalExpenseType,
+        expenseType: initialType === 'expense' ? finalExpenseType : undefined, // Only pass expenseType for expenses
       };
       await onAddTransaction(transactionData);
 
@@ -145,35 +165,17 @@ export function TransactionForm({ onAddTransaction, initialType, defaultDate, us
         expenseType: undefined,
         paymentMethod: undefined,
         installments: undefined,
-        isRecurring: initialType === 'income' ? false : (form.getValues('expenseType') === 'recurring'), // Reset based on type
+        isRecurring: false, 
         expenseNature: undefined,
       });
       setSelectedExpenseType(undefined);
-      // Categories will be re-evaluated by the effect watching initialType if it changes
+      
     } catch (error) {
       console.error("Error submitting transaction from TransactionForm:", error);
     } finally {
       setIsSubmitting(false);
     }
   }
-
-  const descriptionLabel = translate({ en: "Description", pt: "Descrição" });
-  const descriptionPlaceholder = translate({ en: "e.g., Coffee, Salary", pt: "ex: Café, Salário" });
-  const amountLabel = translate({ en: "Amount", pt: "Valor" });
-  const categoryLabel = translate({ en: "Category", pt: "Categoria" });
-  const categoryPlaceholder = translate({ en: "Select a category", pt: "Selecione uma categoria" });
-  const dateLabel = translate({ en: "Date", pt: "Data" });
-  const pickDateLabel = translate({ en: "Pick a date", pt: "Escolha uma data" });
-  const paymentMethodLabel = translate({ en: "Payment Method", pt: "Forma de Pagamento" });
-  const paymentTypeLabel = translate({ en: "Payment Type", pt: "Tipo de Pagamento" }); // Used for Expense Type
-  const installmentsLabel = translate({ en: "Number of Installments", pt: "Número de Parcelas" });
-  const isRecurringLabel = translate({ en: "Apply to all months", pt: "Aplicar para todos os meses" });
-  const expenseNatureLabel = translate({ en: "Expense Nature", pt: "Natureza da Despesa" });
-  const fixedLabel = translate({ en: "Fixed", pt: "Fixo" });
-  const variableLabel = translate({ en: "Variable", pt: "Variável" });
-  const addTransactionButtonLabel = translate({ en: "Add Transaction", pt: "Adicionar Transação" });
-  const submittingButtonLabel = translate({ en: "Adding...", pt: "Adicionando..." });
-
   console.log('TRANSACTION FORM RENDER START');
   return (
     <Form {...form}>
@@ -183,9 +185,9 @@ export function TransactionForm({ onAddTransaction, initialType, defaultDate, us
           name="description"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>{descriptionLabel}</FormLabel>
+              <FormLabel>{translate({ en: "Description", pt: "Descrição" })}</FormLabel>
               <FormControl>
-                <Input placeholder={descriptionPlaceholder} {...field} />
+                <Input placeholder={translate({ en: "e.g., Coffee, Salary", pt: "ex: Café, Salário" })} {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -196,7 +198,7 @@ export function TransactionForm({ onAddTransaction, initialType, defaultDate, us
           name="amount"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>{selectedExpenseType === "installment" ? translate({ en: "Installment Amount", pt: "Valor da Parcela" }) : amountLabel}</FormLabel>
+              <FormLabel>{selectedExpenseType === "installment" ? translate({ en: "Installment Amount", pt: "Valor da Parcela" }) : translate({ en: "Amount", pt: "Valor" })}</FormLabel>
               <FormControl>
                 <Input
                   type="number"
@@ -216,11 +218,11 @@ export function TransactionForm({ onAddTransaction, initialType, defaultDate, us
           name="category"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>{categoryLabel}</FormLabel>
+              <FormLabel>{translate({ en: "Category", pt: "Categoria" })}</FormLabel>
               <Select onValueChange={field.onChange} value={field.value} disabled={availableCategories.length === 0}>
                 <FormControl>
                   <SelectTrigger>
-                    <SelectValue placeholder={categoryPlaceholder} />
+                    <SelectValue placeholder={translate({ en: "Select a category", pt: "Selecione uma categoria" })} />
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
@@ -240,7 +242,7 @@ export function TransactionForm({ onAddTransaction, initialType, defaultDate, us
           name="date"
           render={({ field }) => (
             <FormItem className="flex flex-col">
-              <FormLabel>{dateLabel}</FormLabel>
+              <FormLabel>{translate({ en: "Date", pt: "Data" })}</FormLabel>
               <Popover>
                 <PopoverTrigger asChild>
                   <FormControl>
@@ -254,7 +256,7 @@ export function TransactionForm({ onAddTransaction, initialType, defaultDate, us
                       {field.value ? (
                         format(field.value, "PPP", { locale: language === 'pt' ? ptBR : enUS})
                       ) : (
-                        <span>{pickDateLabel}</span>
+                        <span>{translate({ en: "Pick a date", pt: "Escolha uma data" })}</span>
                       )}
                       <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                     </Button>
@@ -290,7 +292,7 @@ export function TransactionForm({ onAddTransaction, initialType, defaultDate, us
                 />
               </FormControl>
               <div className="space-y-1 leading-none">
-                <FormLabel>{isRecurringLabel}</FormLabel>
+                <FormLabel>{translate({ en: "Apply to all months", pt: "Aplicar para todos os meses" })}</FormLabel>
               </div>
               <FormMessage />
             </FormItem>)}
@@ -303,7 +305,7 @@ export function TransactionForm({ onAddTransaction, initialType, defaultDate, us
               name="paymentMethod"
               render={({ field }) => (
               <FormItem>
-                <FormLabel>{paymentMethodLabel}</FormLabel>
+                <FormLabel>{translate({ en: "Payment Method", pt: "Forma de Pagamento" })}</FormLabel>
                 <Select onValueChange={field.onChange} value={field.value || undefined}>
                   <FormControl>
                     <SelectTrigger>
@@ -327,7 +329,7 @@ export function TransactionForm({ onAddTransaction, initialType, defaultDate, us
               name="expenseType"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>{paymentTypeLabel}</FormLabel>
+                  <FormLabel>{translate({ en: "Payment Type", pt: "Tipo de Pagamento" })}</FormLabel>
                     <Select
                       onValueChange={(value) => {
                         const castValue = value as ExpenseType | undefined;
@@ -335,9 +337,9 @@ export function TransactionForm({ onAddTransaction, initialType, defaultDate, us
                         setSelectedExpenseType(castValue);
                         if (castValue === 'recurring') {
                           form.setValue('isRecurring', true);
-                        } else { // 'upfront' or 'installment'
+                        } else { 
                            form.setValue('isRecurring', false);
-                           if (castValue !== 'installment') { // Clear installments if not installment type
+                           if (castValue !== 'installment') { 
                              form.setValue('installments', undefined);
                            }
                         }
@@ -365,7 +367,7 @@ export function TransactionForm({ onAddTransaction, initialType, defaultDate, us
                 name="installments"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{installmentsLabel}</FormLabel>
+                    <FormLabel>{translate({ en: "Number of Installments", pt: "Número de Parcelas" })}</FormLabel>
                     <FormControl>
                       <Input
                         type="number"
@@ -385,9 +387,9 @@ export function TransactionForm({ onAddTransaction, initialType, defaultDate, us
               name="expenseNature"
               render={({ field }) => (
                 <FormItem className="space-y-3">
-                  <FormLabel>{expenseNatureLabel}</FormLabel>
+                  <FormLabel>{translate({ en: "Expense Nature", pt: "Natureza da Despesa" })}</FormLabel>
                   <FormControl>
-                    <RadioGroup // This RadioGroup was missing from the previous full re-emit. Adding it back.
+                    <RadioGroup 
                       onValueChange={field.onChange}
                       value={field.value || undefined}
                       className="flex flex-col space-y-1 sm:flex-row sm:space-y-0 sm:space-x-4"
@@ -397,7 +399,7 @@ export function TransactionForm({ onAddTransaction, initialType, defaultDate, us
                           <RadioGroupItem value="fixed" />
                         </FormControl>
                         <FormLabel className="font-normal">
-                          {fixedLabel}
+                          {translate({ en: "Fixed", pt: "Fixo" })}
                         </FormLabel>
                       </FormItem>
                       <FormItem className="flex items-center space-x-3 space-y-0">
@@ -405,7 +407,7 @@ export function TransactionForm({ onAddTransaction, initialType, defaultDate, us
                           <RadioGroupItem value="variable" />
                         </FormControl>
                         <FormLabel className="font-normal">
-                          {variableLabel}
+                          {translate({ en: "Variable", pt: "Variável" })}
                         </FormLabel>
                       </FormItem>
                     </RadioGroup>
@@ -417,7 +419,7 @@ export function TransactionForm({ onAddTransaction, initialType, defaultDate, us
           </>
         )}
         <Button type="submit" className="w-full bg-primary hover:bg-primary/90" disabled={isSubmitting}>
-          {isSubmitting ? submittingButtonLabel : addTransactionButtonLabel}
+          {isSubmitting ? translate({ en: "Adding...", pt: "Adicionando..." }) : translate({ en: "Add Transaction", pt: "Adicionar Transação" })}
         </Button>
       </form>
     </Form>
