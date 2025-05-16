@@ -1,5 +1,6 @@
 
 export type TransactionType = 'income' | 'expense';
+export type ExpenseNature = 'fixed' | 'variable'; // New type for expense nature
 
 export interface Transaction {
   id: string;
@@ -8,9 +9,10 @@ export interface Transaction {
   amount: number;
   type: TransactionType;
   category: CategoryName; // Still uses the English 'name' as the identifier
-  paymentMethod?: string; // Added paymentMethod as optional string
-  installments?: number; // Added installments as optional number
-  isRecurring?: boolean; // Added isRecurring as optional boolean
+  paymentMethod?: string;
+  installments?: number;
+  isRecurring?: boolean;
+  expenseNature?: ExpenseNature; // Added expenseNature as optional
 }
 
 export const CATEGORIES = [
@@ -47,7 +49,8 @@ export const getCategoryLabel = (categoryName: CategoryName, currentLanguage: 'e
   if (category && category.label) {
     return category.label[currentLanguage] || category.name;
   }
-  return categoryName; // Fallback to the name if label or translation is missing
+  // Fallback for custom categories not in the predefined list
+  return categoryName;
 };
 
 
@@ -66,5 +69,6 @@ export const getPaymentMethodLabel = (methodName: PaymentMethodName, currentLang
   if (method && method.label) {
     return method.label[currentLanguage] || method.name;
   }
+  // Fallback for custom payment methods
   return methodName;
 };

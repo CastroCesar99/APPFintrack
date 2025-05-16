@@ -9,7 +9,7 @@ import { SummarySection } from "@/components/dashboard/summary-section";
 import { QuickActionsSection } from "@/components/dashboard/quick-actions-section";
 import { RecentTransactionsSection } from "@/components/dashboard/recent-transactions-section";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import type { Transaction, CategoryName } from "@/types";
+import type { Transaction, CategoryName, ExpenseNature } from "@/types"; // Added ExpenseNature
 import { CATEGORIES, getCategoryLabel } from "@/types";
 import { useLanguage } from '@/context/language-context';
 import { db } from '@/lib/firebase';
@@ -68,6 +68,7 @@ export default function DashboardPage() {
 
     if (authLoading) {
       console.log("Dashboard: TRACER --- Main useEffect: Auth is loading, waiting...");
+      // No need to set isLoadingTransactions(true) here, main loading overlay covers authLoading
       return fullCleanup;
     }
 
@@ -100,6 +101,13 @@ export default function DashboardPage() {
             return;
         }
         console.log("Dashboard: TRACER --- fetchDataInternal: Starting for UserID:", currentUserId);
+        
+        // Ensure loading state is true at the start of any new data fetch attempt for a user
+        if (effectMountedRef.current && !isLoadingTransactions) {
+             console.log("Dashboard: TRACER --- fetchDataInternal: Ensuring isLoadingTransactions is true for new fetch/setup of user:", currentUserId);
+             setIsLoadingTransactions(true);
+        }
+
 
         try {
           const userDocRef = doc(db, "users", currentUserId);
@@ -203,10 +211,6 @@ export default function DashboardPage() {
     } else {
       console.log(`Dashboard: TRACER --- Main useEffect: Listener should be active for UserID: ${userId}. isLoadingTransactions: ${isLoadingTransactions}. Snapshot ref present: ${!!unsubscribeSnapshotRef.current}`);
        if (isLoadingTransactions && effectMountedRef.current) {
-           // This part is tricky. If the listener IS active, but the first snapshot hasn't arrived,
-           // we don't want to set isLoadingTransactions to false prematurely.
-           // The onSnapshot callback is now solely responsible for setting it to false once data arrives or an error occurs.
-           // If no listener is present but we are still loading, it suggests an issue we should force resolve.
            if (!unsubscribeSnapshotRef.current) {
                 console.warn("Dashboard: TRACER --- Main useEffect: No active listener but still loading. This might be an issue. Forcing false for UserID:", userId);
                 if (effectMountedRef.current) setIsLoadingTransactions(false);
@@ -237,6 +241,7 @@ export default function DashboardPage() {
       paymentMethod: newTransactionData.paymentMethod,
       installments: newTransactionData.installments,
       isRecurring: newTransactionData.isRecurring,
+      expenseNature: newTransactionData.expenseNature, // Include expenseNature
     };
 
     setTransactions(prevTransactions => 
@@ -255,19 +260,21 @@ export default function DashboardPage() {
         paymentMethod: newTransactionData.paymentMethod,
         installments: newTransactionData.installments,
         isRecurring: newTransactionData.isRecurring, 
+        expenseNature: newTransactionData.expenseNature, // Add expenseNature to payload
         userId: userId,
         createdAt: serverTimestamp(),
       };
 
       const dataToSave = Object.fromEntries(
         Object.entries(fullPayload).filter(([_, value]) => value !== undefined)
-      );
+      ) as Partial<Transaction & { createdAt: any; userId: string }>;
       
       if (!('isRecurring' in dataToSave) && typeof newTransactionData.isRecurring === 'boolean') {
          dataToSave.isRecurring = newTransactionData.isRecurring;
       } else if (!('isRecurring' in dataToSave)) {
-        dataToSave.isRecurring = false;
+        dataToSave.isRecurring = false; // Default to false if not provided and not already set
       }
+      // No special handling for expenseNature needed here if undefined means it's omitted by the filter
 
       await addDoc(transactionsColRef, dataToSave);
 
@@ -291,14 +298,9 @@ export default function DashboardPage() {
     const year = displayedDate.getFullYear();
     const month = displayedDate.getMonth();
     return transactions.filter(t => {
-      const transactionDate = new Date(t.date); // Ensure date is a Date object for comparison
+      const transactionDate = new Date(t.date);
       const transactionYear = transactionDate.getFullYear();
       const transactionMonth = transactionDate.getMonth();
-      // Check if the transaction falls in the displayed month and year OR if it's a recurring transaction
-      // For recurring transactions, we might want a different logic, e.g., show all or handle based on start date.
-      // For now, this logic includes recurring transactions in every period if their base date matches OR if isRecurring is true.
-      // A more refined logic would be to check if the recurring transaction is active for the displayedDate.
-      // For simplicity: include if date matches OR if it is marked as recurring.
       return (transactionYear === year && transactionMonth === month) || t.isRecurring === true;
     });
   }, [transactions, displayedDate]);
@@ -347,7 +349,7 @@ export default function DashboardPage() {
       };
     }
     return null;
-  }, [transactionsForDisplayedPeriod, language]);
+  }, [transactionsForDisplayedPeriod]);
 
 
   if (!isClient || authLoading || isLoadingTransactions) {
