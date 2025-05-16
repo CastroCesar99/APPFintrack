@@ -20,6 +20,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { CalendarIcon } from "lucide-react";
 import { format } from "date-fns"; 
+import { ptBR, enUS } from 'date-fns/locale'; // Import locales directly
 import { cn } from "@/lib/utils";
 import type { Transaction, TransactionType, ExpenseNature, Category } from "@/types";
 import { CATEGORIES, getCategoriesByType, CategoryName, getCategoryLabel } from "@/types";
@@ -43,7 +44,7 @@ type TransactionFormValues = z.infer<typeof formSchema>;
 interface TransactionFormProps {
   onAddTransaction: (transaction: Omit<Transaction, "id" | "userId" | "createdAt">) => Promise<void>;
   initialType: TransactionType;
-  defaultDate?: Date; // New optional prop for default date
+  defaultDate?: Date; 
 }
 
 export function TransactionForm({ onAddTransaction, initialType, defaultDate }: TransactionFormProps) {
@@ -58,7 +59,7 @@ export function TransactionForm({ onAddTransaction, initialType, defaultDate }: 
       description: "",
       amount: undefined,
       category: "",
-      date: defaultDate || new Date(), // Use defaultDate if provided
+      date: defaultDate || new Date(), 
       expenseType: undefined,
       paymentMethod: undefined,
       installments: undefined,
@@ -82,9 +83,9 @@ export function TransactionForm({ onAddTransaction, initialType, defaultDate }: 
 
     form.reset({
         description: form.getValues('description') || "",
-        amount: form.getValues('amount') || undefined,
+        amount: form.getValues('amount') === 0 ? 0 : form.getValues('amount') || undefined, // Preserve 0 if it was intentionally set
         category: categoryToSet,
-        date: defaultDate || form.getValues('date') || new Date(), // Ensure defaultDate is prioritized on reset too
+        date: defaultDate || form.getValues('date') || new Date(), 
         expenseType: initialType === 'expense' ? form.getValues('expenseType') : undefined,
         paymentMethod: initialType === 'expense' ? form.getValues('paymentMethod') : undefined,
         installments: initialType === 'expense' ? form.getValues('installments') : undefined,
@@ -94,11 +95,15 @@ export function TransactionForm({ onAddTransaction, initialType, defaultDate }: 
 
     if (initialType === 'income') {
       setSelectedPaymentMethodType(undefined);
+      form.setValue('expenseType', undefined);
+      form.setValue('paymentMethod', undefined);
+      form.setValue('installments', undefined);
+      form.setValue('expenseNature', undefined);
     } else {
       setSelectedPaymentMethodType(form.getValues('expenseType'));
     }
 
-  }, [initialType, form, defaultDate]); // Added defaultDate to dependencies
+  }, [initialType, form, defaultDate]); 
 
 
   async function onSubmit(values: TransactionFormValues) {
@@ -126,7 +131,7 @@ export function TransactionForm({ onAddTransaction, initialType, defaultDate }: 
         description: "",
         amount: undefined,
         category: "",
-        date: defaultDate || new Date(), // Reset to defaultDate
+        date: defaultDate || new Date(), 
         expenseType: undefined,
         paymentMethod: undefined,
         installments: undefined,
@@ -134,6 +139,17 @@ export function TransactionForm({ onAddTransaction, initialType, defaultDate }: 
         expenseNature: undefined,
       });
       setSelectedPaymentMethodType(undefined); 
+      // If the form was for income, reset relevant expense fields that might have been touched
+      if (initialType === 'income') {
+          form.setValue('expenseType', undefined);
+          form.setValue('paymentMethod', undefined);
+          form.setValue('installments', undefined);
+          form.setValue('expenseNature', undefined);
+      } else {
+        // Ensure expenseType is reset if needed, though form.reset should handle it
+        setSelectedPaymentMethodType(undefined);
+      }
+
     } catch (error) {
       console.error("Error during transaction submission in TransactionForm:", error);
     } finally {
@@ -236,7 +252,7 @@ export function TransactionForm({ onAddTransaction, initialType, defaultDate }: 
                       )}
                     >
                       {field.value ? (
-                        format(field.value, "PPP", { locale: language === 'pt' ? require('date-fns/locale/pt-BR') : require('date-fns/locale/en-US')})
+                        format(field.value, "PPP", { locale: language === 'pt' ? ptBR : enUS })
                       ) : (
                         <span>{pickDateLabel}</span>
                       )}
@@ -249,7 +265,7 @@ export function TransactionForm({ onAddTransaction, initialType, defaultDate }: 
                     mode="single"
                     selected={field.value}
                     onSelect={field.onChange}
-                    defaultMonth={field.value} // Ensure calendar opens to the selected/default date's month
+                    defaultMonth={field.value} 
                     disabled={(date) =>
                       date > new Date(new Date().setFullYear(new Date().getFullYear() + 5)) || date < new Date("1900-01-01")
                     }
@@ -286,7 +302,7 @@ export function TransactionForm({ onAddTransaction, initialType, defaultDate }: 
               render={({ field }) => (
               <FormItem>
               <FormLabel>{paymentMethodLabel}</FormLabel>
-              <Select onValueChange={field.onChange} value={field.value}>
+              <Select onValueChange={field.onChange} value={field.value || undefined}>
               <FormControl>
               <SelectTrigger>
                       <SelectValue placeholder={translate({ en: "Select payment method", pt: "Selecione a forma de pagamento" })} />
@@ -308,7 +324,8 @@ export function TransactionForm({ onAddTransaction, initialType, defaultDate }: 
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>{paymentTypeLabel}</FormLabel>
-                    <Select onValueChange={(value) => {
+                    <Select 
+                      onValueChange={(value) => {
                         field.onChange(value);
                         setSelectedPaymentMethodType(value as "upfront" | "installment" | "recurring" | undefined);
                         if (value === 'recurring') {
@@ -316,8 +333,8 @@ export function TransactionForm({ onAddTransaction, initialType, defaultDate }: 
                         } else if (value === 'upfront' || value === 'installment') {
                            form.setValue('isRecurring', false); 
                         }
-                    }} 
-                    value={field.value}
+                      }} 
+                      value={field.value || undefined}
                     >
                       <FormControl>
                         <SelectTrigger>
@@ -364,7 +381,7 @@ export function TransactionForm({ onAddTransaction, initialType, defaultDate }: 
                   <FormControl>
                     <RadioGroup
                       onValueChange={field.onChange}
-                      value={field.value}
+                      value={field.value || undefined}
                       className="flex flex-col space-y-1 sm:flex-row sm:space-y-0 sm:space-x-4"
                     >
                       <FormItem className="flex items-center space-x-3 space-y-0">
