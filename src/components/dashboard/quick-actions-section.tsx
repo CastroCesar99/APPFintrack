@@ -13,17 +13,17 @@ import {
 } from "@/components/ui/dialog";
 import { TransactionForm } from "./transaction-form";
 import type { Transaction, TransactionType } from "@/types";
-import { useToast } from "@/hooks/use-toast";
+// useToast import removed as it's no longer directly used here for "Manage Budgets"
 import { useLanguage } from "@/context/language-context";
+import Link from "next/link"; // Import Link
 
 interface QuickActionsSectionProps {
   onAddTransaction: (transactionData: Omit<Transaction, "id" | "userId" | "createdAt">) => Promise<void>;
-  currentDisplayedDate: Date; // New prop for the current displayed date
+  currentDisplayedDate: Date;
 }
 
 export function QuickActionsSection({ onAddTransaction, currentDisplayedDate }: QuickActionsSectionProps) {
   const { translate } = useLanguage();
-  const { toast } = useToast();
 
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [formInitialType, setFormInitialType] = useState<TransactionType>("expense");
@@ -39,17 +39,8 @@ export function QuickActionsSection({ onAddTransaction, currentDisplayedDate }: 
       setIsFormOpen(false); 
     } catch (error) {
       console.error("Error submitting transaction from QuickActionsSection:", error);
+      // Toast for error is handled in onAddTransaction in DashboardPage
     }
-  };
-
-  const handleManageBudgets = () => {
-    toast({
-      title: translate({ en: "Coming Soon!", pt: "Em Breve!" }),
-      description: translate({
-        en: "Budget management feature is under development.",
-        pt: "A funcionalidade de gerenciamento de orçamentos está em desenvolvimento.",
-      }),
-    });
   };
   
   const quickActionsTitle = translate({ en: "Quick Actions", pt: "Ações Rápidas" });
@@ -73,9 +64,11 @@ export function QuickActionsSection({ onAddTransaction, currentDisplayedDate }: 
             <Button onClick={() => handleOpenDialog("income")} variant="outline" className="w-full">
               <PlusCircle className="mr-2 h-4 w-4" /> {addIncomeLabel}
             </Button>
-            <Button onClick={handleManageBudgets} variant="outline" className="w-full">
-              <SlidersHorizontal className="mr-2 h-4 w-4" /> {manageBudgetsLabel}
-            </Button>
+            <Link href="/budgets" passHref className="w-full">
+              <Button variant="outline" className="w-full">
+                <SlidersHorizontal className="mr-2 h-4 w-4" /> {manageBudgetsLabel}
+              </Button>
+            </Link>
           </div>
           <DialogContent className="sm:max-w-[425px]">
             <DialogHeader>
@@ -88,7 +81,8 @@ export function QuickActionsSection({ onAddTransaction, currentDisplayedDate }: 
               <TransactionForm
                 onAddTransaction={handleFormSubmit} 
                 initialType={formInitialType}
-                defaultDate={currentDisplayedDate} // Pass the current displayed date
+                defaultDate={currentDisplayedDate}
+                key={currentDisplayedDate.toISOString() + formInitialType} // Ensure re-mount on date or type change
               />
             )}
           </DialogContent>
@@ -97,5 +91,3 @@ export function QuickActionsSection({ onAddTransaction, currentDisplayedDate }: 
     </Card>
   );
 }
-
-    
