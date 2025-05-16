@@ -71,6 +71,7 @@ export default function DashboardPage() {
 
     if (authLoading) {
       console.log("Dashboard: TRACER --- Main useEffect: Auth is loading, waiting...");
+      // Removed: setIsLoadingTransactions(true) from here to avoid premature setting
       return fullCleanup;
     }
 
@@ -86,13 +87,14 @@ export default function DashboardPage() {
       return fullCleanup;
     }
 
+    // Condition to initiate new fetch/listener
     if (mainFetchInitiatedForUser.current !== userId || !unsubscribeSnapshotRef.current) {
       console.log(`Dashboard: TRACER --- Main useEffect: Initiating NEW fetch/listener for UserID: ${userId}. PrevInitiatedFor: ${mainFetchInitiatedForUser.current}. ListenerExisted: ${!!unsubscribeSnapshotRef.current}`);
-      cleanupListener();
+      cleanupListener(); // Clean up any existing listener before starting a new one
 
       if (effectMountedRef.current) {
         console.log("Dashboard: TRACER --- setIsLoadingTransactions(true) for new fetch/setup of user:", userId);
-        setIsLoadingTransactions(true);
+        setIsLoadingTransactions(true); // Set loading true only when a new fetch sequence begins for a user
       }
       mainFetchInitiatedForUser.current = userId;
 
@@ -108,7 +110,7 @@ export default function DashboardPage() {
              console.log("Dashboard: TRACER --- fetchDataInternal: Ensuring isLoadingTransactions is true for new fetch of user:", currentUserId);
              setIsLoadingTransactions(true);
         }
-
+        
         try {
           const userDocRef = doc(db, "users", currentUserId);
           const userDocSnap = await getDoc(userDocRef);
@@ -140,10 +142,10 @@ export default function DashboardPage() {
           console.log("Dashboard: TRACER --- fetchDataInternal: User onboarding complete for UserID:", currentUserId, ". Setting up onSnapshot listener.");
           const transactionsColRef = collection(db, `users/${currentUserId}/transactions`);
           const q_transactions = query(transactionsColRef, orderBy("date", "desc"));
-
+          
           if (unsubscribeSnapshotRef.current && typeof unsubscribeSnapshotRef.current === 'function') {
             console.warn("Dashboard: TRACER --- fetchDataInternal: Stale snapshot ref found before new onSnapshot. Cleaning up again.");
-            unsubscribeSnapshotRef.current();
+            unsubscribeSnapshotRef.current(); // Clean up potentially stale listener
             unsubscribeSnapshotRef.current = null;
           }
 
@@ -159,22 +161,22 @@ export default function DashboardPage() {
               let dateString = data.date;
               if (data.date && typeof data.date === 'object' && data.date instanceof Timestamp) {
                 dateString = formatDateFns(data.date.toDate(), "yyyy-MM-dd");
-              } else if (typeof data.date === 'string' && data.date.includes('T')) {
+              } else if (typeof data.date === 'string' && data.date.includes('T')) { // Handle ISO datetime strings from older data
                 try {
                   dateString = formatDateFns(parseISODateFns(data.date), "yyyy-MM-dd");
                 } catch (e) {
                   console.warn(`Dashboard: TRACER --- Failed to parse existing ISO datetime string to yyyy-MM-dd: ${data.date}`, e);
-                  dateString = formatDateFns(new Date(), "yyyy-MM-dd");
+                  dateString = formatDateFns(new Date(), "yyyy-MM-dd"); // Fallback, though unlikely if data is consistent
                 }
               } else if (typeof data.date !== 'string' || (typeof data.date === 'string' && !/^\d{4}-\d{2}-\d{2}$/.test(data.date))) {
-                console.warn("Dashboard: TRACER --- Transaction has unexpected date format, or not YYYY-MM-DD. Fallback to current date YYYY-MM-DD. Date was:", data.date);
-                dateString = formatDateFns(new Date(), "yyyy-MM-dd");
+                 console.warn("Dashboard: TRACER --- Transaction has unexpected date format, or not YYYY-MM-DD. Fallback to current date YYYY-MM-DD. Date was:", data.date);
+                 dateString = formatDateFns(new Date(), "yyyy-MM-dd"); // Fallback
               }
-
+              
               return {
                 ...data,
                 id: docSnap.id,
-                date: dateString,
+                date: dateString, // Ensure date is always YYYY-MM-DD string
               } as Transaction;
             });
 
@@ -234,17 +236,21 @@ export default function DashboardPage() {
       fetchDataInternal(userId);
     } else {
       console.log(`Dashboard: TRACER --- Main useEffect: Listener should be active for UserID: ${userId}. isLoadingTransactions: ${isLoadingTransactions}. Snapshot ref present: ${!!unsubscribeSnapshotRef.current}`);
+      // If the listener is active and we have transactions, but isLoadingTransactions is somehow still true,
+      // this might indicate the onSnapshot hasn't fired its first payload yet or an issue.
+      // However, if onSnapshot is working, it should set isLoadingTransactions to false.
       if (isLoadingTransactions && effectMountedRef.current && transactions.length > 0 && unsubscribeSnapshotRef.current) {
         console.log("Dashboard: TRACER --- Main useEffect: Listener active. Waiting for onSnapshot to set isLoadingTransactions to false for UserID:", userId);
+        // It's possible onSnapshot callback already handled isLoadingTransactions = false
       } else if (isLoadingTransactions && effectMountedRef.current) {
+        // This is a fallback if we are still in loading state without a clear reason after conditions above
         console.warn("Dashboard: TRACER --- Main useEffect: Fallback - still loading, forcing to false for UserID:", userId);
         setIsLoadingTransactions(false);
       }
     }
 
     return fullCleanup;
-  }, [userId, authLoading, isClient]);
-
+  }, [userId, authLoading, isClient]); 
 
   const onAddTransaction = async (newTransactionData: Omit<Transaction, "id" | "userId" | "createdAt">) => {
     if (!userId) {
@@ -255,17 +261,18 @@ export default function DashboardPage() {
       });
       return;
     }
-    console.log("Dashboard: TRACER --- onAddTransaction: Adding new transaction with date:", newTransactionData.date);
+    // Log the date string received from the form
+    console.log("Dashboard: TRACER --- onAddTransaction: Received date from form:", newTransactionData.date);
 
     try {
       const transactionsColRef = collection(db, `users/${userId}/transactions`);
-
-      const fullPayload = {
+      
+      const transactionDataForFirestore = {
         description: newTransactionData.description,
         amount: newTransactionData.amount,
         type: newTransactionData.type,
         category: newTransactionData.category,
-        date: newTransactionData.date, // This is "yyyy-MM-dd" from form
+        date: newTransactionData.date, // This is the YYYY-MM-DD string from form
         paymentMethod: newTransactionData.paymentMethod,
         installments: newTransactionData.installments,
         isRecurring: newTransactionData.isRecurring,
@@ -275,17 +282,18 @@ export default function DashboardPage() {
       };
 
       const dataToSave = Object.fromEntries(
-        Object.entries(fullPayload).filter(([_, value]) => value !== undefined)
+        Object.entries(transactionDataForFirestore).filter(([_, value]) => value !== undefined)
       ) as Partial<Transaction & { createdAt: any; userId: string }>;
 
       if (dataToSave.isRecurring === undefined && typeof newTransactionData.isRecurring === 'boolean') {
          dataToSave.isRecurring = newTransactionData.isRecurring;
       } else if (dataToSave.isRecurring === undefined) {
-        dataToSave.isRecurring = false; // Default to false if not provided at all
+        dataToSave.isRecurring = false; 
       }
-
+      
+      // Log the date string being saved to Firestore
+      console.log("Dashboard: TRACER --- onAddTransaction: Saving to Firestore with date:", dataToSave.date, "Full data:", dataToSave);
       await addDoc(transactionsColRef, dataToSave);
-      // Let onSnapshot handle UI changes.
 
       toast({
         title: translate({ en: "Transaction Added", pt: "Transação Adicionada" }),
@@ -301,7 +309,6 @@ export default function DashboardPage() {
     }
   };
 
-
   const transactionsForDisplayedPeriod = useMemo(() => {
     const targetYear = displayedDate.getFullYear();
     const targetMonth = displayedDate.getMonth(); // 0-indexed
@@ -315,7 +322,7 @@ export default function DashboardPage() {
         return false;
       }
       const transactionYear = parseInt(dateParts[0], 10);
-      const transactionMonth = parseInt(dateParts[1], 10) - 1; // 0-indexed
+      const transactionMonth = parseInt(dateParts[1], 10) - 1; 
 
       const matches = transactionYear === targetYear && transactionMonth === targetMonth;
       // console.log(`Dashboard: TRACER --- Tx Filter: ID: ${t.id}, DateStr: ${t.date}, TxY: ${transactionYear}, TxM: ${transactionMonth}, Matches: ${matches}, isRec: ${t.isRecurring}`);
@@ -324,7 +331,6 @@ export default function DashboardPage() {
     console.log(`Dashboard: TRACER --- transactionsForDisplayedPeriod: Found ${filtered.length} transactions for the period.`);
     return filtered;
   }, [transactions, displayedDate, displayedMonthYearLabel]);
-
 
   const recentIncome = useMemo(() => {
     return transactions
@@ -370,7 +376,7 @@ export default function DashboardPage() {
       };
     }
     return null;
-  }, [transactionsForDisplayedPeriod]);
+  }, [transactionsForDisplayedPeriod, language]);
 
   const totalFixedExpensesForDisplayedPeriod = useMemo(() => {
     return transactionsForDisplayedPeriod
@@ -488,5 +494,3 @@ export default function DashboardPage() {
     </AppLayout>
   );
 }
-
-    
