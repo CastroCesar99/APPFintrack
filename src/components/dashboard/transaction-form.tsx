@@ -13,7 +13,6 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -27,6 +26,8 @@ import { getCategoryDisplayLabel, getPaymentMethodDisplayLabel } from "@/types";
 import { useState, useEffect } from "react";
 import { useLanguage } from "@/context/language-context";
 import { Calendar } from "@/components/ui/calendar";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+
 
 const formSchema = z.object({
   description: z.string().min(2, { message: "Description must be at least 2 characters." }).max(100),
@@ -36,7 +37,7 @@ const formSchema = z.object({
   expenseType: z.enum(["upfront", "installment", "recurring"] as [ExpenseType, ...ExpenseType[]]).optional(),
   paymentMethod: z.string().optional(),
   installments: z.coerce.number().int().min(1, "Installments must be at least 1 if selected.").optional(),
-  isRecurring: z.boolean().optional(), // This covers income recurrence
+  isRecurring: z.boolean().optional(), 
   expenseNature: z.enum(["fixed", "variable"] as [ExpenseNature, ...ExpenseNature[]]).optional(),
 }).refine(data => {
     if (data.expenseType === 'installment' && (data.installments === undefined || data.installments < 1)) {
@@ -63,10 +64,10 @@ export function TransactionForm({
   onAddTransaction, 
   initialType, 
   defaultDate, 
-  userCategories, 
-  userPaymentMethods 
+  userCategories = [], // Default to empty array to prevent errors if prop is undefined
+  userPaymentMethods = [] // Default to empty array
 }: TransactionFormProps) {
-  console.log("TransactionForm TRACER --- PROPS RECEIVED: defaultDate:", defaultDate?.toISOString(), "initialType:", initialType, "userCategories length:", userCategories.length);
+  console.log("TransactionForm TRACER --- PROPS RECEIVED: defaultDate:", defaultDate?.toISOString(), "initialType:", initialType, "userCategories length:", userCategories.length, "userPaymentMethods length:", userPaymentMethods.length);
   const { language, translate } = useLanguage();
   const [availableCategories, setAvailableCategories] = useState<DisplayCategory[]>([]);
   const [selectedExpenseType, setSelectedExpenseType] = useState<ExpenseType | undefined>(undefined);
@@ -104,7 +105,7 @@ export function TransactionForm({
     );
     
     const relevantUserCategories = userCategories.filter(cat => cat.type === initialType);
-    console.log("TransactionForm TRACER --- relevantUserCategories length:", relevantUserCategories.length, "Based on initialType:", initialType);
+    console.log("TransactionForm TRACER --- relevantUserCategories length:", relevantUserCategories.length, "Based on initialType:", initialType, "Content:", JSON.stringify(relevantUserCategories.map(c => ({name: c.name, type: c.type}))));
     setAvailableCategories(relevantUserCategories);
 
     const currentCategoryInForm = form.getValues("category");
@@ -120,25 +121,25 @@ export function TransactionForm({
       form.setValue('paymentMethod', undefined);
       form.setValue('installments', undefined);
       form.setValue('expenseNature', undefined);
-      // isRecurring for income is handled by its own checkbox, keep its current value or default
       setSelectedExpenseType(undefined); 
     } else { // expense
       setSelectedExpenseType(currentExpenseType);
       if (currentExpenseType === 'recurring') {
-        form.setValue('isRecurring', true); // Explicitly set isRecurring for recurring expenses
+        form.setValue('isRecurring', true);
       } else {
-         form.setValue('isRecurring', false); // Not a generic recurring expense
+         form.setValue('isRecurring', false);
          if (currentExpenseType !== 'installment') {
              form.setValue('installments', undefined);
          }
       }
     }
-  }, [initialType, userCategories, form, language]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialType, userCategories, form.setValue, form.getValues, language]); // form.setValue and form.getValues are stable
 
 
   async function onSubmit(values: TransactionFormValues) {
     setIsSubmitting(true);
-    console.log("TransactionForm TRACER --- onSubmit with values.date:", values.date, "values:", values);
+    console.log("TransactionForm TRACER --- onSubmit with values.date:", values.date, "values:", JSON.stringify(values));
     try {
       let finalIsRecurring = values.isRecurring || false;
       let finalExpenseType = values.expenseType;
@@ -147,11 +148,12 @@ export function TransactionForm({
         if (values.expenseType === 'recurring') {
           finalIsRecurring = true;
         } else { 
-          finalIsRecurring = false;
+          finalIsRecurring = false; // Explicitly false if not recurring type expense
         }
       } else { // initialType === 'income'
+         // isRecurring for income is directly from its checkbox
          finalIsRecurring = values.isRecurring || false;
-         finalExpenseType = undefined; 
+         finalExpenseType = undefined; // Income doesn't have expenseType
       }
 
       const transactionData: Omit<Transaction, "id" | "userId" | "createdAt"> = {
@@ -159,11 +161,11 @@ export function TransactionForm({
         amount: values.amount,
         type: initialType,
         category: values.category as CategoryName,
-        date: format(values.date, "yyyy-MM-dd"),
-        paymentMethod: values.paymentMethod,
-        installments: values.expenseType === 'installment' ? values.installments : undefined,
+        date: format(values.date, "yyyy-MM-dd"), // Standardize date format
+        paymentMethod: initialType === 'expense' ? values.paymentMethod : undefined,
+        installments: initialType === 'expense' && values.expenseType === 'installment' ? values.installments : undefined,
         isRecurring: finalIsRecurring,
-        expenseNature: values.expenseNature,
+        expenseNature: initialType === 'expense' ? values.expenseNature : undefined,
         expenseType: initialType === 'expense' ? finalExpenseType : undefined,
       };
       await onAddTransaction(transactionData);
@@ -172,7 +174,7 @@ export function TransactionForm({
         description: "",
         amount: undefined,
         category: "",
-        date: defaultDate || new Date(),
+        date: defaultDate || new Date(), // Reset to the current default date
         expenseType: undefined,
         paymentMethod: undefined,
         installments: undefined,
@@ -197,14 +199,14 @@ export function TransactionForm({
   const pickDateLabel = translate({ en: "Pick a date", pt: "Escolha uma data" });
   const paymentMethodLabel = translate({ en: "Payment Method", pt: "Forma de Pagamento" });
   const paymentMethodPlaceholder = translate({ en: "Select payment method", pt: "Selecione a forma de pagamento" });
-  const paymentTypeLabel = translate({ en: "Payment Type", pt: "Tipo de Pagamento" });
+  const paymentTypeLabel = translate({ en: "Payment Type", pt: "Tipo de Pagamento" }); // For expense type
   const paymentTypePlaceholder = translate({ en: "Select payment type", pt: "Selecione o tipo de pagamento" });
   const upfrontLabel = translate({ en: "Upfront", pt: "À Vista" });
   const installmentLabel = translate({ en: "Installment", pt: "Parcelado" });
-  const recurringLabel = translate({ en: "Recurring", pt: "Recorrente" }); // Generic recurring
+  const recurringLabel = translate({ en: "Recurring", pt: "Recorrente" }); // Generic recurring for expenses
   const installmentsNumberLabel = translate({ en: "Number of Installments", pt: "Número de Parcelas" });
   const installmentsNumberPlaceholder = translate({ en: "e.g., 10", pt: "ex: 10" });
-  const applyToAllMonthsLabel = translate({ en: "Apply to all months", pt: "Aplicar para todos os meses" });
+  const applyToAllMonthsLabel = translate({ en: "Apply to all months (Recurring)", pt: "Aplicar para todos os meses (Recorrente)" }); // For income recurrence
   const expenseNatureLabel = translate({ en: "Expense Nature", pt: "Natureza da Despesa" });
   const fixedLabel = translate({ en: "Fixed", pt: "Fixo" });
   const variableLabel = translate({ en: "Variable", pt: "Variável" });
@@ -254,7 +256,11 @@ export function TransactionForm({
           render={({ field }) => (
             <FormItem>
               <FormLabel>{categoryLabel}</FormLabel>
-              <Select onValueChange={field.onChange} value={field.value} disabled={availableCategories.length === 0}>
+              <Select
+                onValueChange={field.onChange}
+                value={field.value}
+                disabled={availableCategories.length === 0}
+              >
                 <FormControl>
                   <SelectTrigger>
                     <SelectValue placeholder={categoryPlaceholder} />
@@ -268,6 +274,11 @@ export function TransactionForm({
                   ))}
                 </SelectContent>
               </Select>
+              {availableCategories.length === 0 && (
+                <p className="text-xs text-muted-foreground">
+                  {initialType === 'income' ? translate({pt: "Nenhuma categoria de receita encontrada. Verifique as configurações de onboarding.", en: "No income categories found. Check onboarding settings."}) : translate({pt: "Nenhuma categoria de despesa encontrada. Verifique as configurações de onboarding.", en: "No expense categories found. Check onboarding settings."})}
+                </p>
+              )}
               <FormMessage />
             </FormItem>
           )}
@@ -341,7 +352,11 @@ export function TransactionForm({
               render={({ field }) => (
               <FormItem>
                 <FormLabel>{paymentMethodLabel}</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value || undefined}>
+                <Select 
+                  onValueChange={field.onChange} 
+                  value={field.value || undefined}
+                  disabled={userPaymentMethods.length === 0}
+                >
                   <FormControl>
                     <SelectTrigger>
                         <SelectValue placeholder={paymentMethodPlaceholder} />
@@ -355,6 +370,11 @@ export function TransactionForm({
                     ))}
                   </SelectContent>
                 </Select>
+                {userPaymentMethods.length === 0 && (
+                   <p className="text-xs text-muted-foreground">
+                    {translate({pt: "Nenhum método de pagamento encontrado. Verifique as configurações de onboarding.", en: "No payment methods found. Check onboarding settings."})}
+                  </p>
+                )}
                 <FormMessage />
               </FormItem>
               )}
@@ -460,6 +480,5 @@ export function TransactionForm({
     </Form>
   );
 }
-    
 
     
