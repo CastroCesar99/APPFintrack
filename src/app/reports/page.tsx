@@ -18,7 +18,7 @@ import { db } from '@/lib/firebase';
 import { collection, query, orderBy, onSnapshot, Timestamp, doc, getDoc } from "firebase/firestore";
 import { format as formatDateFns, parseISO as parseISODateFns, getYear as getYearFns, getMonth as getMonthFns, parse as parseDateFns, startOfMonth, endOfMonth, addMonths, setDate as setDateFnsDate, differenceInCalendarMonths, isWithinInterval, lastDayOfMonth } from 'date-fns';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ExpenseCategoryChart } from '@/components/dashboard/charts/expense-category-chart';
+import { ExpenseCategoryBarChart } from '@/components/dashboard/charts/expense-category-bar-chart'; // Changed import
 import { formatCurrency, cn } from '@/lib/utils';
 import { ExportData } from '@/components/dashboard/export-data';
 import { Progress } from "@/components/ui/progress";
@@ -55,18 +55,18 @@ export default function ReportsPage() {
     setIsClient(true);
   }, []);
 
-  // Fetch User Preferences (for category names and icons)
+  // Fetch User Preferences
   useEffect(() => {
     if (!user || authLoading || !isClient) {
       if (!authLoading && !user && isClient) router.push('/login');
       setIsLoadingPreferences(false); 
-      setUserDisplayCategories([...CATEGORIES]); // Fallback
+      setUserDisplayCategories([...CATEGORIES]); 
       return;
     }
     setIsLoadingPreferences(true);
     const fetchPrefs = async () => {
       try {
-        const preferencesDocRef = doc(db, `users/${user.uid}/preferences/userPreferences`);
+        const preferencesDocRef = doc(db, "users/" + user.uid + "/preferences/userPreferences");
         const preferencesDocSnap = await getDoc(preferencesDocRef);
         if (preferencesDocSnap.exists()) {
           const prefsData = preferencesDocSnap.data() as UserPreferences;
@@ -173,7 +173,7 @@ export default function ReportsPage() {
       try {
         const docSnap = await getDoc(budgetDocRef);
         if (docSnap.exists()) {
-          const budgetData = docSnap.data() as Record<string, any>; // Allow any type for initial fetch
+          const budgetData = docSnap.data() as Record<string, any>; 
           const validBudgets: Record<string, number> = {};
           for (const key in budgetData) {
             if (key !== 'lastUpdated' && typeof budgetData[key] === 'number') {
@@ -182,7 +182,7 @@ export default function ReportsPage() {
           }
           setLoadedBudgets(validBudgets);
         } else {
-          setLoadedBudgets({}); // No budgets set for this month
+          setLoadedBudgets({}); 
         }
       } catch (error) {
         console.error("ReportsPage: Error loading budgets:", error);
@@ -202,7 +202,7 @@ export default function ReportsPage() {
 
   const transactionsForDisplayedPeriod = useMemo(() => {
     const targetYear = getYearFns(displayedDate);
-    const targetMonth = getMonthFns(displayedDate); // 0-indexed
+    const targetMonth = getMonthFns(displayedDate);
     const firstDayOfTargetMonth = startOfMonth(displayedDate);
 
     const filtered: Transaction[] = [];
@@ -301,7 +301,6 @@ export default function ReportsPage() {
       const budgeted = loadedBudgets[categoryName] || 0;
       const actual = actualSpending[categoryName] || 0;
       const difference = budgeted - actual;
-      // Allow percentage to go > 100 for coloring logic, cap at 1000 as a sanity limit
       const percentageRaw = budgeted > 0 ? (actual / budgeted) * 100 : (actual > 0 ? 1000 : 0); 
       
       return {
@@ -337,9 +336,9 @@ export default function ReportsPage() {
            <div className="grid gap-4 md:grid-cols-2">
             {[...Array(2)].map((_, i) => <Skeleton key={`fixed-var-skel-${i}`} className="h-24 w-full" />)}
           </div>
-          <Skeleton className="h-40 w-full" /> {/* AI Insights Placeholder */}
-          <Skeleton className="h-60 w-full" /> {/* Budget vs Actual Placeholder */}
-          <Skeleton className="h-80 w-full" /> {/* Expense Breakdown Placeholder */}
+          <Skeleton className="h-40 w-full" /> 
+          <Skeleton className="h-60 w-full" /> 
+          <Skeleton className="h-80 w-full" /> 
         </div>
       </AppLayout>
     );
@@ -466,7 +465,7 @@ export default function ReportsPage() {
                           item.percentage > 100 ? "bg-destructive" 
                           : item.percentage > 80 ? "bg-yellow-500" 
                           : "bg-primary"
-                        ) : "bg-primary" // Default to primary if budget is 0
+                        ) : "bg-primary" 
                       }
                     />
                     <div className="flex justify-between text-xs text-muted-foreground">
@@ -505,7 +504,7 @@ export default function ReportsPage() {
           </CardHeader>
           <CardContent>
             {transactionsForDisplayedPeriod.filter(t => t.type === 'expense').length > 0 ? (
-              <ExpenseCategoryChart transactions={transactionsForDisplayedPeriod} />
+               <ExpenseCategoryBarChart transactions={transactionsForDisplayedPeriod} />
             ) : (
               <p className="text-center text-muted-foreground py-8">
                 {translate({ en: "No expense data to display chart.", pt: "Sem dados de despesa para exibir o gráfico."})}
@@ -517,6 +516,3 @@ export default function ReportsPage() {
     </AppLayout>
   );
 }
-
-
-    
