@@ -20,9 +20,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { PlusCircle } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { PlusCircle, ArrowUpDown } from "lucide-react";
 import type { Transaction, DisplayCategory, DisplayPaymentMethod, UserPreferences } from "@/types";
-import { CATEGORIES, PAYMENT_METHODS } from "@/types";
+import { CATEGORIES, PAYMENT_METHODS, getCategoryDisplayLabel } from "@/types";
 import { useAuth } from '@/context/auth-context';
 import { useLanguage } from '@/context/language-context';
 import { useDateNavigation } from '@/context/date-navigation-context';
@@ -33,11 +34,12 @@ import { format as formatDateFns, parseISO as parseISODateFns, getYear as getYea
 import { formatCurrency } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 
+type SortOptionValue = 'dateDesc' | 'dateAsc' | 'amountDesc' | 'amountAsc' | 'categoryAsc' | 'descriptionAsc';
 
 export default function ExpensesPage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
-  const { translate } = useLanguage();
+  const { language, translate } = useLanguage();
   const { displayedDate, displayedMonthYearLabel } = useDateNavigation();
   const { toast } = useToast();
 
@@ -54,6 +56,8 @@ export default function ExpensesPage() {
   const [userCategories, setUserCategories] = useState<DisplayCategory[]>([]);
   const [userPaymentMethods, setUserPaymentMethods] = useState<DisplayPaymentMethod[]>([]);
   const [isLoadingPreferences, setIsLoadingPreferences] = useState(true);
+
+  const [sortOption, setSortOption] = useState<SortOptionValue>('dateDesc');
 
   useEffect(() => {
     setIsClient(true);
@@ -79,13 +83,12 @@ export default function ExpensesPage() {
         
         const customCategoryDefs = preferencesData.userDefinedCategories || [];
         const allPredefinedCategories = [...CATEGORIES];
-        const customCategoriesWithType: DisplayCategory[] = customCategoryDefs.map(c => ({ ...c, type: c.type || 'expense' })); // Assuming custom are expense by default
+        const customCategoriesWithType: DisplayCategory[] = customCategoryDefs.map(c => ({ ...c, type: c.type || 'expense' })); 
         
         const combinedCategories = [...allPredefinedCategories, ...customCategoriesWithType];
         const uniqueCategoriesMap = new Map<string, DisplayCategory>();
         combinedCategories.forEach(cat => uniqueCategoriesMap.set(cat.name.toLowerCase(), cat));
         finalCategories = Array.from(uniqueCategoriesMap.values());
-
 
         const customPaymentMethodDefs = preferencesData.userDefinedPaymentMethods || [];
         const basePaymentMethodsMap = new Map<string, DisplayPaymentMethod>();
@@ -183,11 +186,15 @@ export default function ExpensesPage() {
     return () => unsubscribe();
   }, [user, authLoading, isClient, toast, translate, router]);
 
+  const getCategoryObjectByName = useCallback((name: string): DisplayCategory | undefined => {
+    return userCategories.find(cat => cat.name === name);
+  }, [userCategories]);
+
   const expensesForDisplayedPeriod = useMemo(() => {
     const targetYear = getYearFns(displayedDate);
     const targetMonth = getMonthFns(displayedDate);
 
-    return allTransactions.filter(t => {
+    let filteredTransactions = allTransactions.filter(t => {
       if (t.type !== 'expense') return false;
       
       const dateParts = t.date.split('-');
@@ -203,8 +210,31 @@ export default function ExpensesPage() {
         return false;
       }
       return transactionYear === targetYear && transactionMonth === targetMonth;
-    }).sort((a,b) => parseDateFns(b.date, "yyyy-MM-dd", new Date(0)).getTime() - parseDateFns(a.date, "yyyy-MM-dd", new Date(0)).getTime());
-  }, [allTransactions, displayedDate]);
+    });
+
+    // Sorting logic
+    if (sortOption === 'dateAsc') {
+      filteredTransactions.sort((a, b) => parseDateFns(a.date, "yyyy-MM-dd", new Date(0)).getTime() - parseDateFns(b.date, "yyyy-MM-dd", new Date(0)).getTime());
+    } else if (sortOption === 'dateDesc') {
+      filteredTransactions.sort((a, b) => parseDateFns(b.date, "yyyy-MM-dd", new Date(0)).getTime() - parseDateFns(a.date, "yyyy-MM-dd", new Date(0)).getTime());
+    } else if (sortOption === 'amountAsc') {
+      filteredTransactions.sort((a, b) => a.amount - b.amount);
+    } else if (sortOption === 'amountDesc') {
+      filteredTransactions.sort((a, b) => b.amount - a.amount);
+    } else if (sortOption === 'categoryAsc') {
+      filteredTransactions.sort((a, b) => {
+        const catA = getCategoryObjectByName(a.category as string);
+        const catB = getCategoryObjectByName(b.category as string);
+        const labelA = catA ? getCategoryDisplayLabel(catA, language) : (a.category as string);
+        const labelB = catB ? getCategoryDisplayLabel(catB, language) : (b.category as string);
+        return labelA.localeCompare(labelB);
+      });
+    } else if (sortOption === 'descriptionAsc') {
+      filteredTransactions.sort((a, b) => a.description.localeCompare(b.description));
+    }
+
+    return filteredTransactions;
+  }, [allTransactions, displayedDate, sortOption, language, getCategoryObjectByName]);
 
   const handleOpenAddDialog = () => {
     setTransactionToEdit(null);
@@ -229,7 +259,6 @@ export default function ExpensesPage() {
 
     const dataPayload = { ...formData, type: 'expense' as 'expense' };
     const cleanPayload = Object.fromEntries(Object.entries(dataPayload).filter(([_, v]) => v !== undefined)) as Partial<Transaction>;
-
 
     if (id) { 
       const transactionDocRef = doc(db, "users/" + user.uid + "/transactions", id);
@@ -295,6 +324,15 @@ export default function ExpensesPage() {
   const pageTitle = translate({ en: "Expenses", pt: "Despesas" });
   const isLoadingPage = !isClient || authLoading || isLoadingTransactions || isLoadingPreferences;
 
+  const sortOptions = [
+    { value: 'dateDesc', label: translate({ en: "Date (Newest First)", pt: "Data (Mais Recente)" }) },
+    { value: 'dateAsc', label: translate({ en: "Date (Oldest First)", pt: "Data (Mais Antiga)" }) },
+    { value: 'amountDesc', label: translate({ en: "Amount (Highest First)", pt: "Valor (Maior Primeiro)" }) },
+    { value: 'amountAsc', label: translate({ en: "Amount (Lowest First)", pt: "Valor (Menor Primeiro)" }) },
+    { value: 'categoryAsc', label: translate({ en: "Category (A-Z)", pt: "Categoria (A-Z)" }) },
+    { value: 'descriptionAsc', label: translate({ en: "Description (A-Z)", pt: "Descrição (A-Z)" }) },
+  ];
+
   return (
     <AppLayout>
       <div className="space-y-6"> 
@@ -349,6 +387,22 @@ export default function ExpensesPage() {
             )}
           </DialogContent>
         </Dialog>
+        
+        <div className="mb-4">
+          <Select value={sortOption} onValueChange={(value) => setSortOption(value as SortOptionValue)}>
+            <SelectTrigger className="w-full sm:w-[280px]">
+              <ArrowUpDown className="mr-2 h-4 w-4" />
+              <SelectValue placeholder={translate({ en: "Sort by...", pt: "Ordenar por..."})} />
+            </SelectTrigger>
+            <SelectContent>
+              {sortOptions.map(option => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
 
         <Card className="shadow-lg">
           <CardHeader className="text-center">
@@ -404,3 +458,4 @@ export default function ExpensesPage() {
     </AppLayout>
   );
 }
+    
