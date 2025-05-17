@@ -4,17 +4,60 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { AppLayout } from "@/components/layout/app-layout";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { PaymentMethodIcon } from "@/components/icons";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogClose,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { PaymentMethodIcon, getSelectableIcons, iconNameToComponentMap } from "@/components/icons"; 
 import { Edit, Trash2, PlusCircle } from "lucide-react";
-import { PAYMENT_METHODS, getPaymentMethodDisplayLabel, type PaymentMethod, type CustomPaymentMethodData, type DisplayPaymentMethod, type UserPreferences } from "@/types";
+import {
+  PAYMENT_METHODS,
+  getPaymentMethodDisplayLabel,
+  type PaymentMethod,
+  type CustomPaymentMethodData,
+  type DisplayPaymentMethod,
+  type UserPreferences,
+} from "@/types";
 import { useLanguage } from "@/context/language-context";
 import { useToast } from "@/hooks/use-toast";
 import { Separator } from '@/components/ui/separator';
 import { useAuth } from '@/context/auth-context';
 import { db } from '@/lib/firebase';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, arrayUnion, setDoc, serverTimestamp } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useForm, type SubmitHandler } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+
+const selectableIcons = getSelectableIcons();
+
+const addMethodFormSchema = z.object({
+  newMethodName: z.string().min(1, { message: "Nome do método é obrigatório." }),
+  selectedNewMethodIcon: z.string().min(1, { message: "Ícone é obrigatório." }),
+});
+type AddMethodFormValues = z.infer<typeof addMethodFormSchema>;
 
 export default function ManagePaymentMethodsPage() {
   const { language, translate } = useLanguage();
@@ -23,10 +66,19 @@ export default function ManagePaymentMethodsPage() {
 
   const [displayPaymentMethods, setDisplayPaymentMethods] = useState<DisplayPaymentMethod[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isSavingMethod, setIsSavingMethod] = useState(false);
+
+  const addMethodForm = useForm<AddMethodFormValues>({
+    resolver: zodResolver(addMethodFormSchema),
+    defaultValues: {
+      newMethodName: "",
+      selectedNewMethodIcon: selectableIcons.find(icon => icon.value === 'CircleHelp')?.value || selectableIcons[0]?.value || '',
+    },
+  });
 
   const fetchUserPaymentMethods = useCallback(async () => {
     if (!user) {
-      // Default to predefined if no user, though page should be protected
       setDisplayPaymentMethods([...PAYMENT_METHODS]);
       setIsLoading(false);
       return;
@@ -37,20 +89,18 @@ export default function ManagePaymentMethodsPage() {
       const preferencesDocRef = doc(db, `users/${user.uid}/preferences/userPreferences`);
       const preferencesDocSnap = await getDoc(preferencesDocRef);
 
-      let effectiveMethods: DisplayPaymentMethod[] = [...PAYMENT_METHODS]; // Start with predefined
+      let effectiveMethods: DisplayPaymentMethod[] = [...PAYMENT_METHODS];
 
       if (preferencesDocSnap.exists()) {
         const preferencesData = preferencesDocSnap.data() as UserPreferences;
         const customMethods = preferencesData.userDefinedPaymentMethods || [];
         
-        // Add custom methods, ensuring labels are present
         const allCustomMethods: DisplayPaymentMethod[] = customMethods.map(cm => ({
             name: cm.name,
             icon: cm.icon,
-            label: cm.label || { en: cm.name, pt: cm.name } // Fallback label
+            label: cm.label || { en: cm.name, pt: cm.name } 
         }));
 
-        // Combine and avoid duplicates by name (case-insensitive for robustness)
         const methodNames = new Set(effectiveMethods.map(m => m.name.toLowerCase()));
         allCustomMethods.forEach(customMethod => {
             if (!methodNames.has(customMethod.name.toLowerCase())) {
@@ -59,11 +109,7 @@ export default function ManagePaymentMethodsPage() {
             }
         });
       }
-      // If preferencesData.selectedPaymentMethods exists and is not empty,
-      // you could filter `effectiveMethods` here based on that selection.
-      // For now, we show all predefined + all custom defined.
-      
-      setDisplayPaymentMethods(effectiveMethods);
+      setDisplayPaymentMethods(effectiveMethods.sort((a, b) => getPaymentMethodDisplayLabel(a, language).localeCompare(getPaymentMethodDisplayLabel(b, language))));
 
     } catch (error) {
       console.error("Error fetching user payment methods:", error);
@@ -72,20 +118,78 @@ export default function ManagePaymentMethodsPage() {
         description: translate({ en: "Could not load your payment methods.", pt: "Não foi possível carregar seus métodos de pagamento." }),
         variant: "destructive",
       });
-      setDisplayPaymentMethods([...PAYMENT_METHODS]); // Fallback on error
+      setDisplayPaymentMethods([...PAYMENT_METHODS]); 
     } finally {
       setIsLoading(false);
     }
-  }, [user, toast, translate]);
+  }, [user, toast, translate, language]);
 
   useEffect(() => {
-    if (!authLoading && user) {
+    if (!authLoading) {
       fetchUserPaymentMethods();
-    } else if (!authLoading && !user) {
-      setIsLoading(false);
-      setDisplayPaymentMethods([...PAYMENT_METHODS]); // Show defaults if not logged in
     }
   }, [user, authLoading, fetchUserPaymentMethods]);
+
+  const handleAddPaymentMethod: SubmitHandler<AddMethodFormValues> = async (data) => {
+    if (!user) {
+      toast({ title: translate({ en: "Authentication Error", pt: "Erro de Autenticação" }), description: translate({ en: "You must be logged in to add payment methods.", pt: "Você precisa estar logado para adicionar métodos de pagamento." }), variant: "destructive" });
+      return;
+    }
+    setIsSavingMethod(true);
+    const newMethodName = data.newMethodName.trim();
+    const newMethodIcon = data.selectedNewMethodIcon;
+
+    const isDuplicate = displayPaymentMethods.some(
+      (pm) => pm.name.toLowerCase() === newMethodName.toLowerCase()
+    );
+
+    if (isDuplicate) {
+      toast({ title: translate({ en: "Duplicate Method", pt: "Método Duplicado" }), description: translate({ en: "This payment method already exists.", pt: "Este método de pagamento já existe." }), variant: "destructive" });
+      setIsSavingMethod(false);
+      return;
+    }
+
+    const newCustomMethod: CustomPaymentMethodData = {
+      name: newMethodName,
+      icon: newMethodIcon,
+      label: { en: newMethodName, pt: newMethodName }, // Simple label for now
+    };
+
+    try {
+      const preferencesDocRef = doc(db, `users/${user.uid}/preferences/userPreferences`);
+      const prefsSnap = await getDoc(preferencesDocRef);
+
+      if (prefsSnap.exists()) {
+        await updateDoc(preferencesDocRef, {
+          userDefinedPaymentMethods: arrayUnion(newCustomMethod),
+          updatedAt: serverTimestamp()
+        });
+      } else {
+        // Create preferences doc if it doesn't exist
+        await setDoc(preferencesDocRef, {
+          userDefinedPaymentMethods: [newCustomMethod],
+          selectedCategories: [], // Initialize other preference fields if needed
+          userDefinedCategories: [],
+          selectedPaymentMethods: [newMethodName], // Optionally auto-select the new one
+          language: language,
+          updatedAt: serverTimestamp()
+        });
+      }
+
+      // Optimistically update local state
+      setDisplayPaymentMethods(prevMethods => 
+        [...prevMethods, newCustomMethod].sort((a,b) => getPaymentMethodDisplayLabel(a, language).localeCompare(getPaymentMethodDisplayLabel(b, language)))
+      );
+      toast({ title: translate({ en: "Method Added", pt: "Método Adicionado" }), description: `${newMethodName} ${translate({ en: "has been added.", pt: "foi adicionado." })}` });
+      addMethodForm.reset();
+      setIsAddDialogOpen(false);
+    } catch (error) {
+      console.error("Error adding custom payment method:", error);
+      toast({ title: translate({ en: "Error", pt: "Erro" }), description: translate({ en: "Could not add payment method.", pt: "Não foi possível adicionar o método de pagamento." }), variant: "destructive" });
+    } finally {
+      setIsSavingMethod(false);
+    }
+  };
 
 
   const handleActionPlaceholder = (actionName: string, methodName: string) => {
@@ -95,24 +199,92 @@ export default function ManagePaymentMethodsPage() {
     });
   };
   
-  const handleAddNewMethod = () => {
-    toast({
-      title: translate({ en: "Feature In Development", pt: "Funcionalidade em Desenvolvimento" }),
-      description: translate({ en: "Adding new payment methods will be available soon.", pt: "Adicionar novos métodos de pagamento estará disponível em breve."}),
-    });
-  };
 
   return (
     <AppLayout>
       <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">
+        <div className="sm:flex sm:items-center sm:justify-between">
+          <h1 className="text-3xl font-bold tracking-tight text-foreground mb-4 sm:mb-0">
             {translate({ en: "Manage Payment Methods", pt: "Gerenciar Métodos de Pagamento" })}
           </h1>
-          <Button onClick={handleAddNewMethod} variant="outline" className="w-full sm:w-auto">
-            <PlusCircle className="mr-2 h-4 w-4" />
-            {translate({ en: "Add New Method", pt: "Adicionar Novo Método" })}
-          </Button>
+          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline" className="w-full sm:w-auto">
+                <PlusCircle className="mr-2 h-4 w-4" />
+                {translate({ en: "Add New Method", pt: "Adicionar Novo Método" })}
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[425px]">
+              <DialogHeader>
+                <DialogTitle>{translate({ en: "Add New Payment Method", pt: "Adicionar Novo Método de Pagamento" })}</DialogTitle>
+                <DialogDescription>
+                  {translate({ en: "Enter the name and choose an icon for your new payment method.", pt: "Digite o nome e escolha um ícone para o seu novo método de pagamento." })}
+                </DialogDescription>
+              </DialogHeader>
+              <form onSubmit={addMethodForm.handleSubmit(handleAddPaymentMethod)} className="space-y-4 py-4">
+                <div>
+                  <Label htmlFor="newMethodName" className="text-right">
+                    {translate({ en: "Method Name", pt: "Nome do Método" })}
+                  </Label>
+                  <Input
+                    id="newMethodName"
+                    {...addMethodForm.register("newMethodName")}
+                    className="mt-1"
+                    placeholder={translate({ en: "e.g., My Bank Card", pt: "ex: Cartão Meu Banco"})}
+                  />
+                  {addMethodForm.formState.errors.newMethodName && (
+                    <p className="text-sm text-destructive mt-1">{addMethodForm.formState.errors.newMethodName.message}</p>
+                  )}
+                </div>
+                <div>
+                  <Label htmlFor="selectedNewMethodIcon" className="text-right">
+                     {translate({ en: "Icon", pt: "Ícone" })}
+                  </Label>
+                  <Controller
+                    control={addMethodForm.control}
+                    name="selectedNewMethodIcon"
+                    render={({ field }) => (
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <SelectTrigger className="w-full mt-1">
+                          <SelectValue placeholder={translate({ en: "Select an icon", pt: "Selecione um ícone" })}>
+                            {field.value && iconNameToComponentMap[field.value] ? (
+                              <div className="flex items-center gap-2">
+                                <PaymentMethodIcon iconName={field.value} className="h-4 w-4" />
+                                <span>{selectableIcons.find(i => i.value === field.value)?.label || field.value}</span>
+                              </div>
+                            ) : (translate({ en: "Select an icon", pt: "Selecione um ícone" }))}
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                          {selectableIcons.map(iconOption => (
+                            <SelectItem key={iconOption.value} value={iconOption.value}>
+                              <div className="flex items-center gap-2">
+                                <iconOption.iconComponent className="h-4 w-4 text-muted-foreground" />
+                                <span>{iconOption.label}</span>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                  {addMethodForm.formState.errors.selectedNewMethodIcon && (
+                    <p className="text-sm text-destructive mt-1">{addMethodForm.formState.errors.selectedNewMethodIcon.message}</p>
+                  )}
+                </div>
+                <DialogFooter>
+                  <DialogClose asChild>
+                    <Button type="button" variant="outline" disabled={isSavingMethod}>
+                       {translate({ en: "Cancel", pt: "Cancelar" })}
+                    </Button>
+                  </DialogClose>
+                  <Button type="submit" disabled={isSavingMethod}>
+                    {isSavingMethod ? translate({ en: "Adding...", pt: "Adicionando..." }) : translate({ en: "Add Method", pt: "Adicionar Método" })}
+                  </Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
         </div>
 
         <Card className="shadow-lg">
@@ -187,3 +359,5 @@ export default function ManagePaymentMethodsPage() {
     </AppLayout>
   );
 }
+
+    
