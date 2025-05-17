@@ -18,12 +18,11 @@ import { useAuth } from "@/context/auth-context";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
-import { updateProfile } from "firebase/auth"; // Import updateProfile
+import { updateProfile, sendEmailVerification } from "firebase/auth"; // Import sendEmailVerification
 import { useLanguage } from "@/context/language-context";
 import { db } from "@/lib/firebase";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 
-// Schema com o campo nome
 const signupFormSchema = z.object({
   name: z.string().min(2, { message: "O nome deve ter pelo menos 2 caracteres." }),
   email: z.string().email({ message: "Por favor, insira um email válido." }),
@@ -37,7 +36,7 @@ const signupFormSchema = z.object({
 type SignupFormValues = z.infer<typeof signupFormSchema>;
 
 export function SignupForm() {
-  const { signUp, user: authUser } = useAuth(); // authUser pode ser usado para pegar o usuário do auth
+  const { signUp } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
@@ -46,7 +45,7 @@ export function SignupForm() {
   const form = useForm<SignupFormValues>({
     resolver: zodResolver(signupFormSchema),
     defaultValues: {
-      name: "", // Valor padrão para o nome
+      name: "",
       email: "",
       password: "",
       confirmPassword: "",
@@ -59,37 +58,44 @@ export function SignupForm() {
 
     if (user) {
       try {
-        // Atualiza o perfil do Firebase Auth com o displayName
         await updateProfile(user, { displayName: values.name });
 
-        // Cria o documento do usuário no Firestore
         const userDocRef = doc(db, "users", user.uid);
         await setDoc(userDocRef, {
           uid: user.uid,
-          name: values.name, // Salva o nome no Firestore
+          name: values.name,
           email: values.email,
           createdAt: serverTimestamp(),
           onboardingComplete: false,
         });
 
+        await sendEmailVerification(user);
         toast({
           title: translate({ en: "Signup successful!", pt: "Cadastro realizado!" }),
-          description: translate({ en: "Your account has been created.", pt: "Sua conta foi criada com sucesso." })
+          description: translate({ 
+            en: "Your account has been created. Please check your email to verify your account.", 
+            pt: "Sua conta foi criada com sucesso. Por favor, verifique seu e-mail para verificar sua conta." 
+          })
         });
-        localStorage.removeItem('onboardingComplete');
-        router.push("/onboarding");
-      } catch (error) {
-        console.error("Error updating profile or creating user document:", error);
+        localStorage.removeItem('onboardingComplete'); // Ensure onboarding is triggered
+        router.push("/onboarding"); 
+      } catch (error: any) {
+        console.error("Error during signup post-processing:", error);
+        let errorMessage = translate({ en: "An error occurred. Please try again.", pt: "Ocorreu um erro. Por favor, tente novamente." });
+        if (error.code === 'auth/email-already-in-use') {
+          errorMessage = translate({ en: "This email is already in use.", pt: "Este e-mail já está em uso." });
+        }
         toast({
-          title: translate({ en: "Signup error", pt: "Erro no cadastro" }),
-          description: translate({ en: "An error occurred during signup. Please try again.", pt: "Ocorreu um erro durante o cadastro. Por favor, tente novamente." }),
+          title: translate({ en: "Signup Error", pt: "Erro no Cadastro" }),
+          description: errorMessage,
           variant: "destructive",
         });
       }
     } else {
+      // signUp itself might fail (e.g. email already in use if not caught by FirebaseError code above)
       toast({
         title: translate({ en: "Signup Error", pt: "Erro no Cadastro" }),
-        description: translate({ en: "Could not create your account. Email might already be in use.", pt: "Não foi possível criar sua conta. O email já pode estar em uso." }),
+        description: translate({ en: "Could not create your account. The email might already be in use or another error occurred.", pt: "Não foi possível criar sua conta. O e-mail já pode estar em uso ou ocorreu outro erro." }),
         variant: "destructive",
       });
     }
