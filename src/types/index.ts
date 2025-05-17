@@ -14,7 +14,7 @@ export interface Transaction {
   installments?: number;
   isRecurring?: boolean;
   expenseNature?: ExpenseNature;
-  expenseType?: ExpenseType; // Added to ensure it's part of the type
+  expenseType?: ExpenseType; 
   userId?: string; 
   createdAt?: any; 
   updatedAt?: any; 
@@ -45,13 +45,15 @@ export const CATEGORIES = [
 export type CategoryName = typeof CATEGORIES[number]['name'];
 export type Category = typeof CATEGORIES[number];
 
+// For custom categories defined during onboarding or settings
 export interface CustomCategoryData {
   name: string; 
-  type: 'expense' | 'income'; // Allow custom income categories too
+  type: TransactionType; // Can be income or expense
   icon: string; 
   label: { en: string; pt: string }; 
 }
 
+// Union type for display purposes
 export type DisplayCategory = Category | CustomCategoryData;
 
 export const getCategoriesByType = (type: TransactionType, allCategories: DisplayCategory[]): DisplayCategory[] => {
@@ -62,10 +64,10 @@ export const getCategoryDisplayLabel = (category: DisplayCategory, currentLangua
   if (category.label && typeof category.label === 'object' && category.label[currentLanguage]) {
     return category.label[currentLanguage];
   }
-  if (typeof category.label === 'string') {
+  if (typeof category.label === 'string') { // Fallback for older custom category format if any
     return category.label;
   }
-  return category.name; 
+  return category.name; // Final fallback is the name identifier
 };
 
 export const getCategoryLabel = (categoryName: CategoryName | string, currentLanguage: 'en' | 'pt'): string => {
@@ -94,22 +96,28 @@ export interface CustomPaymentMethodData {
 
 export type DisplayPaymentMethod = PaymentMethod | CustomPaymentMethodData;
 
+
 export const getPaymentMethodDisplayLabel = (methodInput: DisplayPaymentMethod | string, currentLanguage: 'en' | 'pt'): string => {
   let methodNameString: string;
   let methodObject: DisplayPaymentMethod | undefined;
 
   if (typeof methodInput === 'string') {
     methodNameString = methodInput;
+    // Try to find in predefined methods first
     methodObject = PAYMENT_METHODS.find(pm => pm.name.toLowerCase() === methodNameString.toLowerCase());
+    // If not found in predefined, it might be a custom one (or just the name if details not available)
+    if (!methodObject) {
+        return methodNameString; // Return the name itself if no predefined match
+    }
   } else {
     methodNameString = methodInput.name;
-    methodObject = methodInput; // Assume it's a DisplayPaymentMethod object
+    methodObject = methodInput; 
   }
 
   if (methodObject && methodObject.label && typeof methodObject.label === 'object' && methodObject.label[currentLanguage]) {
     return methodObject.label[currentLanguage];
   }
-  // Fallback if it's a custom method not in predefined, or if label structure is missing (shouldn't happen for predefined)
+   // Fallback if label structure isn't as expected or if it's a custom method name string without full object
   return methodNameString; 
 };
 
