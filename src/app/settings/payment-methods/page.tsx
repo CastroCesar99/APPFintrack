@@ -47,7 +47,7 @@ import { useAuth } from '@/context/auth-context';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, updateDoc, arrayUnion, setDoc, serverTimestamp } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useForm, type SubmitHandler } from 'react-hook-form';
+import { useForm, type SubmitHandler, Controller } from 'react-hook-form'; // Added Controller
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 
@@ -152,7 +152,7 @@ export default function ManagePaymentMethodsPage() {
     const newCustomMethod: CustomPaymentMethodData = {
       name: newMethodName,
       icon: newMethodIcon,
-      label: { en: newMethodName, pt: newMethodName }, // Simple label for now
+      label: { en: newMethodName, pt: newMethodName }, 
     };
 
     try {
@@ -165,18 +165,16 @@ export default function ManagePaymentMethodsPage() {
           updatedAt: serverTimestamp()
         });
       } else {
-        // Create preferences doc if it doesn't exist
         await setDoc(preferencesDocRef, {
           userDefinedPaymentMethods: [newCustomMethod],
-          selectedCategories: [], // Initialize other preference fields if needed
+          selectedCategories: [], 
           userDefinedCategories: [],
-          selectedPaymentMethods: [newMethodName], // Optionally auto-select the new one
+          selectedPaymentMethods: [newMethodName], 
           language: language,
           updatedAt: serverTimestamp()
         });
       }
 
-      // Optimistically update local state
       setDisplayPaymentMethods(prevMethods => 
         [...prevMethods, newCustomMethod].sort((a,b) => getPaymentMethodDisplayLabel(a, language).localeCompare(getPaymentMethodDisplayLabel(b, language)))
       );
@@ -275,7 +273,7 @@ export default function ManagePaymentMethodsPage() {
                 <DialogFooter>
                   <DialogClose asChild>
                     <Button type="button" variant="outline" disabled={isSavingMethod}>
-                       {translate({ en: "Cancel", pt: "Cancelar" })}
+                       {translate({ en: "Cancel", pt: "Cancelar"})}
                     </Button>
                   </DialogClose>
                   <Button type="submit" disabled={isSavingMethod}>
