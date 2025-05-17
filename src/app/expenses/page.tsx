@@ -117,6 +117,11 @@ export default function ExpensesPage() {
   useEffect(() => {
     if (user && !authLoading) {
       fetchUserPreferences();
+    } else if (!authLoading && !user) {
+       // Not logged in but not loading auth, ensure prefs are defaults and loading is false
+      setUserCategories([...CATEGORIES]);
+      setUserPaymentMethods([...PAYMENT_METHODS]);
+      setIsLoadingPreferences(false);
     }
   }, [user, authLoading, fetchUserPreferences]);
 
@@ -124,6 +129,7 @@ export default function ExpensesPage() {
   useEffect(() => {
     if (!user || authLoading || !isClient) {
       if (!authLoading && !user && isClient) router.push('/login');
+      setIsLoadingTransactions(false); // Stop loading if no user or auth is loading
       return;
     }
 
@@ -286,6 +292,8 @@ export default function ExpensesPage() {
     }
   };
 
+  const pageTitle = translate({ en: "Expenses", pt: "Despesas" });
+
   if (!isClient || authLoading || isLoadingTransactions || isLoadingPreferences) {
     return (
       <AppLayout>
@@ -298,10 +306,10 @@ export default function ExpensesPage() {
 
   return (
     <AppLayout>
-      <div className="space-y-6">
-        <div className="sm:flex sm:items-center sm:justify-between">
-          <h1 className="text-3xl font-bold tracking-tight text-foreground mb-4 sm:mb-0">
-            {translate({ en: "Expenses", pt: "Despesas" })} - {displayedMonthYearLabel}
+      <div className="space-y-6"> 
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">
+            {pageTitle} - {displayedMonthYearLabel}
           </h1>
           <Dialog open={isAddFormOpen} onOpenChange={setIsAddFormOpen} modal={false}>
             <DialogTrigger asChild>
