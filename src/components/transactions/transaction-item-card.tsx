@@ -10,7 +10,7 @@ import { getCategoryDisplayLabel, getPaymentMethodDisplayLabel } from '@/types';
 import { CategoryIcon } from '@/components/icons';
 import { formatCurrency, cn } from '@/lib/utils';
 import { format as formatDateFns, parse as parseDateFns } from 'date-fns';
-import { useLanguage } from '@/context/language-context';
+import { useLanguage } from '@/context/language-context'; // Import useLanguage
 
 interface TransactionItemCardProps {
   transaction: Transaction;
@@ -19,14 +19,15 @@ interface TransactionItemCardProps {
 }
 
 export function TransactionItemCard({ transaction, onEdit, onDelete }: TransactionItemCardProps) {
-  const { language, translate } = useLanguage();
+  const { language, translate } = useLanguage(); // Use the hook
 
   let displayDate = transaction.date;
   try {
     // Ensure the date string is valid before parsing
     if (transaction.date && transaction.date.match(/^\d{4}-\d{2}-\d{2}$/)) {
       const parsedDate = parseDateFns(transaction.date, "yyyy-MM-dd", new Date(0));
-      displayDate = formatDateFns(parsedDate, "MMM dd, yyyy");
+      // Format date according to language if desired, or keep a neutral format
+      displayDate = formatDateFns(parsedDate, "MMM dd, yyyy", { locale: language === 'pt' ? require('date-fns/locale/pt-BR').default : require('date-fns/locale/en-US').default });
     } else {
       console.warn("TransactionItemCard: Unexpected date format for transaction ID " + transaction.id + ": " + transaction.date);
     }
@@ -34,13 +35,11 @@ export function TransactionItemCard({ transaction, onEdit, onDelete }: Transacti
     console.warn("TransactionItemCard: Could not parse date string for display: " + transaction.date, e);
   }
 
-  // Construct a basic DisplayCategory-like object for getCategoryDisplayLabel
-  // This assumes transaction.category is the 'name' and handles cases where a full DisplayCategory object might not be available
   const categoryForDisplay: { name: string, type: Transaction['type'], icon: string, label: { en: string, pt: string } } = {
-    name: transaction.category as string, // Cast to string if it's CategoryName
+    name: transaction.category as string,
     type: transaction.type,
-    icon: '', // Icon lookup will be handled by CategoryIcon based on name
-    label: { en: transaction.category as string, pt: transaction.category as string } // Basic fallback for label
+    icon: '', 
+    label: { en: transaction.category as string, pt: transaction.category as string } 
   };
   const categoryDisplayName = getCategoryDisplayLabel(categoryForDisplay, language);
   
@@ -51,13 +50,19 @@ export function TransactionItemCard({ transaction, onEdit, onDelete }: Transacti
       ) 
     : '';
 
+  const expenseNatureDisplay = transaction.expenseNature
+    ? translate({
+        en: transaction.expenseNature === 'fixed' ? 'Fixed' : 'Variable',
+        pt: transaction.expenseNature === 'fixed' ? 'Fixa' : 'Variável',
+      })
+    : '';
+
   return (
     <Card className="shadow-md hover:shadow-lg transition-shadow duration-200 flex flex-col h-full">
       <CardHeader className="pb-3 pt-4 px-4">
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-start gap-2 min-w-0 flex-1">
             <CategoryIcon categoryName={transaction.category} className="h-5 w-5 text-muted-foreground flex-shrink-0 mt-1" />
-            {/* Removed truncate, added flex-1 and break-words for better wrapping */}
             <CardTitle className="text-base font-semibold leading-tight flex-1 break-words" title={transaction.description}>
               {transaction.description}
             </CardTitle>
@@ -85,15 +90,14 @@ export function TransactionItemCard({ transaction, onEdit, onDelete }: Transacti
             {translate({ en: "Method:", pt: "Método:" })} {paymentMethodDisplayName}
           </p>
         )}
-        {transaction.expenseType === 'installment' && transaction.installments && (
+        {transaction.type === 'expense' && transaction.expenseType === 'installment' && transaction.installments && (
           <p>
-            {translate({ en: "Installments:", pt: "Parcelas:" })} {transaction.installments} 
-            {/* TODO: Implement logic to show current_installment_number / total_installments */}
+            {translate({ en: "Installments:", pt: "Parcelas:" })} {transaction.installments}
           </p>
         )}
-         {transaction.expenseNature && (
+         {transaction.type === 'expense' && expenseNatureDisplay && (
           <p>
-            {translate({ en: "Nature:", pt: "Natureza:" })} {transaction.expenseNature === 'fixed' ? translate({en: "Fixed", pt: "Fixa"}) : translate({en:"Variable", pt:"Variável"})}
+            {translate({ en: "Nature:", pt: "Natureza:" })} {expenseNatureDisplay}
           </p>
         )}
       </CardContent>
