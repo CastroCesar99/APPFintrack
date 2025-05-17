@@ -12,7 +12,7 @@ import {
   CreditCard,
   Sparkles,
   Archive, Bell, Box, Camera, Cog, Coins, Flag, Folder, Key, Mail, MapPin, Package, Pen, Phone, Receipt, Shield, Tag, Trash, User, Wrench,
-  Languages
+  Languages, PawPrint, Dumbbell, Pizza, Shirt, Bus, GraduationCap, Ticket, Palette, Clapperboard, Gamepad2, Headphones, Music2, Tv, Train, TramFront, Sailboat, UtensilsCrossed
 } from 'lucide-react';
 import type { CategoryName, PaymentMethodName } from '@/types';
 import { CATEGORIES, PAYMENT_METHODS } from '@/types';
@@ -23,7 +23,7 @@ export const iconNameToComponentMap: Record<string, LucideIcon> = {
   Film, ShoppingBag, Plane, BookOpen, Gift, TrendingUp, Laptop, DollarSign, CircleHelp, PiggyBank, Settings, LayoutDashboard, FileText,
   ListChecks, PlusCircle, SlidersHorizontal, Wallet, CreditCard, Sparkles,
   Archive, Bell, Box, Camera, Cog, Coins, Flag, Folder, Key, Mail, MapPin, Package, Pen, Phone, Receipt, Shield, Tag, Trash, User, Wrench,
-  Languages
+  Languages, PawPrint, Dumbbell, Pizza, Shirt, Bus, GraduationCap, Ticket, Palette, Clapperboard, Gamepad2, Headphones, Music2, Tv, Train, TramFront, Sailboat, UtensilsCrossed
 };
 
 interface DynamicIconProps extends LucideProps {
@@ -36,7 +36,7 @@ export const DynamicIcon: React.FC<DynamicIconProps> = ({ iconName, ...props }) 
 };
 
 interface CategoryIconProps extends LucideProps {
-  categoryName?: CategoryName | string; // Allow string for custom category names
+  categoryName?: CategoryName | string;
   iconName?: string;
 }
 
@@ -48,9 +48,6 @@ export const CategoryIcon: React.FC<CategoryIconProps> = ({ categoryName, iconNa
     if (category) {
       determinedIconName = category.icon;
     } else {
-      // Attempt to find in user-defined categories if a mechanism is provided,
-      // for now, custom categories store iconName directly
-      // If categoryName is an iconName string itself (from custom category data)
       if (iconNameToComponentMap[categoryName as string]) {
         determinedIconName = categoryName as string;
       }
@@ -62,7 +59,7 @@ export const CategoryIcon: React.FC<CategoryIconProps> = ({ categoryName, iconNa
 };
 
 interface PaymentMethodIconProps extends LucideProps {
- iconName: string;
+ iconName: string; 
 }
 
 export const PaymentMethodIcon: React.FC<PaymentMethodIconProps> = ({ iconName, ...props }) => {
@@ -93,68 +90,86 @@ export const ExportIcon = FileText;
 export { ListChecks, PlusCircle, SlidersHorizontal };
 
 interface SelectableIconOption {
-  value: string;
-  label: { en: string; pt: string };
+  value: string; // This is the icon key, e.g., "ShoppingCart"
+  label: { en: string; pt: string }; // This is the translatable display name
   iconComponent: LucideIcon;
 }
 
 // Helper function to get a list of selectable icons for dropdowns
 export const getSelectableIcons = (): SelectableIconOption[] => {
   const iconTranslations: Record<string, { en: string; pt: string }> = {
-    Briefcase: { en: "Briefcase", pt: "Pasta" },
+    Briefcase: { en: "Briefcase", pt: "Pasta de Trabalho" },
     ShoppingCart: { en: "Shopping Cart", pt: "Carrinho de Compras" },
     Home: { en: "Home", pt: "Casa" },
-    Zap: { en: "Zap (Electricity)", pt: "Raio (Eletricidade)" },
-    Replace: { en: "Replace (Subscriptions)", pt: "Substituir (Assinaturas)" },
-    Utensils: { en: "Utensils (Dining Out)", pt: "Talheres (Alimentação Fora)" },
+    Zap: { en: "Electricity", pt: "Eletricidade" }, // Changed from Zap
+    Replace: { en: "Subscriptions", pt: "Assinaturas" }, // Changed from Replace
+    Utensils: { en: "Dining Out", pt: "Restaurantes" }, // Changed from Utensils
     Car: { en: "Car", pt: "Carro" },
-    HeartPulse: { en: "Heart Pulse (Healthcare)", pt: "Pulso Cardíaco (Saúde)" },
-    Film: { en: "Film (Entertainment)", pt: "Filme (Lazer)" },
-    ShoppingBag: { en: "Shopping Bag", pt: "Sacola de Compras" },
-    Plane: { en: "Plane (Travel)", pt: "Avião (Viagem)" },
-    BookOpen: { en: "Book Open (Education)", pt: "Livro Aberto (Educação)" },
-    Gift: { en: "Gift", pt: "Presente" },
-    TrendingUp: { en: "Trending Up (Investment/Income)", pt: "Tendência de Alta (Investimento/Receita)" },
-    Laptop: { en: "Laptop (Freelance)", pt: "Laptop (Freelance)" },
-    DollarSign: { en: "Dollar Sign (Income/Money)", pt: "Cifrão (Receita/Dinheiro)" },
-    CircleHelp: { en: "Circle Help (Other/Default)", pt: "Círculo de Ajuda (Outro/Padrão)" },
-    PiggyBank: { en: "Piggy Bank", pt: "Cofrinho" },
+    HeartPulse: { en: "Healthcare", pt: "Saúde" }, // Changed from Heart Pulse
+    Film: { en: "Entertainment (Movies)", pt: "Lazer (Filmes)" }, // Specified
+    ShoppingBag: { en: "Shopping (General)", pt: "Compras (Geral)" },
+    Plane: { en: "Travel (Flights)", pt: "Viagens (Voos)" }, // Specified
+    BookOpen: { en: "Education", pt: "Educação" },
+    Gift: { en: "Gifts/Donations", pt: "Presentes/Doações" },
+    TrendingUp: { en: "Investments/Income", pt: "Investimentos/Receita" },
+    Laptop: { en: "Work/Freelance", pt: "Trabalho/Freelance" }, // Changed from Laptop
+    DollarSign: { en: "Money/Salary", pt: "Dinheiro/Salário" },
+    CircleHelp: { en: "Other/Default", pt: "Outro/Padrão" },
+    PiggyBank: { en: "Savings", pt: "Economias" }, // Changed from Piggy Bank
     Settings: { en: "Settings", pt: "Configurações" },
     LayoutDashboard: { en: "Dashboard", pt: "Painel" },
-    FileText: { en: "File Text (Reports)", pt: "Texto de Arquivo (Relatórios)" },
-    ListChecks: { en: "List Checks (Budgets)", pt: "Lista de Verificação (Orçamentos)" },
-    PlusCircle: { en: "Plus Circle (Add)", pt: "Círculo de Adição (Adicionar)" },
-    SlidersHorizontal: { en: "Sliders Horizontal (Manage)", pt: "Controles Deslizantes Horizontais (Gerenciar)" },
+    FileText: { en: "Reports/Documents", pt: "Relatórios/Documentos" },
+    ListChecks: { en: "Budgets/Tasks", pt: "Orçamentos/Tarefas" },
+    PlusCircle: { en: "Add", pt: "Adicionar" },
+    SlidersHorizontal: { en: "Manage/Adjust", pt: "Gerenciar/Ajustar" },
     Wallet: { en: "Wallet (Cash)", pt: "Carteira (Dinheiro)" },
-    CreditCard: { en: "Credit Card", pt: "Cartão de Crédito" },
-    Sparkles: { en: "Sparkles (Personal Care)", pt: "Brilhos (Cuidados Pessoais)" },
+    CreditCard: { en: "Card (Credit/Debit)", pt: "Cartão (Crédito/Débito)" }, // General card
+    Sparkles: { en: "Personal Care", pt: "Cuidados Pessoais" },
     Archive: { en: "Archive", pt: "Arquivo" },
-    Bell: { en: "Bell", pt: "Sino" },
-    Box: { en: "Box", pt: "Caixa" },
-    Camera: { en: "Camera", pt: "Câmera" },
-    Cog: { en: "Cog (Settings)", pt: "Engrenagem (Configurações)" },
-    Coins: { en: "Coins", pt: "Moedas" },
-    Flag: { en: "Flag", pt: "Bandeira" },
-    Folder: { en: "Folder", pt: "Pasta de Arquivos" },
-    Key: { en: "Key", pt: "Chave" },
-    Mail: { en: "Mail (Support)", pt: "Correio (Suporte)" },
-    MapPin: { en: "Map Pin", pt: "Pino de Mapa" },
-    Package: { en: "Package", pt: "Pacote" },
-    Pen: { en: "Pen (Edit)", pt: "Caneta (Editar)" },
-    Phone: { en: "Phone", pt: "Telefone" },
-    Receipt: { en: "Receipt", pt: "Recibo" },
-    Shield: { en: "Shield", pt: "Escudo" },
-    Tag: { en: "Tag", pt: "Etiqueta" },
-    Trash: { en: "Trash (Delete)", pt: "Lixeira (Excluir)" },
-    User: { en: "User", pt: "Usuário" },
-    Wrench: { en: "Wrench", pt: "Chave Inglesa" },
-    Languages: { en: "Languages", pt: "Idiomas" },
-    // Add more translations as needed
+    Bell: { en: "Notifications", pt: "Notificações" }, // Changed from Bell
+    Box: { en: "Box/Storage", pt: "Caixa/Armazenamento" },
+    Camera: { en: "Photography", pt: "Fotografia" }, // Changed from Camera
+    Cog: { en: "System Settings", pt: "Configurações do Sistema" }, // Changed from Cog
+    Coins: { en: "Coins/Change", pt: "Moedas/Troco" },
+    Flag: { en: "Goals/Milestones", pt: "Metas/Marcos" }, // Changed from Flag
+    Folder: { en: "Files/Organization", pt: "Arquivos/Organização" },
+    Key: { en: "Security/Access", pt: "Segurança/Acesso" },
+    Mail: { en: "Mail/Support", pt: "Correio/Suporte" },
+    MapPin: { en: "Location", pt: "Localização" },
+    Package: { en: "Packages/Deliveries", pt: "Pacotes/Entregas" },
+    Pen: { en: "Edit", pt: "Editar" },
+    Phone: { en: "Phone/Communication", pt: "Telefone/Comunicação" },
+    Receipt: { en: "Receipts/Bills", pt: "Recibos/Contas" },
+    Shield: { en: "Security/Insurance", pt: "Segurança/Seguro" },
+    Tag: { en: "Label/Tag", pt: "Etiqueta/Tag" },
+    Trash: { en: "Delete", pt: "Excluir" },
+    User: { en: "Profile/User", pt: "Perfil/Usuário" },
+    Wrench: { en: "Maintenance/Tools", pt: "Manutenção/Ferramentas" },
+    Languages: { en: "Language", pt: "Idioma" },
+    PawPrint: { en: "Pets", pt: "Animais de Estimação" },
+    Dumbbell: { en: "Fitness/Gym", pt: "Fitness/Academia" },
+    Pizza: { en: "Pizza/Fast Food", pt: "Pizza/Fast Food" },
+    Shirt: { en: "Clothing", pt: "Vestuário" },
+    Bus: { en: "Public Transport", pt: "Transporte Público" },
+    GraduationCap: { en: "Studies/University", pt: "Estudos/Universidade" },
+    Ticket: { en: "Events/Tickets", pt: "Eventos/Ingressos" },
+    Palette: { en: "Hobbies/Art", pt: "Hobbies/Arte" },
+    Clapperboard: { en: "Movies/Cinema", pt: "Filmes/Cinema" },
+    Gamepad2: { en: "Gaming", pt: "Jogos" },
+    Headphones: { en: "Music/Audio", pt: "Música/Áudio" },
+    Music2: { en: "Concerts/Music", pt: "Shows/Música" },
+    Tv: { en: "TV/Streaming", pt: "TV/Streaming" },
+    Train: { en: "Train Travel", pt: "Viagem de Trem" },
+    TramFront: { en: "Tram/Metro", pt: "Bonde/Metrô" },
+    Sailboat: { en: "Boating/Sailing", pt: "Passeio de Barco/Vela" },
+    UtensilsCrossed: { en: "Restaurant", pt: "Restaurante" },
   };
 
-  return Object.entries(iconNameToComponentMap).map(([name, Component]) => ({
-    value: name,
-    label: iconTranslations[name] || { en: name.replace(/([A-Z](?=[a-z]))|([A-Z]+(?=[A-Z][a-z]|$))/g, ' $1$2').trimStart(), pt: name.replace(/([A-Z](?=[a-z]))|([A-Z]+(?=[A-Z][a-z]|$))/g, ' $1$2').trimStart() },
-    iconComponent: Component as LucideIcon,
-  })).sort((a,b) => a.label.en.localeCompare(b.label.en)); // Sort by English label for consistency
+  return Object.entries(iconNameToComponentMap)
+    .map(([name, Component]) => ({
+      value: name,
+      label: iconTranslations[name] || { en: name.replace(/([A-Z](?=[a-z]))|([A-Z]+(?=[A-Z][a-z]|$))/g, ' $1$2').trimStart(), pt: name.replace(/([A-Z](?=[a-z]))|([A-Z]+(?=[A-Z][a-z]|$))/g, ' $1$2').trimStart() },
+      iconComponent: Component as LucideIcon,
+    }))
+    .sort((a, b) => a.label.en.localeCompare(b.label.en)); // Sort by English label for consistent order
 };

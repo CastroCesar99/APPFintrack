@@ -32,7 +32,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label"; // Added missing import
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -41,8 +41,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { CategoryIcon, getSelectableIcons, iconNameToComponentMap, PaymentMethodIcon } from "@/components/icons";
-import { Edit, Trash2, PlusCircle, TrendingUp, TrendingDown, CircleHelp, type LucideIcon } from "lucide-react";
+import { CategoryIcon, getSelectableIcons, iconNameToComponentMap, CircleHelp } from "@/components/icons";
+import { Edit, Trash2, PlusCircle, TrendingUp, TrendingDown, type LucideIcon } from "lucide-react"; // Added CircleHelp from lucide-react
 import {
   CATEGORIES,
   getCategoryDisplayLabel,
@@ -51,7 +51,7 @@ import {
   type DisplayCategory,
   type TransactionType,
   type UserPreferences,
-  PAYMENT_METHODS, // Added for default preferences
+  PAYMENT_METHODS, 
 } from "@/types";
 import { useLanguage } from "@/context/language-context";
 import { useToast } from "@/hooks/use-toast";
@@ -66,7 +66,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 
-
 const selectableIcons = getSelectableIcons();
 
 const addCategoryFormSchema = z.object({
@@ -77,7 +76,6 @@ const addCategoryFormSchema = z.object({
   }),
 });
 type AddCategoryFormValues = z.infer<typeof addCategoryFormSchema>;
-
 
 export default function ManageCategoriesPage() {
   const { language, translate } = useLanguage();
@@ -179,7 +177,7 @@ export default function ManageCategoriesPage() {
       name: newCategoryName,
       icon: newCategoryIcon,
       type: newCategoryType,
-      label: { en: newCategoryName, pt: newCategoryName },
+      label: { en: newCategoryName, pt: newCategoryName }, 
     };
 
     try {
@@ -196,9 +194,9 @@ export default function ManageCategoriesPage() {
         await setDoc(preferencesDocRef, {
           userDefinedCategories: [newCustomCategory],
           selectedCategories: [newCustomCategory.name],
-          selectedPaymentMethods: PAYMENT_METHODS.map(pm => pm.name),
+          selectedPaymentMethods: PAYMENT_METHODS.map(pm => pm.name), 
           userDefinedPaymentMethods: [],
-          language: language,
+          language: language, 
           updatedAt: serverTimestamp()
         });
       }
@@ -338,7 +336,7 @@ export default function ManageCategoriesPage() {
                         <Select onValueChange={field.onChange} value={field.value}>
                           <FormControl>
                             <SelectTrigger className="w-full">
-                              <SelectValue placeholder={translate({ en: "Select an icon", pt: "Selecione um ícone" })}>
+                               <SelectValue>
                                 {field.value ? (
                                   (() => {
                                     const foundIconOption = selectableIcons.find(i => i.value === field.value);
@@ -522,4 +520,3 @@ export default function ManageCategoriesPage() {
     </AppLayout>
   );
 }
-

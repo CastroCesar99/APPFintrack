@@ -32,7 +32,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label"; // Label is used for form fields
+import { Label } from "@/components/ui/label"; 
 import {
   Select,
   SelectContent,
@@ -41,14 +41,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { PaymentMethodIcon, getSelectableIcons, iconNameToComponentMap } from "@/components/icons"; 
-import { Edit, Trash2, PlusCircle } from "lucide-react";
+import { Edit, Trash2, PlusCircle, CircleHelp, type LucideIcon } from "lucide-react"; // Added CircleHelp from lucide-react
 import {
   PAYMENT_METHODS,
   getPaymentMethodDisplayLabel,
-  type PaymentMethod,
   type CustomPaymentMethodData,
   type DisplayPaymentMethod,
   type UserPreferences,
+  CATEGORIES 
 } from "@/types";
 import { useLanguage } from "@/context/language-context";
 import { useToast } from "@/hooks/use-toast";
@@ -60,7 +60,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useForm, type SubmitHandler, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"; // Added FormItem
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 
 const selectableIcons = getSelectableIcons();
 
@@ -91,7 +91,10 @@ export default function ManagePaymentMethodsPage() {
 
   const fetchUserPaymentMethods = useCallback(async () => {
     if (!user) {
-      setDisplayPaymentMethods([...PAYMENT_METHODS].sort((a, b) => getPaymentMethodDisplayLabel(a, language).localeCompare(getPaymentMethodDisplayLabel(b, language))));
+      const sortedPredefined = [...PAYMENT_METHODS].sort((a, b) => 
+        getPaymentMethodDisplayLabel(a, language).localeCompare(getPaymentMethodDisplayLabel(b, language))
+      );
+      setDisplayPaymentMethods(sortedPredefined);
       setIsLoading(false);
       return;
     }
@@ -130,7 +133,10 @@ export default function ManagePaymentMethodsPage() {
         description: translate({ en: "Could not load your payment methods.", pt: "Não foi possível carregar seus métodos de pagamento." }),
         variant: "destructive",
       });
-      setDisplayPaymentMethods([...PAYMENT_METHODS].sort((a, b) => getPaymentMethodDisplayLabel(a, language).localeCompare(getPaymentMethodDisplayLabel(b, language)))); 
+      const sortedPredefinedOnError = [...PAYMENT_METHODS].sort((a, b) => 
+        getPaymentMethodDisplayLabel(a, language).localeCompare(getPaymentMethodDisplayLabel(b, language))
+      );
+      setDisplayPaymentMethods(sortedPredefinedOnError); 
     } finally {
       setIsLoading(false);
     }
@@ -152,7 +158,7 @@ export default function ManagePaymentMethodsPage() {
     const newMethodIcon = data.selectedNewMethodIcon;
 
     const isDuplicate = displayPaymentMethods.some(
-      (pm) => pm.name.toLowerCase() === newMethodName.toLowerCase()
+      (pm) => getPaymentMethodDisplayLabel(pm, language).toLowerCase() === newMethodName.toLowerCase() || pm.name.toLowerCase() === newMethodName.toLowerCase()
     );
 
     if (isDuplicate) {
@@ -181,9 +187,9 @@ export default function ManagePaymentMethodsPage() {
         await setDoc(preferencesDocRef, {
           userDefinedPaymentMethods: [newCustomMethod],
           selectedPaymentMethods: [newCustomMethod.name], 
-          selectedCategories: CATEGORIES.filter(c => c.type === 'expense').map(c => c.name), 
+          selectedCategories: CATEGORIES.map(c => c.name), 
           userDefinedCategories: [],
-          language: language,
+          language: language, 
           updatedAt: serverTimestamp()
         });
       }
@@ -257,10 +263,10 @@ export default function ManagePaymentMethodsPage() {
     }
   };
 
-  const handleEditPlaceholder = (methodName: string) => {
+  const handleEditPlaceholder = (method: DisplayPaymentMethod) => {
     toast({
       title: translate({ en: "Feature In Development", pt: "Funcionalidade em Desenvolvimento" }),
-      description: `${translate({ en: "Editing", pt: "Editar" })} ${methodName} ${translate({ en: "is coming soon.", pt: "está chegando em breve."})}`,
+      description: `${translate({ en: "Editing", pt: "Editar" })} ${getPaymentMethodDisplayLabel(method, language)} ${translate({ en: "is coming soon.", pt: "está chegando em breve."})}`,
     });
   };
 
@@ -292,12 +298,11 @@ export default function ManagePaymentMethodsPage() {
                     name="newMethodName"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel htmlFor="newMethodName">
+                        <FormLabel>
                           {translate({ en: "Method Name", pt: "Nome do Método" })}
                         </FormLabel>
                         <FormControl>
                           <Input
-                            id="newMethodName"
                             placeholder={translate({ en: "e.g., My Bank Card", pt: "ex: Cartão Meu Banco"})}
                             {...field}
                           />
@@ -311,20 +316,22 @@ export default function ManagePaymentMethodsPage() {
                     name="selectedNewMethodIcon"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel htmlFor="selectedNewMethodIcon">
+                        <FormLabel>
                            {translate({ en: "Icon", pt: "Ícone" })}
                         </FormLabel>
                         <Select onValueChange={field.onChange} value={field.value}>
                           <FormControl>
                             <SelectTrigger className="w-full">
-                             <SelectValue placeholder={translate({ en: "Select an icon", pt: "Selecione um ícone" })}>
+                             <SelectValue>
                                 {field.value ? (
                                   (() => {
                                     const foundIconOption = selectableIcons.find(i => i.value === field.value);
+                                    const IconComp = foundIconOption ? foundIconOption.iconComponent : CircleHelp;
+                                    const labelText = foundIconOption ? translate(foundIconOption.label) : field.value;
                                     return (
                                       <div className="flex items-center gap-2">
-                                        {foundIconOption && <foundIconOption.iconComponent className="h-4 w-4 text-muted-foreground" />}
-                                        <span>{foundIconOption ? translate(foundIconOption.label) : field.value}</span>
+                                        <IconComp className="h-4 w-4 text-muted-foreground" />
+                                        <span>{labelText}</span>
                                       </div>
                                     );
                                   })()
@@ -406,7 +413,7 @@ export default function ManagePaymentMethodsPage() {
                         <Button 
                           variant="ghost" 
                           size="icon" 
-                          onClick={() => handleEditPlaceholder(getPaymentMethodDisplayLabel(method, language))}
+                          onClick={() => handleEditPlaceholder(method)}
                           aria-label={translate({en: "Edit", pt: "Editar"}) + " " + getPaymentMethodDisplayLabel(method, language)}
                         >
                           <Edit className="h-4 w-4" />
