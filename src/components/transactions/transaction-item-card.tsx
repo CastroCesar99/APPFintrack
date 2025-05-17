@@ -6,12 +6,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Edit, Trash2 } from 'lucide-react';
 import type { Transaction } from '@/types';
-import { getCategoryDisplayLabel, getPaymentMethodDisplayLabel } from '@/types';
+import { getCategoryLabel, getPaymentMethodDisplayLabel } from '@/types'; // Use getCategoryLabel
 import { CategoryIcon } from '@/components/icons';
 import { formatCurrency, cn } from '@/lib/utils';
 import { format as formatDateFns, parse as parseDateFns } from 'date-fns';
+import { ptBR, enUS } from 'date-fns/locale';
 import { useLanguage } from '@/context/language-context';
-import { ptBR, enUS } from 'date-fns/locale'; // Import locales directly
 
 interface TransactionItemCardProps {
   transaction: Transaction;
@@ -26,7 +26,8 @@ export function TransactionItemCard({ transaction, onEdit, onDelete }: Transacti
   try {
     if (transaction.date && transaction.date.match(/^\d{4}-\d{2}-\d{2}$/)) {
       const parsedDate = parseDateFns(transaction.date, "yyyy-MM-dd", new Date(0));
-      displayDate = formatDateFns(parsedDate, "MMM dd, yyyy", { locale: language === 'pt' ? ptBR : enUS });
+      // Updated date format
+      displayDate = formatDateFns(parsedDate, language === 'pt' ? "dd 'de' MMMM yyyy" : "MMMM dd, yyyy", { locale: language === 'pt' ? ptBR : enUS });
     } else {
       console.warn("TransactionItemCard: Unexpected date format for transaction ID " + transaction.id + ": " + transaction.date);
     }
@@ -34,24 +35,16 @@ export function TransactionItemCard({ transaction, onEdit, onDelete }: Transacti
     console.warn("TransactionItemCard: Could not parse date string for display: " + transaction.date, e);
   }
 
-  // For category display, assuming transaction.category is a string (either predefined name or custom)
-  // We need to create a minimal DisplayCategory-like object if it's just a string,
-  // or find the full object if possible (though not done here for simplicity, relying on getCategoryDisplayLabel)
-  const categoryForDisplay: { name: string, type: Transaction['type'], icon: string, label: { en: string, pt: string } } = {
-    name: transaction.category as string, // Treat as string
-    type: transaction.type, // Pass the type along
-    icon: '', // Icon will be looked up by CategoryIcon based on name
-    label: { en: transaction.category as string, pt: transaction.category as string } // Fallback label
-  };
-  const categoryDisplayName = getCategoryDisplayLabel(categoryForDisplay, language);
+  // Use getCategoryLabel directly with the category name string
+  const categoryDisplayName = getCategoryLabel(transaction.category, language);
 
   const paymentMethodDisplayName = transaction.paymentMethod
-    ? getPaymentMethodDisplayLabel(transaction.paymentMethod, language) // Pass the string name
+    ? getPaymentMethodDisplayLabel(transaction.paymentMethod, language)
     : '';
 
   const expenseNatureDisplay = transaction.expenseNature
     ? translate({
-        en: transaction.expenseNature === 'fixed' ? 'Fixed' : 'Variable',
+        en: transaction.expenseNature.charAt(0).toUpperCase() + transaction.expenseNature.slice(1), // Capitalize
         pt: transaction.expenseNature === 'fixed' ? 'Fixa' : 'Variável',
       })
     : '';
