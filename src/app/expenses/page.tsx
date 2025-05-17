@@ -38,6 +38,7 @@ type SortOptionValue = 'dateDesc' | 'dateAsc' | 'amountDesc' | 'amountAsc' | 'ca
 
 export default function ExpensesPage() {
   const { user, loading: authLoading } = useAuth();
+  const userId = user?.uid;
   const router = useRouter();
   const { language, translate } = useLanguage();
   const { displayedDate, displayedMonthYearLabel } = useDateNavigation();
@@ -56,6 +57,7 @@ export default function ExpensesPage() {
   const [userCategories, setUserCategories] = useState<DisplayCategory[]>(() => [...CATEGORIES]);
   const [userPaymentMethods, setUserPaymentMethods] = useState<DisplayPaymentMethod[]>(() => [...PAYMENT_METHODS]);
   const [isLoadingPreferences, setIsLoadingPreferences] = useState(true);
+  const unsubscribePreferencesRef = useRef<(() => void) | null>(null);
 
   const [sortOption, setSortOption] = useState<SortOptionValue>('dateDesc');
 
@@ -63,28 +65,32 @@ export default function ExpensesPage() {
     setIsClient(true);
   }, []);
 
-  const fetchUserPreferences = useCallback(async () => {
-    if (!user) {
+  // Listener for User Preferences
+  useEffect(() => {
+    if (!userId || !isClient || authLoading) {
       setUserCategories([...CATEGORIES]);
       setUserPaymentMethods([...PAYMENT_METHODS]);
       setIsLoadingPreferences(false);
+      if (unsubscribePreferencesRef.current) {
+        unsubscribePreferencesRef.current();
+        unsubscribePreferencesRef.current = null;
+      }
       return;
     }
+
     setIsLoadingPreferences(true);
-    try {
-      const preferencesDocRef = doc(db, "users/" + user.uid + "/preferences/userPreferences");
-      const preferencesDocSnap = await getDoc(preferencesDocRef);
-      
+    const preferencesDocRef = doc(db, `users/${userId}/preferences/userPreferences`);
+
+    const unsubscribe = onSnapshot(preferencesDocRef, (docSnap) => {
       let finalCategories: DisplayCategory[] = [...CATEGORIES];
       let finalPaymentMethods: DisplayPaymentMethod[] = [...PAYMENT_METHODS];
 
-      if (preferencesDocSnap.exists()) {
-        const preferencesData = preferencesDocSnap.data() as UserPreferences;
+      if (docSnap.exists()) {
+        const preferencesData = docSnap.data() as UserPreferences;
         
         const customCategoryDefs = preferencesData.userDefinedCategories || [];
         const allPredefinedCategories = [...CATEGORIES];
         const customCategoriesWithType: DisplayCategory[] = customCategoryDefs.map(c => ({ ...c, type: c.type || 'expense' })); 
-        
         const combinedCategories = [...allPredefinedCategories, ...customCategoriesWithType];
         const uniqueCategoriesMap = new Map<string, DisplayCategory>();
         combinedCategories.forEach(cat => uniqueCategoriesMap.set(cat.name.toLowerCase(), cat));
@@ -105,42 +111,39 @@ export default function ExpensesPage() {
             finalPaymentMethods = Array.from(basePaymentMethodsMap.values());
         }
       }
-      setUserCategories(finalCategories);
-      setUserPaymentMethods(finalPaymentMethods);
-
-    } catch (error) {
-      console.error("ExpensesPage: Error fetching user preferences:", error);
+      setUserCategories(finalCategories.sort((a,b) => getCategoryDisplayLabel(a, language).localeCompare(getCategoryDisplayLabel(b,language))));
+      setUserPaymentMethods(finalPaymentMethods.sort((a,b) => getPaymentMethodDisplayLabel(a,language).localeCompare(getPaymentMethodDisplayLabel(b,language))));
+      setIsLoadingPreferences(false);
+    }, (error) => {
+      console.error("ExpensesPage: Error listening to user preferences:", error);
       toast({
         title: translate({ en: "Error Loading Preferences", pt: "Erro ao Carregar Preferências" }),
-        description: translate({ en: "Could not load your preferences for the form.", pt: "Não foi possível carregar suas preferências para o formulário." }),
+        description: translate({ en: "Could not load your preferences.", pt: "Não foi possível carregar suas preferências." }),
         variant: "destructive",
       });
       setUserCategories([...CATEGORIES]); 
       setUserPaymentMethods([...PAYMENT_METHODS]); 
-    } finally {
       setIsLoadingPreferences(false);
-    }
-  }, [user, toast, translate]);
+    });
+    unsubscribePreferencesRef.current = unsubscribe;
+
+    return () => {
+      if (unsubscribePreferencesRef.current) {
+        unsubscribePreferencesRef.current();
+      }
+    };
+  }, [userId, isClient, authLoading, language, toast, translate]);
+
 
   useEffect(() => {
-    if (user && !authLoading) {
-      fetchUserPreferences();
-    } else if (!authLoading && !user) {
-      setUserCategories([...CATEGORIES]);
-      setUserPaymentMethods([...PAYMENT_METHODS]);
-      setIsLoadingPreferences(false);
-    }
-  }, [user, authLoading, fetchUserPreferences, displayedDate]); // Added displayedDate
-
-  useEffect(() => {
-    if (!user || authLoading || !isClient) {
-      if (!authLoading && !user && isClient) router.push('/login');
+    if (!userId || authLoading || !isClient) {
+      if (!authLoading && !userId && isClient) router.push('/login');
       setIsLoadingTransactions(false); 
       return;
     }
 
     setIsLoadingTransactions(true);
-    const transactionsColRef = collection(db, 'users/' + user.uid + '/transactions');
+    const transactionsColRef = collection(db, 'users/' + userId + '/transactions');
     const q_transactions = query(transactionsColRef, orderBy("date", "desc"));
 
     const unsubscribe = onSnapshot(q_transactions, (querySnapshot) => {
@@ -184,7 +187,7 @@ export default function ExpensesPage() {
     });
 
     return () => unsubscribe();
-  }, [user, authLoading, isClient, toast, translate, router]);
+  }, [userId, authLoading, isClient, toast, translate, router]);
 
   const getCategoryObjectByName = useCallback((name: string): DisplayCategory | undefined => {
     return userCategories.find(cat => cat.name === name);
@@ -199,7 +202,6 @@ export default function ExpensesPage() {
       
       const dateParts = t.date.split('-');
       if (dateParts.length !== 3) {
-        // console.warn("ExpensesPage: Invalid date format for transaction ID " + t.id + ": " + t.date);
         console.warn("ExpensesPage: Invalid date format for transaction ID " + t.id + ": " + t.date);
         return false;
       }
@@ -253,7 +255,7 @@ export default function ExpensesPage() {
   };
 
   const handleSaveTransaction = async (formData: Omit<Transaction, "id" | "userId" | "createdAt" | "updatedAt">, id?: string) => {
-    if (!user) {
+    if (!userId) {
       toast({ title: translate({ en: "Error", pt: "Erro" }), description: translate({ en: "User not authenticated.", pt: "Usuário não autenticado." }), variant: "destructive" });
       return;
     }
@@ -262,7 +264,7 @@ export default function ExpensesPage() {
     const cleanPayload = Object.fromEntries(Object.entries(dataPayload).filter(([_, v]) => v !== undefined)) as Partial<Transaction>;
 
     if (id) { 
-      const transactionDocRef = doc(db, "users/" + user.uid + "/transactions", id);
+      const transactionDocRef = doc(db, "users/" + userId + "/transactions", id);
       try {
         await updateDoc(transactionDocRef, { ...cleanPayload, updatedAt: serverTimestamp() });
         toast({ title: translate({ en: "Expense Updated", pt: "Despesa Atualizada" }), description: formData.description + " " + translate({ en: "has been successfully updated.", pt: "foi atualizada com sucesso." })});
@@ -274,8 +276,8 @@ export default function ExpensesPage() {
       }
     } else { 
       try {
-        const transactionsColRef = collection(db, "users/" + user.uid + "/transactions");
-        await addDoc(transactionsColRef, { ...cleanPayload, userId: user.uid, createdAt: serverTimestamp() });
+        const transactionsColRef = collection(db, "users/" + userId + "/transactions");
+        await addDoc(transactionsColRef, { ...cleanPayload, userId: userId, createdAt: serverTimestamp() });
         toast({ title: translate({ en: "Expense Added", pt: "Despesa Adicionada" }), description: formData.description + " " + translate({ en: "has been successfully added.", pt: "foi adicionada com sucesso." })});
         setIsAddFormOpen(false);
       } catch (error: any) {
@@ -293,7 +295,7 @@ export default function ExpensesPage() {
   };
 
   const confirmDeleteTransaction = async () => {
-    if (!user || !transactionToDelete) {
+    if (!userId || !transactionToDelete) {
       toast({
         title: translate({ en: "Error", pt: "Erro" }),
         description: translate({ en: "Transaction not found or user not authenticated.", pt: "Transação não encontrada ou usuário não autenticado." }),
@@ -304,7 +306,7 @@ export default function ExpensesPage() {
     }
 
     try {
-      const docRef = doc(db, "users/" + user.uid + "/transactions", transactionToDelete.id);
+      const docRef = doc(db, "users/" + userId + "/transactions", transactionToDelete.id);
       await deleteDoc(docRef);
       toast({
         title: translate({ en: "Expense Deleted", pt: "Despesa Excluída" }),
@@ -460,5 +462,4 @@ export default function ExpensesPage() {
   );
 }
     
-
     
