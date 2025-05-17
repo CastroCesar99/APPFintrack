@@ -41,8 +41,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { CategoryIcon, getSelectableIcons, iconNameToComponentMap, CircleHelp } from "@/components/icons";
-import { Edit, Trash2, PlusCircle, TrendingUp, TrendingDown, type LucideIcon } from "lucide-react"; // Added CircleHelp from lucide-react
+import { CategoryIcon, getSelectableIcons, iconNameToComponentMap } from "@/components/icons";
+import { Edit, Trash2, PlusCircle, TrendingUp, TrendingDown, CircleHelp, type LucideIcon } from "lucide-react";
 import {
   CATEGORIES,
   getCategoryDisplayLabel,
@@ -340,7 +340,7 @@ export default function ManageCategoriesPage() {
                                 {field.value ? (
                                   (() => {
                                     const foundIconOption = selectableIcons.find(i => i.value === field.value);
-                                    const IconComp = foundIconOption ? foundIconOption.iconComponent : CircleHelp;
+                                    const IconComp = foundIconOption ? foundIconOption.iconComponent : CircleHelp; // Fallback to CircleHelp directly from lucide-react
                                     const labelText = foundIconOption ? translate(foundIconOption.label) : field.value;
                                     return (
                                       <div className="flex items-center gap-2">
@@ -520,3 +520,5 @@ export default function ManageCategoriesPage() {
     </AppLayout>
   );
 }
+
+    
