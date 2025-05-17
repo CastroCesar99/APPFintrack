@@ -22,7 +22,8 @@ import {
   DialogClose,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+// Label from form is used for FormLabel, this Label is for general purpose if needed
+// import { Label } from "@/components/ui/label"; 
 import {
   Select,
   SelectContent,
@@ -32,10 +33,10 @@ import {
 } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { CategoryIcon, getSelectableIcons, iconNameToComponentMap, PaymentMethodIcon } from "@/components/icons";
-import { Edit, Trash2, PlusCircle, TrendingUp, TrendingDown, CircleHelp } from "lucide-react";
+import { Edit, Trash2, PlusCircle, TrendingUp, TrendingDown, CircleHelp, type LucideIcon } from "lucide-react";
 import {
   CATEGORIES,
-  getCategoryDisplayLabel,
+  getCategoryDisplayLabel, // Ensure this is the correct function
   type Category,
   type CustomCategoryData,
   type DisplayCategory,
@@ -90,7 +91,10 @@ export default function ManageCategoriesPage() {
 
   const fetchUserCategories = useCallback(async () => {
     if (!user) {
-      setDisplayCategories([...CATEGORIES].sort((a,b) => getCategoryDisplayLabel(a,language).localeCompare(getCategoryDisplayLabel(b,language))));
+      const sortedPredefined = [...CATEGORIES].sort((a, b) => 
+        getCategoryDisplayLabel(a, language).localeCompare(getCategoryDisplayLabel(b, language))
+      );
+      setDisplayCategories(sortedPredefined);
       setIsLoading(false);
       return;
     }
@@ -107,8 +111,8 @@ export default function ManageCategoriesPage() {
         
         const customCategoriesWithType: DisplayCategory[] = customCategories.map(cc => ({
             ...cc,
-            type: cc.type || 'expense', 
-            label: cc.label || { en: cc.name, pt: cc.name }
+            type: cc.type || 'expense', // Default to expense if type is missing for some reason
+            label: cc.label || { en: cc.name, pt: cc.name } // Ensure label object exists
         }));
         
         const categoryNames = new Set(effectiveCategories.map(cat => cat.name.toLowerCase()));
@@ -127,7 +131,10 @@ export default function ManageCategoriesPage() {
         description: translate({ en: "Could not load your categories.", pt: "Não foi possível carregar suas categorias." }),
         variant: "destructive",
       });
-      setDisplayCategories([...CATEGORIES].sort((a,b) => getCategoryDisplayLabel(a,language).localeCompare(getCategoryDisplayLabel(b,language))));
+      const sortedPredefinedOnError = [...CATEGORIES].sort((a, b) => 
+        getCategoryDisplayLabel(a, language).localeCompare(getCategoryDisplayLabel(b, language))
+      );
+      setDisplayCategories(sortedPredefinedOnError);
     } finally {
       setIsLoading(false);
     }
@@ -139,7 +146,7 @@ export default function ManageCategoriesPage() {
     }
   }, [user, authLoading, fetchUserCategories]);
 
-  const handleAddCategory: SubmitHandler<AddCategoryFormValues> = async (data) => {
+  const handleAddCategorySubmit: SubmitHandler<AddCategoryFormValues> = async (data) => {
     if (!user) {
       toast({ title: translate({ en: "Authentication Error", pt: "Erro de Autenticação" }), description: translate({ en: "You must be logged in.", pt: "Você precisa estar logado." }), variant: "destructive" });
       return;
@@ -150,7 +157,7 @@ export default function ManageCategoriesPage() {
     const newCategoryType = data.newCategoryType;
 
     const isDuplicate = displayCategories.some(
-      (cat) => cat.name.toLowerCase() === newCategoryName.toLowerCase()
+      (cat) => getCategoryDisplayLabel(cat, language).toLowerCase() === newCategoryName.toLowerCase() || cat.name.toLowerCase() === newCategoryName.toLowerCase()
     );
     if (isDuplicate) {
       toast({ title: translate({ en: "Duplicate Category", pt: "Categoria Duplicada" }), description: translate({ en: "This category already exists.", pt: "Esta categoria já existe." }), variant: "destructive" });
@@ -159,10 +166,10 @@ export default function ManageCategoriesPage() {
     }
 
     const newCustomCategory: CustomCategoryData = {
-      name: newCategoryName,
+      name: newCategoryName, // Use as is, do not cast to CategoryName
       icon: newCategoryIcon,
       type: newCategoryType,
-      label: { en: newCategoryName, pt: newCategoryName },
+      label: { en: newCategoryName, pt: newCategoryName }, // For custom, label is often the name itself
     };
 
     try {
@@ -176,12 +183,13 @@ export default function ManageCategoriesPage() {
           updatedAt: serverTimestamp()
         });
       } else {
+        // If preferences doc doesn't exist, create it with new category and defaults
         await setDoc(preferencesDocRef, {
           userDefinedCategories: [newCustomCategory],
           selectedCategories: [newCustomCategory.name],
-          selectedPaymentMethods: PAYMENT_METHODS.map(pm => pm.name), 
+          selectedPaymentMethods: PAYMENT_METHODS.map(pm => pm.name), // Default selected payment methods
           userDefinedPaymentMethods: [],
-          language: language, 
+          language: language, // Current app language
           updatedAt: serverTimestamp()
         });
       }
@@ -291,18 +299,17 @@ export default function ManageCategoriesPage() {
                 </DialogDescription>
               </DialogHeader>
               <Form {...addCategoryForm}>
-                <form onSubmit={addCategoryForm.handleSubmit(handleAddCategory)} className="space-y-4 py-4">
+                <form onSubmit={addCategoryForm.handleSubmit(handleAddCategorySubmit)} className="space-y-4 py-4">
                   <FormField
                     control={addCategoryForm.control}
                     name="newCategoryName"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel htmlFor="newCategoryName">
+                        <FormLabel>
                           {translate({ en: "Category Name", pt: "Nome da Categoria" })}
                         </FormLabel>
                         <FormControl>
                           <Input
-                            id="newCategoryName"
                             placeholder={translate({ en: "e.g., Side Hustle", pt: "ex: Renda Extra"})}
                             {...field}
                           />
@@ -316,7 +323,7 @@ export default function ManageCategoriesPage() {
                     name="selectedNewCategoryIcon"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel htmlFor="selectedNewCategoryIcon">
+                        <FormLabel>
                            {translate({ en: "Icon", pt: "Ícone" })}
                         </FormLabel>
                         <Select onValueChange={field.onChange} value={field.value}>
@@ -326,10 +333,12 @@ export default function ManageCategoriesPage() {
                                 {field.value ? (
                                   (() => {
                                     const foundIconOption = selectableIcons.find(i => i.value === field.value);
+                                    const IconComp = foundIconOption ? foundIconOption.iconComponent : CircleHelp;
+                                    const labelText = foundIconOption ? translate(foundIconOption.label) : field.value;
                                     return (
                                       <div className="flex items-center gap-2">
-                                        {foundIconOption && <foundIconOption.iconComponent className="h-4 w-4 text-muted-foreground" />}
-                                        <span>{foundIconOption ? translate(foundIconOption.label) : field.value}</span>
+                                        <IconComp className="h-4 w-4 text-muted-foreground" />
+                                        <span>{labelText}</span>
                                       </div>
                                     );
                                   })()
@@ -364,15 +373,15 @@ export default function ManageCategoriesPage() {
                           <RadioGroup
                               onValueChange={field.onChange}
                               value={field.value}
-                              className="flex space-x-4 pt-1"
+                              className="flex flex-row items-center space-x-3 pt-1" // Always row, more compact
                           >
-                              <FormItem className="flex items-center space-x-2">
+                              <FormItem className="flex items-center space-x-1.5"> {/* Reduced space */}
                                   <FormControl>
                                       <RadioGroupItem value="income" id="type-income-cat-dialog" />
                                   </FormControl>
                                   <Label htmlFor="type-income-cat-dialog" className="font-normal">{translate({en: "Income", pt: "Receita"})}</Label>
                               </FormItem>
-                              <FormItem className="flex items-center space-x-2">
+                              <FormItem className="flex items-center space-x-1.5"> {/* Reduced space */}
                                   <FormControl>
                                       <RadioGroupItem value="expense" id="type-expense-cat-dialog" />
                                   </FormControl>
