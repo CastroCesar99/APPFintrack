@@ -66,7 +66,7 @@ export default function ExpensesPage() {
     }
     setIsLoadingPreferences(true);
     try {
-      const preferencesDocRef = doc(db, `users/${user.uid}/preferences/userPreferences`);
+      const preferencesDocRef = doc(db, "users/" + user.uid + "/preferences/userPreferences");
       const preferencesDocSnap = await getDoc(preferencesDocRef);
 
       if (preferencesDocSnap.exists()) {
@@ -153,7 +153,7 @@ export default function ExpensesPage() {
             dateString = formatDateFns(new Date(), "yyyy-MM-dd");
           }
         } else if (typeof data.date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(data.date)) {
-           console.warn("ExpensesPage: Transaction has unexpected date format. Fallback to current date. Date was:", data.date);
+           console.warn("ExpensesPage: Transaction has unexpected date format. Fallback to current date. Date was:" + String(data.date));
            dateString = formatDateFns(new Date(), "yyyy-MM-dd");
         }
         return { 
@@ -191,14 +191,14 @@ export default function ExpensesPage() {
       
       const dateParts = t.date.split('-');
       if (dateParts.length !== 3) {
-        console.warn(\`ExpensesPage: Invalid date format for transaction ID \${t.id}: \${t.date}\`);
+        console.warn("ExpensesPage: Invalid date format for transaction ID " + t.id + ": " + t.date);
         return false;
       }
       const transactionYear = parseInt(dateParts[0], 10);
       const transactionMonth = parseInt(dateParts[1], 10) - 1; 
 
       if (isNaN(transactionYear) || isNaN(transactionMonth)) {
-        console.warn(\`ExpensesPage: Could not parse year/month for transaction ID \${t.id}: \${t.date}\`);
+        console.warn("ExpensesPage: Could not parse year/month for transaction ID " + t.id + ": " + t.date);
         return false;
       }
       return transactionYear === targetYear && transactionMonth === targetMonth;
@@ -231,25 +231,25 @@ export default function ExpensesPage() {
 
 
     if (id) { // Editing existing transaction
-      const transactionDocRef = doc(db, `users/${user.uid}/transactions`, id);
+      const transactionDocRef = doc(db, "users/" + user.uid + "/transactions", id);
       try {
         await updateDoc(transactionDocRef, { ...cleanPayload, updatedAt: serverTimestamp() });
-        toast({ title: translate({ en: "Expense Updated", pt: "Despesa Atualizada" }), description: `${formData.description} ${translate({ en: "has been successfully updated.", pt: "foi atualizada com sucesso." })}` });
+        toast({ title: translate({ en: "Expense Updated", pt: "Despesa Atualizada" }), description: formData.description + " " + translate({ en: "has been successfully updated.", pt: "foi atualizada com sucesso." })});
         setIsEditFormOpen(false);
         setTransactionToEdit(null);
       } catch (error: any) {
         console.error("ExpensesPage: Error updating expense:", error);
-        toast({ title: translate({ en: "Error Updating Expense", pt: "Erro ao Atualizar Despesa" }), description: (error.message || translate({ en: "Could not update expense.", pt: "Não foi possível atualizar a despesa." })) + (error.code ? ` (Code: ${error.code})` : ''), variant: "destructive" });
+        toast({ title: translate({ en: "Error Updating Expense", pt: "Erro ao Atualizar Despesa" }), description: (error.message || translate({ en: "Could not update expense.", pt: "Não foi possível atualizar a despesa." })) + (error.code ? " (Code: " + error.code + ")" : ''), variant: "destructive" });
       }
     } else { // Adding new transaction
       try {
-        const transactionsColRef = collection(db, `users/${user.uid}/transactions`);
+        const transactionsColRef = collection(db, "users/" + user.uid + "/transactions");
         await addDoc(transactionsColRef, { ...cleanPayload, userId: user.uid, createdAt: serverTimestamp() });
-        toast({ title: translate({ en: "Expense Added", pt: "Despesa Adicionada" }), description: `${formData.description} ${translate({ en: "has been successfully added.", pt: "foi adicionada com sucesso." })}` });
+        toast({ title: translate({ en: "Expense Added", pt: "Despesa Adicionada" }), description: formData.description + " " + translate({ en: "has been successfully added.", pt: "foi adicionada com sucesso." })});
         setIsAddFormOpen(false);
       } catch (error: any) {
         console.error("ExpensesPage: Error adding expense:", error);
-        toast({ title: translate({ en: "Error Adding Expense", pt: "Erro ao Adicionar Despesa" }), description: (error.message || translate({ en: "Could not add expense.", pt: "Não foi possível adicionar a despesa." })) + (error.code ? ` (Code: ${error.code})` : ''), variant: "destructive" });
+        toast({ title: translate({ en: "Error Adding Expense", pt: "Erro ao Adicionar Despesa" }), description: (error.message || translate({ en: "Could not add expense.", pt: "Não foi possível adicionar a despesa." })) + (error.code ? " (Code: " + error.code + ")" : ''), variant: "destructive" });
       }
     }
   };
@@ -273,11 +273,11 @@ export default function ExpensesPage() {
     }
 
     try {
-      const docRef = doc(db, `users/${user.uid}/transactions`, transactionToDelete.id);
+      const docRef = doc(db, "users/" + user.uid + "/transactions", transactionToDelete.id);
       await deleteDoc(docRef);
       toast({
         title: translate({ en: "Expense Deleted", pt: "Despesa Excluída" }),
-        description: `${transactionToDelete.description} ${translate({en: "has been deleted.", pt: "foi excluída."})}`,
+        description: transactionToDelete.description + " " + translate({en: "has been deleted.", pt: "foi excluída."}),
       });
     } catch (error) {
       console.error("ExpensesPage: Error deleting expense:", error);
@@ -312,7 +312,7 @@ export default function ExpensesPage() {
           </h1>
           <Dialog open={isAddFormOpen} onOpenChange={setIsAddFormOpen} modal={false}>
             <DialogTrigger asChild>
-              <Button onClick={handleOpenAddDialog} variant="outline" className="w-full sm:w-auto">
+              <Button variant="outline" className="w-full sm:w-auto">
                 <PlusCircle className="mr-2 h-4 w-4" />
                 {translate({ en: "Add New Expense", pt: "Adicionar Nova Despesa" })}
               </Button>
@@ -327,11 +327,11 @@ export default function ExpensesPage() {
               <TransactionForm
                 onSave={handleSaveTransaction}
                 initialType="expense"
-                transactionToEdit={null} // Explicitly null for adding
+                transactionToEdit={null} 
                 defaultDate={displayedDate}
                 userCategories={userCategories}
                 userPaymentMethods={userPaymentMethods}
-                key={`add-${displayedDate.toISOString()}`} 
+                key={"add-" + displayedDate.toISOString()} 
               />
             </DialogContent>
           </Dialog>
@@ -353,7 +353,7 @@ export default function ExpensesPage() {
                 transactionToEdit={transactionToEdit}
                 userCategories={userCategories}
                 userPaymentMethods={userPaymentMethods}
-                key={`edit-${transactionToEdit.id}-${displayedDate.toISOString()}`}
+                key={"edit-" + transactionToEdit.id + "-" + displayedDate.toISOString()}
               />
             )}
           </DialogContent>
