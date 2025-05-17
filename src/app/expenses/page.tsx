@@ -7,9 +7,8 @@ import { useRouter } from 'next/navigation';
 import { AppLayout } from "@/components/layout/app-layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-// TransactionsTable import removed
 import { TransactionForm } from "@/components/dashboard/transaction-form";
-import { TransactionItemCard } from "@/components/transactions/transaction-item-card"; // New import
+import { TransactionItemCard } from "@/components/transactions/transaction-item-card"; 
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import {
   AlertDialog,
@@ -71,7 +70,7 @@ export default function ExpensesPage() {
     try {
       const preferencesDocRef = doc(db, "users/" + user.uid + "/preferences/userPreferences");
       const preferencesDocSnap = await getDoc(preferencesDocRef);
-
+      
       let finalCategories: DisplayCategory[] = [...CATEGORIES];
       let finalPaymentMethods: DisplayPaymentMethod[] = [...PAYMENT_METHODS];
 
@@ -79,15 +78,19 @@ export default function ExpensesPage() {
         const preferencesData = preferencesDocSnap.data() as UserPreferences;
         
         const customCategoryDefs = preferencesData.userDefinedCategories || [];
-        const customCategoryMap = new Map(customCategoryDefs.map(cat => [cat.name.toLowerCase(), {...cat, type: cat.type || 'expense'}]));
-        const baseCategoriesMap = new Map(finalCategories.map(cat => [cat.name.toLowerCase(), cat]));
-        customCategoryMap.forEach((value, key) => baseCategoriesMap.set(key, value));
-        finalCategories = Array.from(baseCategoriesMap.values());
+        const allPredefinedCategories = [...CATEGORIES];
+        const customCategoriesWithType: DisplayCategory[] = customCategoryDefs.map(c => ({ ...c, type: c.type || 'expense' })); // Assuming custom are expense by default
+        
+        const combinedCategories = [...allPredefinedCategories, ...customCategoriesWithType];
+        const uniqueCategoriesMap = new Map<string, DisplayCategory>();
+        combinedCategories.forEach(cat => uniqueCategoriesMap.set(cat.name.toLowerCase(), cat));
+        finalCategories = Array.from(uniqueCategoriesMap.values());
+
 
         const customPaymentMethodDefs = preferencesData.userDefinedPaymentMethods || [];
-        const customPaymentMethodMap = new Map(customPaymentMethodDefs.map(pm => [pm.name.toLowerCase(), pm]));
-        const basePaymentMethodsMap = new Map(finalPaymentMethods.map(pm => [pm.name.toLowerCase(), pm]));
-        customPaymentMethodMap.forEach((value, key) => basePaymentMethodsMap.set(key, value));
+        const basePaymentMethodsMap = new Map<string, DisplayPaymentMethod>();
+        PAYMENT_METHODS.forEach(pm => basePaymentMethodsMap.set(pm.name.toLowerCase(), pm));
+        customPaymentMethodDefs.forEach(customPm => basePaymentMethodsMap.set(customPm.name.toLowerCase(), customPm));
         
         const selectedPaymentMethodNames = preferencesData.selectedPaymentMethods || [];
         if (selectedPaymentMethodNames.length > 0) {
@@ -109,8 +112,8 @@ export default function ExpensesPage() {
         description: translate({ en: "Could not load your preferences for the form.", pt: "Não foi possível carregar suas preferências para o formulário." }),
         variant: "destructive",
       });
-      setUserCategories([...CATEGORIES]); // Fallback
-      setUserPaymentMethods([...PAYMENT_METHODS]); // Fallback
+      setUserCategories([...CATEGORIES]); 
+      setUserPaymentMethods([...PAYMENT_METHODS]); 
     } finally {
       setIsLoadingPreferences(false);
     }
@@ -295,8 +298,8 @@ export default function ExpensesPage() {
   return (
     <AppLayout>
       <div className="space-y-6"> 
-        <div className="sm:flex sm:items-center sm:justify-between">
-          <h1 className="text-3xl font-bold tracking-tight text-foreground mb-4 sm:mb-0">
+        <div className="flex flex-col items-stretch gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">
             {pageTitle} - {displayedMonthYearLabel}
           </h1>
           <Dialog open={isAddFormOpen} onOpenChange={setIsAddFormOpen} modal={false}>
@@ -356,11 +359,11 @@ export default function ExpensesPage() {
           </CardHeader>
           <CardContent>
             {isLoadingPage ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                {[...Array(6)].map((_, i) => <Skeleton key={i} className="h-32 w-full rounded-md" />)}
+              <div className="grid grid-cols-1 gap-4">
+                {[...Array(6)].map((_, i) => <Skeleton key={i} className="h-36 w-full rounded-lg" />)}
               </div>
             ) : expensesForDisplayedPeriod.length > 0 ? (
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+              <div className="grid grid-cols-1 gap-4">
                 {expensesForDisplayedPeriod.map(tx => (
                   <TransactionItemCard 
                     key={tx.id} 

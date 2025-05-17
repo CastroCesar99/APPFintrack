@@ -7,9 +7,8 @@ import { useRouter } from 'next/navigation';
 import { AppLayout } from "@/components/layout/app-layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-// TransactionsTable import removed
 import { TransactionForm } from "@/components/dashboard/transaction-form";
-import { TransactionItemCard } from "@/components/transactions/transaction-item-card"; // New import
+import { TransactionItemCard } from "@/components/transactions/transaction-item-card"; 
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import {
   AlertDialog,
@@ -29,7 +28,7 @@ import { useLanguage } from '@/context/language-context';
 import { useDateNavigation } from '@/context/date-navigation-context';
 import { useToast } from "@/hooks/use-toast";
 import { db } from '@/lib/firebase';
-import { collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, Timestamp, doc, deleteDoc, getDoc } from "firebase/firestore";
+import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, serverTimestamp, Timestamp, doc, deleteDoc, getDoc } from "firebase/firestore";
 import { format as formatDateFns, parseISO as parseISODateFns, getYear as getYearFns, getMonth as getMonthFns, parse as parseDateFns } from 'date-fns';
 import { formatCurrency } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -51,7 +50,6 @@ export default function IncomePage() {
   const [userPaymentMethods, setUserPaymentMethods] = useState<DisplayPaymentMethod[]>([]);
   const [isLoadingPreferences, setIsLoadingPreferences] = useState(true);
 
-  // For edit functionality (to be implemented more fully later)
   const [isEditFormOpen, setIsEditFormOpen] = useState(false);
   const [transactionToEdit, setTransactionToEdit] = useState<Transaction | null>(null);
 
@@ -79,15 +77,19 @@ export default function IncomePage() {
         const preferencesData = preferencesDocSnap.data() as UserPreferences;
         
         const customCategoryDefs = preferencesData.userDefinedCategories || [];
-        const customCategoryMap = new Map(customCategoryDefs.map(cat => [cat.name.toLowerCase(), {...cat, type: cat.type || 'expense'}]));
-        const baseCategoriesMap = new Map(finalCategories.map(cat => [cat.name.toLowerCase(), cat]));
-        customCategoryMap.forEach((value, key) => baseCategoriesMap.set(key, value));
-        finalCategories = Array.from(baseCategoriesMap.values());
+        const allPredefinedCategories = [...CATEGORIES];
+        const customCategoriesWithType: DisplayCategory[] = customCategoryDefs.map(c => ({ ...c, type: c.type || 'expense' })); 
+        
+        const combinedCategories = [...allPredefinedCategories, ...customCategoriesWithType];
+        const uniqueCategoriesMap = new Map<string, DisplayCategory>();
+        combinedCategories.forEach(cat => uniqueCategoriesMap.set(cat.name.toLowerCase(), cat));
+        finalCategories = Array.from(uniqueCategoriesMap.values());
+
 
         const customPaymentMethodDefs = preferencesData.userDefinedPaymentMethods || [];
-        const customPaymentMethodMap = new Map(customPaymentMethodDefs.map(pm => [pm.name.toLowerCase(), pm]));
-        const basePaymentMethodsMap = new Map(finalPaymentMethods.map(pm => [pm.name.toLowerCase(), pm]));
-        customPaymentMethodMap.forEach((value, key) => basePaymentMethodsMap.set(key, value));
+        const basePaymentMethodsMap = new Map<string, DisplayPaymentMethod>();
+        PAYMENT_METHODS.forEach(pm => basePaymentMethodsMap.set(pm.name.toLowerCase(), pm));
+        customPaymentMethodDefs.forEach(customPm => basePaymentMethodsMap.set(customPm.name.toLowerCase(), customPm));
         
         const selectedPaymentMethodNames = preferencesData.selectedPaymentMethods || [];
         if (selectedPaymentMethodNames.length > 0) {
@@ -108,8 +110,8 @@ export default function IncomePage() {
         description: translate({ en: "Could not load your preferences for the form.", pt: "Não foi possível carregar suas preferências para o formulário." }),
         variant: "destructive",
       });
-      setUserCategories([...CATEGORIES]); // Fallback
-      setUserPaymentMethods([...PAYMENT_METHODS]); // Fallback
+      setUserCategories([...CATEGORIES]); 
+      setUserPaymentMethods([...PAYMENT_METHODS]); 
     } finally {
       setIsLoadingPreferences(false);
     }
@@ -198,7 +200,7 @@ export default function IncomePage() {
       return transactionYear === targetYear && transactionMonth === targetMonth;
     }).sort((a,b) => parseDateFns(b.date, "yyyy-MM-dd", new Date(0)).getTime() - parseDateFns(a.date, "yyyy-MM-dd", new Date(0)).getTime());
   }, [allTransactions, displayedDate]);
-
+  
   const handleOpenAddDialog = () => {
     setTransactionToEdit(null);
     setIsAddFormOpen(true);
@@ -208,7 +210,7 @@ export default function IncomePage() {
     const tx = allTransactions.find(t => t.id === transactionId);
     if (tx) {
       setTransactionToEdit(tx);
-      setIsEditFormOpen(true); // Open edit dialog
+      setIsEditFormOpen(true); 
     } else {
       toast({ title: translate({ en: "Error", pt: "Erro" }), description: translate({ en: "Transaction not found.", pt: "Transação não encontrada." }), variant: "destructive" });
     }
@@ -223,7 +225,7 @@ export default function IncomePage() {
     const dataPayload = { ...formData, type: 'income' as 'income' };
     const cleanPayload = Object.fromEntries(Object.entries(dataPayload).filter(([_, v]) => v !== undefined)) as Partial<Transaction>;
 
-    if (id) { // Editing
+    if (id) { 
       const transactionDocRef = doc(db, "users/" + user.uid + "/transactions", id);
       try {
         await updateDoc(transactionDocRef, { ...cleanPayload, updatedAt: serverTimestamp() });
@@ -234,7 +236,7 @@ export default function IncomePage() {
         console.error("IncomePage: Error updating income:", error);
         toast({ title: translate({ en: "Error Updating Income", pt: "Erro ao Atualizar Receita" }), description: (error.message || translate({ en: "Could not update income.", pt: "Não foi possível atualizar a receita." })) + (error.code ? " (Code: " + error.code + ")" : ''), variant: "destructive" });
       }
-    } else { // Adding
+    } else { 
       try {
         const transactionsColRef = collection(db, "users/" + user.uid + "/transactions");
         await addDoc(transactionsColRef, { ...cleanPayload, userId: user.uid, createdAt: serverTimestamp() });
@@ -291,8 +293,8 @@ export default function IncomePage() {
   return (
     <AppLayout>
       <div className="space-y-6">
-        <div className="sm:flex sm:items-center sm:justify-between">
-          <h1 className="text-3xl font-bold tracking-tight text-foreground mb-4 sm:mb-0">
+         <div className="flex flex-col items-stretch gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">
             {pageTitle} - {displayedMonthYearLabel}
           </h1>
           <Dialog open={isAddFormOpen} onOpenChange={setIsAddFormOpen} modal={false}>
@@ -352,11 +354,11 @@ export default function IncomePage() {
           </CardHeader>
           <CardContent>
              {isLoadingPage ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                {[...Array(6)].map((_, i) => <Skeleton key={i} className="h-32 w-full rounded-md" />)}
+              <div className="grid grid-cols-1 gap-4">
+                {[...Array(6)].map((_, i) => <Skeleton key={i} className="h-36 w-full rounded-lg" />)}
               </div>
             ) : incomeForDisplayedPeriod.length > 0 ? (
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+              <div className="grid grid-cols-1 gap-4">
                 {incomeForDisplayedPeriod.map(tx => (
                   <TransactionItemCard 
                     key={tx.id} 
