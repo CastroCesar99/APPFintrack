@@ -1,14 +1,15 @@
 
 "use client";
 
-import type React from 'react'; // Ensure React is imported
+import type React from 'react';
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter } from 'next/navigation';
 import { AppLayout } from "@/components/layout/app-layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { TransactionsTable } from "@/components/dashboard/transactions-table";
+// TransactionsTable import removed
 import { TransactionForm } from "@/components/dashboard/transaction-form";
+import { TransactionItemCard } from "@/components/transactions/transaction-item-card"; // New import
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import {
   AlertDialog,
@@ -29,8 +30,10 @@ import { useDateNavigation } from '@/context/date-navigation-context';
 import { useToast } from "@/hooks/use-toast";
 import { db } from '@/lib/firebase';
 import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, serverTimestamp, Timestamp, doc, deleteDoc, getDoc } from "firebase/firestore";
-import { format as formatDateFns, parseISO as parseISODateFns, getYear as getYearFns, getMonth as getMonthFns } from 'date-fns';
+import { format as formatDateFns, parseISO as parseISODateFns, getYear as getYearFns, getMonth as getMonthFns, parse as parseDateFns } from 'date-fns';
 import { formatCurrency } from '@/lib/utils';
+import { Skeleton } from '@/components/ui/skeleton';
+
 
 export default function ExpensesPage() {
   const { user, loading: authLoading } = useAuth();
@@ -69,41 +72,36 @@ export default function ExpensesPage() {
       const preferencesDocRef = doc(db, "users/" + user.uid + "/preferences/userPreferences");
       const preferencesDocSnap = await getDoc(preferencesDocRef);
 
+      let finalCategories: DisplayCategory[] = [...CATEGORIES];
+      let finalPaymentMethods: DisplayPaymentMethod[] = [...PAYMENT_METHODS];
+
       if (preferencesDocSnap.exists()) {
         const preferencesData = preferencesDocSnap.data() as UserPreferences;
         
         const customCategoryDefs = preferencesData.userDefinedCategories || [];
-        const baseCategories: DisplayCategory[] = [...CATEGORIES]; 
-        const finalCategoriesMap = new Map<string, DisplayCategory>();
-
-        baseCategories.forEach(cat => finalCategoriesMap.set(cat.name.toLowerCase(), cat));
-        customCategoryDefs.forEach(customCat => {
-             finalCategoriesMap.set(customCat.name.toLowerCase(), {...customCat, type: customCat.type || 'expense'});
-        });
-        setUserCategories(Array.from(finalCategoriesMap.values()));
+        const customCategoryMap = new Map(customCategoryDefs.map(cat => [cat.name.toLowerCase(), {...cat, type: cat.type || 'expense'}]));
+        const baseCategoriesMap = new Map(finalCategories.map(cat => [cat.name.toLowerCase(), cat]));
+        customCategoryMap.forEach((value, key) => baseCategoriesMap.set(key, value));
+        finalCategories = Array.from(baseCategoriesMap.values());
 
         const customPaymentMethodDefs = preferencesData.userDefinedPaymentMethods || [];
-        const basePaymentMethodsList: DisplayPaymentMethod[] = [...PAYMENT_METHODS];
-        const finalPaymentMethodsMap = new Map<string, DisplayPaymentMethod>();
-        
-        basePaymentMethodsList.forEach(pm => finalPaymentMethodsMap.set(pm.name.toLowerCase(), pm));
-        customPaymentMethodDefs.forEach(customPm => {
-            finalPaymentMethodsMap.set(customPm.name.toLowerCase(), customPm);
-        });
+        const customPaymentMethodMap = new Map(customPaymentMethodDefs.map(pm => [pm.name.toLowerCase(), pm]));
+        const basePaymentMethodsMap = new Map(finalPaymentMethods.map(pm => [pm.name.toLowerCase(), pm]));
+        customPaymentMethodMap.forEach((value, key) => basePaymentMethodsMap.set(key, value));
         
         const selectedPaymentMethodNames = preferencesData.selectedPaymentMethods || [];
         if (selectedPaymentMethodNames.length > 0) {
-            const effectivePMs = Array.from(finalPaymentMethodsMap.values()).filter(pm => 
+            const effectivePMs = Array.from(basePaymentMethodsMap.values()).filter(pm => 
                 selectedPaymentMethodNames.some(name => name.toLowerCase() === pm.name.toLowerCase())
             );
-            setUserPaymentMethods(effectivePMs.length > 0 ? effectivePMs : Array.from(finalPaymentMethodsMap.values()));
+            finalPaymentMethods = effectivePMs.length > 0 ? effectivePMs : Array.from(basePaymentMethodsMap.values());
         } else {
-            setUserPaymentMethods(Array.from(finalPaymentMethodsMap.values()));
+            finalPaymentMethods = Array.from(basePaymentMethodsMap.values());
         }
-      } else {
-        setUserCategories([...CATEGORIES]);
-        setUserPaymentMethods([...PAYMENT_METHODS]);
       }
+      setUserCategories(finalCategories);
+      setUserPaymentMethods(finalPaymentMethods);
+
     } catch (error) {
       console.error("ExpensesPage: Error fetching user preferences:", error);
       toast({
@@ -111,8 +109,8 @@ export default function ExpensesPage() {
         description: translate({ en: "Could not load your preferences for the form.", pt: "Não foi possível carregar suas preferências para o formulário." }),
         variant: "destructive",
       });
-      setUserCategories([...CATEGORIES]);
-      setUserPaymentMethods([...PAYMENT_METHODS]);
+      setUserCategories([...CATEGORIES]); // Fallback
+      setUserPaymentMethods([...PAYMENT_METHODS]); // Fallback
     } finally {
       setIsLoadingPreferences(false);
     }
@@ -202,7 +200,7 @@ export default function ExpensesPage() {
         return false;
       }
       return transactionYear === targetYear && transactionMonth === targetMonth;
-    });
+    }).sort((a,b) => parseDateFns(b.date, "yyyy-MM-dd", new Date(0)).getTime() - parseDateFns(a.date, "yyyy-MM-dd", new Date(0)).getTime());
   }, [allTransactions, displayedDate]);
 
   const handleOpenAddDialog = () => {
@@ -230,7 +228,7 @@ export default function ExpensesPage() {
     const cleanPayload = Object.fromEntries(Object.entries(dataPayload).filter(([_, v]) => v !== undefined)) as Partial<Transaction>;
 
 
-    if (id) { // Editing existing transaction
+    if (id) { 
       const transactionDocRef = doc(db, "users/" + user.uid + "/transactions", id);
       try {
         await updateDoc(transactionDocRef, { ...cleanPayload, updatedAt: serverTimestamp() });
@@ -241,7 +239,7 @@ export default function ExpensesPage() {
         console.error("ExpensesPage: Error updating expense:", error);
         toast({ title: translate({ en: "Error Updating Expense", pt: "Erro ao Atualizar Despesa" }), description: (error.message || translate({ en: "Could not update expense.", pt: "Não foi possível atualizar a despesa." })) + (error.code ? " (Code: " + error.code + ")" : ''), variant: "destructive" });
       }
-    } else { // Adding new transaction
+    } else { 
       try {
         const transactionsColRef = collection(db, "users/" + user.uid + "/transactions");
         await addDoc(transactionsColRef, { ...cleanPayload, userId: user.uid, createdAt: serverTimestamp() });
@@ -292,22 +290,13 @@ export default function ExpensesPage() {
   };
 
   const pageTitle = translate({ en: "Expenses", pt: "Despesas" });
-
-  if (!isClient || authLoading || isLoadingTransactions || isLoadingPreferences) {
-    return (
-      <AppLayout>
-        <div className="flex items-center justify-center h-full w-full">
-          <p className="text-foreground">{translate({ en: "Loading expenses...", pt: "Carregando despesas..." })}</p>
-        </div>
-      </AppLayout>
-    );
-  }
+  const isLoadingPage = !isClient || authLoading || isLoadingTransactions || isLoadingPreferences;
 
   return (
     <AppLayout>
       <div className="space-y-6"> 
-        <div className="flex flex-col items-stretch gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">
+        <div className="sm:flex sm:items-center sm:justify-between">
+          <h1 className="text-3xl font-bold tracking-tight text-foreground mb-4 sm:mb-0">
             {pageTitle} - {displayedMonthYearLabel}
           </h1>
           <Dialog open={isAddFormOpen} onOpenChange={setIsAddFormOpen} modal={false}>
@@ -337,7 +326,6 @@ export default function ExpensesPage() {
           </Dialog>
         </div>
 
-        {/* Edit Expense Dialog */}
         <Dialog open={isEditFormOpen} onOpenChange={setIsEditFormOpen} modal={false}>
           <DialogContent className="sm:max-w-[425px]">
             <DialogHeader>
@@ -360,19 +348,28 @@ export default function ExpensesPage() {
         </Dialog>
 
         <Card className="shadow-lg">
-          <CardHeader>
+          <CardHeader className="text-center">
             <CardTitle className="text-2xl font-semibold">{translate({ en: "Expense List", pt: "Lista de Despesas" })}</CardTitle>
             <CardDescription className="text-muted-foreground">
               {translate({ en: "All your expenses for", pt: "Todas as suas despesas de" })} {displayedMonthYearLabel}.
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {expensesForDisplayedPeriod.length > 0 ? (
-              <TransactionsTable 
-                transactions={expensesForDisplayedPeriod} 
-                onEditTransaction={handleOpenEditDialog}
-                onDeleteTransaction={openDeleteConfirmation}
-              />
+            {isLoadingPage ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                {[...Array(6)].map((_, i) => <Skeleton key={i} className="h-32 w-full rounded-md" />)}
+              </div>
+            ) : expensesForDisplayedPeriod.length > 0 ? (
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+                {expensesForDisplayedPeriod.map(tx => (
+                  <TransactionItemCard 
+                    key={tx.id} 
+                    transaction={tx} 
+                    onEdit={handleOpenEditDialog} 
+                    onDelete={openDeleteConfirmation}
+                  />
+                ))}
+              </div>
             ) : (
               <p className="text-center text-muted-foreground py-8">
                 {translate({ en: "No expenses recorded for this period.", pt: "Nenhuma despesa registrada para este período." })}
@@ -404,5 +401,3 @@ export default function ExpensesPage() {
     </AppLayout>
   );
 }
-
-    

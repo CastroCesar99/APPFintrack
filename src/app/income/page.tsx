@@ -7,8 +7,9 @@ import { useRouter } from 'next/navigation';
 import { AppLayout } from "@/components/layout/app-layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { TransactionsTable } from "@/components/dashboard/transactions-table";
+// TransactionsTable import removed
 import { TransactionForm } from "@/components/dashboard/transaction-form";
+import { TransactionItemCard } from "@/components/transactions/transaction-item-card"; // New import
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import {
   AlertDialog,
@@ -29,8 +30,9 @@ import { useDateNavigation } from '@/context/date-navigation-context';
 import { useToast } from "@/hooks/use-toast";
 import { db } from '@/lib/firebase';
 import { collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, Timestamp, doc, deleteDoc, getDoc } from "firebase/firestore";
-import { format as formatDateFns, parseISO as parseISODateFns, getYear as getYearFns, getMonth as getMonthFns } from 'date-fns';
+import { format as formatDateFns, parseISO as parseISODateFns, getYear as getYearFns, getMonth as getMonthFns, parse as parseDateFns } from 'date-fns';
 import { formatCurrency } from '@/lib/utils';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function IncomePage() {
   const { user, loading: authLoading } = useAuth();
@@ -49,6 +51,11 @@ export default function IncomePage() {
   const [userPaymentMethods, setUserPaymentMethods] = useState<DisplayPaymentMethod[]>([]);
   const [isLoadingPreferences, setIsLoadingPreferences] = useState(true);
 
+  // For edit functionality (to be implemented more fully later)
+  const [isEditFormOpen, setIsEditFormOpen] = useState(false);
+  const [transactionToEdit, setTransactionToEdit] = useState<Transaction | null>(null);
+
+
   useEffect(() => {
     setIsClient(true);
   }, []);
@@ -62,44 +69,38 @@ export default function IncomePage() {
     }
     setIsLoadingPreferences(true);
     try {
-      const preferencesDocRef = doc(db, `users/${user.uid}/preferences/userPreferences`);
+      const preferencesDocRef = doc(db, "users/" + user.uid + "/preferences/userPreferences");
       const preferencesDocSnap = await getDoc(preferencesDocRef);
+      
+      let finalCategories: DisplayCategory[] = [...CATEGORIES];
+      let finalPaymentMethods: DisplayPaymentMethod[] = [...PAYMENT_METHODS];
 
       if (preferencesDocSnap.exists()) {
         const preferencesData = preferencesDocSnap.data() as UserPreferences;
         
         const customCategoryDefs = preferencesData.userDefinedCategories || [];
-        const baseCategories: DisplayCategory[] = [...CATEGORIES]; 
-        const finalCategoriesMap = new Map<string, DisplayCategory>();
-
-        baseCategories.forEach(cat => finalCategoriesMap.set(cat.name.toLowerCase(), cat));
-        customCategoryDefs.forEach(customCat => {
-             finalCategoriesMap.set(customCat.name.toLowerCase(), {...customCat, type: customCat.type || 'expense'});
-        });
-        setUserCategories(Array.from(finalCategoriesMap.values()));
+        const customCategoryMap = new Map(customCategoryDefs.map(cat => [cat.name.toLowerCase(), {...cat, type: cat.type || 'expense'}]));
+        const baseCategoriesMap = new Map(finalCategories.map(cat => [cat.name.toLowerCase(), cat]));
+        customCategoryMap.forEach((value, key) => baseCategoriesMap.set(key, value));
+        finalCategories = Array.from(baseCategoriesMap.values());
 
         const customPaymentMethodDefs = preferencesData.userDefinedPaymentMethods || [];
-        const basePaymentMethodsList: DisplayPaymentMethod[] = [...PAYMENT_METHODS];
-        const finalPaymentMethodsMap = new Map<string, DisplayPaymentMethod>();
-        
-        basePaymentMethodsList.forEach(pm => finalPaymentMethodsMap.set(pm.name.toLowerCase(), pm));
-        customPaymentMethodDefs.forEach(customPm => {
-            finalPaymentMethodsMap.set(customPm.name.toLowerCase(), customPm);
-        });
+        const customPaymentMethodMap = new Map(customPaymentMethodDefs.map(pm => [pm.name.toLowerCase(), pm]));
+        const basePaymentMethodsMap = new Map(finalPaymentMethods.map(pm => [pm.name.toLowerCase(), pm]));
+        customPaymentMethodMap.forEach((value, key) => basePaymentMethodsMap.set(key, value));
         
         const selectedPaymentMethodNames = preferencesData.selectedPaymentMethods || [];
         if (selectedPaymentMethodNames.length > 0) {
-            const effectivePMs = Array.from(finalPaymentMethodsMap.values()).filter(pm => 
+            const effectivePMs = Array.from(basePaymentMethodsMap.values()).filter(pm => 
                 selectedPaymentMethodNames.some(name => name.toLowerCase() === pm.name.toLowerCase())
             );
-            setUserPaymentMethods(effectivePMs.length > 0 ? effectivePMs : Array.from(finalPaymentMethodsMap.values()));
+            finalPaymentMethods = effectivePMs.length > 0 ? effectivePMs : Array.from(basePaymentMethodsMap.values());
         } else {
-            setUserPaymentMethods(Array.from(finalPaymentMethodsMap.values()));
+            finalPaymentMethods = Array.from(basePaymentMethodsMap.values());
         }
-      } else {
-        setUserCategories([...CATEGORIES]);
-        setUserPaymentMethods([...PAYMENT_METHODS]);
       }
+      setUserCategories(finalCategories);
+      setUserPaymentMethods(finalPaymentMethods);
     } catch (error) {
       console.error("IncomePage: Error fetching user preferences:", error);
       toast({
@@ -107,8 +108,8 @@ export default function IncomePage() {
         description: translate({ en: "Could not load your preferences for the form.", pt: "Não foi possível carregar suas preferências para o formulário." }),
         variant: "destructive",
       });
-      setUserCategories([...CATEGORIES]);
-      setUserPaymentMethods([...PAYMENT_METHODS]);
+      setUserCategories([...CATEGORIES]); // Fallback
+      setUserPaymentMethods([...PAYMENT_METHODS]); // Fallback
     } finally {
       setIsLoadingPreferences(false);
     }
@@ -133,7 +134,7 @@ export default function IncomePage() {
     }
 
     setIsLoadingTransactions(true);
-    const transactionsColRef = collection(db, `users/${user.uid}/transactions`);
+    const transactionsColRef = collection(db, "users/" + user.uid + "/transactions");
     const q_transactions = query(transactionsColRef, orderBy("date", "desc"));
 
     const unsubscribe = onSnapshot(q_transactions, (querySnapshot) => {
@@ -184,72 +185,68 @@ export default function IncomePage() {
       
       const dateParts = t.date.split('-');
        if (dateParts.length !== 3) {
-        console.warn(`IncomePage: Invalid date format for transaction ID ${t.id}: ${t.date}`);
+        console.warn("IncomePage: Invalid date format for transaction ID " + t.id + ": " + t.date);
         return false;
       }
       const transactionYear = parseInt(dateParts[0], 10);
       const transactionMonth = parseInt(dateParts[1], 10) - 1; 
 
       if (isNaN(transactionYear) || isNaN(transactionMonth)) {
-        console.warn(`IncomePage: Could not parse year/month for transaction ID ${t.id}: ${t.date}`);
+        console.warn("IncomePage: Could not parse year/month for transaction ID " + t.id + ": " + t.date);
         return false;
       }
       return transactionYear === targetYear && transactionMonth === targetMonth;
-    });
+    }).sort((a,b) => parseDateFns(b.date, "yyyy-MM-dd", new Date(0)).getTime() - parseDateFns(a.date, "yyyy-MM-dd", new Date(0)).getTime());
   }, [allTransactions, displayedDate]);
 
-  const handleAddIncome = async (newTransactionData: Omit<Transaction, "id" | "userId" | "createdAt">) => {
+  const handleOpenAddDialog = () => {
+    setTransactionToEdit(null);
+    setIsAddFormOpen(true);
+  };
+
+  const handleOpenEditDialog = (transactionId: string) => {
+    const tx = allTransactions.find(t => t.id === transactionId);
+    if (tx) {
+      setTransactionToEdit(tx);
+      setIsEditFormOpen(true); // Open edit dialog
+    } else {
+      toast({ title: translate({ en: "Error", pt: "Erro" }), description: translate({ en: "Transaction not found.", pt: "Transação não encontrada." }), variant: "destructive" });
+    }
+  };
+
+
+  const handleSaveTransaction = async (formData: Omit<Transaction, "id" | "userId" | "createdAt" | "updatedAt">, id?: string) => {
     if (!user) {
-      toast({
-        title: translate({ en: "Error", pt: "Erro" }),
-        description: translate({ en: "User not authenticated.", pt: "Usuário não autenticado." }),
-        variant: "destructive",
-      });
+      toast({ title: translate({ en: "Error", pt: "Erro" }), description: translate({ en: "User not authenticated.", pt: "Usuário não autenticado." }), variant: "destructive" });
       return;
     }
+    const dataPayload = { ...formData, type: 'income' as 'income' };
+    const cleanPayload = Object.fromEntries(Object.entries(dataPayload).filter(([_, v]) => v !== undefined)) as Partial<Transaction>;
 
-    const fullPayload = {
-      ...newTransactionData,
-      type: 'income' as 'income', 
-      userId: user.uid,
-      createdAt: serverTimestamp(),
-    };
-    
-    const dataToSave = Object.fromEntries(
-        Object.entries(fullPayload).filter(([_, value]) => value !== undefined)
-    ) as Partial<Transaction & { createdAt: any; userId: string }>;
-
-    if (dataToSave.isRecurring === undefined && typeof newTransactionData.isRecurring === 'boolean') {
-        dataToSave.isRecurring = newTransactionData.isRecurring;
-    } else if (dataToSave.isRecurring === undefined) {
-       dataToSave.isRecurring = false; 
-    }
-
-    try {
-      const transactionsColRef = collection(db, `users/${user.uid}/transactions`);
-      await addDoc(transactionsColRef, dataToSave);
-      toast({
-        title: translate({ en: "Income Added", pt: "Receita Adicionada" }),
-        description: `${newTransactionData.description} ${translate({ en: "has been successfully added.", pt: "foi adicionada com sucesso." })}`,
-      });
-      setIsAddFormOpen(false); 
-    } catch (error: any) {
-      console.error("IncomePage: Error adding income:", error);
-      toast({
-        title: translate({ en: "Error Adding Income", pt: "Erro ao Adicionar Receita" }),
-        description: (error.message || translate({ en: "Could not add income.", pt: "Não foi possível adicionar a receita." })) + (error.code ? ` (Code: ${error.code})` : ''),
-        variant: "destructive",
-      });
+    if (id) { // Editing
+      const transactionDocRef = doc(db, "users/" + user.uid + "/transactions", id);
+      try {
+        await updateDoc(transactionDocRef, { ...cleanPayload, updatedAt: serverTimestamp() });
+        toast({ title: translate({ en: "Income Updated", pt: "Receita Atualizada" }), description: formData.description + " " + translate({ en: "has been successfully updated.", pt: "foi atualizada com sucesso." }) });
+        setIsEditFormOpen(false);
+        setTransactionToEdit(null);
+      } catch (error: any) {
+        console.error("IncomePage: Error updating income:", error);
+        toast({ title: translate({ en: "Error Updating Income", pt: "Erro ao Atualizar Receita" }), description: (error.message || translate({ en: "Could not update income.", pt: "Não foi possível atualizar a receita." })) + (error.code ? " (Code: " + error.code + ")" : ''), variant: "destructive" });
+      }
+    } else { // Adding
+      try {
+        const transactionsColRef = collection(db, "users/" + user.uid + "/transactions");
+        await addDoc(transactionsColRef, { ...cleanPayload, userId: user.uid, createdAt: serverTimestamp() });
+        toast({ title: translate({ en: "Income Added", pt: "Receita Adicionada" }), description: formData.description + " " + translate({ en: "has been successfully added.", pt: "foi adicionada com sucesso." }) });
+        setIsAddFormOpen(false);
+      } catch (error: any) {
+        console.error("IncomePage: Error adding income:", error);
+        toast({ title: translate({ en: "Error Adding Income", pt: "Erro ao Adicionar Receita" }), description: (error.message || translate({ en: "Could not add income.", pt: "Não foi possível adicionar a receita." })) + (error.code ? " (Code: " + error.code + ")" : ''), variant: "destructive" });
+      }
     }
   };
   
-  const handleEditTransaction = (transactionId: string) => {
-    toast({
-      title: translate({ en: "Feature In Development", pt: "Funcionalidade em Desenvolvimento" }),
-      description: `${translate({en:"Editing transaction",pt:"Editar transação"})} ID: ${transactionId} ${translate({en:"is coming soon.", pt:"está chegando em breve."})}`
-    });
-  };
-
   const openDeleteConfirmation = (transactionId: string) => {
     const tx = allTransactions.find(t => t.id === transactionId);
     if (tx) {
@@ -269,11 +266,11 @@ export default function IncomePage() {
     }
 
     try {
-      const docRef = doc(db, `users/${user.uid}/transactions`, transactionToDelete.id);
+      const docRef = doc(db, "users/" + user.uid + "/transactions", transactionToDelete.id);
       await deleteDoc(docRef);
       toast({
         title: translate({ en: "Income Deleted", pt: "Receita Excluída" }),
-        description: `${transactionToDelete.description} ${translate({en: "has been deleted.", pt: "foi excluída."})}`,
+        description: transactionToDelete.description + " " + translate({en: "has been deleted.", pt: "foi excluída."}),
       });
     } catch (error) {
       console.error("IncomePage: Error deleting income:", error);
@@ -288,22 +285,14 @@ export default function IncomePage() {
   };
 
   const pageTitle = translate({ en: "Income", pt: "Receitas" });
+  const isLoadingPage = !isClient || authLoading || isLoadingTransactions || isLoadingPreferences;
 
-  if (!isClient || authLoading || isLoadingTransactions || isLoadingPreferences) {
-    return (
-      <AppLayout>
-        <div className="flex items-center justify-center h-full w-full">
-          <p className="text-foreground">{translate({ en: "Loading income...", pt: "Carregando receitas..." })}</p>
-        </div>
-      </AppLayout>
-    );
-  }
 
   return (
     <AppLayout>
       <div className="space-y-6">
-        <div className="flex flex-col items-stretch gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">
+        <div className="sm:flex sm:items-center sm:justify-between">
+          <h1 className="text-3xl font-bold tracking-tight text-foreground mb-4 sm:mb-0">
             {pageTitle} - {displayedMonthYearLabel}
           </h1>
           <Dialog open={isAddFormOpen} onOpenChange={setIsAddFormOpen} modal={false}>
@@ -321,31 +310,62 @@ export default function IncomePage() {
                 </DialogDescription>
               </DialogHeader>
               <TransactionForm
-                onAddTransaction={handleAddIncome}
+                onSave={handleSaveTransaction}
                 initialType="income"
+                transactionToEdit={null}
                 defaultDate={displayedDate}
                 userCategories={userCategories}
                 userPaymentMethods={userPaymentMethods}
-                key={displayedDate.toISOString() + "income" + userCategories.length + userPaymentMethods.length} 
+                key={"add-income-" + displayedDate.toISOString()} 
               />
             </DialogContent>
           </Dialog>
         </div>
 
+        <Dialog open={isEditFormOpen} onOpenChange={setIsEditFormOpen} modal={false}>
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle>{translate({ en: "Edit Income", pt: "Editar Receita" })}</DialogTitle>
+              <DialogDescription>
+                {translate({ en: "Update the details of your income.", pt: "Atualize os detalhes da sua receita." })}
+              </DialogDescription>
+            </DialogHeader>
+            {transactionToEdit && (
+              <TransactionForm
+                onSave={handleSaveTransaction}
+                initialType="income"
+                transactionToEdit={transactionToEdit}
+                userCategories={userCategories}
+                userPaymentMethods={userPaymentMethods}
+                key={"edit-income-" + transactionToEdit.id + "-" + displayedDate.toISOString()}
+              />
+            )}
+          </DialogContent>
+        </Dialog>
+
         <Card className="shadow-lg">
-          <CardHeader>
+          <CardHeader className="text-center">
             <CardTitle className="text-2xl font-semibold">{translate({ en: "Income List", pt: "Lista de Receitas" })}</CardTitle>
             <CardDescription className="text-muted-foreground">
               {translate({ en: "All your income for", pt: "Todas as suas receitas de" })} {displayedMonthYearLabel}.
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {incomeForDisplayedPeriod.length > 0 ? (
-              <TransactionsTable 
-                transactions={incomeForDisplayedPeriod} 
-                onEditTransaction={handleEditTransaction}
-                onDeleteTransaction={openDeleteConfirmation}
-              />
+             {isLoadingPage ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                {[...Array(6)].map((_, i) => <Skeleton key={i} className="h-32 w-full rounded-md" />)}
+              </div>
+            ) : incomeForDisplayedPeriod.length > 0 ? (
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+                {incomeForDisplayedPeriod.map(tx => (
+                  <TransactionItemCard 
+                    key={tx.id} 
+                    transaction={tx} 
+                    onEdit={handleOpenEditDialog} 
+                    onDelete={openDeleteConfirmation}
+                  />
+                ))}
+              </div>
             ) : (
               <p className="text-center text-muted-foreground py-8">
                 {translate({ en: "No income recorded for this period.", pt: "Nenhuma receita registrada para este período." })}
@@ -377,6 +397,3 @@ export default function IncomePage() {
     </AppLayout>
   );
 }
-    
-
-    
