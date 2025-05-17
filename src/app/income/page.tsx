@@ -146,7 +146,7 @@ export default function IncomePage() {
           try {
             dateString = formatDateFns(parseISODateFns(data.date), "yyyy-MM-dd");
           } catch (e) {
-            console.warn(`IncomePage: Failed to parse ISO date string: ${data.date}`, e);
+            console.warn("IncomePage: Failed to parse ISO date string: " + String(data.date), e);
             dateString = formatDateFns(new Date(), "yyyy-MM-dd");
           }
         } else if (typeof data.date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(data.date)) {
@@ -302,7 +302,7 @@ export default function IncomePage() {
   return (
     <AppLayout>
       <div className="space-y-6">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col items-stretch gap-4 sm:flex-row sm:items-center sm:justify-between">
           <h1 className="text-3xl font-bold tracking-tight text-foreground">
             {pageTitle} - {displayedMonthYearLabel}
           </h1>
@@ -377,5 +377,6 @@ export default function IncomePage() {
     </AppLayout>
   );
 }
+    
 
     
