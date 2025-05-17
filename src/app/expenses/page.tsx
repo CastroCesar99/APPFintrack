@@ -32,7 +32,6 @@ import { collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, Timest
 import { format as formatDateFns, parseISO as parseISODateFns, getYear as getYearFns, getMonth as getMonthFns } from 'date-fns';
 import { formatCurrency } from '@/lib/utils';
 
-
 export default function ExpensesPage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
@@ -49,7 +48,6 @@ export default function ExpensesPage() {
   const [userCategories, setUserCategories] = useState<DisplayCategory[]>([]);
   const [userPaymentMethods, setUserPaymentMethods] = useState<DisplayPaymentMethod[]>([]);
   const [isLoadingPreferences, setIsLoadingPreferences] = useState(true);
-
 
   useEffect(() => {
     setIsClient(true);
@@ -288,7 +286,6 @@ export default function ExpensesPage() {
     }
   };
 
-
   if (!isClient || authLoading || isLoadingTransactions || isLoadingPreferences) {
     return (
       <AppLayout>
@@ -334,8 +331,8 @@ export default function ExpensesPage() {
 
         <Card className="shadow-lg">
           <CardHeader>
-            <CardTitle>{translate({ en: "Expense List", pt: "Lista de Despesas" })}</CardTitle>
-            <CardDescription>
+            <CardTitle className="text-2xl font-semibold">{translate({ en: "Expense List", pt: "Lista de Despesas" })}</CardTitle>
+            <CardDescription className="text-muted-foreground">
               {translate({ en: "All your expenses for", pt: "Todas as suas despesas de" })} {displayedMonthYearLabel}.
             </CardDescription>
           </CardHeader>

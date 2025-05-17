@@ -282,7 +282,6 @@ export default function IncomePage() {
     }
   };
 
-
   if (!isClient || authLoading || isLoadingTransactions || isLoadingPreferences) {
     return (
       <AppLayout>
@@ -328,8 +327,8 @@ export default function IncomePage() {
 
         <Card className="shadow-lg">
           <CardHeader>
-            <CardTitle>{translate({ en: "Income List", pt: "Lista de Receitas" })}</CardTitle>
-            <CardDescription>
+            <CardTitle className="text-2xl font-semibold">{translate({ en: "Income List", pt: "Lista de Receitas" })}</CardTitle>
+            <CardDescription className="text-muted-foreground">
               {translate({ en: "All your income for", pt: "Todas as suas receitas de" })} {displayedMonthYearLabel}.
             </CardDescription>
           </CardHeader>
