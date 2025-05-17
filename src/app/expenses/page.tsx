@@ -32,6 +32,7 @@ import { collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, Timest
 import { format as formatDateFns, parseISO as parseISODateFns, getYear as getYearFns, getMonth as getMonthFns } from 'date-fns';
 import { formatCurrency } from '@/lib/utils';
 
+
 export default function ExpensesPage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
@@ -300,7 +301,7 @@ export default function ExpensesPage() {
 
   return (
     <AppLayout>
-      <div className="space-y-6"> 
+      <div className="space-y-6">
         <div className="sm:flex sm:items-center sm:justify-between">
           <h1 className="text-3xl font-bold tracking-tight text-foreground mb-4 sm:mb-0">
             {translate({ en: "Expenses", pt: "Despesas" })} - {displayedMonthYearLabel}
@@ -376,6 +377,5 @@ export default function ExpensesPage() {
     </AppLayout>
   );
 }
-    
- 
+
     
