@@ -2,21 +2,23 @@
 "use client";
 
 import type React from 'react';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { AppLayout } from "@/components/layout/app-layout";
 import { Button } from "@/components/ui/button";
-import { CATEGORIES, getCategoryDisplayLabel, type Category, type CustomCategoryData, type DisplayCategory, type UserPreferences } from "@/types";
+import { CATEGORIES, getCategoryDisplayLabel, type Category, type CustomCategoryData, type DisplayCategory, type UserPreferences, type Transaction } from "@/types";
 import { useLanguage } from "@/context/language-context";
 import { useAuth } from "@/context/auth-context";
 import { useToast } from "@/hooks/use-toast";
 import { useDateNavigation } from '@/context/date-navigation-context';
 import { BudgetCategoryItem } from '@/components/budgets/budget-category-item';
 import { Separator } from '@/components/ui/separator';
+import { Card, CardHeader, CardContent, CardTitle, CardDescription } from "@/components/ui/card";
 import { db } from '@/lib/firebase';
-import { doc, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
-import { format as formatDateFns, addMonths } from 'date-fns';
+import { doc, setDoc, getDoc, serverTimestamp, collection, query, orderBy, onSnapshot, Timestamp } from "firebase/firestore";
+import { format as formatDateFns, addMonths, getYear as getYearFns, getMonth as getMonthFns, parseISO as parseISODateFns } from 'date-fns';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Card, CardHeader, CardContent } from "@/components/ui/card";
+import { formatCurrency } from '@/lib/utils';
+import { DollarSign, TrendingUp } from 'lucide-react';
 
 export default function BudgetsPage() {
   const { user, loading: authLoading } = useAuth();
@@ -26,23 +28,26 @@ export default function BudgetsPage() {
 
   const [userDisplayCategories, setUserDisplayCategories] = useState<DisplayCategory[]>([]);
   const [budgets, setBudgets] = useState<Record<string, string>>({});
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingPreferencesAndBudgets, setIsLoadingPreferencesAndBudgets] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isReplicating, setIsReplicating] = useState(false);
 
-  const currentMonthYearKey = formatDateFns(displayedDate, 'yyyy-MM');
+  const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
+  const [isLoadingTransactions, setIsLoadingTransactions] = useState(true);
 
+  const currentMonthYearKey = useMemo(() => formatDateFns(displayedDate, 'yyyy-MM'), [displayedDate]);
+
+  // Fetch user preferences and budgets for the current month
   const fetchPreferencesAndBudgets = useCallback(async () => {
     if (!user) {
-      setIsLoading(false);
-      setUserDisplayCategories([]);
+      setIsLoadingPreferencesAndBudgets(false);
+      setUserDisplayCategories(CATEGORIES.filter(cat => cat.type === 'expense'));
       setBudgets({});
       return;
     }
-    setIsLoading(true);
+    setIsLoadingPreferencesAndBudgets(true);
 
     let effectiveCategories: DisplayCategory[] = [];
-
     try {
       const prefsDocRef = doc(db, `users/${user.uid}/preferences/userPreferences`);
       const prefsSnap = await getDoc(prefsDocRef);
@@ -51,7 +56,6 @@ export default function BudgetsPage() {
         const prefsData = prefsSnap.data() as UserPreferences;
         const selectedNames = prefsData.selectedCategories || [];
         const customDefs = prefsData.userDefinedCategories || [];
-        
         const customMap = new Map(customDefs.map(cd => [cd.name, cd]));
 
         selectedNames.forEach(name => {
@@ -61,15 +65,14 @@ export default function BudgetsPage() {
           } else if (customMap.has(name)) {
             const customCat = customMap.get(name);
             if (customCat && customCat.type === 'expense') {
-                 effectiveCategories.push(customCat);
+              effectiveCategories.push(customCat);
             }
           }
         });
-        if (effectiveCategories.length === 0 && CATEGORIES.filter(cat => cat.type === 'expense').length > 0) {
-            effectiveCategories = CATEGORIES.filter(cat => cat.type === 'expense');
+        if (effectiveCategories.length === 0) {
+          effectiveCategories = CATEGORIES.filter(cat => cat.type === 'expense');
         }
       } else {
-        // If no preferences, default to all predefined expense categories
         effectiveCategories = CATEGORIES.filter(cat => cat.type === 'expense');
       }
     } catch (error) {
@@ -81,22 +84,20 @@ export default function BudgetsPage() {
       });
       effectiveCategories = CATEGORIES.filter(cat => cat.type === 'expense');
     }
-    
     setUserDisplayCategories(effectiveCategories);
 
     const budgetDocRef = doc(db, `users/${user.uid}/budgets/${currentMonthYearKey}`);
     try {
       const budgetSnap = await getDoc(budgetDocRef);
       const newBudgetsState: Record<string, string> = {};
-      
       if (budgetSnap.exists()) {
-        const budgetData = budgetSnap.data() as Record<string, number>; // Firestore stores numbers
+        const budgetData = budgetSnap.data() as Record<string, number>;
         console.log(`BudgetsPage: Budget data found for ${currentMonthYearKey}:`, JSON.stringify(budgetData, null, 2));
         effectiveCategories.forEach(cat => {
           newBudgetsState[cat.name] = budgetData[cat.name] !== undefined ? String(budgetData[cat.name]) : '';
         });
       } else {
-        console.log(`BudgetsPage: No budget document found for ${currentMonthYearKey}. Initializing empty budgets for categories.`);
+        console.log(`BudgetsPage: No budget document found for ${currentMonthYearKey}. Initializing empty for categories.`);
         effectiveCategories.forEach(cat => {
           newBudgetsState[cat.name] = '';
         });
@@ -110,72 +111,103 @@ export default function BudgetsPage() {
         variant: "destructive",
       });
       const errorBudgets: Record<string, string> = {};
-      effectiveCategories.forEach(cat => {
-        errorBudgets[cat.name] = '';
-      });
+      effectiveCategories.forEach(cat => { errorBudgets[cat.name] = ''; });
       setBudgets(errorBudgets);
     } finally {
-      setIsLoading(false);
+      setIsLoadingPreferencesAndBudgets(false);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, currentMonthYearKey, toast, translate]); 
+  }, [user, currentMonthYearKey, toast, translate]);
 
   useEffect(() => {
     if (!authLoading && user) {
       fetchPreferencesAndBudgets();
     } else if (!authLoading && !user) {
-      // Not logged in, clear data and stop loading
-      setUserDisplayCategories([]);
+      setUserDisplayCategories(CATEGORIES.filter(cat => cat.type === 'expense'));
       setBudgets({});
-      setIsLoading(false);
+      setIsLoadingPreferencesAndBudgets(false);
     }
   }, [user, authLoading, fetchPreferencesAndBudgets]);
 
+  // Fetch all transactions for income summary
+  useEffect(() => {
+    if (!user || authLoading) {
+      setIsLoadingTransactions(false);
+      setAllTransactions([]);
+      return;
+    }
+    setIsLoadingTransactions(true);
+    const transactionsColRef = collection(db, `users/${user.uid}/transactions`);
+    const q_transactions = query(transactionsColRef, orderBy("date", "desc"));
+
+    const unsubscribe = onSnapshot(q_transactions, (querySnapshot) => {
+      const fetchedTransactions = querySnapshot.docs.map(docSnap => {
+        const data = docSnap.data();
+        let dateString = data.date;
+        if (data.date && typeof data.date === 'object' && data.date instanceof Timestamp) {
+          dateString = formatDateFns(data.date.toDate(), "yyyy-MM-dd");
+        } else if (typeof data.date === 'string' && data.date.includes('T')) {
+          try { dateString = formatDateFns(parseISODateFns(data.date), "yyyy-MM-dd"); }
+          catch (e) { dateString = formatDateFns(new Date(), "yyyy-MM-dd"); }
+        } else if (typeof data.date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(data.date)) {
+          dateString = formatDateFns(new Date(), "yyyy-MM-dd");
+        }
+        return { ...data, id: docSnap.id, date: dateString } as Transaction;
+      });
+      setAllTransactions(fetchedTransactions);
+      setIsLoadingTransactions(false);
+    }, (error) => {
+      console.error("BudgetsPage: Error fetching transactions:", error);
+      toast({ title: translate({ en: "Error", pt: "Erro" }), description: translate({ en: "Could not fetch transactions.", pt: "Não foi possível buscar as transações." }), variant: "destructive" });
+      setIsLoadingTransactions(false);
+    });
+    return () => unsubscribe();
+  }, [user, authLoading, toast, translate]);
+
+  const totalIncomeForDisplayedMonth = useMemo(() => {
+    const targetYear = getYearFns(displayedDate);
+    const targetMonth = getMonthFns(displayedDate);
+    return allTransactions
+      .filter(t => {
+        if (t.type !== 'income') return false;
+        const dateParts = t.date.split('-');
+        if (dateParts.length !== 3) return false;
+        const transactionYear = parseInt(dateParts[0], 10);
+        const transactionMonth = parseInt(dateParts[1], 10) - 1;
+        return transactionYear === targetYear && transactionMonth === targetMonth;
+      })
+      .reduce((sum, t) => sum + t.amount, 0);
+  }, [allTransactions, displayedDate]);
+
+  const totalBudgetedAmount = useMemo(() => {
+    return Object.values(budgets).reduce((sum, valStr) => {
+      const valNum = parseFloat(valStr);
+      return sum + (isNaN(valNum) ? 0 : valNum);
+    }, 0);
+  }, [budgets]);
+
 
   const handleBudgetChange = (categoryName: string, amount: string) => {
-    setBudgets(prevBudgets => ({
-      ...prevBudgets,
-      [categoryName]: amount,
-    }));
+    setBudgets(prevBudgets => ({ ...prevBudgets, [categoryName]: amount }));
   };
 
   const handleSaveBudgets = async () => {
     if (!user) {
-      toast({
-        title: translate({ en: "Error", pt: "Erro" }),
-        description: translate({ en: "User not authenticated.", pt: "Usuário não autenticado." }),
-        variant: "destructive",
-      });
+      toast({ title: translate({ en: "Error", pt: "Erro" }), description: translate({ en: "User not authenticated.", pt: "Usuário não autenticado." }), variant: "destructive" });
       return;
     }
     setIsSaving(true);
-
     const budgetDocRef = doc(db, `users/${user.uid}/budgets/${currentMonthYearKey}`);
-    
-    // Prepare data for saving: convert to numbers, filter out non-displayed or empty
     const budgetsToSave = Object.fromEntries(
       Object.entries(budgets)
-        .map(([key, value]) => {
-          const numValue = parseFloat(value);
-          // Save 0 if empty or NaN, otherwise the parsed number
-          return [key, isNaN(numValue) ? 0 : numValue]; 
-        })
+        .map(([key, value]) => [key, parseFloat(value) || 0])
         .filter(([key]) => userDisplayCategories.some(cat => cat.name === key))
     );
-
     try {
       await setDoc(budgetDocRef, { ...budgetsToSave, lastUpdated: serverTimestamp() }, { merge: true });
-      toast({
-        title: translate({ en: "Budgets Saved", pt: "Orçamentos Salvos" }),
-        description: translate({ en: "Your budgets for", pt: "Seus orçamentos para" }) + ` ${displayedMonthYearLabel} ` + translate({ en: "have been saved.", pt: "foram salvos." }),
-      });
+      toast({ title: translate({ en: "Budgets Saved", pt: "Orçamentos Salvos" }), description: `${translate({ en: "Your budgets for", pt: "Seus orçamentos para" })} ${displayedMonthYearLabel} ${translate({ en: "have been saved.", pt: "foram salvos." })}` });
     } catch (error) {
       console.error("Error saving budgets:", error);
-      toast({
-        title: translate({ en: "Error Saving Budgets", pt: "Erro ao Salvar Orçamentos" }),
-        description: translate({ en: "Could not save your budgets.", pt: "Não foi possível salvar seus orçamentos." }),
-        variant: "destructive",
-      });
+      toast({ title: translate({ en: "Error Saving Budgets", pt: "Erro ao Salvar Orçamentos" }), description: translate({ en: "Could not save your budgets.", pt: "Não foi possível salvar seus orçamentos." }), variant: "destructive" });
     } finally {
       setIsSaving(false);
     }
@@ -186,68 +218,40 @@ export default function BudgetsPage() {
       toast({ title: translate({ en: "Error", pt: "Erro" }), description: translate({ en: "User not authenticated.", pt: "Usuário não autenticado." }), variant: "destructive" });
       return;
     }
-
-    // Only replicate budgets that have a valid positive value
     const budgetsToReplicate = Object.fromEntries(
       Object.entries(budgets)
-        .map(([key, value]) => {
-          const numValue = parseFloat(value);
-          // Only include if it's a valid number and greater than 0
-          return [key, isNaN(numValue) || numValue <= 0 ? undefined : numValue];
-        })
-        .filter(([, value]) => value !== undefined) // Remove entries where value became undefined
-        .filter(([key]) => userDisplayCategories.some(cat => cat.name === key)) // Ensure it's a displayed category
+        .map(([key, value]) => [key, parseFloat(value) || 0])
+        .filter(([, value]) => value > 0)
+        .filter(([key]) => userDisplayCategories.some(cat => cat.name === key))
     );
-
     if (Object.keys(budgetsToReplicate).length === 0) {
       toast({ title: translate({ en: "No Budgets to Replicate", pt: "Nenhum Orçamento para Replicar" }), description: translate({ en: "Please set some budgets for the current month first.", pt: "Por favor, defina alguns orçamentos para o mês atual primeiro." }), variant: "default" });
       return;
     }
-    
     setIsReplicating(true);
     try {
       const nextMonthDate = addMonths(displayedDate, 1);
       const nextMonthKey = formatDateFns(nextMonthDate, 'yyyy-MM');
       const nextMonthLabel = formatDateFns(nextMonthDate, 'MMMM yyyy', { locale: translate({en: undefined, pt: require('date-fns/locale/pt-BR').default}) || require('date-fns/locale/en-US').default });
-
-
       const budgetDocRef = doc(db, `users/${user.uid}/budgets/${nextMonthKey}`);
       await setDoc(budgetDocRef, { ...budgetsToReplicate, lastUpdated: serverTimestamp() }, { merge: true });
-
-      toast({
-        title: translate({ en: "Budgets Replicated", pt: "Orçamentos Replicados" }),
-        description: translate({ en: "Current budgets have been replicated to", pt: "Os orçamentos atuais foram replicados para" }) + ` ${nextMonthLabel}.`,
-      });
-
+      toast({ title: translate({ en: "Budgets Replicated", pt: "Orçamentos Replicados" }), description: `${translate({ en: "Current budgets have been replicated to", pt: "Os orçamentos atuais foram replicados para" })} ${nextMonthLabel}.` });
     } catch (error) {
       console.error("Error replicating budgets:", error);
-      toast({
-        title: translate({ en: "Error Replicating Budgets", pt: "Erro ao Replicar Orçamentos" }),
-        description: translate({ en: "Could not replicate your budgets.", pt: "Não foi possível replicar seus orçamentos." }),
-        variant: "destructive",
-      });
+      toast({ title: translate({ en: "Error Replicating Budgets", pt: "Erro ao Replicar Orçamentos" }), description: translate({ en: "Could not replicate your budgets.", pt: "Não foi possível replicar seus orçamentos." }), variant: "destructive" });
     } finally {
       setIsReplicating(false);
     }
   };
-  
+
+  const isLoading = isLoadingPreferencesAndBudgets || isLoadingTransactions;
   const pageTitle = translate({ en: "Budgets", pt: "Orçamentos" });
-  const pageDescription = translate({ 
-    en: "Set and manage your monthly budgets for each expense category.", 
-    pt: "Defina e gerencie seus orçamentos mensais para cada categoria de despesa." 
-  });
+  const pageDescription = translate({ en: "Set and manage your monthly budgets for each expense category.", pt: "Defina e gerencie seus orçamentos mensais para cada categoria de despesa." });
   const saveButtonLabel = translate({ en: "Save Budgets", pt: "Salvar Orçamentos" });
   const replicateButtonLabel = translate({ en: "Replicate to Next Month", pt: "Replicar para Mês Seguinte" });
 
-
   if (authLoading) {
-    return (
-      <AppLayout>
-        <div className="flex items-center justify-center h-full">
-          <p className="text-foreground">{translate({ en: "Loading user...", pt: "Carregando usuário..." })}</p>
-        </div>
-      </AppLayout>
-    );
+    return <AppLayout><div className="flex items-center justify-center h-full"><p className="text-foreground">{translate({ en: "Loading user...", pt: "Carregando usuário..." })}</p></div></AppLayout>;
   }
 
   return (
@@ -269,6 +273,42 @@ export default function BudgetsPage() {
             </Button>
           </div>
         </div>
+
+        <Card className="shadow-lg">
+          <CardHeader>
+            <CardTitle>{translate({en: "Monthly Summary", pt: "Resumo Mensal"})}</CardTitle>
+            <CardDescription>{translate({en: "Total income and set budget for", pt: "Receita total e orçamento definido para"})} {displayedMonthYearLabel}</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-4 md:grid-cols-2">
+            {isLoading ? (
+              <>
+                <Skeleton className="h-16 w-full" />
+                <Skeleton className="h-16 w-full" />
+              </>
+            ) : (
+              <>
+                <div className="flex items-center space-x-3 rounded-md border p-4 bg-muted/50">
+                  <TrendingUp className="h-6 w-6 text-green-500" />
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">
+                      {translate({ en: "Total Income", pt: "Receita Total" })}
+                    </p>
+                    <p className="text-2xl font-bold">{formatCurrency(totalIncomeForDisplayedMonth)}</p>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-3 rounded-md border p-4 bg-muted/50">
+                  <DollarSign className="h-6 w-6 text-primary" />
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">
+                      {translate({ en: "Total Budget Set", pt: "Orçamento Total Definido" })}
+                    </p>
+                    <p className="text-2xl font-bold">{formatCurrency(totalBudgetedAmount)}</p>
+                  </div>
+                </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
         
         <Separator />
 
@@ -305,3 +345,5 @@ export default function BudgetsPage() {
     </AppLayout>
   );
 }
+
+    
