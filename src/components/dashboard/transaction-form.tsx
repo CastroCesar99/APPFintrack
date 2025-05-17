@@ -23,26 +23,30 @@ import { ptBR, enUS } from 'date-fns/locale';
 import { cn } from "@/lib/utils";
 import type { Transaction, TransactionType, ExpenseNature, CategoryName, DisplayCategory, DisplayPaymentMethod, ExpenseType } from "@/types";
 import { getCategoryDisplayLabel, getPaymentMethodDisplayLabel } from "@/types"; 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useLanguage } from "@/context/language-context";
 import { Calendar } from "@/components/ui/calendar";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
-// Schema expects string for amount now, coercion happens at validation
 const formSchema = z.object({
-  description: z.string().min(2, { message: "Description must be at least 2 characters." }).max(100),
-  amount: z.string().refine(val => val === "" || /^[0-9]*[.,]?[0-9]+$/.test(val.replace(",", ".")), {
-    message: "Amount must be a valid number.",
-  }).transform(val => val === "" ? undefined : parseFloat(val.replace(",", "."))).refine(val => val === undefined || val > 0, {
-    message: "Amount must be positive if provided."
-  }),
-  category: z.string().min(1, { message: "Category is required." }),
-  date: z.date({ required_error: "Date is required." }),
+  description: z.string().min(2, { message: "A descrição deve ter pelo menos 2 caracteres." }).max(100, {message: "A descrição não pode exceder 100 caracteres."}),
+  amount: z.string()
+    .refine(val => val === "" || /^[0-9]*[.,]?[0-9]+$/.test(val), {
+      message: "O valor deve ser um número válido (ex: 10 ou 10,50).",
+    })
+    .transform(val => val === "" ? undefined : parseFloat(val.replace(",", ".")))
+    .refine(val => val === undefined || val > 0, {
+      message: "O valor deve ser positivo se fornecido.",
+    }),
+  category: z.string().min(1, { message: "A categoria é obrigatória." }),
+  date: z.date({invalid_type_error: "Data inválida.", required_error: "A data é obrigatória."}), // Using Zod's default error messages can be more informative
   expenseType: z.enum(["upfront", "installment", "recurring"] as [ExpenseType, ...ExpenseType[]]).optional(),
   paymentMethod: z.string().optional(),
-  installments: z.string().transform(val => val === "" ? undefined : parseInt(val, 10)).refine(val => val === undefined || (Number.isInteger(val) && val >= 1), {
-    message: "Installments must be a positive integer if provided.",
-  }).optional(),
+  installments: z.string()
+    .transform(val => val === "" ? undefined : parseInt(val, 10))
+    .refine(val => val === undefined || (Number.isInteger(val) && val >= 1), {
+      message: "O número de parcelas deve ser um inteiro positivo se fornecido.",
+    }).optional(),
   isRecurring: z.boolean().optional(), 
   expenseNature: z.enum(["fixed", "variable"] as [ExpenseNature, ...ExpenseNature[]]).optional(),
 }).refine(data => {
@@ -51,10 +55,9 @@ const formSchema = z.object({
     }
     return true;
 }, {
-    message: "Number of installments is required for installment type expenses and must be at least 1.",
+    message: "O número de parcelas é obrigatório para despesas parceladas e deve ser no mínimo 1.",
     path: ["installments"],
 });
-
 
 type TransactionFormValues = z.infer<typeof formSchema>;
 
@@ -75,7 +78,7 @@ export function TransactionForm({
   userPaymentMethods = [],
   transactionToEdit = null,
 }: TransactionFormProps) {
-  console.log("TransactionForm TRACER --- PROPS RECEIVED: defaultDate:", defaultDate?.toISOString(), "initialType:", initialType, "userCategories length:", userCategories.length, "userPaymentMethods length:", userPaymentMethods.length, "transactionToEdit:", transactionToEdit);
+  console.log("TransactionForm TRACER --- PROPS RECEIVED: defaultDate:", defaultDate?.toISOString(), "initialType:", initialType, "transactionToEdit ID:", transactionToEdit?.id);
   const { language, translate } = useLanguage();
   const [availableCategories, setAvailableCategories] = useState<DisplayCategory[]>([]);
   const [selectedExpenseType, setSelectedExpenseType] = useState<ExpenseType | undefined>(transactionToEdit?.expenseType);
@@ -97,13 +100,18 @@ export function TransactionForm({
   });
   
   useEffect(() => {
-    console.log("TransactionForm TRACER --- useEffect for transactionToEdit running. transactionToEdit:", transactionToEdit);
+    console.log("TransactionForm TRACER --- useEffect for transactionToEdit or initialType. transactionToEdit ID:", transactionToEdit?.id, "initialType:", initialType, "defaultDate from prop:", defaultDate?.toISOString());
+    const currentFormValues = form.getValues();
+    const dateToSet = transactionToEdit 
+      ? parseDateFns(transactionToEdit.date, "yyyy-MM-dd", new Date(0))
+      : (defaultDate || new Date());
+
     if (transactionToEdit) {
       form.reset({
         description: transactionToEdit.description,
         amount: transactionToEdit.amount !== undefined ? String(transactionToEdit.amount).replace(".", ",") : undefined,
         category: transactionToEdit.category as string,
-        date: parseDateFns(transactionToEdit.date, "yyyy-MM-dd", new Date(0)),
+        date: dateToSet,
         expenseType: transactionToEdit.expenseType,
         paymentMethod: transactionToEdit.paymentMethod,
         installments: transactionToEdit.installments !== undefined ? String(transactionToEdit.installments) : undefined,
@@ -112,27 +120,29 @@ export function TransactionForm({
       });
       setSelectedExpenseType(transactionToEdit.expenseType);
     } else {
+      // For "add" mode, ensure date is reset based on defaultDate,
+      // and other fields are reset or retain current input if form is just re-opening for same type.
       form.reset({
-        description: "",
-        amount: undefined,
-        category: "",
-        date: defaultDate || new Date(),
-        expenseType: undefined,
-        paymentMethod: undefined,
-        installments: undefined,
-        isRecurring: false,
-        expenseNature: undefined,
+        description: currentFormValues.description || "", // Keep if user typed something
+        amount: currentFormValues.amount, // Keep if user typed something
+        category: currentFormValues.category || "", // Keep if user selected something
+        date: dateToSet, // This is the key part for defaultDate
+        expenseType: initialType === 'expense' ? currentFormValues.expenseType : undefined,
+        paymentMethod: initialType === 'expense' ? currentFormValues.paymentMethod : undefined,
+        installments: initialType === 'expense' && currentFormValues.expenseType === 'installment' ? currentFormValues.installments : undefined,
+        expenseNature: initialType === 'expense' ? currentFormValues.expenseNature : undefined,
+        isRecurring: initialType === 'income' ? (currentFormValues.isRecurring ?? false) : (initialType === 'expense' && currentFormValues.expenseType === 'recurring'),
       });
-      setSelectedExpenseType(undefined);
+      setSelectedExpenseType(initialType === 'expense' ? currentFormValues.expenseType : undefined);
     }
-  }, [transactionToEdit, defaultDate, form]);
-  
+  }, [transactionToEdit, defaultDate, initialType, form]); // form.reset can be used
+
   useEffect(() => {
     const categoriesToFilter = Array.isArray(userCategories) ? userCategories : [];
-    console.log("TransactionForm TRACER --- useEffect for initialType/userCategories. initialType:", initialType, "Prop userCategories length:", categoriesToFilter.length, "First userCategory type if exists:", categoriesToFilter.length > 0 ? categoriesToFilter[0]?.type : "N/A");
+    console.log(`TransactionForm TRACER --- useEffect for category filter. initialType: '${initialType}', Prop userCategories length: ${categoriesToFilter.length}, First userCategory type if exists: ${categoriesToFilter.length > 0 ? categoriesToFilter[0]?.type : "N/A"}`);
     
     const relevantUserCategories = categoriesToFilter.filter(cat => cat.type === initialType);
-    console.log("TransactionForm TRACER --- relevantUserCategories length:", relevantUserCategories.length, "Based on initialType:", initialType, "Content:", JSON.stringify(relevantUserCategories.map(c => ({name: c.name, type: c.type, label: getCategoryDisplayLabel(c, language) }))));
+    console.log(`TransactionForm TRACER --- relevantUserCategories length: ${relevantUserCategories.length} Based on initialType: '${initialType}' Content:`, JSON.stringify(relevantUserCategories.map(c => ({name: c.name, type: c.type, label: getCategoryDisplayLabel(c, language) }))));
     setAvailableCategories(relevantUserCategories);
 
     const currentCategoryInForm = form.getValues("category");
@@ -140,45 +150,34 @@ export function TransactionForm({
       console.log("TransactionForm TRACER --- Resetting category field as current selection is no longer valid for type:", initialType);
       form.setValue("category", "");
     }
-    
-    const currentExpenseTypeInForm = form.getValues('expenseType');
-
-    if (initialType === 'income') {
-      form.setValue('expenseType', undefined);
-      form.setValue('paymentMethod', undefined);
-      form.setValue('installments', undefined);
-      form.setValue('expenseNature', undefined);
-      setSelectedExpenseType(undefined);
-      form.setValue('isRecurring', form.getValues('isRecurring') ?? false);
-    } else { 
-      setSelectedExpenseType(currentExpenseTypeInForm);
-      if (currentExpenseTypeInForm === 'recurring') {
-        form.setValue('isRecurring', true);
-      } else { 
-         form.setValue('isRecurring', false);
-         if (currentExpenseTypeInForm !== 'installment') { 
-           form.setValue('installments', undefined);
-         }
-      }
-    }
   }, [initialType, userCategories, form, language]);
 
-  async function onSubmit(values: TransactionFormValues) {
-    setIsSubmitting(true);
-    console.log("TransactionForm TRACER --- onSubmit with values.date:", values.date, "values:", JSON.stringify(values));
-    
-    const finalAmount = parseFloat(String(values.amount).replace(",", "."));
-    const finalInstallments = values.installments !== undefined ? parseInt(String(values.installments), 10) : undefined;
 
-    if (isNaN(finalAmount) || finalAmount <= 0) {
-        form.setError("amount", { type: "manual", message: "Amount must be a positive number." });
+  async function onSubmit(values: TransactionFormValues) {
+    console.log("TransactionForm TRACER --- onSubmit: Raw form values from getValues():", form.getValues()); 
+    console.log("TransactionForm TRACER --- onSubmit: Values passed by handleSubmit to Zod resolver:", values);
+    console.log("TransactionForm TRACER --- onSubmit: typeof values.date:", typeof values.date, "instanceof Date:", values.date instanceof Date, "Value:", values.date);
+
+    setIsSubmitting(true);
+    
+    // Amount and Installments are already numbers due to Zod transform if they are defined
+    const finalAmount = values.amount; 
+    const finalInstallments = values.installments;
+
+    if (finalAmount === undefined || finalAmount <= 0) {
+        form.setError("amount", { type: "manual", message: "O valor deve ser um número positivo." });
         setIsSubmitting(false);
         return;
     }
-    if (values.expenseType === 'installment' && (finalInstallments === undefined || isNaN(finalInstallments) || finalInstallments < 1)) {
-        form.setError("installments", { type: "manual", message: "Number of installments is required and must be at least 1." });
+    if (values.expenseType === 'installment' && (finalInstallments === undefined || finalInstallments < 1)) {
+        form.setError("installments", { type: "manual", message: "O número de parcelas é obrigatório para despesas parceladas e deve ser no mínimo 1." });
         setIsSubmitting(false);
         return;
+    }
+     if (!(values.date instanceof Date) || isNaN(values.date.getTime())) {
+      form.setError("date", { type: "manual", message: "Por favor, selecione uma data válida." });
+      setIsSubmitting(false);
+      return;
     }
 
 
@@ -189,10 +188,13 @@ export function TransactionForm({
       if (initialType === 'expense') {
         if (values.expenseType === 'recurring') {
           finalIsRecurring = true;
-        } else { 
+        } else if (values.expenseType !== 'installment') { 
+          // For 'upfront' or undefined expenseType, ensure isRecurring is false
+          // if not explicitly set by a recurring type.
           finalIsRecurring = false; 
         }
-      } else { 
+        // For installments, isRecurring is already false.
+      } else { // initialType === 'income'
          finalIsRecurring = values.isRecurring || false;
          finalExpenseType = undefined; 
       }
@@ -209,12 +211,13 @@ export function TransactionForm({
         expenseNature: initialType === 'expense' ? values.expenseNature : undefined,
         expenseType: initialType === 'expense' ? finalExpenseType : undefined,
       };
+      console.log("TransactionForm TRACER --- onSubmit: Data being sent to onSave:", transactionData);
       await onSave(transactionData, transactionToEdit?.id);
 
-      if (!transactionToEdit) {
+      if (!transactionToEdit) { 
         form.reset({
           description: "",
-          amount: undefined,
+          amount: undefined, 
           category: "",
           date: defaultDate || new Date(),
           expenseType: undefined,
@@ -258,7 +261,7 @@ export function TransactionForm({
     ? (isSubmitting ? translate({ en: "Saving...", pt: "Salvando..." }) : translate({ en: "Save Changes", pt: "Salvar Alterações" }))
     : (isSubmitting ? translate({ en: "Adding...", pt: "Adicionando..." }) : translate({ en: "Add Transaction", pt: "Adicionar Transação" }));
 
-  console.log('TRANSACTION FORM RENDER START');
+  console.log('TRANSACTION FORM RENDER START. Default date for calendar picker:', form.getValues("date")?.toISOString());
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
@@ -536,5 +539,3 @@ export function TransactionForm({
     </Form>
   );
 }
-
-    
