@@ -13,9 +13,9 @@ import type { Transaction, CategoryName, DisplayCategory, UserPreferences, Displ
 import { CATEGORIES, PAYMENT_METHODS, getCategoryDisplayLabel, getCategoryLabel } from "@/types";
 import { useLanguage } from '@/context/language-context';
 import { db } from '@/lib/firebase';
-import { collection, query, orderBy, onSnapshot, doc, getDoc, addDoc, serverTimestamp, Timestamp, writeBatch, setDoc } from "firebase/firestore";
+import { collection, query, orderBy, onSnapshot, doc, getDoc, addDoc, serverTimestamp, Timestamp, writeBatch } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, cn } from "@/lib/utils";
 import { CategoryIcon } from "@/components/icons";
 import { useDateNavigation } from '@/context/date-navigation-context';
 import {
@@ -186,24 +186,23 @@ export default function DashboardPage() {
 
         console.log("Dashboard: TRACER --- fetchDataInternal: User onboarding complete for UserID:", currentUserId, ". Setting up onSnapshot listener.");
 
-        // Fetch user preferences to populate userCategories and userPaymentMethods
         const preferencesDocRef = doc(db, 'users/' + currentUserId + '/preferences/userPreferences');
         try {
           const preferencesDocSnap = await getDoc(preferencesDocRef);
           if (preferencesDocSnap.exists()) {
             const preferencesData = preferencesDocSnap.data() as UserPreferences;
             const customCategoryDefs = preferencesData.userDefinedCategories || [];
-            const baseCategories: DisplayCategory[] = [...CATEGORIES];
-            const finalCategoriesMap = new Map<string, DisplayCategory>();
+            
+            // Combine predefined income, predefined expense, and custom expense categories
+            const allCategories: DisplayCategory[] = [
+              ...CATEGORIES.filter(cat => cat.type === 'income'),
+              ...CATEGORIES.filter(cat => cat.type === 'expense'),
+              ...customCategoryDefs.map(customCat => ({ ...customCat, type: 'expense' as 'expense' })) // Ensure custom are typed as expense
+            ];
+            const uniqueCategoriesMap = new Map<string, DisplayCategory>();
+            allCategories.forEach(cat => uniqueCategoriesMap.set(cat.name.toLowerCase(), cat));
 
-            baseCategories.forEach(cat => finalCategoriesMap.set(cat.name.toLowerCase(), cat));
-            customCategoryDefs.forEach(customCat => {
-              finalCategoriesMap.set(customCat.name.toLowerCase(), {
-                ...customCat, // Ensure type is part of customCat if needed, or assign 'expense'
-                type: customCat.type || 'expense' // Assuming custom are expenses if type not specified
-              });
-            });
-            if (effectMountedRef.current) setUserCategories(Array.from(finalCategoriesMap.values()));
+            if (effectMountedRef.current) setUserCategories(Array.from(uniqueCategoriesMap.values()));
 
             const customPaymentMethodDefs = preferencesData.userDefinedPaymentMethods || [];
             const basePaymentMethods: DisplayPaymentMethod[] = [...PAYMENT_METHODS];
@@ -357,10 +356,10 @@ export default function DashboardPage() {
       }
     }
     return fullCleanup;
-  }, [userId, authLoading, isClient, router, toast, translate]);
+  }, [userId, authLoading, isClient]);
 
 
-  const onAddTransaction = useCallback(async (newTransactionData: Omit<Transaction, "id" | "userId" | "createdAt">) => {
+ const onAddTransaction = useCallback(async (newTransactionData: Omit<Transaction, "id" | "userId" | "createdAt">) => {
     if (!userId) {
       toast({
         title: translate({ en: "Error", pt: "Erro" }),
@@ -369,9 +368,8 @@ export default function DashboardPage() {
       });
       return;
     }
-
     console.log("Dashboard: TRACER --- onAddTransaction: Received date from form:", newTransactionData.date);
-    console.log("Dashboard: TRACER --- onAddTransaction: Full newTransactionData:", JSON.stringify(newTransactionData));
+    console.log("Dashboard: TRACER --- onAddTransaction: Full newTransactionData:", JSON.stringify(newTransactionData, null, 2));
 
 
     const fullPayload = {
@@ -380,19 +378,21 @@ export default function DashboardPage() {
       createdAt: serverTimestamp(),
     };
 
+    // Filter out undefined values before saving to Firestore
     const dataToSave = Object.fromEntries(
-      Object.entries(fullPayload).filter(([_, value]) => value !== undefined)
+        Object.entries(fullPayload).filter(([_, value]) => value !== undefined)
     ) as Partial<Transaction & { createdAt: any; userId: string }>;
 
-    if (dataToSave.isRecurring === undefined && typeof newTransactionData.isRecurring === 'boolean') {
-      dataToSave.isRecurring = newTransactionData.isRecurring;
-    } else if (dataToSave.isRecurring === undefined) {
-      dataToSave.isRecurring = false;
+    // Ensure isRecurring is explicitly false if not provided or undefined (for non-income types from form)
+    if (dataToSave.isRecurring === undefined && newTransactionData.type === 'expense') {
+        dataToSave.isRecurring = false; 
+    } else if (dataToSave.isRecurring === undefined && newTransactionData.type === 'income') {
+        dataToSave.isRecurring = newTransactionData.isRecurring ?? false; // Use the checkbox value or default to false
     }
 
 
     console.log("Dashboard: TRACER --- onAddTransaction: Saving to Firestore with date:", dataToSave.date, "Full dataToSave:", JSON.stringify(dataToSave));
-
+    
     try {
       const transactionsColRef = collection(db, 'users/' + userId + '/transactions');
       await addDoc(transactionsColRef, dataToSave);
@@ -413,7 +413,7 @@ export default function DashboardPage() {
 
 
   const transactionsForDisplayedPeriod = useMemo(() => {
-    console.log("Dashboard: TRACER --- transactionsForDisplayedPeriod: Recalculating. displayedDate:", displayedDate.toISOString(), "All transactions count:", transactions.length);
+    console.log("Dashboard: TRACER --- transactionsForDisplayedPeriod: Recalculating for Year:", getYearFns(displayedDate), "Month:", getMonthFns(displayedDate), `(0-indexed for ${displayedMonthYearLabel}), All transactions count:`, transactions.length);
     const targetYear = getYearFns(displayedDate);
     const targetMonth = getMonthFns(displayedDate);
     const firstDayOfTargetMonth = startOfMonth(displayedDate);
@@ -421,42 +421,33 @@ export default function DashboardPage() {
     const filtered: Transaction[] = [];
     transactions.forEach(t => {
       const originalTransactionDate = parseDateFns(t.date, "yyyy-MM-dd", new Date(0));
+      const transactionYear = getYearFns(originalTransactionDate);
+      const transactionMonth = getMonthFns(originalTransactionDate);
+      let matches = false;
 
-      // Handle installments
       if (t.type === 'expense' && t.expenseType === 'installment' && t.installments && t.installments > 0) {
         const installmentSeriesStartDate = startOfMonth(originalTransactionDate);
         const installmentSeriesEndDate = endOfMonth(addMonths(installmentSeriesStartDate, t.installments - 1));
         const isInstallmentActiveThisMonth = isWithinInterval(firstDayOfTargetMonth, { start: installmentSeriesStartDate, end: installmentSeriesEndDate });
-        
         console.log(`Dashboard: TRACER --- Tx Filter (Installment Check): ID: ${t.id}, DateStr: ${t.date}, OrigDate: ${originalTransactionDate.toISOString()}, StartSeries: ${installmentSeriesStartDate.toISOString()}, EndSeries: ${installmentSeriesEndDate.toISOString()}, TargetMonthStart: ${firstDayOfTargetMonth.toISOString()}, installments: ${t.installments}, isActive: ${isInstallmentActiveThisMonth}, expType: ${t.expenseType}`);
-
         if (isInstallmentActiveThisMonth) {
-          filtered.push(t);
+          matches = true;
         }
-      }
-      // Handle generic recurring transactions (NOT INSTALLMENTS)
-      else if (t.isRecurring === true && t.expenseType !== 'installment') {
-        const originalTransactionYear = getYearFns(originalTransactionDate);
-        const originalTransactionMonth = getMonthFns(originalTransactionDate);
-        const matchesRecurringCriteria = originalTransactionYear < targetYear || (originalTransactionYear === targetYear && originalTransactionMonth <= targetMonth);
-        
-        console.log(`Dashboard: TRACER --- Tx Filter (Recurring Check): ID: ${t.id}, DateStr: ${t.date}, OrigDate: ${originalTransactionDate.toISOString()}, TxY: ${originalTransactionYear}, TxM: ${originalTransactionMonth}, MatchesRec: ${matchesRecurringCriteria}, isRec: ${t.isRecurring}, expType: ${t.expenseType}`);
-
+      } else if (t.isRecurring === true && t.expenseType !== 'installment') { // Generic recurring (not an installment)
+        const matchesRecurringCriteria = transactionYear < targetYear || (transactionYear === targetYear && transactionMonth <= targetMonth);
+        console.log(`Dashboard: TRACER --- Tx Filter (Recurring Check): ID: ${t.id}, DateStr: ${t.date}, OrigDate: ${originalTransactionDate.toISOString()}, TxY: ${transactionYear}, TxM: ${transactionMonth}, MatchesRec: ${matchesRecurringCriteria}, isRec: ${t.isRecurring}, expType: ${t.expenseType}, inst: ${t.installments}`);
         if (matchesRecurringCriteria) {
-          filtered.push(t);
+          matches = true;
+        }
+      } else if (!t.isRecurring && t.expenseType !== 'installment') { // Non-recurring, non-installment
+        const matchesNonRecurringCriteria = transactionYear === targetYear && transactionMonth === targetMonth;
+         console.log(`Dashboard: TRACER --- Tx Filter (Non-Recurring Check): ID: ${t.id}, DateStr: ${t.date}, OrigDate: ${originalTransactionDate.toISOString()}, TxY: ${transactionYear}, TxM: ${transactionMonth}, MatchesNonRec: ${matchesNonRecurringCriteria}, isRec: ${t.isRecurring}, expType: ${t.expenseType}, inst: ${t.installments}`);
+        if (matchesNonRecurringCriteria) {
+          matches = true;
         }
       }
-      // Handle non-recurring, non-installment transactions
-      else if (!t.isRecurring && t.expenseType !== 'installment') {
-        const transactionYear = getYearFns(originalTransactionDate);
-        const transactionMonth = getMonthFns(originalTransactionDate);
-        const matchesNonRecurringCriteria = transactionYear === targetYear && transactionMonth === targetMonth;
-        
-        console.log(`Dashboard: TRACER --- Tx Filter (Non-Recurring Check): ID: ${t.id}, DateStr: ${t.date}, OrigDate: ${originalTransactionDate.toISOString()}, TxY: ${transactionYear}, TxM: ${transactionMonth}, MatchesNonRec: ${matchesNonRecurringCriteria}, isRec: ${t.isRecurring}, expType: ${t.expenseType}, inst: ${t.installments}`);
-        
-        if (matchesNonRecurringCriteria) {
-          filtered.push(t);
-        }
+      if (matches) {
+        filtered.push(t);
       }
     });
     console.log(`Dashboard: TRACER --- transactionsForDisplayedPeriod: Found ${filtered.length} transactions for the period.`);
@@ -471,40 +462,40 @@ export default function DashboardPage() {
 
     const monthlyDisplayTransactions: Transaction[] = [];
     transactions.forEach(t => {
-      if (t.type !== 'income') return;
+        if (t.type !== 'income') return;
 
-      const originalTransactionDate = parseDateFns(t.date, "yyyy-MM-dd", new Date(0));
-      const originalTransactionDay = getDateFns(originalTransactionDate);
+        const originalTransactionDate = parseDateFns(t.date, "yyyy-MM-dd", new Date(0));
+        const originalTransactionDay = getDateFns(originalTransactionDate);
 
-      if (t.isRecurring) {
-        if (startOfMonth(originalTransactionDate) <= targetMonthStart) {
-          let projectedDateForMonth = setDateFnsDate(targetMonthStart, originalTransactionDay);
-          if (getMonthFns(projectedDateForMonth) !== targetMonth) {
-            projectedDateForMonth = lastDayOfMonth(targetMonthStart);
-          }
-          const projectedTx = {
-            ...t,
-            id: `${t.id}_projected_${targetYear}-${String(targetMonth + 1).padStart(2, '0')}`,
-            date: formatDateFns(projectedDateForMonth, "yyyy-MM-dd"),
-            description: `${t.description} (${translate({ en: "Monthly", pt: "Mensal" })})`,
-          };
-          monthlyDisplayTransactions.push(projectedTx);
-          console.log(`Dashboard: TRACER --- recentIncome: Added projected recurring: ${projectedTx.description}, Date: ${projectedTx.date}`);
+        if (t.isRecurring) {
+            if (startOfMonth(originalTransactionDate) <= targetMonthStart) {
+                let projectedDateForMonth = setDateFnsDate(targetMonthStart, originalTransactionDay);
+                if (getMonthFns(projectedDateForMonth) !== targetMonth) { 
+                    projectedDateForMonth = lastDayOfMonth(targetMonthStart);
+                }
+                const projectedTx = {
+                    ...t,
+                    id: `${t.id}_projected_${targetYear}-${String(targetMonth + 1).padStart(2, '0')}`, 
+                    date: formatDateFns(projectedDateForMonth, "yyyy-MM-dd"), 
+                    description: `${t.description} (${translate({en: "Monthly", pt: "Mensal"})})`,
+                };
+                monthlyDisplayTransactions.push(projectedTx);
+                console.log(`Dashboard: TRACER --- recentIncome: Added projected recurring: ${projectedTx.description}, Date: ${projectedTx.date}`);
+            }
+        } else {
+            if (getYearFns(originalTransactionDate) === targetYear && getMonthFns(originalTransactionDate) === targetMonth) {
+                monthlyDisplayTransactions.push(t);
+                console.log(`Dashboard: TRACER --- recentIncome: Added non-recurring: ${t.description}, Date: ${t.date}`);
+            }
         }
-      } else {
-        if (getYearFns(originalTransactionDate) === targetYear && getMonthFns(originalTransactionDate) === targetMonth) {
-          monthlyDisplayTransactions.push(t);
-          console.log(`Dashboard: TRACER --- recentIncome: Added non-recurring: ${t.description}, Date: ${t.date}`);
-        }
-      }
     });
     const sorted = monthlyDisplayTransactions
       .sort((a, b) => parseDateFns(b.date, "yyyy-MM-dd", new Date(0)).getTime() - parseDateFns(a.date, "yyyy-MM-dd", new Date(0)).getTime());
     console.log(`Dashboard: TRACER --- recentIncome: Found ${sorted.length} items for display (full list).`);
     return sorted;
-  }, [transactions, displayedDate, language, translate, displayedMonthYearLabel]);
+  }, [transactions, displayedDate, language, translate, displayedMonthYearLabel]); 
 
-  const recentIncomeToDisplay = showAllRecentIncome ? fullRecentIncomeList : fullRecentIncomeList.slice(0, 5);
+  const recentIncomeToDisplay = fullRecentIncomeList; // Removed .slice(0,5) for now to debug
 
 
   const fullRecentExpensesList = useMemo(() => {
@@ -515,61 +506,62 @@ export default function DashboardPage() {
 
     const monthlyDisplayTransactions: Transaction[] = [];
     transactions.forEach(t => {
-      if (t.type !== 'expense') return;
+        if (t.type !== 'expense') return;
 
-      const originalTransactionDate = parseDateFns(t.date, "yyyy-MM-dd", new Date(0));
-      const originalTransactionDay = getDateFns(originalTransactionDate);
+        const originalTransactionDate = parseDateFns(t.date, "yyyy-MM-dd", new Date(0));
+        const originalTransactionDay = getDateFns(originalTransactionDate);
 
-      if (t.expenseType === 'installment' && t.installments && t.installments > 0) {
-        const installmentSeriesStartDate = startOfMonth(originalTransactionDate);
-        const monthDiff = differenceInCalendarMonths(targetMonthStart, installmentSeriesStartDate);
-        const currentInstallmentNum = monthDiff + 1;
-        
-        console.log(`Dashboard: TRACER --- recentExpenses (Installment Check): ID: ${t.id}, OrigDate: ${t.date}, currentInstallmentNum: ${currentInstallmentNum}, totalInstallments: ${t.installments}, monthDiff: ${monthDiff}`);
+        if (t.expenseType === 'installment' && t.installments && t.installments > 0) {
+            const installmentSeriesStartDate = startOfMonth(originalTransactionDate);
+            const monthDiff = differenceInCalendarMonths(targetMonthStart, installmentSeriesStartDate);
+            const currentInstallmentNum = monthDiff + 1;
+            
+            console.log(`Dashboard: TRACER --- recentExpenses (Installment Check): ID: ${t.id}, OrigDate: ${t.date}, currentInstallmentNum: ${currentInstallmentNum}, totalInstallments: ${t.installments}, monthDiff: ${monthDiff}, expType: ${t.expenseType}`);
 
-        if (monthDiff >= 0 && monthDiff < t.installments) {
-          let projectedDateForMonth = setDateFnsDate(targetMonthStart, originalTransactionDay);
-          if (getMonthFns(projectedDateForMonth) !== targetMonth) {
-            projectedDateForMonth = lastDayOfMonth(targetMonthStart);
-          }
-          const projectedInstallment = {
-            ...t,
-            id: `${t.id}_inst_${currentInstallmentNum}_${targetYear}-${String(targetMonth + 1).padStart(2, '0')}`,
-            date: formatDateFns(projectedDateForMonth, "yyyy-MM-dd"),
-            description: `${t.description} (${translate({ en: "Installment", pt: "Parcela" })}) ${currentInstallmentNum}/${t.installments}`,
-          };
-          monthlyDisplayTransactions.push(projectedInstallment);
-          console.log(`Dashboard: TRACER --- recentExpenses: Added projected installment: ${projectedInstallment.description}, Date: ${projectedInstallment.date}`);
+            if (monthDiff >= 0 && monthDiff < t.installments) { // Check if current month is within the installment period
+                let projectedDateForMonth = setDateFnsDate(targetMonthStart, originalTransactionDay);
+                if (getMonthFns(projectedDateForMonth) !== targetMonth) {
+                    projectedDateForMonth = lastDayOfMonth(targetMonthStart);
+                }
+                const projectedInstallment = {
+                    ...t,
+                    id: `${t.id}_inst_${currentInstallmentNum}_${targetYear}-${String(targetMonth + 1).padStart(2, '0')}`,
+                    date: formatDateFns(projectedDateForMonth, "yyyy-MM-dd"),
+                    description: `${t.description} (${translate({en: "Installment", pt: "Parcela"})}) ${currentInstallmentNum}/${t.installments}`,
+                };
+                monthlyDisplayTransactions.push(projectedInstallment);
+                 console.log(`Dashboard: TRACER --- recentExpenses: Added projected installment: ${projectedInstallment.description}, Date: ${projectedInstallment.date}`);
+            }
+        } else if (t.isRecurring && t.expenseType !== 'installment') { 
+            if (startOfMonth(originalTransactionDate) <= targetMonthStart) {
+                let projectedDateForMonth = setDateFnsDate(targetMonthStart, originalTransactionDay);
+                if (getMonthFns(projectedDateForMonth) !== targetMonth) {
+                    projectedDateForMonth = lastDayOfMonth(targetMonthStart);
+                }
+                 const projectedTx = {
+                    ...t,
+                    id: `${t.id}_projected_${targetYear}-${String(targetMonth + 1).padStart(2, '0')}`,
+                    description: `${t.description} (${translate({en: "Monthly", pt: "Mensal"})})`,
+                    date: formatDateFns(projectedDateForMonth, "yyyy-MM-dd"),
+                };
+                monthlyDisplayTransactions.push(projectedTx);
+                console.log(`Dashboard: TRACER --- recentExpenses: Added projected recurring: ${projectedTx.description}, Date: ${projectedTx.date}`);
+            }
+        } else if (!t.isRecurring && t.expenseType !== 'installment') { 
+            if (getYearFns(originalTransactionDate) === targetYear && getMonthFns(originalTransactionDate) === targetMonth) {
+                monthlyDisplayTransactions.push(t);
+                console.log(`Dashboard: TRACER --- recentExpenses: Added non-recurring: ${t.description}, Date: ${t.date}`);
+            }
         }
-      } else if (t.isRecurring && t.expenseType !== 'installment') {
-        if (startOfMonth(originalTransactionDate) <= targetMonthStart) {
-          let projectedDateForMonth = setDateFnsDate(targetMonthStart, originalTransactionDay);
-          if (getMonthFns(projectedDateForMonth) !== targetMonth) {
-            projectedDateForMonth = lastDayOfMonth(targetMonthStart);
-          }
-          const projectedTx = {
-            ...t,
-            id: `${t.id}_projected_${targetYear}-${String(targetMonth + 1).padStart(2, '0')}`,
-            description: `${t.description} (${translate({ en: "Monthly", pt: "Mensal" })})`,
-            date: formatDateFns(projectedDateForMonth, "yyyy-MM-dd"),
-          };
-          monthlyDisplayTransactions.push(projectedTx);
-          console.log(`Dashboard: TRACER --- recentExpenses: Added projected recurring: ${projectedTx.description}, Date: ${projectedTx.date}`);
-        }
-      } else if (!t.isRecurring && t.expenseType !== 'installment') {
-        if (getYearFns(originalTransactionDate) === targetYear && getMonthFns(originalTransactionDate) === targetMonth) {
-          monthlyDisplayTransactions.push(t);
-          console.log(`Dashboard: TRACER --- recentExpenses: Added non-recurring: ${t.description}, Date: ${t.date}`);
-        }
-      }
     });
+
     const sorted = monthlyDisplayTransactions
       .sort((a, b) => parseDateFns(b.date, "yyyy-MM-dd", new Date(0)).getTime() - parseDateFns(a.date, "yyyy-MM-dd", new Date(0)).getTime());
     console.log(`Dashboard: TRACER --- recentExpenses: Found ${sorted.length} items for display (full list).`);
     return sorted;
-  }, [transactions, displayedDate, language, translate, displayedMonthYearLabel]);
+  }, [transactions, displayedDate, language, translate, displayedMonthYearLabel]); 
 
-  const recentExpensesToDisplay = showAllRecentExpenses ? fullRecentExpensesList : fullRecentExpensesList.slice(0, 5);
+  const recentExpensesToDisplay = fullRecentExpensesList; // Removed .slice(0,5) for now to debug
 
 
   const largestExpenseCategoryForDisplayedPeriod = useMemo(() => {
@@ -623,10 +615,19 @@ export default function DashboardPage() {
 
   useEffect(() => {
     loadBudgets();
-  }, [loadBudgets]);
+  }, [loadBudgets]); 
 
-  const totalIncomeForSummary = transactionsForDisplayedPeriod.filter(t => t.type === "income").reduce((sum, t) => sum + t.amount, 0);
-  const totalExpensesForSummary = transactionsForDisplayedPeriod.filter(t => t.type === "expense").reduce((sum, t) => sum + t.amount, 0);
+  const totalIncomeForSummary = useMemo(() => {
+    return transactionsForDisplayedPeriod
+      .filter(t => t.type === "income")
+      .reduce((sum, t) => sum + t.amount, 0);
+  }, [transactionsForDisplayedPeriod]);
+
+  const totalExpensesForSummary = useMemo(() => {
+    return transactionsForDisplayedPeriod
+      .filter(t => t.type === "expense")
+      .reduce((sum, t) => sum + t.amount, 0);
+  }, [transactionsForDisplayedPeriod]);
   
   console.log("Dashboard: TRACER --- RENDERING with: displayedMonth:", displayedMonthYearLabel, "transactionsInPeriod:", transactionsForDisplayedPeriod.length, "totalIncomeForSummary:", totalIncomeForSummary, "totalExpensesForSummary:", totalExpensesForSummary);
 
@@ -647,38 +648,10 @@ export default function DashboardPage() {
     <AppLayout>
       <div className="space-y-8">
         <SummarySection
-          transactionsForDisplayedPeriod={transactionsForDisplayedPeriod}
-          monthlyBudget={totalCalculatedMonthlyBudget}
+          transactionsForDisplayedPeriod={transactionsForDisplayedPeriod} 
+          monthlyBudget={totalCalculatedMonthlyBudget} 
           displayedMonthYearLabel={displayedMonthYearLabel}
         />
-
-        <QuickActionsSection
-          onAddTransaction={onAddTransaction}
-          currentDisplayedDate={displayedDate}
-          userCategories={userCategories}
-          userPaymentMethods={userPaymentMethods}
-        />
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <RecentTransactionsSection
-            title={translate({ en: "Recent Income", pt: "Receitas Recentes" })}
-            description={translate({ en: "Your latest income entries.", pt: "Suas últimas entradas de receita." })}
-            transactions={recentIncomeToDisplay}
-            type="income"
-            onSeeMore={() => setShowAllRecentIncome(prev => !prev)}
-            isExpanded={showAllRecentIncome}
-            totalItemsForMonth={fullRecentIncomeList.length}
-          />
-          <RecentTransactionsSection
-            title={translate({ en: "Recent Expenses", pt: "Despesas Recentes" })}
-            description={translate({ en: "Your last few transactions.", pt: "Suas últimas transações." })}
-            transactions={recentExpensesToDisplay}
-            type="expense"
-            onSeeMore={() => setShowAllRecentExpenses(prev => !prev)}
-            isExpanded={showAllRecentExpenses}
-            totalItemsForMonth={fullRecentExpensesList.length}
-          />
-        </div>
 
         <Card className="shadow-lg">
           <CardHeader>
@@ -689,7 +662,7 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             {transactionsForDisplayedPeriod.filter(t => t.type === 'expense').length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {largestExpenseCategoryForDisplayedPeriod && (
                   <div className="p-4 rounded-lg bg-muted/50">
                     <p className="text-sm font-medium text-foreground mb-1">
@@ -739,7 +712,40 @@ export default function DashboardPage() {
             )}
           </CardContent>
         </Card>
+
+        <QuickActionsSection
+          onAddTransaction={onAddTransaction}
+          currentDisplayedDate={displayedDate} 
+          userCategories={userCategories}
+          userPaymentMethods={userPaymentMethods}
+        />
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <RecentTransactionsSection
+            title={translate({ en: "Recent Income", pt: "Receitas Recentes" })}
+            description={translate({ en: "Your latest income entries.", pt: "Suas últimas entradas de receita." })}
+            transactions={recentIncomeToDisplay} 
+            type="income"
+            onSeeMore={() => setShowAllRecentIncome(prev => !prev)}
+            isExpanded={showAllRecentIncome}
+            totalItemsForMonth={fullRecentIncomeList.length}
+          />
+          <RecentTransactionsSection
+            title={translate({ en: "Recent Expenses", pt: "Despesas Recentes" })}
+            description={translate({ en: "Your last few transactions.", pt: "Suas últimas transações." })}
+            transactions={recentExpensesToDisplay} 
+            type="expense"
+            onSeeMore={() => setShowAllRecentExpenses(prev => !prev)}
+            isExpanded={showAllRecentExpenses}
+            totalItemsForMonth={fullRecentExpensesList.length}
+          />
+        </div>
+
       </div>
     </AppLayout>
   );
 }
+
+    
+
+    
