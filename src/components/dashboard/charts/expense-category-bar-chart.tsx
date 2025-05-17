@@ -1,6 +1,6 @@
 
 "use client";
-import type { Transaction, CategoryName } from "@/types";
+import type { Transaction, CategoryName, DisplayCategory } from "@/types"; // Added DisplayCategory
 import {
   BarChart,
   Bar,
@@ -19,8 +19,9 @@ import {
 } from "@/components/ui/chart";
 import { useMemo } from "react";
 import { useLanguage } from "@/context/language-context";
-import { getCategoryLabel } from "@/types";
+import { getCategoryDisplayLabel } from "@/types"; // Changed to getCategoryDisplayLabel
 import { formatCurrency } from "@/lib/utils";
+import { CATEGORIES } from "@/types"; // Import CATEGORIES to find details
 
 interface ExpenseCategoryBarChartProps {
   transactions: Transaction[];
@@ -34,8 +35,8 @@ const chartColors = [
   "hsl(var(--chart-5))",
   "hsl(var(--primary))",
   "hsl(var(--accent))",
-  "hsl(var(--destructive))",
-  "hsl(var(--secondary))",
+  // Removed: "hsl(var(--destructive))",
+  // Removed: "hsl(var(--secondary))", 
 ];
 
 export function ExpenseCategoryBarChart({ transactions }: ExpenseCategoryBarChartProps) {
@@ -45,24 +46,29 @@ export function ExpenseCategoryBarChart({ transactions }: ExpenseCategoryBarChar
     const expensesByCategory = transactions
       .filter((t) => t.type === "expense")
       .reduce((acc, t) => {
-        acc[t.category] = (acc[t.category] || 0) + t.amount;
+        const categoryKey = t.category as string; // Treat category as string key
+        acc[categoryKey] = (acc[categoryKey] || 0) + t.amount;
         return acc;
-      }, {} as Record<CategoryName | string, number>);
+      }, {} as Record<string, number>);
 
-    return Object.entries(expensesByCategory)
-      .map(([name, value]) => ({
-        name: name as CategoryName | string,
-        value,
-        displayName: getCategoryLabel(name as CategoryName | string, language),
-      }))
-      .sort((a, b) => b.value - a.value); // Sort by value descending for better readability
+    // Find category details for display name and icon
+     return Object.entries(expensesByCategory)
+      .map(([name, value]) => {
+        const categoryDetail = CATEGORIES.find(cat => cat.name === name) as DisplayCategory | undefined;
+        return {
+          name: name, // Keep original name for keying in chartConfig
+          value,
+          displayName: categoryDetail ? getCategoryDisplayLabel(categoryDetail, language) : name,
+        };
+      })
+      .sort((a, b) => b.value - a.value); 
   }, [transactions, language]);
 
   const chartConfig = useMemo(() => {
     const config: ChartConfig = {};
     expenseData.forEach((item, index) => {
-      config[item.name] = { // Use original name as key
-        label: item.displayName, // Translated label for display
+      config[item.name] = { 
+        label: item.displayName, 
         color: chartColors[index % chartColors.length],
       };
     });
@@ -91,15 +97,15 @@ export function ExpenseCategoryBarChart({ transactions }: ExpenseCategoryBarChar
           <CartesianGrid horizontal={false} strokeDasharray="3 3" />
           <XAxis type="number" tickFormatter={(value) => formatCurrency(value).replace(/\.\d{2}$/, '')}  fontSize={12} />
           <YAxis
-            dataKey="displayName"
+            dataKey="displayName" // Use displayName for Y-axis ticks
             type="category"
             tickLine={false}
             axisLine={false}
             stroke="hsl(var(--foreground))"
             fontSize={12}
             tickMargin={8}
-            width={120} // Adjust width based on longest expected label
-            interval={0} // Show all labels
+            width={120} 
+            interval={0} 
           />
           <Tooltip
             cursor={{ fill: "hsl(var(--muted))" }}
@@ -115,8 +121,6 @@ export function ExpenseCategoryBarChart({ transactions }: ExpenseCategoryBarChar
               />
             }
           />
-          {/* We don't need a separate Legend if categories are on Y-axis with colors */}
-          {/* <Legend /> */}
           <Bar dataKey="value" layout="vertical" radius={[0, 4, 4, 0]}>
             {expenseData.map((entry, index) => (
               <Cell
