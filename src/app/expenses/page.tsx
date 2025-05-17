@@ -2,7 +2,7 @@
 "use client";
 
 import type React from 'react';
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react"; // Added useRef
 import { useRouter } from 'next/navigation';
 import { AppLayout } from "@/components/layout/app-layout";
 import { Button } from "@/components/ui/button";
@@ -22,8 +22,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PlusCircle, ArrowUpDown } from "lucide-react";
-import type { Transaction, DisplayCategory, DisplayPaymentMethod, UserPreferences } from "@/types";
-import { CATEGORIES, PAYMENT_METHODS, getCategoryDisplayLabel } from "@/types";
+import type { Transaction, DisplayCategory, DisplayPaymentMethod, UserPreferences, CategoryName } from "@/types";
+import { CATEGORIES, PAYMENT_METHODS, getCategoryDisplayLabel, getPaymentMethodDisplayLabel } from "@/types";
 import { useAuth } from '@/context/auth-context';
 import { useLanguage } from '@/context/language-context';
 import { useDateNavigation } from '@/context/date-navigation-context';
@@ -81,7 +81,12 @@ export default function ExpensesPage() {
     setIsLoadingPreferences(true);
     const preferencesDocRef = doc(db, `users/${userId}/preferences/userPreferences`);
 
-    const unsubscribe = onSnapshot(preferencesDocRef, (docSnap) => {
+    // Clean up previous listener if it exists
+    if (unsubscribePreferencesRef.current) {
+      unsubscribePreferencesRef.current();
+    }
+
+    unsubscribePreferencesRef.current = onSnapshot(preferencesDocRef, (docSnap) => {
       let finalCategories: DisplayCategory[] = [...CATEGORIES];
       let finalPaymentMethods: DisplayPaymentMethod[] = [...PAYMENT_METHODS];
 
@@ -125,16 +130,15 @@ export default function ExpensesPage() {
       setUserPaymentMethods([...PAYMENT_METHODS]); 
       setIsLoadingPreferences(false);
     });
-    unsubscribePreferencesRef.current = unsubscribe;
 
     return () => {
       if (unsubscribePreferencesRef.current) {
         unsubscribePreferencesRef.current();
       }
     };
-  }, [userId, isClient, authLoading, language, toast, translate]);
+  }, [userId, isClient, authLoading, language, toast, translate]); // Added language, toast, translate as they are used in callbacks or error handling
 
-
+  // Fetch all transactions
   useEffect(() => {
     if (!userId || authLoading || !isClient) {
       if (!authLoading && !userId && isClient) router.push('/login');
@@ -160,7 +164,7 @@ export default function ExpensesPage() {
             dateString = formatDateFns(new Date(), "yyyy-MM-dd");
           }
         } else if (typeof data.date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(data.date)) {
-           console.warn("ExpensesPage: Transaction has unexpected date format. Fallback to current date. Date was:" + String(data.date));
+           console.warn("ExpensesPage: Transaction has unexpected date format. Fallback to current date. Date was: " + String(data.date));
            dateString = formatDateFns(new Date(), "yyyy-MM-dd");
         }
         return { 
@@ -343,14 +347,14 @@ export default function ExpensesPage() {
           <h1 className="text-3xl font-bold tracking-tight text-foreground">
             {pageTitle} - {displayedMonthYearLabel}
           </h1>
-          <Dialog open={isAddFormOpen} onOpenChange={setIsAddFormOpen} modal={false}>
+          <Dialog open={isAddFormOpen} onOpenChange={setIsAddFormOpen}>
             <DialogTrigger asChild>
               <Button variant="outline" className="w-full sm:w-auto">
                 <PlusCircle className="mr-2 h-4 w-4" />
                 {translate({ en: "Add New Expense", pt: "Adicionar Nova Despesa" })}
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px]">
+            <DialogContent>
               <DialogHeader>
                 <DialogTitle>{translate({ en: "New Expense", pt: "Nova Despesa" })}</DialogTitle>
                 <DialogDescription>
@@ -370,8 +374,8 @@ export default function ExpensesPage() {
           </Dialog>
         </div>
 
-        <Dialog open={isEditFormOpen} onOpenChange={setIsEditFormOpen} modal={false}>
-          <DialogContent className="sm:max-w-[425px]">
+        <Dialog open={isEditFormOpen} onOpenChange={setIsEditFormOpen}>
+          <DialogContent>
             <DialogHeader>
               <DialogTitle>{translate({ en: "Edit Expense", pt: "Editar Despesa" })}</DialogTitle>
               <DialogDescription>
@@ -416,11 +420,11 @@ export default function ExpensesPage() {
           </CardHeader>
           <CardContent>
             {isLoadingPage ? (
-              <div className="grid grid-cols-1 gap-4">
-                {[...Array(6)].map((_, i) => <Skeleton key={i} className="h-36 w-full rounded-lg" />)}
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                {[...Array(8)].map((_, i) => <Skeleton key={i} className="h-40 w-full rounded-lg" />)}
               </div>
             ) : expensesForDisplayedPeriod.length > 0 ? (
-              <div className="grid grid-cols-1 gap-4">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {expensesForDisplayedPeriod.map(tx => (
                   <TransactionItemCard 
                     key={tx.id} 
@@ -462,4 +466,6 @@ export default function ExpensesPage() {
   );
 }
     
+    
+
     
