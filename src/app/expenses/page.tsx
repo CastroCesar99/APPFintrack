@@ -56,8 +56,7 @@ export default function ExpensesPage() {
 
   const fetchUserPreferences = useCallback(async () => {
     if (!user) {
-      const allSystemCategories: DisplayCategory[] = [...CATEGORIES];
-      setUserCategories(allSystemCategories);
+      setUserCategories([...CATEGORIES]);
       setUserPaymentMethods([...PAYMENT_METHODS]);
       setIsLoadingPreferences(false);
       return;
@@ -76,7 +75,7 @@ export default function ExpensesPage() {
 
         baseCategories.forEach(cat => finalCategoriesMap.set(cat.name.toLowerCase(), cat));
         customCategoryDefs.forEach(customCat => {
-             finalCategoriesMap.set(customCat.name.toLowerCase(), customCat);
+             finalCategoriesMap.set(customCat.name.toLowerCase(), {...customCat, type: customCat.type || 'expense'});
         });
         setUserCategories(Array.from(finalCategoriesMap.values()));
 
@@ -302,8 +301,8 @@ export default function ExpensesPage() {
   return (
     <AppLayout>
       <div className="space-y-6">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">
+        <div className="sm:flex sm:items-center sm:justify-between">
+          <h1 className="text-3xl font-bold tracking-tight text-foreground mb-4 sm:mb-0">
             {translate({ en: "Expenses", pt: "Despesas" })} - {displayedMonthYearLabel}
           </h1>
           <Dialog open={isAddFormOpen} onOpenChange={setIsAddFormOpen} modal={false}>
@@ -377,5 +376,6 @@ export default function ExpensesPage() {
     </AppLayout>
   );
 }
+    
 
     
