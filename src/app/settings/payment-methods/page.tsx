@@ -32,7 +32,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Label } from "@/components/ui/label"; // Label is used for form fields
 import {
   Select,
   SelectContent,
@@ -60,6 +60,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useForm, type SubmitHandler, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"; // Added FormItem
 
 const selectableIcons = getSelectableIcons();
 
@@ -173,23 +174,26 @@ export default function ManagePaymentMethodsPage() {
       if (prefsSnap.exists()) {
         await updateDoc(preferencesDocRef, {
           userDefinedPaymentMethods: arrayUnion(newCustomMethod),
-          selectedPaymentMethods: arrayUnion(newCustomMethod.name), // Also add to selected
+          selectedPaymentMethods: arrayUnion(newCustomMethod.name), 
           updatedAt: serverTimestamp()
         });
       } else {
         await setDoc(preferencesDocRef, {
           userDefinedPaymentMethods: [newCustomMethod],
           selectedPaymentMethods: [newCustomMethod.name], 
-          selectedCategories: [], 
+          selectedCategories: CATEGORIES.filter(c => c.type === 'expense').map(c => c.name), 
           userDefinedCategories: [],
           language: language,
           updatedAt: serverTimestamp()
         });
       }
-      // Optimistically update UI or refetch
-      fetchUserPaymentMethods(); 
+      
+      await fetchUserPaymentMethods(); 
       toast({ title: translate({ en: "Method Added", pt: "Método Adicionado" }), description: `${newMethodName} ${translate({ en: "has been added.", pt: "foi adicionado." })}` });
-      addMethodForm.reset();
+      addMethodForm.reset({
+        newMethodName: "",
+        selectedNewMethodIcon: selectableIcons.find(icon => icon.value === 'Wallet')?.value || selectableIcons[0]?.value || '',
+      });
       setIsAddDialogOpen(false);
     } catch (error) {
       console.error("Error adding custom payment method:", error);
@@ -222,13 +226,9 @@ export default function ManagePaymentMethodsPage() {
       return;
     }
 
-    setIsSavingMethod(true); // Reuse for delete operation loading state
+    setIsSavingMethod(true); 
     try {
       const preferencesDocRef = doc(db, `users/${user.uid}/preferences/userPreferences`);
-      
-      // To remove an item from an array, Firestore needs the exact object or value.
-      // If newCustomMethod stored objects, we need to find the exact one.
-      // It's often easier to read, modify, and set the array.
       const prefsSnap = await getDoc(preferencesDocRef);
       if (prefsSnap.exists()) {
         const currentPrefs = prefsSnap.data() as UserPreferences;
@@ -246,8 +246,7 @@ export default function ManagePaymentMethodsPage() {
         });
       }
       
-      // Optimistically update UI or refetch
-      fetchUserPaymentMethods();
+      await fetchUserPaymentMethods();
       toast({ title: translate({ en: "Method Deleted", pt: "Método Excluído" }), description: `${getPaymentMethodDisplayLabel(methodToDelete, language)} ${translate({ en: "has been deleted.", pt: "foi excluído." })}` });
     } catch (error) {
       console.error("Error deleting payment method:", error);
@@ -268,8 +267,8 @@ export default function ManagePaymentMethodsPage() {
   return (
     <AppLayout>
       <div className="space-y-6">
-        <div className="sm:flex sm:items-center sm:justify-between">
-          <h1 className="text-3xl font-bold tracking-tight text-foreground mb-4 sm:mb-0">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">
             {translate({ en: "Manage Payment Methods", pt: "Gerenciar Métodos de Pagamento" })}
           </h1>
           <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
@@ -286,68 +285,82 @@ export default function ManagePaymentMethodsPage() {
                   {translate({ en: "Enter the name and choose an icon for your new payment method.", pt: "Digite o nome e escolha um ícone para o seu novo método de pagamento." })}
                 </DialogDescription>
               </DialogHeader>
-              <form onSubmit={addMethodForm.handleSubmit(handleAddPaymentMethod)} className="space-y-4 py-4">
-                <div>
-                  <Label htmlFor="newMethodName" className="text-right">
-                    {translate({ en: "Method Name", pt: "Nome do Método" })}
-                  </Label>
-                  <Input
-                    id="newMethodName"
-                    {...addMethodForm.register("newMethodName")}
-                    className="mt-1"
-                    placeholder={translate({ en: "e.g., My Bank Card", pt: "ex: Cartão Meu Banco"})}
+              <Form {...addMethodForm}>
+                <form onSubmit={addMethodForm.handleSubmit(handleAddPaymentMethod)} className="space-y-4 py-4">
+                  <FormField
+                    control={addMethodForm.control}
+                    name="newMethodName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel htmlFor="newMethodName">
+                          {translate({ en: "Method Name", pt: "Nome do Método" })}
+                        </FormLabel>
+                        <FormControl>
+                          <Input
+                            id="newMethodName"
+                            placeholder={translate({ en: "e.g., My Bank Card", pt: "ex: Cartão Meu Banco"})}
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
                   />
-                  {addMethodForm.formState.errors.newMethodName && (
-                    <p className="text-sm text-destructive mt-1">{addMethodForm.formState.errors.newMethodName.message}</p>
-                  )}
-                </div>
-                <div>
-                  <Label htmlFor="selectedNewMethodIcon" className="text-right">
-                     {translate({ en: "Icon", pt: "Ícone" })}
-                  </Label>
-                  <Controller
+                  <FormField
                     control={addMethodForm.control}
                     name="selectedNewMethodIcon"
                     render={({ field }) => (
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <SelectTrigger className="w-full mt-1">
-                          <SelectValue placeholder={translate({ en: "Select an icon", pt: "Selecione um ícone" })}>
-                            {field.value && iconNameToComponentMap[field.value] ? (
-                              <div className="flex items-center gap-2">
-                                <PaymentMethodIcon iconName={field.value} className="h-4 w-4" />
-                                <span>{selectableIcons.find(i => i.value === field.value)?.label || field.value}</span>
-                              </div>
-                            ) : (translate({ en: "Select an icon", pt: "Selecione um ícone" }))}
-                          </SelectValue>
-                        </SelectTrigger>
-                        <SelectContent>
-                          {selectableIcons.map(iconOption => (
-                            <SelectItem key={iconOption.value} value={iconOption.value}>
-                              <div className="flex items-center gap-2">
-                                <iconOption.iconComponent className="h-4 w-4 text-muted-foreground" />
-                                <span>{iconOption.label}</span>
-                              </div>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <FormItem>
+                        <FormLabel htmlFor="selectedNewMethodIcon">
+                           {translate({ en: "Icon", pt: "Ícone" })}
+                        </FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger className="w-full">
+                             <SelectValue placeholder={translate({ en: "Select an icon", pt: "Selecione um ícone" })}>
+                                {field.value ? (
+                                  (() => {
+                                    const foundIconOption = selectableIcons.find(i => i.value === field.value);
+                                    return (
+                                      <div className="flex items-center gap-2">
+                                        {foundIconOption && <foundIconOption.iconComponent className="h-4 w-4 text-muted-foreground" />}
+                                        <span>{foundIconOption ? translate(foundIconOption.label) : field.value}</span>
+                                      </div>
+                                    );
+                                  })()
+                                ) : (
+                                  translate({ en: "Select an icon", pt: "Selecione um ícone" })
+                                )}
+                              </SelectValue>
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {selectableIcons.map(iconOption => (
+                              <SelectItem key={iconOption.value} value={iconOption.value}>
+                                <div className="flex items-center gap-2">
+                                  <iconOption.iconComponent className="h-4 w-4 text-muted-foreground" />
+                                  <span>{translate(iconOption.label)}</span>
+                                </div>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
                     )}
                   />
-                  {addMethodForm.formState.errors.selectedNewMethodIcon && (
-                    <p className="text-sm text-destructive mt-1">{addMethodForm.formState.errors.selectedNewMethodIcon.message}</p>
-                  )}
-                </div>
-                <DialogFooter>
-                  <DialogClose asChild>
-                    <Button type="button" variant="outline" disabled={isSavingMethod}>
-                       {translate({ en: "Cancel", pt: "Cancelar"})}
+                  <DialogFooter>
+                    <DialogClose asChild>
+                      <Button type="button" variant="outline" disabled={isSavingMethod}>
+                         {translate({ en: "Cancel", pt: "Cancelar"})}
+                      </Button>
+                    </DialogClose>
+                    <Button type="submit" disabled={isSavingMethod}>
+                      {isSavingMethod ? translate({ en: "Adding...", pt: "Adicionando..." }) : translate({ en: "Add Method", pt: "Adicionar Método" })}
                     </Button>
-                  </DialogClose>
-                  <Button type="submit" disabled={isSavingMethod}>
-                    {isSavingMethod ? translate({ en: "Adding...", pt: "Adicionando..." }) : translate({ en: "Add Method", pt: "Adicionar Método" })}
-                  </Button>
-                </DialogFooter>
-              </form>
+                  </DialogFooter>
+                </form>
+              </Form>
             </DialogContent>
           </Dialog>
         </div>

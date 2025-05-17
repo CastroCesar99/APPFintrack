@@ -31,7 +31,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { CategoryIcon, getSelectableIcons, iconNameToComponentMap } from "@/components/icons";
+import { CategoryIcon, getSelectableIcons, iconNameToComponentMap, PaymentMethodIcon } from "@/components/icons";
 import { Edit, Trash2, PlusCircle, TrendingUp, TrendingDown, CircleHelp } from "lucide-react";
 import {
   CATEGORIES,
@@ -53,7 +53,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useForm, type SubmitHandler, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Form, FormControl, FormField, FormLabel, FormMessage, FormItem } from "@/components/ui/form"; // Added FormItem
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+
 
 const selectableIcons = getSelectableIcons();
 
@@ -133,7 +134,7 @@ export default function ManageCategoriesPage() {
   }, [user, toast, translate, language]);
 
   useEffect(() => {
-    if (!authLoading) { // Only fetch if auth is not loading
+    if (!authLoading) { 
       fetchUserCategories();
     }
   }, [user, authLoading, fetchUserCategories]);
@@ -171,24 +172,27 @@ export default function ManageCategoriesPage() {
       if (prefsSnap.exists()) {
         await updateDoc(preferencesDocRef, {
           userDefinedCategories: arrayUnion(newCustomCategory),
-          selectedCategories: arrayUnion(newCustomCategory.name), // Automatically select new custom categories
+          selectedCategories: arrayUnion(newCustomCategory.name), 
           updatedAt: serverTimestamp()
         });
       } else {
-        // If preferences doc doesn't exist, create it
         await setDoc(preferencesDocRef, {
           userDefinedCategories: [newCustomCategory],
           selectedCategories: [newCustomCategory.name],
-          selectedPaymentMethods: [], // Initialize other preference arrays
+          selectedPaymentMethods: PAYMENT_METHODS.map(pm => pm.name), 
           userDefinedPaymentMethods: [],
-          language: language, // Save current language
+          language: language, 
           updatedAt: serverTimestamp()
         });
       }
       
-      await fetchUserCategories(); // Refetch to update the list
+      await fetchUserCategories(); 
       toast({ title: translate({ en: "Category Added", pt: "Categoria Adicionada" }), description: `${newCategoryName} ${translate({ en: "has been added.", pt: "foi adicionada." })}` });
-      addCategoryForm.reset();
+      addCategoryForm.reset({
+        newCategoryName: "",
+        selectedNewCategoryIcon: selectableIcons.find(icon => icon.value === 'CircleHelp')?.value || selectableIcons[0]?.value || '',
+        newCategoryType: 'expense',
+      });
       setIsAddDialogOpen(false);
     } catch (error) {
       console.error("Error adding custom category:", error);
@@ -220,7 +224,7 @@ export default function ManageCategoriesPage() {
       setCategoryToDelete(null);
       return;
     }
-    setIsSavingCategory(true); // Reuse for delete operation loading state
+    setIsSavingCategory(true); 
     try {
       const preferencesDocRef = doc(db, `users/${user.uid}/preferences/userPreferences`);
       const prefsSnap = await getDoc(preferencesDocRef);
@@ -240,7 +244,7 @@ export default function ManageCategoriesPage() {
         });
       }
       
-      await fetchUserCategories(); // Refetch to update the list
+      await fetchUserCategories(); 
       toast({ title: translate({ en: "Category Deleted", pt: "Categoria Excluída" }), description: `${getCategoryDisplayLabel(categoryToDelete, language)} ${translate({ en: "has been deleted.", pt: "foi excluída." })}` });
     } catch (error) {
       console.error("Error deleting category:", error);
@@ -318,13 +322,20 @@ export default function ManageCategoriesPage() {
                         <Select onValueChange={field.onChange} value={field.value}>
                           <FormControl>
                             <SelectTrigger className="w-full">
-                              <SelectValue placeholder={translate({ en: "Select an icon", pt: "Selecione um ícone" })}>
-                                {field.value && iconNameToComponentMap[field.value] ? (
-                                  <div className="flex items-center gap-2">
-                                    <CategoryIcon iconName={field.value} className="h-4 w-4" />
-                                    <span>{selectableIcons.find(i => i.value === field.value)?.label || field.value}</span>
-                                  </div>
-                                ) : (translate({ en: "Select an icon", pt: "Selecione um ícone" }))}
+                               <SelectValue placeholder={translate({ en: "Select an icon", pt: "Selecione um ícone" })}>
+                                {field.value ? (
+                                  (() => {
+                                    const foundIconOption = selectableIcons.find(i => i.value === field.value);
+                                    return (
+                                      <div className="flex items-center gap-2">
+                                        {foundIconOption && <foundIconOption.iconComponent className="h-4 w-4 text-muted-foreground" />}
+                                        <span>{foundIconOption ? translate(foundIconOption.label) : field.value}</span>
+                                      </div>
+                                    );
+                                  })()
+                                ) : (
+                                  translate({ en: "Select an icon", pt: "Selecione um ícone" })
+                                )}
                               </SelectValue>
                             </SelectTrigger>
                           </FormControl>
@@ -333,7 +344,7 @@ export default function ManageCategoriesPage() {
                               <SelectItem key={iconOption.value} value={iconOption.value}>
                                 <div className="flex items-center gap-2">
                                   <iconOption.iconComponent className="h-4 w-4 text-muted-foreground" />
-                                  <span>{iconOption.label}</span>
+                                  <span>{translate(iconOption.label)}</span>
                                 </div>
                               </SelectItem>
                             ))}
@@ -347,25 +358,25 @@ export default function ManageCategoriesPage() {
                     control={addCategoryForm.control}
                     name="newCategoryType"
                     render={({ field }) => (
-                      <FormItem className="space-y-2"> {/* Added space-y-2 for better label spacing */}
+                      <FormItem className="space-y-2">
                         <FormLabel>{translate({ en: "Category Type", pt: "Tipo da Categoria" })}</FormLabel>
                         <FormControl>
                           <RadioGroup
                               onValueChange={field.onChange}
                               value={field.value}
-                              className="flex space-x-4 pt-1" // Added pt-1 for spacing from label
+                              className="flex space-x-4 pt-1"
                           >
                               <FormItem className="flex items-center space-x-2">
                                   <FormControl>
-                                      <RadioGroupItem value="income" id="type-income" />
+                                      <RadioGroupItem value="income" id="type-income-cat-dialog" />
                                   </FormControl>
-                                  <Label htmlFor="type-income" className="font-normal">{translate({en: "Income", pt: "Receita"})}</Label>
+                                  <Label htmlFor="type-income-cat-dialog" className="font-normal">{translate({en: "Income", pt: "Receita"})}</Label>
                               </FormItem>
                               <FormItem className="flex items-center space-x-2">
                                   <FormControl>
-                                      <RadioGroupItem value="expense" id="type-expense" />
+                                      <RadioGroupItem value="expense" id="type-expense-cat-dialog" />
                                   </FormControl>
-                                  <Label htmlFor="type-expense" className="font-normal">{translate({en: "Expense", pt: "Despesa"})}</Label>
+                                  <Label htmlFor="type-expense-cat-dialog" className="font-normal">{translate({en: "Expense", pt: "Despesa"})}</Label>
                               </FormItem>
                           </RadioGroup>
                         </FormControl>
@@ -493,5 +504,3 @@ export default function ManageCategoriesPage() {
     </AppLayout>
   );
 }
-
-    
