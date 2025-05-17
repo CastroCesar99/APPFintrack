@@ -57,9 +57,10 @@ export default function ReportsPage() {
 
   // Fetch User Preferences (for category names and icons)
   useEffect(() => {
-    if (!user || authLoading) {
+    if (!user || authLoading || !isClient) {
       if (!authLoading && !user && isClient) router.push('/login');
-      setIsLoadingPreferences(false); // Stop loading if no user
+      setIsLoadingPreferences(false); 
+      setUserDisplayCategories([...CATEGORIES]); // Fallback
       return;
     }
     setIsLoadingPreferences(true);
@@ -82,7 +83,7 @@ export default function ReportsPage() {
           });
           setUserDisplayCategories(effectiveCategories);
         } else {
-          setUserDisplayCategories([...CATEGORIES]); // Default to all predefined if no prefs
+          setUserDisplayCategories([...CATEGORIES]); 
         }
       } catch (error) {
         console.error("ReportsPage: Error fetching user preferences:", error);
@@ -91,12 +92,12 @@ export default function ReportsPage() {
           description: translate({ en: "Could not load category details.", pt: "Não foi possível carregar detalhes das categorias." }),
           variant: "destructive",
         });
-        setUserDisplayCategories([...CATEGORIES]); // Fallback
+        setUserDisplayCategories([...CATEGORIES]); 
       } finally {
         setIsLoadingPreferences(false);
       }
     };
-    fetchPrefs();
+    if (user) fetchPrefs();
   }, [user, authLoading, isClient, router, toast, translate]);
 
 
@@ -105,6 +106,7 @@ export default function ReportsPage() {
     if (!user || authLoading || !isClient) {
       if (!authLoading && !user && isClient) router.push('/login');
       setIsLoadingTransactions(false);
+      setAllTransactions([]);
       return;
     }
 
@@ -149,6 +151,7 @@ export default function ReportsPage() {
         description: translate({ en: "Could not fetch transactions.", pt: "Não foi possível buscar as transações." }),
         variant: "destructive",
       });
+      setAllTransactions([]);
       setIsLoadingTransactions(false);
     });
 
@@ -170,8 +173,7 @@ export default function ReportsPage() {
       try {
         const docSnap = await getDoc(budgetDocRef);
         if (docSnap.exists()) {
-          const budgetData = docSnap.data() as Record<string, number>;
-          // Filter out non-numeric values if necessary, though Firestore should store numbers
+          const budgetData = docSnap.data() as Record<string, any>; // Allow any type for initial fetch
           const validBudgets: Record<string, number> = {};
           for (const key in budgetData) {
             if (key !== 'lastUpdated' && typeof budgetData[key] === 'number') {
@@ -194,7 +196,7 @@ export default function ReportsPage() {
         setIsLoadingBudgets(false);
       }
     };
-    fetchBudgets();
+    if(user) fetchBudgets();
   }, [user, authLoading, isClient, displayedDate, toast, translate]);
 
 
@@ -209,12 +211,13 @@ export default function ReportsPage() {
 
       if (t.type === 'expense' && t.expenseType === 'installment' && t.installments && t.installments > 0) {
         const installmentSeriesStartDate = startOfMonth(originalTransactionDate);
-        const isInstallmentActiveThisMonth = isWithinInterval(firstDayOfTargetMonth, { start: installmentSeriesStartDate, end: endOfMonth(addMonths(installmentSeriesStartDate, t.installments - 1)) });
+        const installmentSeriesEndDate = endOfMonth(addMonths(installmentSeriesStartDate, t.installments - 1));
+        const isInstallmentActiveThisMonth = isWithinInterval(firstDayOfTargetMonth, { start: installmentSeriesStartDate, end: installmentSeriesEndDate });
         if (isInstallmentActiveThisMonth) {
            filtered.push(t);
         }
       }
-      else if (t.isRecurring === true && t.expenseType !== 'installment') { // Generic recurring (not an installment)
+      else if (t.isRecurring === true && t.expenseType !== 'installment') { 
         const originalTransactionYear = getYearFns(originalTransactionDate);
         const originalTransactionMonth = getMonthFns(originalTransactionDate);
         const matchesRecurringCriteria = originalTransactionYear < targetYear || (originalTransactionYear === targetYear && originalTransactionMonth <= targetMonth);
@@ -222,20 +225,20 @@ export default function ReportsPage() {
            filtered.push(t);
         }
       }
-      else if (!t.isRecurring && t.expenseType !== 'installment') { // Non-recurring, non-installment
+      else if (!t.isRecurring && t.expenseType !== 'installment') { 
         const transactionYear = getYearFns(originalTransactionDate);
         const transactionMonth = getMonthFns(originalTransactionDate);
         if (transactionYear === targetYear && transactionMonth === targetMonth) {
           filtered.push(t);
         }
-      } else if (t.type === 'income') { // Include income for totals, handling recurring
+      } else if (t.type === 'income') { 
          const transactionYear = getYearFns(originalTransactionDate);
          const transactionMonth = getMonthFns(originalTransactionDate);
          if (t.isRecurring) {
-            if (startOfMonth(originalTransactionDate) <= firstDayOfTargetMonth) { // Recurring income started on or before current month
+            if (startOfMonth(originalTransactionDate) <= firstDayOfTargetMonth) { 
                 filtered.push(t);
             }
-         } else { // Non-recurring income
+         } else { 
             if (transactionYear === targetYear && transactionMonth === targetMonth) {
                 filtered.push(t);
             }
@@ -286,7 +289,7 @@ export default function ReportsPage() {
 
     const budgetKeys = Object.keys(loadedBudgets || {}).filter(key => key !== 'lastUpdated');
     const spendingKeys = Object.keys(actualSpending);
-    const allRelevantCategoryNames = new Set<string>([...budgetKeys, ...spendingKeys]);
+    const allRelevantCategoryNames = new Set<string>([...budgetKeys, ...spendingKeys].filter(key => key !== 'lastUpdated'));
     
     if (allRelevantCategoryNames.size === 0 && budgetKeys.every(key => (loadedBudgets[key] || 0) === 0)) {
         return []; 
@@ -298,7 +301,8 @@ export default function ReportsPage() {
       const budgeted = loadedBudgets[categoryName] || 0;
       const actual = actualSpending[categoryName] || 0;
       const difference = budgeted - actual;
-      const percentageRaw = budgeted > 0 ? (actual / budgeted) * 100 : (actual > 0 ? Infinity : 0); 
+      // Allow percentage to go > 100 for coloring logic, cap at 1000 as a sanity limit
+      const percentageRaw = budgeted > 0 ? (actual / budgeted) * 100 : (actual > 0 ? 1000 : 0); 
       
       return {
         categoryName: displayName,
@@ -317,11 +321,25 @@ export default function ReportsPage() {
 
   const overallLoading = !isClient || authLoading || isLoadingTransactions || isLoadingPreferences || isLoadingBudgets;
 
-  if (overallLoading && allTransactions.length === 0 && !loadedBudgets && userDisplayCategories.length === 0) {
+  if (overallLoading) {
     return (
       <AppLayout>
-        <div className="flex items-center justify-center h-full w-full">
-          <p className="text-foreground">{translate({ en: "Loading reports...", pt: "Carregando relatórios..." })}</p>
+        <div className="space-y-6">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <h1 className="text-3xl font-bold tracking-tight text-foreground">
+              {pageTitle} - {displayedMonthYearLabel}
+            </h1>
+            <Skeleton className="h-9 w-32" />
+          </div>
+          <div className="grid gap-4 md:grid-cols-3">
+            {[...Array(3)].map((_, i) => <Skeleton key={`summary-skel-${i}`} className="h-24 w-full" />)}
+          </div>
+           <div className="grid gap-4 md:grid-cols-2">
+            {[...Array(2)].map((_, i) => <Skeleton key={`fixed-var-skel-${i}`} className="h-24 w-full" />)}
+          </div>
+          <Skeleton className="h-40 w-full" /> {/* AI Insights Placeholder */}
+          <Skeleton className="h-60 w-full" /> {/* Budget vs Actual Placeholder */}
+          <Skeleton className="h-80 w-full" /> {/* Expense Breakdown Placeholder */}
         </div>
       </AppLayout>
     );
@@ -428,23 +446,27 @@ export default function ReportsPage() {
                         <CategoryIcon iconName={item.icon} className="h-5 w-5 text-muted-foreground" />
                         <span className="font-medium text-sm">{item.categoryName}</span>
                       </div>
-                      <span className={cn(
-                        "text-xs font-semibold px-2 py-0.5 rounded-full",
-                        item.difference >= 0 ? 'bg-green-100 text-green-700 dark:bg-green-900/70 dark:text-green-300' : 'bg-red-100 text-red-700 dark:bg-red-900/70 dark:text-red-300'
-                      )}>
-                        {item.difference >= 0 
-                          ? `${formatCurrency(item.difference)} ${translate({en: "under", pt: "abaixo"})}`
-                          : `${formatCurrency(Math.abs(item.difference))} ${translate({en: "over", pt: "acima"})}`
-                        }
-                      </span>
+                      {item.budgeted > 0 && (
+                        <span className={cn(
+                          "text-xs font-semibold px-2 py-0.5 rounded-full",
+                          item.difference >= 0 ? 'bg-green-100 text-green-700 dark:bg-green-900/70 dark:text-green-300' : 'bg-red-100 text-red-700 dark:bg-red-900/70 dark:text-red-300'
+                        )}>
+                          {item.difference >= 0 
+                            ? `${formatCurrency(item.difference)} ${translate({en: "under", pt: "abaixo"})}`
+                            : `${formatCurrency(Math.abs(item.difference))} ${translate({en: "over", pt: "acima"})}`
+                          }
+                        </span>
+                      )}
                     </div>
                     <Progress 
                       value={item.budgeted > 0 ? Math.min(item.percentage, 100) : 0} 
                       className="h-2 mb-1" 
                       indicatorClassName={
-                        item.percentage > 100 ? "bg-destructive" 
-                        : item.percentage > 80 ? "bg-yellow-500" 
-                        : "bg-primary"
+                        item.budgeted > 0 ? (
+                          item.percentage > 100 ? "bg-destructive" 
+                          : item.percentage > 80 ? "bg-yellow-500" 
+                          : "bg-primary"
+                        ) : "bg-primary" // Default to primary if budget is 0
                       }
                     />
                     <div className="flex justify-between text-xs text-muted-foreground">
@@ -495,3 +517,6 @@ export default function ReportsPage() {
     </AppLayout>
   );
 }
+
+
+    
