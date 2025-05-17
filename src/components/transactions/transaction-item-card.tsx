@@ -10,7 +10,8 @@ import { getCategoryDisplayLabel, getPaymentMethodDisplayLabel } from '@/types';
 import { CategoryIcon } from '@/components/icons';
 import { formatCurrency, cn } from '@/lib/utils';
 import { format as formatDateFns, parse as parseDateFns } from 'date-fns';
-import { useLanguage } from '@/context/language-context'; // Import useLanguage
+import { useLanguage } from '@/context/language-context';
+import { ptBR, enUS } from 'date-fns/locale'; // Import locales directly
 
 interface TransactionItemCardProps {
   transaction: Transaction;
@@ -19,15 +20,13 @@ interface TransactionItemCardProps {
 }
 
 export function TransactionItemCard({ transaction, onEdit, onDelete }: TransactionItemCardProps) {
-  const { language, translate } = useLanguage(); // Use the hook
+  const { language, translate } = useLanguage();
 
   let displayDate = transaction.date;
   try {
-    // Ensure the date string is valid before parsing
     if (transaction.date && transaction.date.match(/^\d{4}-\d{2}-\d{2}$/)) {
       const parsedDate = parseDateFns(transaction.date, "yyyy-MM-dd", new Date(0));
-      // Format date according to language if desired, or keep a neutral format
-      displayDate = formatDateFns(parsedDate, "MMM dd, yyyy", { locale: language === 'pt' ? require('date-fns/locale/pt-BR').default : require('date-fns/locale/en-US').default });
+      displayDate = formatDateFns(parsedDate, "MMM dd, yyyy", { locale: language === 'pt' ? ptBR : enUS });
     } else {
       console.warn("TransactionItemCard: Unexpected date format for transaction ID " + transaction.id + ": " + transaction.date);
     }
@@ -35,19 +34,19 @@ export function TransactionItemCard({ transaction, onEdit, onDelete }: Transacti
     console.warn("TransactionItemCard: Could not parse date string for display: " + transaction.date, e);
   }
 
+  // For category display, assuming transaction.category is a string (either predefined name or custom)
+  // We need to create a minimal DisplayCategory-like object if it's just a string,
+  // or find the full object if possible (though not done here for simplicity, relying on getCategoryDisplayLabel)
   const categoryForDisplay: { name: string, type: Transaction['type'], icon: string, label: { en: string, pt: string } } = {
-    name: transaction.category as string,
-    type: transaction.type,
-    icon: '', 
-    label: { en: transaction.category as string, pt: transaction.category as string } 
+    name: transaction.category as string, // Treat as string
+    type: transaction.type, // Pass the type along
+    icon: '', // Icon will be looked up by CategoryIcon based on name
+    label: { en: transaction.category as string, pt: transaction.category as string } // Fallback label
   };
   const categoryDisplayName = getCategoryDisplayLabel(categoryForDisplay, language);
-  
-  const paymentMethodDisplayName = transaction.paymentMethod 
-    ? getPaymentMethodDisplayLabel(
-        { name: transaction.paymentMethod, icon: '', label: { en: transaction.paymentMethod, pt: transaction.paymentMethod } }, 
-        language
-      ) 
+
+  const paymentMethodDisplayName = transaction.paymentMethod
+    ? getPaymentMethodDisplayLabel(transaction.paymentMethod, language) // Pass the string name
     : '';
 
   const expenseNatureDisplay = transaction.expenseNature
