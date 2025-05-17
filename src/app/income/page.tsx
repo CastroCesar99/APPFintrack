@@ -296,8 +296,8 @@ export default function IncomePage() {
   return (
     <AppLayout>
       <div className="space-y-6">
-        <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">
+        <div className="sm:flex sm:items-center sm:justify-between">
+          <h1 className="text-3xl font-bold tracking-tight text-foreground mb-4 sm:mb-0">
             {translate({ en: "Income", pt: "Receitas" })} - {displayedMonthYearLabel}
           </h1>
           <Dialog open={isAddFormOpen} onOpenChange={setIsAddFormOpen} modal={false}>
@@ -372,5 +372,5 @@ export default function IncomePage() {
   );
 }
     
-
+ 
     
