@@ -21,9 +21,18 @@ import {
   DialogTrigger,
   DialogClose,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
-// Label from form is used for FormLabel, this Label is for general purpose if needed
-// import { Label } from "@/components/ui/label"; 
+import { Label } from "@/components/ui/label"; // Added missing import
 import {
   Select,
   SelectContent,
@@ -36,12 +45,13 @@ import { CategoryIcon, getSelectableIcons, iconNameToComponentMap, PaymentMethod
 import { Edit, Trash2, PlusCircle, TrendingUp, TrendingDown, CircleHelp, type LucideIcon } from "lucide-react";
 import {
   CATEGORIES,
-  getCategoryDisplayLabel, // Ensure this is the correct function
+  getCategoryDisplayLabel,
   type Category,
   type CustomCategoryData,
   type DisplayCategory,
   type TransactionType,
   type UserPreferences,
+  PAYMENT_METHODS, // Added for default preferences
 } from "@/types";
 import { useLanguage } from "@/context/language-context";
 import { useToast } from "@/hooks/use-toast";
@@ -111,8 +121,8 @@ export default function ManageCategoriesPage() {
         
         const customCategoriesWithType: DisplayCategory[] = customCategories.map(cc => ({
             ...cc,
-            type: cc.type || 'expense', // Default to expense if type is missing for some reason
-            label: cc.label || { en: cc.name, pt: cc.name } // Ensure label object exists
+            type: cc.type || 'expense', 
+            label: cc.label || { en: cc.name, pt: cc.name } 
         }));
         
         const categoryNames = new Set(effectiveCategories.map(cat => cat.name.toLowerCase()));
@@ -166,10 +176,10 @@ export default function ManageCategoriesPage() {
     }
 
     const newCustomCategory: CustomCategoryData = {
-      name: newCategoryName, // Use as is, do not cast to CategoryName
+      name: newCategoryName,
       icon: newCategoryIcon,
       type: newCategoryType,
-      label: { en: newCategoryName, pt: newCategoryName }, // For custom, label is often the name itself
+      label: { en: newCategoryName, pt: newCategoryName },
     };
 
     try {
@@ -183,13 +193,12 @@ export default function ManageCategoriesPage() {
           updatedAt: serverTimestamp()
         });
       } else {
-        // If preferences doc doesn't exist, create it with new category and defaults
         await setDoc(preferencesDocRef, {
           userDefinedCategories: [newCustomCategory],
           selectedCategories: [newCustomCategory.name],
-          selectedPaymentMethods: PAYMENT_METHODS.map(pm => pm.name), // Default selected payment methods
+          selectedPaymentMethods: PAYMENT_METHODS.map(pm => pm.name),
           userDefinedPaymentMethods: [],
-          language: language, // Current app language
+          language: language,
           updatedAt: serverTimestamp()
         });
       }
@@ -263,10 +272,10 @@ export default function ManageCategoriesPage() {
     }
   };
 
-  const handleEditPlaceholder = (categoryName: string) => {
+  const handleEditPlaceholder = (category: DisplayCategory) => {
     toast({
       title: translate({ en: "Feature In Development", pt: "Funcionalidade em Desenvolvimento" }),
-      description: `${translate({en:"Edit", pt: "Editar"})} ${categoryName} ${translate({ en: "is coming soon.", pt: "está chegando em breve."})}`,
+      description: `${translate({en:"Editing", pt: "Editar"})}: ${getCategoryDisplayLabel(category, language)} ${translate({ en: "is coming soon.", pt: "está chegando em breve."})}`,
     });
   };
 
@@ -329,7 +338,7 @@ export default function ManageCategoriesPage() {
                         <Select onValueChange={field.onChange} value={field.value}>
                           <FormControl>
                             <SelectTrigger className="w-full">
-                               <SelectValue placeholder={translate({ en: "Select an icon", pt: "Selecione um ícone" })}>
+                              <SelectValue placeholder={translate({ en: "Select an icon", pt: "Selecione um ícone" })}>
                                 {field.value ? (
                                   (() => {
                                     const foundIconOption = selectableIcons.find(i => i.value === field.value);
@@ -373,15 +382,15 @@ export default function ManageCategoriesPage() {
                           <RadioGroup
                               onValueChange={field.onChange}
                               value={field.value}
-                              className="flex flex-row items-center space-x-3 pt-1" // Always row, more compact
+                              className="flex flex-row items-center space-x-3 pt-1"
                           >
-                              <FormItem className="flex items-center space-x-1.5"> {/* Reduced space */}
+                              <FormItem className="flex items-center space-x-1.5">
                                   <FormControl>
                                       <RadioGroupItem value="income" id="type-income-cat-dialog" />
                                   </FormControl>
                                   <Label htmlFor="type-income-cat-dialog" className="font-normal">{translate({en: "Income", pt: "Receita"})}</Label>
                               </FormItem>
-                              <FormItem className="flex items-center space-x-1.5"> {/* Reduced space */}
+                              <FormItem className="flex items-center space-x-1.5">
                                   <FormControl>
                                       <RadioGroupItem value="expense" id="type-expense-cat-dialog" />
                                   </FormControl>
@@ -459,7 +468,7 @@ export default function ManageCategoriesPage() {
                         <Button 
                           variant="ghost" 
                           size="icon" 
-                          onClick={() => handleEditPlaceholder(getCategoryDisplayLabel(category, language))}
+                          onClick={() => handleEditPlaceholder(category)}
                           aria-label={translate({en: "Edit", pt: "Editar"}) + " " + getCategoryDisplayLabel(category, language)}
                         >
                           <Edit className="h-4 w-4" />
@@ -513,3 +522,4 @@ export default function ManageCategoriesPage() {
     </AppLayout>
   );
 }
+
