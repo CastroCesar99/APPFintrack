@@ -18,7 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { CalendarIcon } from "lucide-react";
-import { format } from "date-fns";
+import { format, parse as parseDateFns } from "date-fns";
 import { ptBR, enUS } from 'date-fns/locale';
 import { cn } from "@/lib/utils";
 import type { Transaction, TransactionType, ExpenseNature, CategoryName, DisplayCategory, DisplayPaymentMethod, ExpenseType } from "@/types";
@@ -27,7 +27,6 @@ import { useState, useEffect } from "react";
 import { useLanguage } from "@/context/language-context";
 import { Calendar } from "@/components/ui/calendar";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-
 
 const formSchema = z.object({
   description: z.string().min(2, { message: "Description must be at least 2 characters." }).max(100),
@@ -49,63 +48,85 @@ const formSchema = z.object({
     path: ["installments"],
 });
 
-
 type TransactionFormValues = z.infer<typeof formSchema>;
 
 interface TransactionFormProps {
-  onAddTransaction: (transaction: Omit<Transaction, "id" | "userId" | "createdAt">) => Promise<void>;
+  onSave: (data: Omit<Transaction, "id" | "userId" | "createdAt" | "updatedAt">, id?: string) => Promise<void>;
   initialType: TransactionType;
   defaultDate?: Date;
   userCategories: DisplayCategory[];
   userPaymentMethods: DisplayPaymentMethod[];
+  transactionToEdit?: Transaction | null; // For editing
 }
 
 export function TransactionForm({ 
-  onAddTransaction, 
+  onSave, 
   initialType, 
   defaultDate, 
-  userCategories = [], // Default to empty array to prevent errors if prop is undefined
-  userPaymentMethods = [] // Default to empty array
+  userCategories = [],
+  userPaymentMethods = [],
+  transactionToEdit = null,
 }: TransactionFormProps) {
-  console.log("TransactionForm TRACER --- PROPS RECEIVED: defaultDate:", defaultDate?.toISOString(), "initialType:", initialType, "userCategories length:", userCategories.length, "userPaymentMethods length:", userPaymentMethods.length);
+  console.log("TransactionForm TRACER --- PROPS RECEIVED: defaultDate:", defaultDate?.toISOString(), "initialType:", initialType, "userCategories length:", userCategories.length, "userPaymentMethods length:", userPaymentMethods.length, "transactionToEdit:", transactionToEdit);
   const { language, translate } = useLanguage();
   const [availableCategories, setAvailableCategories] = useState<DisplayCategory[]>([]);
-  const [selectedExpenseType, setSelectedExpenseType] = useState<ExpenseType | undefined>(undefined);
+  const [selectedExpenseType, setSelectedExpenseType] = useState<ExpenseType | undefined>(transactionToEdit?.expenseType);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const form = useForm<TransactionFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      description: "",
-      amount: undefined,
-      category: "",
-      date: defaultDate || new Date(),
-      expenseType: undefined,
-      paymentMethod: undefined,
-      installments: undefined,
-      isRecurring: false, 
-      expenseNature: undefined,
+      description: transactionToEdit?.description || "",
+      amount: transactionToEdit?.amount || undefined,
+      category: transactionToEdit?.category || "",
+      date: transactionToEdit ? parseDateFns(transactionToEdit.date, "yyyy-MM-dd", new Date(0)) : (defaultDate || new Date()),
+      expenseType: transactionToEdit?.expenseType || undefined,
+      paymentMethod: transactionToEdit?.paymentMethod || undefined,
+      installments: transactionToEdit?.installments || undefined,
+      isRecurring: transactionToEdit?.isRecurring || false, 
+      expenseNature: transactionToEdit?.expenseNature || undefined,
     },
   });
 
   useEffect(() => {
-    console.log("TransactionForm TRACER --- useEffect for defaultDate, resetting date to:", defaultDate?.toISOString());
-    if (defaultDate) {
-      form.resetField("date", { defaultValue: defaultDate });
+    console.log("TransactionForm TRACER --- useEffect for transactionToEdit running. transactionToEdit:", transactionToEdit);
+    if (transactionToEdit) {
+      form.reset({
+        description: transactionToEdit.description,
+        amount: transactionToEdit.amount,
+        category: transactionToEdit.category as string,
+        date: parseDateFns(transactionToEdit.date, "yyyy-MM-dd", new Date(0)),
+        expenseType: transactionToEdit.expenseType,
+        paymentMethod: transactionToEdit.paymentMethod,
+        installments: transactionToEdit.installments,
+        isRecurring: transactionToEdit.isRecurring,
+        expenseNature: transactionToEdit.expenseNature,
+      });
+      setSelectedExpenseType(transactionToEdit.expenseType);
     } else {
-      form.resetField("date", { defaultValue: new Date() });
+      // Reset to default for "add new" mode
+      form.reset({
+        description: "",
+        amount: undefined,
+        category: "",
+        date: defaultDate || new Date(),
+        expenseType: undefined,
+        paymentMethod: undefined,
+        installments: undefined,
+        isRecurring: false,
+        expenseNature: undefined,
+      });
+      setSelectedExpenseType(undefined);
     }
-  }, [defaultDate, form.resetField]);
+  }, [transactionToEdit, defaultDate, form]);
+
 
   useEffect(() => {
-    console.log(
-      "TransactionForm TRACER --- useEffect for initialType/userCategories. initialType:", initialType,
-      "Prop userCategories length:", userCategories.length,
-      "First userCategory type if exists:", userCategories.length > 0 ? userCategories[0]?.type : "N/A"
-    );
+    const categoriesToFilter = Array.isArray(userCategories) ? userCategories : [];
+    console.log("TransactionForm TRACER --- useEffect for initialType/userCategories. initialType:", initialType, "Prop userCategories length:", categoriesToFilter.length, "First userCategory type if exists:", categoriesToFilter.length > 0 ? categoriesToFilter[0]?.type : "N/A");
     
-    const relevantUserCategories = userCategories.filter(cat => cat.type === initialType);
-    console.log("TransactionForm TRACER --- relevantUserCategories length:", relevantUserCategories.length, "Based on initialType:", initialType, "Content:", JSON.stringify(relevantUserCategories.map(c => ({name: c.name, type: c.type}))));
+    const relevantUserCategories = categoriesToFilter.filter(cat => cat.type === initialType);
+    console.log("TransactionForm TRACER --- relevantUserCategories length:", relevantUserCategories.length, "Based on initialType:", initialType, "Content:", JSON.stringify(relevantUserCategories.map(c => ({name: c.name, type: c.type, label: getCategoryDisplayLabel(c, language) }))));
     setAvailableCategories(relevantUserCategories);
 
     const currentCategoryInForm = form.getValues("category");
@@ -114,27 +135,28 @@ export function TransactionForm({
       form.setValue("category", "");
     }
     
-    const currentExpenseType = form.getValues('expenseType');
+    const currentExpenseTypeInForm = form.getValues('expenseType');
 
     if (initialType === 'income') {
       form.setValue('expenseType', undefined);
       form.setValue('paymentMethod', undefined);
       form.setValue('installments', undefined);
       form.setValue('expenseNature', undefined);
-      setSelectedExpenseType(undefined); 
-    } else { // expense
-      setSelectedExpenseType(currentExpenseType);
-      if (currentExpenseType === 'recurring') {
+      setSelectedExpenseType(undefined);
+      // For income, isRecurring is controlled by its own checkbox, preserve its value
+      form.setValue('isRecurring', form.getValues('isRecurring') ?? false);
+    } else { // initialType === 'expense'
+      setSelectedExpenseType(currentExpenseTypeInForm);
+      if (currentExpenseTypeInForm === 'recurring') {
         form.setValue('isRecurring', true);
-      } else {
+      } else { 
          form.setValue('isRecurring', false);
-         if (currentExpenseType !== 'installment') {
-             form.setValue('installments', undefined);
+         if (currentExpenseTypeInForm !== 'installment') { 
+           form.setValue('installments', undefined);
          }
       }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialType, userCategories, form.setValue, form.getValues, language]); // form.setValue and form.getValues are stable
+  }, [initialType, userCategories, form, language]);
 
 
   async function onSubmit(values: TransactionFormValues) {
@@ -148,40 +170,41 @@ export function TransactionForm({
         if (values.expenseType === 'recurring') {
           finalIsRecurring = true;
         } else { 
-          finalIsRecurring = false; // Explicitly false if not recurring type expense
+          finalIsRecurring = false; 
         }
-      } else { // initialType === 'income'
-         // isRecurring for income is directly from its checkbox
+      } else { 
          finalIsRecurring = values.isRecurring || false;
-         finalExpenseType = undefined; // Income doesn't have expenseType
+         finalExpenseType = undefined; 
       }
 
-      const transactionData: Omit<Transaction, "id" | "userId" | "createdAt"> = {
+      const transactionData: Omit<Transaction, "id" | "userId" | "createdAt" | "updatedAt"> = {
         description: values.description,
         amount: values.amount,
         type: initialType,
         category: values.category as CategoryName,
-        date: format(values.date, "yyyy-MM-dd"), // Standardize date format
+        date: format(values.date, "yyyy-MM-dd"),
         paymentMethod: initialType === 'expense' ? values.paymentMethod : undefined,
         installments: initialType === 'expense' && values.expenseType === 'installment' ? values.installments : undefined,
         isRecurring: finalIsRecurring,
         expenseNature: initialType === 'expense' ? values.expenseNature : undefined,
         expenseType: initialType === 'expense' ? finalExpenseType : undefined,
       };
-      await onAddTransaction(transactionData);
+      await onSave(transactionData, transactionToEdit?.id);
 
-      form.reset({
-        description: "",
-        amount: undefined,
-        category: "",
-        date: defaultDate || new Date(), // Reset to the current default date
-        expenseType: undefined,
-        paymentMethod: undefined,
-        installments: undefined,
-        isRecurring: false, 
-        expenseNature: undefined,
-      });
-      setSelectedExpenseType(undefined);
+      if (!transactionToEdit) { // Only reset fully if it's not an edit operation
+        form.reset({
+          description: "",
+          amount: undefined,
+          category: "",
+          date: defaultDate || new Date(),
+          expenseType: undefined,
+          paymentMethod: undefined,
+          installments: undefined,
+          isRecurring: false, 
+          expenseNature: undefined,
+        });
+        setSelectedExpenseType(undefined);
+      }
       
     } catch (error) {
       console.error("Error submitting transaction from TransactionForm:", error);
@@ -199,19 +222,21 @@ export function TransactionForm({
   const pickDateLabel = translate({ en: "Pick a date", pt: "Escolha uma data" });
   const paymentMethodLabel = translate({ en: "Payment Method", pt: "Forma de Pagamento" });
   const paymentMethodPlaceholder = translate({ en: "Select payment method", pt: "Selecione a forma de pagamento" });
-  const paymentTypeLabel = translate({ en: "Payment Type", pt: "Tipo de Pagamento" }); // For expense type
+  const paymentTypeLabel = translate({ en: "Payment Type", pt: "Tipo de Pagamento" });
   const paymentTypePlaceholder = translate({ en: "Select payment type", pt: "Selecione o tipo de pagamento" });
   const upfrontLabel = translate({ en: "Upfront", pt: "À Vista" });
   const installmentLabel = translate({ en: "Installment", pt: "Parcelado" });
-  const recurringLabel = translate({ en: "Recurring", pt: "Recorrente" }); // Generic recurring for expenses
+  const recurringLabel = translate({ en: "Recurring", pt: "Recorrente" });
   const installmentsNumberLabel = translate({ en: "Number of Installments", pt: "Número de Parcelas" });
   const installmentsNumberPlaceholder = translate({ en: "e.g., 10", pt: "ex: 10" });
-  const applyToAllMonthsLabel = translate({ en: "Apply to all months (Recurring)", pt: "Aplicar para todos os meses (Recorrente)" }); // For income recurrence
+  const applyToAllMonthsLabel = translate({ en: "Apply to all months (Recurring)", pt: "Aplicar para todos os meses (Recorrente)" });
   const expenseNatureLabel = translate({ en: "Expense Nature", pt: "Natureza da Despesa" });
   const fixedLabel = translate({ en: "Fixed", pt: "Fixo" });
   const variableLabel = translate({ en: "Variable", pt: "Variável" });
-  const submitButtonLabel = isSubmitting ? translate({ en: "Adding...", pt: "Adicionando..." }) : translate({ en: "Add Transaction", pt: "Adicionar Transação" });
-
+  
+  const submitButtonLabel = transactionToEdit 
+    ? (isSubmitting ? translate({ en: "Saving...", pt: "Salvando..." }) : translate({ en: "Save Changes", pt: "Salvar Alterações" }))
+    : (isSubmitting ? translate({ en: "Adding...", pt: "Adicionando..." }) : translate({ en: "Add Transaction", pt: "Adicionar Transação" }));
 
   console.log('TRANSACTION FORM RENDER START');
   return (
@@ -275,7 +300,7 @@ export function TransactionForm({
                 </SelectContent>
               </Select>
               {availableCategories.length === 0 && (
-                <p className="text-xs text-muted-foreground">
+                 <p className="text-xs text-muted-foreground">
                   {initialType === 'income' ? translate({pt: "Nenhuma categoria de receita encontrada. Verifique as configurações de onboarding.", en: "No income categories found. Check onboarding settings."}) : translate({pt: "Nenhuma categoria de despesa encontrada. Verifique as configurações de onboarding.", en: "No expense categories found. Check onboarding settings."})}
                 </p>
               )}
@@ -480,5 +505,4 @@ export function TransactionForm({
     </Form>
   );
 }
-
     

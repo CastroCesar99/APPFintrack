@@ -1,7 +1,7 @@
 
 "use client";
 
-import type React from 'react';
+import type React from 'react'; // Ensure React is imported
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter } from 'next/navigation';
 import { AppLayout } from "@/components/layout/app-layout";
@@ -28,7 +28,7 @@ import { useLanguage } from '@/context/language-context';
 import { useDateNavigation } from '@/context/date-navigation-context';
 import { useToast } from "@/hooks/use-toast";
 import { db } from '@/lib/firebase';
-import { collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, Timestamp, doc, deleteDoc, getDoc } from "firebase/firestore";
+import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, serverTimestamp, Timestamp, doc, deleteDoc, getDoc } from "firebase/firestore";
 import { format as formatDateFns, parseISO as parseISODateFns, getYear as getYearFns, getMonth as getMonthFns } from 'date-fns';
 import { formatCurrency } from '@/lib/utils';
 
@@ -41,7 +41,11 @@ export default function ExpensesPage() {
 
   const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
   const [isLoadingTransactions, setIsLoadingTransactions] = useState(true);
+  
   const [isAddFormOpen, setIsAddFormOpen] = useState(false);
+  const [isEditFormOpen, setIsEditFormOpen] = useState(false);
+  const [transactionToEdit, setTransactionToEdit] = useState<Transaction | null>(null);
+  
   const [isClient, setIsClient] = useState(false);
   const [transactionToDelete, setTransactionToDelete] = useState<Transaction | null>(null);
 
@@ -124,7 +128,6 @@ export default function ExpensesPage() {
     }
   }, [user, authLoading, fetchUserPreferences]);
 
-
   useEffect(() => {
     if (!user || authLoading || !isClient) {
       if (!authLoading && !user && isClient) router.push('/login');
@@ -133,7 +136,7 @@ export default function ExpensesPage() {
     }
 
     setIsLoadingTransactions(true);
-    const transactionsColRef = collection(db, `users/${user.uid}/transactions`);
+    const transactionsColRef = collection(db, 'users/' + user.uid + '/transactions');
     const q_transactions = query(transactionsColRef, orderBy("date", "desc"));
 
     const unsubscribe = onSnapshot(q_transactions, (querySnapshot) => {
@@ -188,72 +191,69 @@ export default function ExpensesPage() {
       
       const dateParts = t.date.split('-');
       if (dateParts.length !== 3) {
-        console.warn(`ExpensesPage: Invalid date format for transaction ID ${t.id}: ${t.date}`);
+        console.warn(\`ExpensesPage: Invalid date format for transaction ID \${t.id}: \${t.date}\`);
         return false;
       }
       const transactionYear = parseInt(dateParts[0], 10);
       const transactionMonth = parseInt(dateParts[1], 10) - 1; 
 
       if (isNaN(transactionYear) || isNaN(transactionMonth)) {
-        console.warn(`ExpensesPage: Could not parse year/month for transaction ID ${t.id}: ${t.date}`);
+        console.warn(\`ExpensesPage: Could not parse year/month for transaction ID \${t.id}: \${t.date}\`);
         return false;
       }
       return transactionYear === targetYear && transactionMonth === targetMonth;
     });
   }, [allTransactions, displayedDate]);
 
-  const handleAddExpense = async (newTransactionData: Omit<Transaction, "id" | "userId" | "createdAt">) => {
+  const handleOpenAddDialog = () => {
+    setTransactionToEdit(null);
+    setIsAddFormOpen(true);
+  };
+
+  const handleOpenEditDialog = (transactionId: string) => {
+    const tx = allTransactions.find(t => t.id === transactionId);
+    if (tx) {
+      setTransactionToEdit(tx);
+      setIsEditFormOpen(true);
+    } else {
+      toast({ title: translate({en:"Error", pt:"Erro"}), description: translate({en:"Transaction not found.", pt:"Transação não encontrada."}), variant: "destructive" });
+    }
+  };
+
+  const handleSaveTransaction = async (formData: Omit<Transaction, "id" | "userId" | "createdAt" | "updatedAt">, id?: string) => {
     if (!user) {
-      toast({
-        title: translate({ en: "Error", pt: "Erro" }),
-        description: translate({ en: "User not authenticated.", pt: "Usuário não autenticado." }),
-        variant: "destructive",
-      });
+      toast({ title: translate({ en: "Error", pt: "Erro" }), description: translate({ en: "User not authenticated.", pt: "Usuário não autenticado." }), variant: "destructive" });
       return;
     }
 
-    const fullPayload = {
-      ...newTransactionData,
-      type: 'expense' as 'expense', 
-      userId: user.uid,
-      createdAt: serverTimestamp(),
-    };
-    
-    const dataToSave = Object.fromEntries(
-        Object.entries(fullPayload).filter(([_, value]) => value !== undefined)
-    ) as Partial<Transaction & { createdAt: any; userId: string }>;
+    const dataPayload = { ...formData, type: 'expense' as 'expense' };
+    const cleanPayload = Object.fromEntries(Object.entries(dataPayload).filter(([_, v]) => v !== undefined)) as Partial<Transaction>;
 
-    if (dataToSave.isRecurring === undefined && typeof newTransactionData.isRecurring === 'boolean') {
-        dataToSave.isRecurring = newTransactionData.isRecurring;
-    } else if (dataToSave.isRecurring === undefined) {
-       dataToSave.isRecurring = false; 
-    }
 
-    try {
-      const transactionsColRef = collection(db, `users/${user.uid}/transactions`);
-      await addDoc(transactionsColRef, dataToSave);
-      toast({
-        title: translate({ en: "Expense Added", pt: "Despesa Adicionada" }),
-        description: `${newTransactionData.description} ${translate({ en: "has been successfully added.", pt: "foi adicionada com sucesso." })}`,
-      });
-      setIsAddFormOpen(false); 
-    } catch (error: any) {
-      console.error("ExpensesPage: Error adding expense:", error);
-      toast({
-        title: translate({ en: "Error Adding Expense", pt: "Erro ao Adicionar Despesa" }),
-        description: (error.message || translate({ en: "Could not add expense.", pt: "Não foi possível adicionar a despesa." })) + (error.code ? ` (Code: ${error.code})` : ''),
-        variant: "destructive",
-      });
+    if (id) { // Editing existing transaction
+      const transactionDocRef = doc(db, `users/${user.uid}/transactions`, id);
+      try {
+        await updateDoc(transactionDocRef, { ...cleanPayload, updatedAt: serverTimestamp() });
+        toast({ title: translate({ en: "Expense Updated", pt: "Despesa Atualizada" }), description: `${formData.description} ${translate({ en: "has been successfully updated.", pt: "foi atualizada com sucesso." })}` });
+        setIsEditFormOpen(false);
+        setTransactionToEdit(null);
+      } catch (error: any) {
+        console.error("ExpensesPage: Error updating expense:", error);
+        toast({ title: translate({ en: "Error Updating Expense", pt: "Erro ao Atualizar Despesa" }), description: (error.message || translate({ en: "Could not update expense.", pt: "Não foi possível atualizar a despesa." })) + (error.code ? ` (Code: ${error.code})` : ''), variant: "destructive" });
+      }
+    } else { // Adding new transaction
+      try {
+        const transactionsColRef = collection(db, `users/${user.uid}/transactions`);
+        await addDoc(transactionsColRef, { ...cleanPayload, userId: user.uid, createdAt: serverTimestamp() });
+        toast({ title: translate({ en: "Expense Added", pt: "Despesa Adicionada" }), description: `${formData.description} ${translate({ en: "has been successfully added.", pt: "foi adicionada com sucesso." })}` });
+        setIsAddFormOpen(false);
+      } catch (error: any) {
+        console.error("ExpensesPage: Error adding expense:", error);
+        toast({ title: translate({ en: "Error Adding Expense", pt: "Erro ao Adicionar Despesa" }), description: (error.message || translate({ en: "Could not add expense.", pt: "Não foi possível adicionar a despesa." })) + (error.code ? ` (Code: ${error.code})` : ''), variant: "destructive" });
+      }
     }
   };
   
-  const handleEditTransaction = (transactionId: string) => {
-    toast({
-      title: translate({ en: "Feature In Development", pt: "Funcionalidade em Desenvolvimento" }),
-      description: `${translate({en:"Editing transaction",pt:"Editar transação"})} ID: ${transactionId} ${translate({en:"is coming soon.", pt:"está chegando em breve."})}`
-    });
-  };
-
   const openDeleteConfirmation = (transactionId: string) => {
     const tx = allTransactions.find(t => t.id === transactionId);
     if (tx) {
@@ -312,7 +312,7 @@ export default function ExpensesPage() {
           </h1>
           <Dialog open={isAddFormOpen} onOpenChange={setIsAddFormOpen} modal={false}>
             <DialogTrigger asChild>
-              <Button variant="outline" className="w-full sm:w-auto">
+              <Button onClick={handleOpenAddDialog} variant="outline" className="w-full sm:w-auto">
                 <PlusCircle className="mr-2 h-4 w-4" />
                 {translate({ en: "Add New Expense", pt: "Adicionar Nova Despesa" })}
               </Button>
@@ -325,16 +325,39 @@ export default function ExpensesPage() {
                 </DialogDescription>
               </DialogHeader>
               <TransactionForm
-                onAddTransaction={handleAddExpense}
+                onSave={handleSaveTransaction}
                 initialType="expense"
+                transactionToEdit={null} // Explicitly null for adding
                 defaultDate={displayedDate}
                 userCategories={userCategories}
                 userPaymentMethods={userPaymentMethods}
-                key={displayedDate.toISOString() + "expense" + userCategories.length + userPaymentMethods.length} 
+                key={`add-${displayedDate.toISOString()}`} 
               />
             </DialogContent>
           </Dialog>
         </div>
+
+        {/* Edit Expense Dialog */}
+        <Dialog open={isEditFormOpen} onOpenChange={setIsEditFormOpen} modal={false}>
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle>{translate({ en: "Edit Expense", pt: "Editar Despesa" })}</DialogTitle>
+              <DialogDescription>
+                {translate({ en: "Update the details of your expense.", pt: "Atualize os detalhes da sua despesa." })}
+              </DialogDescription>
+            </DialogHeader>
+            {transactionToEdit && (
+              <TransactionForm
+                onSave={handleSaveTransaction}
+                initialType="expense"
+                transactionToEdit={transactionToEdit}
+                userCategories={userCategories}
+                userPaymentMethods={userPaymentMethods}
+                key={`edit-${transactionToEdit.id}-${displayedDate.toISOString()}`}
+              />
+            )}
+          </DialogContent>
+        </Dialog>
 
         <Card className="shadow-lg">
           <CardHeader>
@@ -347,7 +370,7 @@ export default function ExpensesPage() {
             {expensesForDisplayedPeriod.length > 0 ? (
               <TransactionsTable 
                 transactions={expensesForDisplayedPeriod} 
-                onEditTransaction={handleEditTransaction}
+                onEditTransaction={handleOpenEditDialog}
                 onDeleteTransaction={openDeleteConfirmation}
               />
             ) : (
@@ -381,6 +404,5 @@ export default function ExpensesPage() {
     </AppLayout>
   );
 }
-    
 
     
