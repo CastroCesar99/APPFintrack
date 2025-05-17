@@ -32,7 +32,7 @@ import {
 } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { CategoryIcon, getSelectableIcons, iconNameToComponentMap } from "@/components/icons";
-import { Edit, Trash2, PlusCircle, TrendingUp, TrendingDown } from "lucide-react";
+import { Edit, Trash2, PlusCircle, TrendingUp, TrendingDown, CircleHelp } from "lucide-react";
 import {
   CATEGORIES,
   getCategoryDisplayLabel,
@@ -53,6 +53,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useForm, type SubmitHandler, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { Form, FormControl, FormField, FormLabel, FormMessage, FormItem } from "@/components/ui/form"; // Added FormItem
 
 const selectableIcons = getSelectableIcons();
 
@@ -105,7 +106,7 @@ export default function ManageCategoriesPage() {
         
         const customCategoriesWithType: DisplayCategory[] = customCategories.map(cc => ({
             ...cc,
-            type: cc.type || 'expense', // Default to expense if type is missing
+            type: cc.type || 'expense', 
             label: cc.label || { en: cc.name, pt: cc.name }
         }));
         
@@ -132,13 +133,10 @@ export default function ManageCategoriesPage() {
   }, [user, toast, translate, language]);
 
   useEffect(() => {
-    if (!authLoading && user) {
+    if (!authLoading) { // Only fetch if auth is not loading
       fetchUserCategories();
-    } else if (!authLoading && !user) {
-      setIsLoading(false);
-      setDisplayCategories([...CATEGORIES].sort((a,b) => getCategoryDisplayLabel(a,language).localeCompare(getCategoryDisplayLabel(b,language))));
     }
-  }, [user, authLoading, fetchUserCategories, language]);
+  }, [user, authLoading, fetchUserCategories]);
 
   const handleAddCategory: SubmitHandler<AddCategoryFormValues> = async (data) => {
     if (!user) {
@@ -173,20 +171,22 @@ export default function ManageCategoriesPage() {
       if (prefsSnap.exists()) {
         await updateDoc(preferencesDocRef, {
           userDefinedCategories: arrayUnion(newCustomCategory),
-          selectedCategories: arrayUnion(newCustomCategory.name),
+          selectedCategories: arrayUnion(newCustomCategory.name), // Automatically select new custom categories
           updatedAt: serverTimestamp()
         });
       } else {
+        // If preferences doc doesn't exist, create it
         await setDoc(preferencesDocRef, {
           userDefinedCategories: [newCustomCategory],
           selectedCategories: [newCustomCategory.name],
-          selectedPaymentMethods: [],
+          selectedPaymentMethods: [], // Initialize other preference arrays
           userDefinedPaymentMethods: [],
-          language: language,
+          language: language, // Save current language
           updatedAt: serverTimestamp()
         });
       }
-      await fetchUserCategories();
+      
+      await fetchUserCategories(); // Refetch to update the list
       toast({ title: translate({ en: "Category Added", pt: "Categoria Adicionada" }), description: `${newCategoryName} ${translate({ en: "has been added.", pt: "foi adicionada." })}` });
       addCategoryForm.reset();
       setIsAddDialogOpen(false);
@@ -220,7 +220,7 @@ export default function ManageCategoriesPage() {
       setCategoryToDelete(null);
       return;
     }
-    setIsSavingCategory(true);
+    setIsSavingCategory(true); // Reuse for delete operation loading state
     try {
       const preferencesDocRef = doc(db, `users/${user.uid}/preferences/userPreferences`);
       const prefsSnap = await getDoc(preferencesDocRef);
@@ -232,13 +232,15 @@ export default function ManageCategoriesPage() {
         const updatedSelected = (currentPrefs.selectedCategories || []).filter(
           name => name !== categoryToDelete.name
         );
+
         await updateDoc(preferencesDocRef, {
           userDefinedCategories: updatedUserDefined,
           selectedCategories: updatedSelected,
           updatedAt: serverTimestamp()
         });
       }
-      await fetchUserCategories();
+      
+      await fetchUserCategories(); // Refetch to update the list
       toast({ title: translate({ en: "Category Deleted", pt: "Categoria Excluída" }), description: `${getCategoryDisplayLabel(categoryToDelete, language)} ${translate({ en: "has been deleted.", pt: "foi excluída." })}` });
     } catch (error) {
       console.error("Error deleting category:", error);
@@ -284,98 +286,105 @@ export default function ManageCategoriesPage() {
                   {translate({ en: "Enter name, select icon, and choose type.", pt: "Digite o nome, selecione um ícone e escolha o tipo." })}
                 </DialogDescription>
               </DialogHeader>
-              <form onSubmit={addCategoryForm.handleSubmit(handleAddCategory)} className="space-y-4 py-4">
-                <div>
-                  <Label htmlFor="newCategoryName">
-                    {translate({ en: "Category Name", pt: "Nome da Categoria" })}
-                  </Label>
-                  <Input
-                    id="newCategoryName"
-                    {...addCategoryForm.register("newCategoryName")}
-                    className="mt-1"
-                    placeholder={translate({ en: "e.g., Side Hustle", pt: "ex: Renda Extra"})}
+              <Form {...addCategoryForm}>
+                <form onSubmit={addCategoryForm.handleSubmit(handleAddCategory)} className="space-y-4 py-4">
+                  <FormField
+                    control={addCategoryForm.control}
+                    name="newCategoryName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel htmlFor="newCategoryName">
+                          {translate({ en: "Category Name", pt: "Nome da Categoria" })}
+                        </FormLabel>
+                        <FormControl>
+                          <Input
+                            id="newCategoryName"
+                            placeholder={translate({ en: "e.g., Side Hustle", pt: "ex: Renda Extra"})}
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
                   />
-                  {addCategoryForm.formState.errors.newCategoryName && (
-                    <p className="text-sm text-destructive mt-1">{addCategoryForm.formState.errors.newCategoryName.message}</p>
-                  )}
-                </div>
-                <div>
-                  <Label htmlFor="selectedNewCategoryIcon">
-                     {translate({ en: "Icon", pt: "Ícone" })}
-                  </Label>
-                  <Controller
+                  <FormField
                     control={addCategoryForm.control}
                     name="selectedNewCategoryIcon"
                     render={({ field }) => (
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <SelectTrigger className="w-full mt-1">
-                          <SelectValue placeholder={translate({ en: "Select an icon", pt: "Selecione um ícone" })}>
-                            {field.value && iconNameToComponentMap[field.value] ? (
-                              <div className="flex items-center gap-2">
-                                <CategoryIcon iconName={field.value} className="h-4 w-4" />
-                                <span>{selectableIcons.find(i => i.value === field.value)?.label || field.value}</span>
-                              </div>
-                            ) : (translate({ en: "Select an icon", pt: "Selecione um ícone" }))}
-                          </SelectValue>
-                        </SelectTrigger>
-                        <SelectContent>
-                          {selectableIcons.map(iconOption => (
-                            <SelectItem key={iconOption.value} value={iconOption.value}>
-                              <div className="flex items-center gap-2">
-                                <iconOption.iconComponent className="h-4 w-4 text-muted-foreground" />
-                                <span>{iconOption.label}</span>
-                              </div>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <FormItem>
+                        <FormLabel htmlFor="selectedNewCategoryIcon">
+                           {translate({ en: "Icon", pt: "Ícone" })}
+                        </FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger className="w-full">
+                              <SelectValue placeholder={translate({ en: "Select an icon", pt: "Selecione um ícone" })}>
+                                {field.value && iconNameToComponentMap[field.value] ? (
+                                  <div className="flex items-center gap-2">
+                                    <CategoryIcon iconName={field.value} className="h-4 w-4" />
+                                    <span>{selectableIcons.find(i => i.value === field.value)?.label || field.value}</span>
+                                  </div>
+                                ) : (translate({ en: "Select an icon", pt: "Selecione um ícone" }))}
+                              </SelectValue>
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {selectableIcons.map(iconOption => (
+                              <SelectItem key={iconOption.value} value={iconOption.value}>
+                                <div className="flex items-center gap-2">
+                                  <iconOption.iconComponent className="h-4 w-4 text-muted-foreground" />
+                                  <span>{iconOption.label}</span>
+                                </div>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
                     )}
                   />
-                  {addCategoryForm.formState.errors.selectedNewCategoryIcon && (
-                    <p className="text-sm text-destructive mt-1">{addCategoryForm.formState.errors.selectedNewCategoryIcon.message}</p>
-                  )}
-                </div>
-                <div>
-                  <Label>{translate({ en: "Category Type", pt: "Tipo da Categoria" })}</Label>
-                  <Controller
+                  <FormField
                     control={addCategoryForm.control}
                     name="newCategoryType"
                     render={({ field }) => (
-                        <RadioGroup
-                            onValueChange={field.onChange}
-                            value={field.value}
-                            className="flex space-x-4 mt-1"
-                        >
-                            <FormItem className="flex items-center space-x-2">
-                                <FormControl>
-                                    <RadioGroupItem value="income" id="type-income" />
-                                </FormControl>
-                                <Label htmlFor="type-income" className="font-normal">{translate({en: "Income", pt: "Receita"})}</Label>
-                            </FormItem>
-                            <FormItem className="flex items-center space-x-2">
-                                <FormControl>
-                                    <RadioGroupItem value="expense" id="type-expense" />
-                                </FormControl>
-                                <Label htmlFor="type-expense" className="font-normal">{translate({en: "Expense", pt: "Despesa"})}</Label>
-                            </FormItem>
-                        </RadioGroup>
+                      <FormItem className="space-y-2"> {/* Added space-y-2 for better label spacing */}
+                        <FormLabel>{translate({ en: "Category Type", pt: "Tipo da Categoria" })}</FormLabel>
+                        <FormControl>
+                          <RadioGroup
+                              onValueChange={field.onChange}
+                              value={field.value}
+                              className="flex space-x-4 pt-1" // Added pt-1 for spacing from label
+                          >
+                              <FormItem className="flex items-center space-x-2">
+                                  <FormControl>
+                                      <RadioGroupItem value="income" id="type-income" />
+                                  </FormControl>
+                                  <Label htmlFor="type-income" className="font-normal">{translate({en: "Income", pt: "Receita"})}</Label>
+                              </FormItem>
+                              <FormItem className="flex items-center space-x-2">
+                                  <FormControl>
+                                      <RadioGroupItem value="expense" id="type-expense" />
+                                  </FormControl>
+                                  <Label htmlFor="type-expense" className="font-normal">{translate({en: "Expense", pt: "Despesa"})}</Label>
+                              </FormItem>
+                          </RadioGroup>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
                     )}
-                   />
-                   {addCategoryForm.formState.errors.newCategoryType && (
-                    <p className="text-sm text-destructive mt-1">{addCategoryForm.formState.errors.newCategoryType.message}</p>
-                  )}
-                </div>
-                <DialogFooter>
-                  <DialogClose asChild>
-                    <Button type="button" variant="outline" disabled={isSavingCategory}>
-                       {translate({ en: "Cancel", pt: "Cancelar"})}
+                  />
+                  <DialogFooter>
+                    <DialogClose asChild>
+                      <Button type="button" variant="outline" disabled={isSavingCategory}>
+                         {translate({ en: "Cancel", pt: "Cancelar"})}
+                      </Button>
+                    </DialogClose>
+                    <Button type="submit" disabled={isSavingCategory}>
+                      {isSavingCategory ? translate({ en: "Adding...", pt: "Adicionando..." }) : translate({ en: "Add Category", pt: "Adicionar Categoria" })}
                     </Button>
-                  </DialogClose>
-                  <Button type="submit" disabled={isSavingCategory}>
-                    {isSavingCategory ? translate({ en: "Adding...", pt: "Adicionando..." }) : translate({ en: "Add Category", pt: "Adicionar Categoria" })}
-                  </Button>
-                </DialogFooter>
-              </form>
+                  </DialogFooter>
+                </form>
+              </Form>
             </DialogContent>
           </Dialog>
         </div>
