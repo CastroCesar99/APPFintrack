@@ -49,8 +49,8 @@ export default function IncomePage() {
   const [isClient, setIsClient] = useState(false);
   const [transactionToDelete, setTransactionToDelete] = useState<Transaction | null>(null);
 
-  const [userCategories, setUserCategories] = useState<DisplayCategory[]>([]);
-  const [userPaymentMethods, setUserPaymentMethods] = useState<DisplayPaymentMethod[]>([]);
+  const [userCategories, setUserCategories] = useState<DisplayCategory[]>(() => [...CATEGORIES]);
+  const [userPaymentMethods, setUserPaymentMethods] = useState<DisplayPaymentMethod[]>(() => [...PAYMENT_METHODS]);
   const [isLoadingPreferences, setIsLoadingPreferences] = useState(true);
 
   const [isEditFormOpen, setIsEditFormOpen] = useState(false);
@@ -128,7 +128,7 @@ export default function IncomePage() {
       setUserPaymentMethods([...PAYMENT_METHODS]);
       setIsLoadingPreferences(false);
     }
-  }, [user, authLoading, fetchUserPreferences]);
+  }, [user, authLoading, fetchUserPreferences, displayedDate]); // Added displayedDate
 
   useEffect(() => {
     if (!user || authLoading || !isClient) {
@@ -451,4 +451,6 @@ export default function IncomePage() {
     </AppLayout>
   );
 }
+    
+
     

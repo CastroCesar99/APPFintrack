@@ -53,8 +53,8 @@ export default function ExpensesPage() {
   const [isClient, setIsClient] = useState(false);
   const [transactionToDelete, setTransactionToDelete] = useState<Transaction | null>(null);
 
-  const [userCategories, setUserCategories] = useState<DisplayCategory[]>([]);
-  const [userPaymentMethods, setUserPaymentMethods] = useState<DisplayPaymentMethod[]>([]);
+  const [userCategories, setUserCategories] = useState<DisplayCategory[]>(() => [...CATEGORIES]);
+  const [userPaymentMethods, setUserPaymentMethods] = useState<DisplayPaymentMethod[]>(() => [...PAYMENT_METHODS]);
   const [isLoadingPreferences, setIsLoadingPreferences] = useState(true);
 
   const [sortOption, setSortOption] = useState<SortOptionValue>('dateDesc');
@@ -130,7 +130,7 @@ export default function ExpensesPage() {
       setUserPaymentMethods([...PAYMENT_METHODS]);
       setIsLoadingPreferences(false);
     }
-  }, [user, authLoading, fetchUserPreferences]);
+  }, [user, authLoading, fetchUserPreferences, displayedDate]); // Added displayedDate
 
   useEffect(() => {
     if (!user || authLoading || !isClient) {
@@ -199,6 +199,7 @@ export default function ExpensesPage() {
       
       const dateParts = t.date.split('-');
       if (dateParts.length !== 3) {
+        // console.warn("ExpensesPage: Invalid date format for transaction ID " + t.id + ": " + t.date);
         console.warn("ExpensesPage: Invalid date format for transaction ID " + t.id + ": " + t.date);
         return false;
       }
@@ -458,4 +459,6 @@ export default function ExpensesPage() {
     </AppLayout>
   );
 }
+    
+
     

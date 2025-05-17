@@ -47,8 +47,10 @@ export default function DashboardPage() {
   const [isLoadingTransactions, setIsLoadingTransactions] = useState(true);
   const [isClient, setIsClient] = useState(false);
   const [loadedBudgetsForMonth, setLoadedBudgetsForMonth] = useState<Record<string, number> | null>(null);
-  const [userCategories, setUserCategories] = useState<DisplayCategory[]>([]);
-  const [userPaymentMethods, setUserPaymentMethods] = useState<DisplayPaymentMethod[]>([]);
+  
+  const [userCategories, setUserCategories] = useState<DisplayCategory[]>(() => [...CATEGORIES]);
+  const [userPaymentMethods, setUserPaymentMethods] = useState<DisplayPaymentMethod[]>(() => [...PAYMENT_METHODS]);
+  const [isLoadingPreferences, setIsLoadingPreferences] = useState(true);
 
   const [showAllRecentIncome, setShowAllRecentIncome] = useState(false);
   const [showAllRecentExpenses, setShowAllRecentExpenses] = useState(false);
@@ -100,6 +102,77 @@ export default function DashboardPage() {
     }
   }, [userId, displayedDate, isClient, toast, translate]);
 
+  const fetchUserPreferences = useCallback(async () => {
+    if (!user) {
+      setUserCategories([...CATEGORIES]);
+      setUserPaymentMethods([...PAYMENT_METHODS]);
+      setIsLoadingPreferences(false);
+      return;
+    }
+    console.log("DashboardPage: TRACER --- Fetching user preferences for UserID:", user.uid);
+    setIsLoadingPreferences(true);
+    try {
+      const preferencesDocRef = doc(db, "users/" + user.uid + "/preferences/userPreferences");
+      const preferencesDocSnap = await getDoc(preferencesDocRef);
+      
+      let finalCategories: DisplayCategory[] = [...CATEGORIES];
+      let finalPaymentMethods: DisplayPaymentMethod[] = [...PAYMENT_METHODS];
+
+      if (preferencesDocSnap.exists()) {
+        const preferencesData = preferencesDocSnap.data() as UserPreferences;
+        console.log("DashboardPage: TRACER --- Preferences data found:", preferencesData);
+        
+        const customCategoryDefs = preferencesData.userDefinedCategories || [];
+        // Ensure all predefined categories are present, then add custom ones, avoiding duplicates by name
+        const allCategoriesMap = new Map<string, DisplayCategory>();
+        CATEGORIES.forEach(cat => allCategoriesMap.set(cat.name.toLowerCase(), cat));
+        customCategoryDefs.forEach(customCat => {
+            allCategoriesMap.set(customCat.name.toLowerCase(), { ...customCat, type: customCat.type || 'expense' });
+        });
+        finalCategories = Array.from(allCategoriesMap.values());
+
+        const customPaymentMethodDefs = preferencesData.userDefinedPaymentMethods || [];
+        const basePaymentMethodsMap = new Map<string, DisplayPaymentMethod>();
+        PAYMENT_METHODS.forEach(pm => basePaymentMethodsMap.set(pm.name.toLowerCase(), pm));
+        customPaymentMethodDefs.forEach(customPm => basePaymentMethodsMap.set(customPm.name.toLowerCase(), customPm));
+        
+        // If selectedPaymentMethods is populated, filter based on it. Otherwise, use all combined methods.
+        const selectedPaymentMethodNames = preferencesData.selectedPaymentMethods || [];
+        if (selectedPaymentMethodNames.length > 0) {
+            const effectivePMs = Array.from(basePaymentMethodsMap.values()).filter(pm => 
+                selectedPaymentMethodNames.some(name => name.toLowerCase() === pm.name.toLowerCase())
+            );
+            finalPaymentMethods = effectivePMs.length > 0 ? effectivePMs : Array.from(basePaymentMethodsMap.values());
+        } else {
+            finalPaymentMethods = Array.from(basePaymentMethodsMap.values());
+        }
+      } else {
+        console.log("DashboardPage: TRACER --- No preferences document found. Using defaults.");
+      }
+      setUserCategories(finalCategories);
+      setUserPaymentMethods(finalPaymentMethods);
+      console.log("DashboardPage: TRACER --- Set userCategories:", finalCategories.length, "items; Set userPaymentMethods:", finalPaymentMethods.length, "items");
+
+    } catch (error) {
+      console.error("DashboardPage: TRACER --- Error fetching user preferences for UserID:", user.uid, error);
+      toast({
+        title: translate({ en: "Error Loading Preferences", pt: "Erro ao Carregar Preferências" }),
+        description: translate({ en: "Could not load your preferences.", pt: "Não foi possível carregar suas preferências." }),
+        variant: "destructive",
+      });
+      setUserCategories([...CATEGORIES]); 
+      setUserPaymentMethods([...PAYMENT_METHODS]); 
+    } finally {
+      setIsLoadingPreferences(false);
+    }
+  }, [user, toast, translate]);
+
+  useEffect(() => {
+    if (user && !authLoading) {
+      fetchUserPreferences();
+    }
+  }, [user, authLoading, fetchUserPreferences, displayedDate]); // Added displayedDate
+
 
   useEffect(() => {
     effectMountedRef.current = true;
@@ -133,7 +206,6 @@ export default function DashboardPage() {
 
     if (!userId) {
       console.log("Dashboard: TRACER --- Main useEffect: No userId. User logged out. Redirecting to login.");
-      cleanupListener();
       if (effectMountedRef.current) {
         setTransactions([]);
         if (isLoadingTransactions) setIsLoadingTransactions(false);
@@ -183,58 +255,10 @@ export default function DashboardPage() {
           }
           return;
         }
-
+        
         console.log("Dashboard: TRACER --- fetchDataInternal: User onboarding complete for UserID:", currentUserId, ". Setting up onSnapshot listener.");
-
-        const preferencesDocRef = doc(db, 'users/' + currentUserId + '/preferences/userPreferences');
-        try {
-          const preferencesDocSnap = await getDoc(preferencesDocRef);
-          if (preferencesDocSnap.exists()) {
-            const preferencesData = preferencesDocSnap.data() as UserPreferences;
-            const customCategoryDefs = preferencesData.userDefinedCategories || [];
-            
-            // Combine predefined income, predefined expense, and custom expense categories
-            const allCategories: DisplayCategory[] = [
-              ...CATEGORIES.filter(cat => cat.type === 'income'),
-              ...CATEGORIES.filter(cat => cat.type === 'expense'),
-              ...customCategoryDefs.map(customCat => ({ ...customCat, type: 'expense' as 'expense' })) // Ensure custom are typed as expense
-            ];
-            const uniqueCategoriesMap = new Map<string, DisplayCategory>();
-            allCategories.forEach(cat => uniqueCategoriesMap.set(cat.name.toLowerCase(), cat));
-
-            if (effectMountedRef.current) setUserCategories(Array.from(uniqueCategoriesMap.values()));
-
-            const customPaymentMethodDefs = preferencesData.userDefinedPaymentMethods || [];
-            const basePaymentMethods: DisplayPaymentMethod[] = [...PAYMENT_METHODS];
-            const finalPaymentMethodsMap = new Map<string, DisplayPaymentMethod>();
-
-            basePaymentMethods.forEach(pm => finalPaymentMethodsMap.set(pm.name.toLowerCase(), pm));
-            customPaymentMethodDefs.forEach(customPm => finalPaymentMethodsMap.set(customPm.name.toLowerCase(), customPm));
-            
-            const selectedPaymentMethodNames = preferencesData.selectedPaymentMethods || [];
-            if (selectedPaymentMethodNames.length > 0) {
-                const effectivePMs = Array.from(finalPaymentMethodsMap.values()).filter(pm => 
-                    selectedPaymentMethodNames.some(name => name.toLowerCase() === pm.name.toLowerCase())
-                );
-                 if (effectMountedRef.current) setUserPaymentMethods(effectivePMs.length > 0 ? effectivePMs : Array.from(finalPaymentMethodsMap.values()));
-            } else {
-                 if (effectMountedRef.current) setUserPaymentMethods(Array.from(finalPaymentMethodsMap.values()));
-            }
-            
-          } else {
-            console.log("Dashboard: TRACER --- fetchDataInternal: User preferences document not found for UserID:", currentUserId, ". Using default categories/payment methods.");
-            if (effectMountedRef.current) {
-              setUserCategories([...CATEGORIES]);
-              setUserPaymentMethods([...PAYMENT_METHODS]);
-            }
-          }
-        } catch (prefError: any) {
-          console.error("Dashboard: TRACER --- fetchDataInternal: Error fetching user preferences for UserID:", currentUserId, prefError);
-          if (effectMountedRef.current) {
-            setUserCategories([...CATEGORIES]);
-            setUserPaymentMethods([...PAYMENT_METHODS]);
-          }
-        }
+        
+        // Preferences are now fetched in a separate useEffect
 
         const transactionsColRef = collection(db, 'users/' + currentUserId + '/transactions');
         const q_transactions = query(transactionsColRef, orderBy("date", "desc"));
@@ -262,7 +286,7 @@ export default function DashboardPage() {
               try {
                 dateString = formatDateFns(parseISODateFns(data.date), "yyyy-MM-dd");
               } catch (e) {
-                console.warn("Dashboard: TRACER --- Failed to parse existing ISO datetime string to yyyy-MM-dd: " + data.date, e);
+                console.warn("Dashboard: TRACER --- Failed to parse existing ISO datetime string to yyyy-MM-dd: " + String(data.date), e);
                 dateString = formatDateFns(new Date(), "yyyy-MM-dd");
               }
             } else if (typeof data.date !== 'string' || (typeof data.date === 'string' && !/^\d{4}-\d{2}-\d{2}$/.test(data.date))) {
@@ -270,16 +294,11 @@ export default function DashboardPage() {
               dateString = formatDateFns(new Date(), "yyyy-MM-dd");
             }
 
-            let isRecurringVal = data.isRecurring === true;
-            if (data.isRecurring !== true && data.isRecurring !== false) {
-              isRecurringVal = false;
-            }
-
             return {
               ...data,
               id: docSnap.id,
               date: dateString,
-              isRecurring: isRecurringVal,
+              isRecurring: data.isRecurring === true, // Ensure boolean
               expenseType: data.expenseType,
               installments: data.installments,
               paymentMethod: data.paymentMethod,
@@ -310,7 +329,7 @@ export default function DashboardPage() {
               }) + (error.code ? " (Code: " + (error.code || 'N/A') + ")" : ''),
               variant: "destructive",
             });
-            setTransactions([]);
+            setTransactions([]); 
             if (isLoadingTransactions) {
               setIsLoadingTransactions(false);
               console.log("Dashboard: TRACER --- setIsLoadingTransactions(false) in onSnapshot (error callback) for UserID:", currentUserId);
@@ -331,7 +350,7 @@ export default function DashboardPage() {
             description: translate({ en: "Could not load dashboard data.", pt: "Não foi possível carregar dados do painel." }) + (error.code ? " (Code: " + (error.code || 'N/A') + ")" : ''),
             variant: "destructive",
           });
-          setTransactions([]);
+          setTransactions([]); 
           if (isLoadingTransactions) {
             setIsLoadingTransactions(false);
             console.log("Dashboard: TRACER --- setIsLoadingTransactions(false) in fetchDataInternal (main catch block) for UserID:", currentUserId);
@@ -341,7 +360,7 @@ export default function DashboardPage() {
     };
 
     if (mainFetchInitiatedForUser.current !== userId || !unsubscribeSnapshotRef.current) {
-      console.log("Dashboard: TRACER --- Main useEffect: Initiating NEW fetch/listener for UserID: " + userId + ". PrevInitiatedFor: " + mainFetchInitiatedForUser.current + ". ListenerExisted: " + (!!unsubscribeSnapshotRef.current));
+      console.log("Dashboard: TRACER --- Main useEffect: Initiating NEW fetch/listener for UserID: " + String(userId) + ". PrevInitiatedFor: " + String(mainFetchInitiatedForUser.current) + ". ListenerExisted: " + (!!unsubscribeSnapshotRef.current));
       if (unsubscribeSnapshotRef.current) {
           console.log("Dashboard: TRACER --- Main useEffect: Cleaning up previous listener because userId changed or no listener was set.");
           cleanupListener();
@@ -349,17 +368,17 @@ export default function DashboardPage() {
       mainFetchInitiatedForUser.current = userId;
       fetchDataInternal(userId);
     } else {
-      console.log("Dashboard: TRACER --- Main useEffect: Listener should be active for UserID: " + userId + ". isLoadingTransactions: " + isLoadingTransactions + ". Snapshot ref present: " + (!!unsubscribeSnapshotRef.current));
-      if (effectMountedRef.current && isLoadingTransactions) {
+      console.log("Dashboard: TRACER --- Main useEffect: Listener should be active for UserID: " + String(userId) + ". isLoadingTransactions: " + isLoadingTransactions + ". Snapshot ref present: " + (!!unsubscribeSnapshotRef.current));
+      if(effectMountedRef.current && isLoadingTransactions) { 
         console.log("Dashboard: TRACER --- Main useEffect: Listener active, but isLoadingTransactions true. Setting to false for user:", userId);
         setIsLoadingTransactions(false);
       }
     }
     return fullCleanup;
-  }, [userId, authLoading, isClient]);
+  }, [userId, authLoading, isClient]); 
 
 
- const onAddTransaction = useCallback(async (newTransactionData: Omit<Transaction, "id" | "userId" | "createdAt">) => {
+ const onAddTransaction = useCallback(async (newTransactionData: Omit<Transaction, "id" | "userId" | "createdAt" | "updatedAt">) => {
     if (!userId) {
       toast({
         title: translate({ en: "Error", pt: "Erro" }),
@@ -371,24 +390,24 @@ export default function DashboardPage() {
     console.log("Dashboard: TRACER --- onAddTransaction: Received date from form:", newTransactionData.date);
     console.log("Dashboard: TRACER --- onAddTransaction: Full newTransactionData:", JSON.stringify(newTransactionData, null, 2));
 
-
     const fullPayload = {
-      ...newTransactionData,
+      ...newTransactionData, 
       userId: userId,
       createdAt: serverTimestamp(),
     };
 
     // Filter out undefined values before saving to Firestore
-    const dataToSave = Object.fromEntries(
+    let dataToSave: Partial<Transaction & { createdAt: any; userId: string }> = Object.fromEntries(
         Object.entries(fullPayload).filter(([_, value]) => value !== undefined)
     ) as Partial<Transaction & { createdAt: any; userId: string }>;
 
-    // Ensure isRecurring is explicitly false if not provided or undefined (for non-income types from form)
-    if (dataToSave.isRecurring === undefined && newTransactionData.type === 'expense') {
-        dataToSave.isRecurring = false; 
-    } else if (dataToSave.isRecurring === undefined && newTransactionData.type === 'income') {
-        dataToSave.isRecurring = newTransactionData.isRecurring ?? false; // Use the checkbox value or default to false
+    // Ensure isRecurring is explicitly set based on form logic
+    if (newTransactionData.type === 'expense') {
+        dataToSave.isRecurring = newTransactionData.expenseType === 'recurring';
+    } else { // income
+        dataToSave.isRecurring = newTransactionData.isRecurring ?? false;
     }
+    if (dataToSave.isRecurring === undefined) dataToSave.isRecurring = false;
 
 
     console.log("Dashboard: TRACER --- onAddTransaction: Saving to Firestore with date:", dataToSave.date, "Full dataToSave:", JSON.stringify(dataToSave));
@@ -415,38 +434,40 @@ export default function DashboardPage() {
   const transactionsForDisplayedPeriod = useMemo(() => {
     console.log("Dashboard: TRACER --- transactionsForDisplayedPeriod: Recalculating for Year:", getYearFns(displayedDate), "Month:", getMonthFns(displayedDate), `(0-indexed for ${displayedMonthYearLabel}), All transactions count:`, transactions.length);
     const targetYear = getYearFns(displayedDate);
-    const targetMonth = getMonthFns(displayedDate);
+    const targetMonth = getMonthFns(displayedDate); // 0-indexed
     const firstDayOfTargetMonth = startOfMonth(displayedDate);
 
     const filtered: Transaction[] = [];
     transactions.forEach(t => {
-      const originalTransactionDate = parseDateFns(t.date, "yyyy-MM-dd", new Date(0));
+      const originalTransactionDate = parseDateFns(t.date, "yyyy-MM-dd", new Date(0)); // Use new Date(0) as base for consistency
       const transactionYear = getYearFns(originalTransactionDate);
       const transactionMonth = getMonthFns(originalTransactionDate);
-      let matches = false;
+      let includeTransaction = false;
 
       if (t.type === 'expense' && t.expenseType === 'installment' && t.installments && t.installments > 0) {
         const installmentSeriesStartDate = startOfMonth(originalTransactionDate);
         const installmentSeriesEndDate = endOfMonth(addMonths(installmentSeriesStartDate, t.installments - 1));
         const isInstallmentActiveThisMonth = isWithinInterval(firstDayOfTargetMonth, { start: installmentSeriesStartDate, end: installmentSeriesEndDate });
-        console.log(`Dashboard: TRACER --- Tx Filter (Installment Check): ID: ${t.id}, DateStr: ${t.date}, OrigDate: ${originalTransactionDate.toISOString()}, StartSeries: ${installmentSeriesStartDate.toISOString()}, EndSeries: ${installmentSeriesEndDate.toISOString()}, TargetMonthStart: ${firstDayOfTargetMonth.toISOString()}, installments: ${t.installments}, isActive: ${isInstallmentActiveThisMonth}, expType: ${t.expenseType}`);
+        
+        console.log(`Dashboard: TRACER --- Tx Filter (Installment Check): ID: ${t.id}, DateStr: ${t.date}, OrigDate: ${originalTransactionDate.toISOString()}, StartSeries: ${installmentSeriesStartDate.toISOString()}, EndSeries: ${installmentSeriesEndDate.toISOString()}, TargetMonthStart: ${firstDayOfTargetMonth.toISOString()}, monthDiff: (N/A with isWithinInterval), installments: ${t.installments}, isActive: ${isInstallmentActiveThisMonth}, isRec: ${t.isRecurring}, expType: ${t.expenseType}`);
+
         if (isInstallmentActiveThisMonth) {
-          matches = true;
+          includeTransaction = true;
         }
       } else if (t.isRecurring === true && t.expenseType !== 'installment') { // Generic recurring (not an installment)
         const matchesRecurringCriteria = transactionYear < targetYear || (transactionYear === targetYear && transactionMonth <= targetMonth);
         console.log(`Dashboard: TRACER --- Tx Filter (Recurring Check): ID: ${t.id}, DateStr: ${t.date}, OrigDate: ${originalTransactionDate.toISOString()}, TxY: ${transactionYear}, TxM: ${transactionMonth}, MatchesRec: ${matchesRecurringCriteria}, isRec: ${t.isRecurring}, expType: ${t.expenseType}, inst: ${t.installments}`);
         if (matchesRecurringCriteria) {
-          matches = true;
+          includeTransaction = true;
         }
       } else if (!t.isRecurring && t.expenseType !== 'installment') { // Non-recurring, non-installment
         const matchesNonRecurringCriteria = transactionYear === targetYear && transactionMonth === targetMonth;
          console.log(`Dashboard: TRACER --- Tx Filter (Non-Recurring Check): ID: ${t.id}, DateStr: ${t.date}, OrigDate: ${originalTransactionDate.toISOString()}, TxY: ${transactionYear}, TxM: ${transactionMonth}, MatchesNonRec: ${matchesNonRecurringCriteria}, isRec: ${t.isRecurring}, expType: ${t.expenseType}, inst: ${t.installments}`);
         if (matchesNonRecurringCriteria) {
-          matches = true;
+          includeTransaction = true;
         }
       }
-      if (matches) {
+      if (includeTransaction) {
         filtered.push(t);
       }
     });
@@ -495,7 +516,7 @@ export default function DashboardPage() {
     return sorted;
   }, [transactions, displayedDate, language, translate, displayedMonthYearLabel]); 
 
-  const recentIncomeToDisplay = fullRecentIncomeList; // Removed .slice(0,5) for now to debug
+  const recentIncomeToDisplay = showAllRecentIncome ? fullRecentIncomeList : fullRecentIncomeList.slice(0,5);
 
 
   const fullRecentExpensesList = useMemo(() => {
@@ -518,7 +539,7 @@ export default function DashboardPage() {
             
             console.log(`Dashboard: TRACER --- recentExpenses (Installment Check): ID: ${t.id}, OrigDate: ${t.date}, currentInstallmentNum: ${currentInstallmentNum}, totalInstallments: ${t.installments}, monthDiff: ${monthDiff}, expType: ${t.expenseType}`);
 
-            if (monthDiff >= 0 && monthDiff < t.installments) { // Check if current month is within the installment period
+            if (monthDiff >= 0 && monthDiff < t.installments) {
                 let projectedDateForMonth = setDateFnsDate(targetMonthStart, originalTransactionDay);
                 if (getMonthFns(projectedDateForMonth) !== targetMonth) {
                     projectedDateForMonth = lastDayOfMonth(targetMonthStart);
@@ -561,7 +582,7 @@ export default function DashboardPage() {
     return sorted;
   }, [transactions, displayedDate, language, translate, displayedMonthYearLabel]); 
 
-  const recentExpensesToDisplay = fullRecentExpensesList; // Removed .slice(0,5) for now to debug
+  const recentExpensesToDisplay = showAllRecentExpenses ? fullRecentExpensesList : fullRecentExpensesList.slice(0,5);
 
 
   const largestExpenseCategoryForDisplayedPeriod = useMemo(() => {
@@ -632,8 +653,8 @@ export default function DashboardPage() {
   console.log("Dashboard: TRACER --- RENDERING with: displayedMonth:", displayedMonthYearLabel, "transactionsInPeriod:", transactionsForDisplayedPeriod.length, "totalIncomeForSummary:", totalIncomeForSummary, "totalExpensesForSummary:", totalExpensesForSummary);
 
 
-  if (!isClient || authLoading || isLoadingTransactions) {
-    console.log("Dashboard: TRACER --- RENDERING LOADING SCREEN. isClient:", isClient, "authLoading:", authLoading, "isLoadingTransactions:", isLoadingTransactions);
+  if (!isClient || authLoading || isLoadingTransactions || isLoadingPreferences) {
+    console.log("Dashboard: TRACER --- RENDERING LOADING SCREEN. isClient:", isClient, "authLoading:", authLoading, "isLoadingTransactions:", isLoadingTransactions, "isLoadingPreferences:", isLoadingPreferences);
     return (
       <AppLayout>
         <div className="flex items-center justify-center h-full w-full">
@@ -652,8 +673,7 @@ export default function DashboardPage() {
           monthlyBudget={totalCalculatedMonthlyBudget} 
           displayedMonthYearLabel={displayedMonthYearLabel}
         />
-
-        <Card className="shadow-lg">
+         <Card className="shadow-lg">
           <CardHeader>
             <CardTitle>{translate({ en: "Spending Summary", pt: "Resumo de Gastos" })}</CardTitle>
             <CardDescription>
@@ -745,7 +765,5 @@ export default function DashboardPage() {
     </AppLayout>
   );
 }
-
-    
 
     
