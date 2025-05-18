@@ -14,11 +14,13 @@ import { BudgetCategoryItem } from '@/components/budgets/budget-category-item';
 import { Separator } from '@/components/ui/separator';
 import { Card, CardHeader, CardContent, CardTitle, CardDescription } from "@/components/ui/card";
 import { db } from '@/lib/firebase';
-import { doc, setDoc, getDoc, serverTimestamp, collection, query, orderBy, onSnapshot, Timestamp } from "firebase/firestore";
-import { format as formatDateFns, addMonths, getYear as getYearFns, getMonth as getMonthFns, parse as parseDateFns } from 'date-fns';
+import { doc, setDoc, getDoc, serverTimestamp, collection, query, orderBy, onSnapshot } from "firebase/firestore";
+import { format as formatDateFns, addMonths, getYear as getYearFns, getMonth as getMonthFns, parse as parseDateFns, Timestamp } from 'date-fns';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatCurrency } from '@/lib/utils';
 import { DollarSign, TrendingUp } from 'lucide-react';
+import { ptBR, enUS } from 'date-fns/locale';
+
 
 export default function BudgetsPage() {
   const { user, loading: authLoading } = useAuth();
@@ -56,7 +58,7 @@ export default function BudgetsPage() {
       const prefsSnap = await getDoc(prefsDocRef);
 
       let candidateCategories: DisplayCategory[] = [];
-      const predefinedExpenseCategories = CATEGORIES.filter(cat => cat.type === 'expense');
+      const predefinedExpenseCategoriesOnly = CATEGORIES.filter(cat => cat.type === 'expense');
 
       if (prefsSnap.exists()) {
         const prefsData = prefsSnap.data() as UserPreferences;
@@ -71,8 +73,7 @@ export default function BudgetsPage() {
           }
         });
 
-        candidateCategories = predefinedExpenseCategories
-          .filter(pCat => !deselectedPredefinedNames.has(pCat.name.toLowerCase()))
+        candidateCategories = predefinedExpenseCategoriesOnly
           .map(pCat => {
             const customOverride = customCategoriesMap.get(pCat.name.toLowerCase());
             if (customOverride) {
@@ -80,7 +81,8 @@ export default function BudgetsPage() {
               return customOverride;
             }
             return pCat;
-          });
+          })
+          .filter(pCat => !deselectedPredefinedNames.has(pCat.name.toLowerCase()));
         
         customCategoriesMap.forEach(customCat => {
           if (!candidateCategories.some(c => c.name.toLowerCase() === customCat.name.toLowerCase())) {
@@ -88,17 +90,22 @@ export default function BudgetsPage() {
           }
         });
         
-        if (selectedCategoryNames.size > 0) {
+        if (selectedCategoryNames.size > 0 && candidateCategories.some(cat => selectedCategoryNames.has(cat.name.toLowerCase()))) {
           effectiveCategories = candidateCategories.filter(cat => selectedCategoryNames.has(cat.name.toLowerCase()));
-        } else {
+        } else if (selectedCategoryNames.size === 0 && candidateCategories.length > 0) {
           effectiveCategories = candidateCategories; 
+        } else if (candidateCategories.length > 0) { // Fallback if selected is stale but candidates exist
+            effectiveCategories = candidateCategories;
+        } else { // Ultimate fallback: only predefined, non-deselected
+            effectiveCategories = predefinedExpenseCategoriesOnly.filter(pCat => !deselectedPredefinedNames.has(pCat.name.toLowerCase()));
         }
+
       } else {
-        effectiveCategories = [...predefinedExpenseCategories];
+        effectiveCategories = [...predefinedExpenseCategoriesOnly];
       }
       
       if (effectiveCategories.length === 0) {
-          effectiveCategories = [...predefinedExpenseCategories];
+          effectiveCategories = [...predefinedExpenseCategoriesOnly];
       }
       
       setUserDisplayCategories(effectiveCategories.sort((a, b) => getCategoryDisplayLabel(a, language).localeCompare(getCategoryDisplayLabel(b, language))));
@@ -139,17 +146,18 @@ export default function BudgetsPage() {
   }, [user, currentMonthYearKey, toast, translate, language]);
 
   useEffect(() => {
-    if (!authLoading) { // Only run if auth state is resolved
+    if (!authLoading) {
         fetchPreferencesAndBudgets();
     }
-  }, [user, authLoading, fetchPreferencesAndBudgets, currentMonthYearKey]); // Added currentMonthYearKey
+  }, [user, authLoading, fetchPreferencesAndBudgets, currentMonthYearKey, language]);
+
 
   // Fetch all transactions for income calculation
   useEffect(() => {
     if (!user || authLoading) {
       setIsLoadingTransactions(false);
       setAllTransactions([]);
-      return;
+      return () => {}; // Ensure a cleanup function is always returned
     }
     console.log("BudgetsPage: Setting up transaction listener for user:", user.uid);
     setIsLoadingTransactions(true);
@@ -160,39 +168,43 @@ export default function BudgetsPage() {
       console.log("BudgetsPage: Transaction listener fired. Docs count:", querySnapshot.docs.length);
       const fetchedTransactions = querySnapshot.docs.map(docSnap => {
         const data = docSnap.data();
-        let dateString = data.date;
+        let dateString = data.date; // Should be YYYY-MM-DD
         if (data.date && typeof data.date === 'object' && data.date instanceof Timestamp) {
           dateString = formatDateFns(data.date.toDate(), "yyyy-MM-dd");
         } else if (typeof data.date === 'string' && data.date.includes('T')) { 
-          try { dateString = formatDateFns(parseDateFns(data.date, "yyyy-MM-dd'T'HH:mm:ss.SSSXXX", new Date(0)), "yyyy-MM-dd"); } 
-          catch (e) { 
-            try { dateString = formatDateFns(parseDateFns(data.date, "yyyy-MM-dd'T'HH:mm:ssXXX", new Date(0)), "yyyy-MM-dd"); } 
-            catch (e2) {
-              try { dateString = formatDateFns(new Date(data.date), "yyyy-MM-dd"); } 
-              catch (e3) {
-                console.warn("BudgetsPage: Failed to parse date string to yyyy-MM-dd:", data.date, e3);
-                dateString = formatDateFns(new Date(), "yyyy-MM-dd");
+          try { 
+            dateString = formatDateFns(parseDateFns(data.date, "yyyy-MM-dd'T'HH:mm:ss.SSSXXX", new Date(0)), "yyyy-MM-dd"); 
+          } catch (e) { 
+            try { 
+              dateString = formatDateFns(parseDateFns(data.date, "yyyy-MM-dd'T'HH:mm:ssXXX", new Date(0)), "yyyy-MM-dd"); 
+            } catch (e2) {
+              try { 
+                dateString = formatDateFns(new Date(data.date), "yyyy-MM-dd"); 
+              } catch (e3) {
+                console.warn("BudgetsPage: Failed to parse date string to yyyy-MM-dd (attempt 3):", data.date, e3);
+                dateString = formatDateFns(new Date(), "yyyy-MM-dd"); // Fallback
               }
             }
           }
         } else if (typeof data.date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(data.date)) {
-           console.warn("BudgetsPage: Transaction has unexpected date format. Fallback to current date. Date was:", data.date);
+           console.warn("BudgetsPage: Transaction has unexpected date format. Fallback to current date. Date was:", data.date, "ID:", docSnap.id);
            dateString = formatDateFns(new Date(), "yyyy-MM-dd"); 
         }
 
-        let effectiveMonthString = data.effectiveMonth;
+        let effectiveMonthString = data.effectiveMonth; // Should be YYYY-MM
         if (!effectiveMonthString && dateString) {
             try {
                 effectiveMonthString = formatDateFns(parseDateFns(dateString, "yyyy-MM-dd", new Date(0)), "yyyy-MM");
             } catch (e) {
                 console.warn(`BudgetsPage: Could not parse date ${dateString} to derive effectiveMonth for tx ${docSnap.id}:`, e);
-                effectiveMonthString = formatDateFns(new Date(), "yyyy-MM"); 
+                effectiveMonthString = formatDateFns(new Date(), "yyyy-MM"); // Fallback
             }
         }
         return { ...data, id: docSnap.id, date: dateString, effectiveMonth: effectiveMonthString } as Transaction;
       });
+      console.log("BudgetsPage: Fetched transactions from snapshot for income calculation:", JSON.stringify(fetchedTransactions.map(t => ({id: t.id, type: t.type, amount: t.amount, date: t.date, effectiveMonth: t.effectiveMonth})), null, 2));
       setAllTransactions(fetchedTransactions);
-      setIsLoadingTransactions(false);
+      setIsLoadingTransactions(false); 
       console.log("BudgetsPage: All transactions state updated. Count:", fetchedTransactions.length);
     }, (error) => {
       console.error("BudgetsPage: Error fetching transactions:", error);
@@ -203,13 +215,21 @@ export default function BudgetsPage() {
       console.log("BudgetsPage: Unsubscribing transaction listener for user:", user.uid);
       unsubscribe();
     };
-  }, [user, authLoading, toast, translate]); 
+  }, [user, authLoading]); // Removed toast and translate as they are stable from context
 
   const totalIncomeForDisplayedMonth = useMemo(() => {
     console.log(`BudgetsPage: Recalculating totalIncomeForDisplayedMonth. Displayed Date: ${displayedDate.toISOString()}, All Transactions Count: ${allTransactions.length}`);
+    if (allTransactions.length === 0) {
+        console.log("BudgetsPage: No transactions in allTransactions, returning 0 income.");
+        return 0;
+    }
     
     const targetYear = getYearFns(displayedDate);
     const targetMonth = getMonthFns(displayedDate); // 0-indexed
+
+    console.log(`BudgetsPage: Target for income: Year=${targetYear}, Month=${targetMonth} (0-indexed)`);
+    console.log("BudgetsPage: Sample of allTransactions for income calculation:", JSON.stringify(allTransactions.slice(0, 5).map(t => ({id: t.id, type:t.type, amount:t.amount, date:t.date, effectiveMonth:t.effectiveMonth})), null, 2));
+
 
     const incomeTransactions = allTransactions.filter(t => {
         if (t.type !== 'income') return false;
@@ -218,6 +238,7 @@ export default function BudgetsPage() {
         let derivedTransactionYear = -1, derivedTransactionMonth = -1;
         let sourceField = "";
 
+        // Prioritize effectiveMonth if available and valid
         if (t.effectiveMonth && /^\d{4}-\d{2}$/.test(t.effectiveMonth)) {
             const [yearStr, monthStr] = t.effectiveMonth.split('-');
             derivedTransactionYear = parseInt(yearStr, 10);
@@ -234,9 +255,10 @@ export default function BudgetsPage() {
             console.warn(`BudgetsPage Income Filter (Skipping): Tx ID ${t.id}, Desc: ${t.description}, has no valid effectiveMonth ('${t.effectiveMonth}') or date ('${t.date}').`);
             return false; 
         }
-        console.log(`BudgetsPage Income Filter (Processing): Tx ID ${t.id}, Desc: ${t.description}, Type: ${t.type}, Date: ${t.date}, EffMonth: ${t.effectiveMonth}, Amount: ${t.amount}, SourceField: ${sourceField}, (Parsed Y:${derivedTransactionYear}, M:${derivedTransactionMonth}), Target Y:${targetYear}, M:${targetMonth}, Matches: ${transactionMatchesMonth}`);
+        console.log(`BudgetsPage Income Filter (Processing): Tx ID ${t.id}, Desc: ${t.description}, Type: ${t.type}, EffMonth: ${t.effectiveMonth}, Date: ${t.date}, Amount: ${t.amount}, SourceField: ${sourceField}, (Parsed Y:${derivedTransactionYear}, M:${derivedTransactionMonth}), Target Y:${targetYear}, M:${targetMonth}, Matches: ${transactionMatchesMonth}`);
         return transactionMatchesMonth;
       });
+
     const total = incomeTransactions.reduce((sum, t) => sum + t.amount, 0);
     console.log(`BudgetsPage: Filtered income transactions for month (count: ${incomeTransactions.length}), Total Income: ${total}`);
     return total;
@@ -262,7 +284,7 @@ export default function BudgetsPage() {
     const budgetDocRef = doc(db, `users/${user.uid}/budgets/${currentMonthYearKey}`);
     const budgetsToSave = Object.fromEntries(
       Object.entries(budgets)
-        .map(([key, value]) => [key, parseFloat(value) || 0]) // Ensure 0 if NaN
+        .map(([key, value]) => [key, parseFloat(value) || 0]) 
         .filter(([key]) => userDisplayCategories.some(cat => cat.name === key))
     );
     try {
@@ -284,7 +306,7 @@ export default function BudgetsPage() {
     const budgetsToReplicate = Object.fromEntries(
       Object.entries(budgets)
         .map(([key, value]) => [key, parseFloat(value) || 0])
-        .filter(([, value]) => value > 0) // Only replicate budgets with a positive value
+        .filter(([, value]) => value > 0) 
         .filter(([key]) => userDisplayCategories.some(cat => cat.name === key))
     );
     if (Object.keys(budgetsToReplicate).length === 0) {
@@ -295,7 +317,7 @@ export default function BudgetsPage() {
     try {
       const nextMonthDate = addMonths(displayedDate, 1);
       const nextMonthKey = formatDateFns(nextMonthDate, 'yyyy-MM');
-      const nextMonthLabel = formatDateFns(nextMonthDate, 'MMMM yyyy', { locale: (language === 'pt' ? require('date-fns/locale/pt-BR').default : require('date-fns/locale/en-US').default) });
+      const nextMonthLabel = formatDateFns(nextMonthDate, 'MMMM yyyy', { locale: (language === 'pt' ? ptBR : enUS) });
       
       const budgetDocRefNextMonth = doc(db, `users/${user.uid}/budgets/${nextMonthKey}`);
       await setDoc(budgetDocRefNextMonth, { ...budgetsToReplicate, lastUpdated: serverTimestamp() }, { merge: true });

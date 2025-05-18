@@ -1597,32 +1597,38 @@ function BudgetsPage() {
         "BudgetsPage.useCallback[fetchPreferencesAndBudgets]": async ()=>{
             if (!user) {
                 setIsLoadingPreferencesAndBudgets(false);
-                setUserDisplayCategories(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["CATEGORIES"].filter({
-                    "BudgetsPage.useCallback[fetchPreferencesAndBudgets]": (cat)=>cat.type === 'expense'
-                }["BudgetsPage.useCallback[fetchPreferencesAndBudgets]"]).sort({
+                const predefinedExpenseCategories = __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["CATEGORIES"].filter({
+                    "BudgetsPage.useCallback[fetchPreferencesAndBudgets].predefinedExpenseCategories": (cat)=>cat.type === 'expense'
+                }["BudgetsPage.useCallback[fetchPreferencesAndBudgets].predefinedExpenseCategories"]);
+                setUserDisplayCategories(predefinedExpenseCategories.sort({
                     "BudgetsPage.useCallback[fetchPreferencesAndBudgets]": (a, b)=>(0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["getCategoryDisplayLabel"])(a, language).localeCompare((0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["getCategoryDisplayLabel"])(b, language))
                 }["BudgetsPage.useCallback[fetchPreferencesAndBudgets]"]));
-                setBudgets({});
+                const initialBudgets = {};
+                predefinedExpenseCategories.forEach({
+                    "BudgetsPage.useCallback[fetchPreferencesAndBudgets]": (cat)=>initialBudgets[cat.name] = ''
+                }["BudgetsPage.useCallback[fetchPreferencesAndBudgets]"]);
+                setBudgets(initialBudgets);
                 return;
             }
             setIsLoadingPreferencesAndBudgets(true);
+            console.log("BudgetsPage: Fetching preferences and budgets for user:", user.uid, "and month:", currentMonthYearKey);
             let effectiveCategories = [];
             try {
                 const prefsDocRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$esm2017$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["doc"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["db"], `users/${user.uid}/preferences/userPreferences`);
                 const prefsSnap = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$esm2017$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["getDoc"])(prefsDocRef);
+                let candidateCategories = [];
                 const predefinedExpenseCategories = __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["CATEGORIES"].filter({
                     "BudgetsPage.useCallback[fetchPreferencesAndBudgets].predefinedExpenseCategories": (cat)=>cat.type === 'expense'
                 }["BudgetsPage.useCallback[fetchPreferencesAndBudgets].predefinedExpenseCategories"]);
-                let candidateCategories = [
-                    ...predefinedExpenseCategories
-                ]; // Start with all predefined expense
                 if (prefsSnap.exists()) {
                     const prefsData = prefsSnap.data();
                     const customCategoriesFromDb = prefsData.userDefinedCategories || [];
                     const selectedCategoryNames = new Set((prefsData.selectedCategories || []).map({
                         "BudgetsPage.useCallback[fetchPreferencesAndBudgets]": (name)=>name.toLowerCase()
                     }["BudgetsPage.useCallback[fetchPreferencesAndBudgets]"]));
-                    // Create a map of custom categories for efficient lookup
+                    const deselectedPredefinedNames = new Set((prefsData.deselectedPredefinedCategories || []).map({
+                        "BudgetsPage.useCallback[fetchPreferencesAndBudgets]": (name)=>name.toLowerCase()
+                    }["BudgetsPage.useCallback[fetchPreferencesAndBudgets]"]));
                     const customCategoriesMap = new Map();
                     customCategoriesFromDb.forEach({
                         "BudgetsPage.useCallback[fetchPreferencesAndBudgets]": (cc)=>{
@@ -1631,24 +1637,27 @@ function BudgetsPage() {
                             }
                         }
                     }["BudgetsPage.useCallback[fetchPreferencesAndBudgets]"]);
-                    // Override predefined with custom if names match
-                    candidateCategories = predefinedExpenseCategories.map({
+                    candidateCategories = predefinedExpenseCategories.filter({
+                        "BudgetsPage.useCallback[fetchPreferencesAndBudgets]": (pCat)=>!deselectedPredefinedNames.has(pCat.name.toLowerCase())
+                    }["BudgetsPage.useCallback[fetchPreferencesAndBudgets]"]).map({
                         "BudgetsPage.useCallback[fetchPreferencesAndBudgets]": (pCat)=>{
                             const customOverride = customCategoriesMap.get(pCat.name.toLowerCase());
                             if (customOverride) {
-                                customCategoriesMap.delete(pCat.name.toLowerCase()); // Remove from map as it's been used
+                                customCategoriesMap.delete(pCat.name.toLowerCase());
                                 return customOverride;
                             }
                             return pCat;
                         }
                     }["BudgetsPage.useCallback[fetchPreferencesAndBudgets]"]);
-                    // Add any remaining custom categories (those that didn't override a predefined one)
                     customCategoriesMap.forEach({
                         "BudgetsPage.useCallback[fetchPreferencesAndBudgets]": (customCat)=>{
-                            candidateCategories.push(customCat);
+                            if (!candidateCategories.some({
+                                "BudgetsPage.useCallback[fetchPreferencesAndBudgets]": (c)=>c.name.toLowerCase() === customCat.name.toLowerCase()
+                            }["BudgetsPage.useCallback[fetchPreferencesAndBudgets]"])) {
+                                candidateCategories.push(customCat);
+                            }
                         }
                     }["BudgetsPage.useCallback[fetchPreferencesAndBudgets]"]);
-                    // Filter by selectedCategories if the list is not empty
                     if (selectedCategoryNames.size > 0) {
                         effectiveCategories = candidateCategories.filter({
                             "BudgetsPage.useCallback[fetchPreferencesAndBudgets]": (cat)=>selectedCategoryNames.has(cat.name.toLowerCase())
@@ -1657,12 +1666,10 @@ function BudgetsPage() {
                         effectiveCategories = candidateCategories;
                     }
                 } else {
-                    // No preferences doc, use all predefined expense categories
                     effectiveCategories = [
                         ...predefinedExpenseCategories
                     ];
                 }
-                // Final fallback: if effectiveCategories is empty, use all predefined expense categories
                 if (effectiveCategories.length === 0) {
                     effectiveCategories = [
                         ...predefinedExpenseCategories
@@ -1671,19 +1678,22 @@ function BudgetsPage() {
                 setUserDisplayCategories(effectiveCategories.sort({
                     "BudgetsPage.useCallback[fetchPreferencesAndBudgets]": (a, b)=>(0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["getCategoryDisplayLabel"])(a, language).localeCompare((0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["getCategoryDisplayLabel"])(b, language))
                 }["BudgetsPage.useCallback[fetchPreferencesAndBudgets]"]));
+                console.log("BudgetsPage: Effective categories set:", effectiveCategories.map({
+                    "BudgetsPage.useCallback[fetchPreferencesAndBudgets]": (c)=>(0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["getCategoryDisplayLabel"])(c, language)
+                }["BudgetsPage.useCallback[fetchPreferencesAndBudgets]"]));
                 const budgetDocRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$esm2017$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["doc"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["db"], `users/${user.uid}/budgets/${currentMonthYearKey}`);
                 const budgetSnap = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$esm2017$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["getDoc"])(budgetDocRef);
                 const newBudgetsState = {};
                 if (budgetSnap.exists()) {
                     const budgetData = budgetSnap.data();
-                    // console.log(`BudgetsPage: Budget data found for ${currentMonthYearKey}:`, JSON.stringify(budgetData, null, 2));
+                    console.log(`BudgetsPage: Budget data found for ${currentMonthYearKey}:`, JSON.stringify(budgetData, null, 2));
                     effectiveCategories.forEach({
                         "BudgetsPage.useCallback[fetchPreferencesAndBudgets]": (cat)=>{
                             newBudgetsState[cat.name] = budgetData[cat.name] !== undefined ? String(budgetData[cat.name]) : '';
                         }
                     }["BudgetsPage.useCallback[fetchPreferencesAndBudgets]"]);
                 } else {
-                    // console.log(`BudgetsPage: No budget document found for ${currentMonthYearKey}. Initializing empty for categories.`);
+                    console.log(`BudgetsPage: No budget document found for ${currentMonthYearKey}. Initializing empty for categories.`);
                     effectiveCategories.forEach({
                         "BudgetsPage.useCallback[fetchPreferencesAndBudgets]": (cat)=>{
                             newBudgetsState[cat.name] = '';
@@ -1730,24 +1740,17 @@ function BudgetsPage() {
     ]);
     (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useEffect"])({
         "BudgetsPage.useEffect": ()=>{
-            if (!authLoading && user) {
+            if (!authLoading) {
                 fetchPreferencesAndBudgets();
-            } else if (!authLoading && !user) {
-                setUserDisplayCategories(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["CATEGORIES"].filter({
-                    "BudgetsPage.useEffect": (cat)=>cat.type === 'expense'
-                }["BudgetsPage.useEffect"]).sort({
-                    "BudgetsPage.useEffect": (a, b)=>(0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["getCategoryDisplayLabel"])(a, language).localeCompare((0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["getCategoryDisplayLabel"])(b, language))
-                }["BudgetsPage.useEffect"]));
-                setBudgets({});
-                setIsLoadingPreferencesAndBudgets(false);
             }
         }
     }["BudgetsPage.useEffect"], [
         user,
         authLoading,
         fetchPreferencesAndBudgets,
-        language
-    ]); // Removed currentMonthYearKey as fetchPreferencesAndBudgets depends on it
+        currentMonthYearKey
+    ]); // Added currentMonthYearKey
+    // Fetch all transactions for income calculation
     (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useEffect"])({
         "BudgetsPage.useEffect": ()=>{
             if (!user || authLoading) {
@@ -1755,11 +1758,13 @@ function BudgetsPage() {
                 setAllTransactions([]);
                 return;
             }
+            console.log("BudgetsPage: Setting up transaction listener for user:", user.uid);
             setIsLoadingTransactions(true);
             const transactionsColRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$esm2017$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["collection"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["db"], `users/${user.uid}/transactions`);
             const q_transactions = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$esm2017$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["query"])(transactionsColRef, (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$esm2017$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["orderBy"])("date", "desc"));
             const unsubscribe = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$esm2017$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["onSnapshot"])(q_transactions, {
                 "BudgetsPage.useEffect.unsubscribe": (querySnapshot)=>{
+                    console.log("BudgetsPage: Transaction listener fired. Docs count:", querySnapshot.docs.length);
                     const fetchedTransactions = querySnapshot.docs.map({
                         "BudgetsPage.useEffect.unsubscribe.fetchedTransactions": (docSnap)=>{
                             const data = docSnap.data();
@@ -1804,6 +1809,7 @@ function BudgetsPage() {
                     }["BudgetsPage.useEffect.unsubscribe.fetchedTransactions"]);
                     setAllTransactions(fetchedTransactions);
                     setIsLoadingTransactions(false);
+                    console.log("BudgetsPage: All transactions state updated. Count:", fetchedTransactions.length);
                 }
             }["BudgetsPage.useEffect.unsubscribe"], {
                 "BudgetsPage.useEffect.unsubscribe": (error)=>{
@@ -1823,7 +1829,10 @@ function BudgetsPage() {
                 }
             }["BudgetsPage.useEffect.unsubscribe"]);
             return ({
-                "BudgetsPage.useEffect": ()=>unsubscribe()
+                "BudgetsPage.useEffect": ()=>{
+                    console.log("BudgetsPage: Unsubscribing transaction listener for user:", user.uid);
+                    unsubscribe();
+                }
             })["BudgetsPage.useEffect"];
         }
     }["BudgetsPage.useEffect"], [
@@ -1834,10 +1843,9 @@ function BudgetsPage() {
     ]);
     const totalIncomeForDisplayedMonth = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useMemo"])({
         "BudgetsPage.useMemo[totalIncomeForDisplayedMonth]": ()=>{
-            console.log("BudgetsPage: Recalculating totalIncomeForDisplayedMonth. Displayed Date:", displayedDate.toISOString());
-            console.log("BudgetsPage: All transactions before filtering (count):", allTransactions.length);
+            console.log(`BudgetsPage: Recalculating totalIncomeForDisplayedMonth. Displayed Date: ${displayedDate.toISOString()}, All Transactions Count: ${allTransactions.length}`);
             const targetYear = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$getYear$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__["getYear"])(displayedDate);
-            const targetMonth = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$getMonth$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__["getMonth"])(displayedDate); // 0-indexed month
+            const targetMonth = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$getMonth$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__["getMonth"])(displayedDate); // 0-indexed
             const incomeTransactions = allTransactions.filter({
                 "BudgetsPage.useMemo[totalIncomeForDisplayedMonth].incomeTransactions": (t)=>{
                     if (t.type !== 'income') return false;
@@ -1847,29 +1855,28 @@ function BudgetsPage() {
                     if (t.effectiveMonth && /^\d{4}-\d{2}$/.test(t.effectiveMonth)) {
                         const [yearStr, monthStr] = t.effectiveMonth.split('-');
                         derivedTransactionYear = parseInt(yearStr, 10);
-                        derivedTransactionMonth = parseInt(monthStr, 10) - 1; // 0-indexed
+                        derivedTransactionMonth = parseInt(monthStr, 10) - 1; // 0-indexed month
                         transactionMatchesMonth = derivedTransactionYear === targetYear && derivedTransactionMonth === targetMonth;
                         sourceField = "effectiveMonth";
                     } else if (t.date && /^\d{4}-\d{2}-\d{2}$/.test(t.date)) {
-                        const dateParts = t.date.split('-');
+                        const dateParts = t.date.split('-'); // YYYY-MM-DD
                         derivedTransactionYear = parseInt(dateParts[0], 10);
-                        derivedTransactionMonth = parseInt(dateParts[1], 10) - 1;
+                        derivedTransactionMonth = parseInt(dateParts[1], 10) - 1; // 0-indexed month
                         transactionMatchesMonth = derivedTransactionYear === targetYear && derivedTransactionMonth === targetMonth;
                         sourceField = "date";
                     } else {
                         console.warn(`BudgetsPage Income Filter (Skipping): Tx ID ${t.id}, Desc: ${t.description}, has no valid effectiveMonth ('${t.effectiveMonth}') or date ('${t.date}').`);
                         return false;
                     }
-                    console.log(`BudgetsPage Income Filter (Processing): Tx ID ${t.id}, Desc: ${t.description}, Type: ${t.type}, Date: ${t.date}, EffMonth: ${t.effectiveMonth}, SourceField: ${sourceField}, (Parsed Y:${derivedTransactionYear}, M:${derivedTransactionMonth}), Target Y:${targetYear}, M:${targetMonth}, Matches: ${transactionMatchesMonth}`);
+                    console.log(`BudgetsPage Income Filter (Processing): Tx ID ${t.id}, Desc: ${t.description}, Type: ${t.type}, Date: ${t.date}, EffMonth: ${t.effectiveMonth}, Amount: ${t.amount}, SourceField: ${sourceField}, (Parsed Y:${derivedTransactionYear}, M:${derivedTransactionMonth}), Target Y:${targetYear}, M:${targetMonth}, Matches: ${transactionMatchesMonth}`);
                     return transactionMatchesMonth;
                 }
             }["BudgetsPage.useMemo[totalIncomeForDisplayedMonth].incomeTransactions"]);
-            console.log("BudgetsPage: Filtered income transactions for month (count):", incomeTransactions.length, "Total:", incomeTransactions.reduce({
-                "BudgetsPage.useMemo[totalIncomeForDisplayedMonth]": (sum, t)=>sum + t.amount
-            }["BudgetsPage.useMemo[totalIncomeForDisplayedMonth]"], 0));
-            return incomeTransactions.reduce({
-                "BudgetsPage.useMemo[totalIncomeForDisplayedMonth]": (sum, t)=>sum + t.amount
-            }["BudgetsPage.useMemo[totalIncomeForDisplayedMonth]"], 0);
+            const total = incomeTransactions.reduce({
+                "BudgetsPage.useMemo[totalIncomeForDisplayedMonth].total": (sum, t)=>sum + t.amount
+            }["BudgetsPage.useMemo[totalIncomeForDisplayedMonth].total"], 0);
+            console.log(`BudgetsPage: Filtered income transactions for month (count: ${incomeTransactions.length}), Total Income: ${total}`);
+            return total;
         }
     }["BudgetsPage.useMemo[totalIncomeForDisplayedMonth]"], [
         allTransactions,
@@ -1913,7 +1920,8 @@ function BudgetsPage() {
         const budgetsToSave = Object.fromEntries(Object.entries(budgets).map(([key, value])=>[
                 key,
                 parseFloat(value) || 0
-            ]).filter(([key])=>userDisplayCategories.some((cat)=>cat.name === key)));
+            ]) // Ensure 0 if NaN
+        .filter(([key])=>userDisplayCategories.some((cat)=>cat.name === key)));
         try {
             await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$esm2017$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["setDoc"])(budgetDocRef, {
                 ...budgetsToSave,
@@ -2055,17 +2063,17 @@ function BudgetsPage() {
                     })
                 }, void 0, false, {
                     fileName: "[project]/src/app/budgets/page.tsx",
-                    lineNumber: 311,
+                    lineNumber: 318,
                     columnNumber: 80
                 }, this)
             }, void 0, false, {
                 fileName: "[project]/src/app/budgets/page.tsx",
-                lineNumber: 311,
+                lineNumber: 318,
                 columnNumber: 23
             }, this)
         }, void 0, false, {
             fileName: "[project]/src/app/budgets/page.tsx",
-            lineNumber: 311,
+            lineNumber: 318,
             columnNumber: 12
         }, this);
     }
@@ -2081,17 +2089,17 @@ function BudgetsPage() {
                     })
                 }, void 0, false, {
                     fileName: "[project]/src/app/budgets/page.tsx",
-                    lineNumber: 314,
+                    lineNumber: 321,
                     columnNumber: 81
                 }, this)
             }, void 0, false, {
                 fileName: "[project]/src/app/budgets/page.tsx",
-                lineNumber: 314,
+                lineNumber: 321,
                 columnNumber: 24
             }, this)
         }, void 0, false, {
             fileName: "[project]/src/app/budgets/page.tsx",
-            lineNumber: 314,
+            lineNumber: 321,
             columnNumber: 13
         }, this);
     }
@@ -2113,7 +2121,7 @@ function BudgetsPage() {
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/src/app/budgets/page.tsx",
-                                    lineNumber: 322,
+                                    lineNumber: 329,
                                     columnNumber: 13
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -2121,13 +2129,13 @@ function BudgetsPage() {
                                     children: pageDescription
                                 }, void 0, false, {
                                     fileName: "[project]/src/app/budgets/page.tsx",
-                                    lineNumber: 325,
+                                    lineNumber: 332,
                                     columnNumber: 13
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/src/app/budgets/page.tsx",
-                            lineNumber: 321,
+                            lineNumber: 328,
                             columnNumber: 11
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -2143,7 +2151,7 @@ function BudgetsPage() {
                                     }) : saveButtonLabel
                                 }, void 0, false, {
                                     fileName: "[project]/src/app/budgets/page.tsx",
-                                    lineNumber: 328,
+                                    lineNumber: 335,
                                     columnNumber: 13
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$button$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Button"], {
@@ -2157,19 +2165,19 @@ function BudgetsPage() {
                                     }) : replicateButtonLabel
                                 }, void 0, false, {
                                     fileName: "[project]/src/app/budgets/page.tsx",
-                                    lineNumber: 331,
+                                    lineNumber: 338,
                                     columnNumber: 13
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/src/app/budgets/page.tsx",
-                            lineNumber: 327,
+                            lineNumber: 334,
                             columnNumber: 11
                         }, this)
                     ]
                 }, void 0, true, {
                     fileName: "[project]/src/app/budgets/page.tsx",
-                    lineNumber: 320,
+                    lineNumber: 327,
                     columnNumber: 9
                 }, this),
                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Card"], {
@@ -2184,7 +2192,7 @@ function BudgetsPage() {
                                     })
                                 }, void 0, false, {
                                     fileName: "[project]/src/app/budgets/page.tsx",
-                                    lineNumber: 339,
+                                    lineNumber: 346,
                                     columnNumber: 13
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["CardDescription"], {
@@ -2198,13 +2206,13 @@ function BudgetsPage() {
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/src/app/budgets/page.tsx",
-                                    lineNumber: 340,
+                                    lineNumber: 347,
                                     columnNumber: 13
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/src/app/budgets/page.tsx",
-                            lineNumber: 338,
+                            lineNumber: 345,
                             columnNumber: 11
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["CardContent"], {
@@ -2215,14 +2223,14 @@ function BudgetsPage() {
                                         className: "h-16 w-full"
                                     }, void 0, false, {
                                         fileName: "[project]/src/app/budgets/page.tsx",
-                                        lineNumber: 345,
+                                        lineNumber: 352,
                                         columnNumber: 17
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$skeleton$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Skeleton"], {
                                         className: "h-16 w-full"
                                     }, void 0, false, {
                                         fileName: "[project]/src/app/budgets/page.tsx",
-                                        lineNumber: 346,
+                                        lineNumber: 353,
                                         columnNumber: 17
                                     }, this)
                                 ]
@@ -2235,7 +2243,7 @@ function BudgetsPage() {
                                                 className: "h-6 w-6 text-green-500"
                                             }, void 0, false, {
                                                 fileName: "[project]/src/app/budgets/page.tsx",
-                                                lineNumber: 351,
+                                                lineNumber: 358,
                                                 columnNumber: 19
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -2248,7 +2256,7 @@ function BudgetsPage() {
                                                         })
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/app/budgets/page.tsx",
-                                                        lineNumber: 353,
+                                                        lineNumber: 360,
                                                         columnNumber: 21
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -2256,19 +2264,19 @@ function BudgetsPage() {
                                                         children: (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$utils$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["formatCurrency"])(totalIncomeForDisplayedMonth)
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/app/budgets/page.tsx",
-                                                        lineNumber: 356,
+                                                        lineNumber: 363,
                                                         columnNumber: 21
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/src/app/budgets/page.tsx",
-                                                lineNumber: 352,
+                                                lineNumber: 359,
                                                 columnNumber: 19
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/src/app/budgets/page.tsx",
-                                        lineNumber: 350,
+                                        lineNumber: 357,
                                         columnNumber: 17
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -2278,7 +2286,7 @@ function BudgetsPage() {
                                                 className: "h-6 w-6 text-primary"
                                             }, void 0, false, {
                                                 fileName: "[project]/src/app/budgets/page.tsx",
-                                                lineNumber: 360,
+                                                lineNumber: 367,
                                                 columnNumber: 19
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -2291,7 +2299,7 @@ function BudgetsPage() {
                                                         })
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/app/budgets/page.tsx",
-                                                        lineNumber: 362,
+                                                        lineNumber: 369,
                                                         columnNumber: 21
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -2299,37 +2307,37 @@ function BudgetsPage() {
                                                         children: (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$utils$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["formatCurrency"])(totalBudgetedAmount)
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/app/budgets/page.tsx",
-                                                        lineNumber: 365,
+                                                        lineNumber: 372,
                                                         columnNumber: 21
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/src/app/budgets/page.tsx",
-                                                lineNumber: 361,
+                                                lineNumber: 368,
                                                 columnNumber: 19
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/src/app/budgets/page.tsx",
-                                        lineNumber: 359,
+                                        lineNumber: 366,
                                         columnNumber: 17
                                     }, this)
                                 ]
                             }, void 0, true)
                         }, void 0, false, {
                             fileName: "[project]/src/app/budgets/page.tsx",
-                            lineNumber: 342,
+                            lineNumber: 349,
                             columnNumber: 11
                         }, this)
                     ]
                 }, void 0, true, {
                     fileName: "[project]/src/app/budgets/page.tsx",
-                    lineNumber: 337,
+                    lineNumber: 344,
                     columnNumber: 9
                 }, this),
                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$separator$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Separator"], {}, void 0, false, {
                     fileName: "[project]/src/app/budgets/page.tsx",
-                    lineNumber: 373,
+                    lineNumber: 380,
                     columnNumber: 9
                 }, this),
                 isLoadingPreferencesAndBudgets ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -2343,12 +2351,12 @@ function BudgetsPage() {
                                         className: "h-6 w-3/4"
                                     }, void 0, false, {
                                         fileName: "[project]/src/app/budgets/page.tsx",
-                                        lineNumber: 380,
+                                        lineNumber: 387,
                                         columnNumber: 19
                                     }, this)
                                 }, void 0, false, {
                                     fileName: "[project]/src/app/budgets/page.tsx",
-                                    lineNumber: 379,
+                                    lineNumber: 386,
                                     columnNumber: 17
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["CardContent"], {
@@ -2356,23 +2364,23 @@ function BudgetsPage() {
                                         className: "h-10 w-full"
                                     }, void 0, false, {
                                         fileName: "[project]/src/app/budgets/page.tsx",
-                                        lineNumber: 383,
+                                        lineNumber: 390,
                                         columnNumber: 19
                                     }, this)
                                 }, void 0, false, {
                                     fileName: "[project]/src/app/budgets/page.tsx",
-                                    lineNumber: 382,
+                                    lineNumber: 389,
                                     columnNumber: 17
                                 }, this)
                             ]
                         }, index, true, {
                             fileName: "[project]/src/app/budgets/page.tsx",
-                            lineNumber: 378,
+                            lineNumber: 385,
                             columnNumber: 15
                         }, this))
                 }, void 0, false, {
                     fileName: "[project]/src/app/budgets/page.tsx",
-                    lineNumber: 376,
+                    lineNumber: 383,
                     columnNumber: 12
                 }, this) : userDisplayCategories.length > 0 ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                     className: "grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5",
@@ -2382,12 +2390,12 @@ function BudgetsPage() {
                             onBudgetChange: handleBudgetChange
                         }, category.name, false, {
                             fileName: "[project]/src/app/budgets/page.tsx",
-                            lineNumber: 391,
+                            lineNumber: 398,
                             columnNumber: 15
                         }, this))
                 }, void 0, false, {
                     fileName: "[project]/src/app/budgets/page.tsx",
-                    lineNumber: 389,
+                    lineNumber: 396,
                     columnNumber: 11
                 }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
                     className: "text-center text-muted-foreground py-8",
@@ -2397,18 +2405,18 @@ function BudgetsPage() {
                     })
                 }, void 0, false, {
                     fileName: "[project]/src/app/budgets/page.tsx",
-                    lineNumber: 400,
+                    lineNumber: 407,
                     columnNumber: 11
                 }, this)
             ]
         }, void 0, true, {
             fileName: "[project]/src/app/budgets/page.tsx",
-            lineNumber: 319,
+            lineNumber: 326,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "[project]/src/app/budgets/page.tsx",
-        lineNumber: 318,
+        lineNumber: 325,
         columnNumber: 5
     }, this);
 }
