@@ -1391,6 +1391,10 @@ body {
   background-color: rgb(234 179 8 / var(--tw-bg-opacity, 1));
 }
 
+.bg-muted-foreground {
+  background-color: hsl(var(--muted-foreground));
+}
+
 .fill-current {
   fill: currentColor;
 }
@@ -1834,26 +1838,8 @@ body {
   transition-duration: .15s;
 }
 
-.transition-\[left\,right\,width\] {
-  transition-property: left, right, width;
-  transition-timing-function: cubic-bezier(.4, 0, .2, 1);
-  transition-duration: .15s;
-}
-
-.transition-\[margin\,opa\] {
-  transition-property: margin, opa;
-  transition-timing-function: cubic-bezier(.4, 0, .2, 1);
-  transition-duration: .15s;
-}
-
 .transition-\[width\,height\,padding\] {
   transition-property: width, height, padding;
-  transition-timing-function: cubic-bezier(.4, 0, .2, 1);
-  transition-duration: .15s;
-}
-
-.transition-\[width\] {
-  transition-property: width;
   transition-timing-function: cubic-bezier(.4, 0, .2, 1);
   transition-duration: .15s;
 }
@@ -1896,10 +1882,6 @@ body {
   transition-timing-function: cubic-bezier(.4, 0, .2, 1);
 }
 
-.ease-linear {
-  transition-timing-function: linear;
-}
-
 @keyframes enter {
   from {
     opacity: var(--tw-enter-opacity, 1);
@@ -1938,10 +1920,6 @@ body {
 
 .ease-in-out {
   animation-timing-function: cubic-bezier(.4, 0, .2, 1);
-}
-
-.ease-linear {
-  animation-timing-function: linear;
 }
 
 .running {
@@ -2106,11 +2084,6 @@ body {
   --tw-shadow: 0 10px 15px -3px #0000001a, 0 4px 6px -4px #0000001a;
   --tw-shadow-colored: 0 10px 15px -3px var(--tw-shadow-color), 0 4px 6px -4px var(--tw-shadow-color);
   box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
-}
-
-.hover\:after\:bg-sidebar-border:hover:after {
-  content: var(--tw-content);
-  background-color: hsl(var(--sidebar-border));
 }
 
 .focus\:bg-accent:focus {
@@ -2591,63 +2564,12 @@ body {
   color: hsl(var(--sidebar-accent-foreground));
 }
 
-.group[data-collapsible="offcanvas"] .group-data-\[collapsible\=offcanvas\]\:left-\[calc\(var\(--sidebar-width\)\*-1\)\] {
-  left: calc(var(--sidebar-width) * -1);
-}
-
-.group[data-collapsible="offcanvas"] .group-data-\[collapsible\=offcanvas\]\:right-\[calc\(var\(--sidebar-width\)\*-1\)\] {
-  right: calc(var(--sidebar-width) * -1);
-}
-
 .group[data-side="left"] .group-data-\[side\=left\]\:-right-4 {
   right: -1rem;
 }
 
 .group[data-side="right"] .group-data-\[side\=right\]\:left-0 {
   left: 0;
-}
-
-.group[data-collapsible="icon"] .group-data-\[collapsible\=icon\]\:-mt-8 {
-  margin-top: -2rem;
-}
-
-.group[data-collapsible="icon"] .group-data-\[collapsible\=icon\]\:hidden {
-  display: none;
-}
-
-.group[data-collapsible="icon"] .group-data-\[collapsible\=icon\]\:\!size-8 {
-  width: 2rem !important;
-  height: 2rem !important;
-}
-
-.group[data-collapsible="icon"] .group-data-\[collapsible\=icon\]\:w-\[--sidebar-width-icon\] {
-  width: var(--sidebar-width-icon);
-}
-
-.group[data-collapsible="icon"] .group-data-\[collapsible\=icon\]\:w-\[calc\(var\(--sidebar-width-icon\)_\+_theme\(spacing\.4\)\)\] {
-  width: calc(var(--sidebar-width-icon)  + 1rem);
-}
-
-.group[data-collapsible="icon"] .group-data-\[collapsible\=icon\]\:w-\[calc\(var\(--sidebar-width-icon\)_\+_theme\(spacing\.4\)_\+2px\)\] {
-  width: calc(var(--sidebar-width-icon)  + 1rem + 2px);
-}
-
-.group[data-collapsible="offcanvas"] .group-data-\[collapsible\=offcanvas\]\:w-0 {
-  width: 0;
-}
-
-.group[data-collapsible="offcanvas"] .group-data-\[collapsible\=offcanvas\]\:translate-x-0 {
-  --tw-translate-x: 0px;
-  transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
-}
-
-.group[data-side="right"] .group-data-\[side\=right\]\:rotate-180 {
-  --tw-rotate: 180deg;
-  transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
-}
-
-.group[data-collapsible="icon"] .group-data-\[collapsible\=icon\]\:overflow-hidden {
-  overflow: hidden;
 }
 
 .group[data-variant="floating"] .group-data-\[variant\=floating\]\:rounded-lg {
@@ -2670,31 +2592,10 @@ body {
   border-color: hsl(var(--sidebar-border));
 }
 
-.group[data-collapsible="icon"] .group-data-\[collapsible\=icon\]\:\!p-0 {
-  padding: 0 !important;
-}
-
-.group[data-collapsible="icon"] .group-data-\[collapsible\=icon\]\:\!p-2 {
-  padding: .5rem !important;
-}
-
-.group[data-collapsible="icon"] .group-data-\[collapsible\=icon\]\:opacity-0 {
-  opacity: 0;
-}
-
 .group[data-variant="floating"] .group-data-\[variant\=floating\]\:shadow {
   --tw-shadow: 0 1px 3px 0 #0000001a, 0 1px 2px -1px #0000001a;
   --tw-shadow-colored: 0 1px 3px 0 var(--tw-shadow-color), 0 1px 2px -1px var(--tw-shadow-color);
   box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
-}
-
-.group[data-collapsible="offcanvas"] .group-data-\[collapsible\=offcanvas\]\:after\:left-full:after {
-  content: var(--tw-content);
-  left: 100%;
-}
-
-.group[data-collapsible="offcanvas"] .group-data-\[collapsible\=offcanvas\]\:hover\:bg-sidebar:hover {
-  background-color: hsl(var(--sidebar-background));
 }
 
 .peer\/menu-button[data-size="default"] ~ .peer-data-\[size\=default\]\/menu-button\:top-1\.5 {
@@ -2749,6 +2650,11 @@ body {
   background-color: #7f1d1db3;
 }
 
+.dark\:bg-yellow-600:is(.dark *) {
+  --tw-bg-opacity: 1;
+  background-color: rgb(202 138 4 / var(--tw-bg-opacity, 1));
+}
+
 .dark\:text-green-300:is(.dark *) {
   --tw-text-opacity: 1;
   color: rgb(134 239 172 / var(--tw-text-opacity, 1));
@@ -2796,10 +2702,6 @@ body {
 
   .sm\:block {
     display: block;
-  }
-
-  .sm\:flex {
-    display: flex;
   }
 
   .sm\:table-cell {
@@ -2978,10 +2880,6 @@ body {
 
   .peer[data-variant="inset"] ~ .md\:peer-data-\[variant\=inset\]\:m-2 {
     margin: .5rem;
-  }
-
-  .peer[data-state="collapsed"][data-variant="inset"] ~ .md\:peer-data-\[state\=collapsed\]\:peer-data-\[variant\=inset\]\:ml-2 {
-    margin-left: .5rem;
   }
 
   .peer[data-variant="inset"] ~ .md\:peer-data-\[variant\=inset\]\:ml-0 {
@@ -3233,30 +3131,6 @@ body {
 
 .\[\&_tr\]\:border-b tr {
   border-bottom-width: 1px;
-}
-
-[data-side="left"][data-collapsible="offcanvas"] .\[\[data-side\=left\]\[data-collapsible\=offcanvas\]_\&\]\:-right-2 {
-  right: -.5rem;
-}
-
-[data-side="left"][data-state="collapsed"] .\[\[data-side\=left\]\[data-state\=collapsed\]_\&\]\:cursor-e-resize {
-  cursor: e-resize;
-}
-
-[data-side="left"] .\[\[data-side\=left\]_\&\]\:cursor-w-resize {
-  cursor: w-resize;
-}
-
-[data-side="right"][data-collapsible="offcanvas"] .\[\[data-side\=right\]\[data-collapsible\=offcanvas\]_\&\]\:-left-2 {
-  left: -.5rem;
-}
-
-[data-side="right"][data-state="collapsed"] .\[\[data-side\=right\]\[data-state\=collapsed\]_\&\]\:cursor-w-resize {
-  cursor: w-resize;
-}
-
-[data-side="right"] .\[\[data-side\=right\]_\&\]\:cursor-e-resize {
-  cursor: e-resize;
 }
 
 /*# sourceMappingURL=src_app_globals_b52d8e88.css.map*/
