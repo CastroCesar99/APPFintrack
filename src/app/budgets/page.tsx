@@ -51,35 +51,51 @@ export default function BudgetsPage() {
       const prefsDocRef = doc(db, `users/${user.uid}/preferences/userPreferences`);
       const prefsSnap = await getDoc(prefsDocRef);
 
-      const customMap = new Map<string, CustomCategoryData>();
-      let selectedCategoryNames: Set<string> | null = null;
+      const predefinedExpenseCategories = CATEGORIES.filter(cat => cat.type === 'expense');
+      let candidateCategories: DisplayCategory[] = [...predefinedExpenseCategories]; // Start with all predefined expense
 
       if (prefsSnap.exists()) {
         const prefsData = prefsSnap.data() as UserPreferences;
-        (prefsData.userDefinedCategories || []).forEach(cd => customMap.set(cd.name.toLowerCase(), cd));
-        if (prefsData.selectedCategories && prefsData.selectedCategories.length > 0) {
-          selectedCategoryNames = new Set(prefsData.selectedCategories.map(name => name.toLowerCase()));
-        }
-      }
+        const customCategoriesFromDb = prefsData.userDefinedCategories || [];
+        const selectedCategoryNames = new Set((prefsData.selectedCategories || []).map(name => name.toLowerCase()));
 
-      let candidateCategories: DisplayCategory[] = CATEGORIES.filter(cat => cat.type === 'expense').map(pCat => {
-        return customMap.get(pCat.name.toLowerCase()) || pCat;
-      });
-      
-      customMap.forEach((customCat, nameKey) => {
-        if (customCat.type === 'expense' && !candidateCategories.some(cc => cc.name.toLowerCase() === nameKey)) {
+        // Create a map of custom categories for efficient lookup
+        const customCategoriesMap = new Map<string, CustomCategoryData>();
+        customCategoriesFromDb.forEach(cc => {
+          if (cc.type === 'expense') { // Only consider custom expense categories for budgeting
+            customCategoriesMap.set(cc.name.toLowerCase(), cc);
+          }
+        });
+
+        // Override predefined with custom if names match
+        candidateCategories = predefinedExpenseCategories.map(pCat => {
+          const customOverride = customCategoriesMap.get(pCat.name.toLowerCase());
+          if (customOverride) {
+            customCategoriesMap.delete(pCat.name.toLowerCase()); // Remove from map as it's been used
+            return customOverride;
+          }
+          return pCat;
+        });
+
+        // Add any remaining custom categories (those that didn't override a predefined one)
+        customCategoriesMap.forEach(customCat => {
           candidateCategories.push(customCat);
+        });
+        
+        // Filter by selectedCategories if the list is not empty
+        if (selectedCategoryNames.size > 0) {
+          effectiveCategories = candidateCategories.filter(cat => selectedCategoryNames.has(cat.name.toLowerCase()));
+        } else {
+          effectiveCategories = candidateCategories;
         }
-      });
-
-      if (selectedCategoryNames) {
-        effectiveCategories = candidateCategories.filter(cat => selectedCategoryNames!.has(cat.name.toLowerCase()));
       } else {
-        effectiveCategories = candidateCategories;
+        // No preferences doc, use all predefined expense categories
+        effectiveCategories = [...predefinedExpenseCategories];
       }
       
+      // Final fallback: if effectiveCategories is empty, use all predefined expense categories
       if (effectiveCategories.length === 0) {
-          effectiveCategories = CATEGORIES.filter(cat => cat.type === 'expense').map(pCat => customMap.get(pCat.name.toLowerCase()) || pCat);
+          effectiveCategories = [...predefinedExpenseCategories];
       }
       
       setUserDisplayCategories(effectiveCategories.sort((a, b) => getCategoryDisplayLabel(a, language).localeCompare(getCategoryDisplayLabel(b, language))));
@@ -89,12 +105,12 @@ export default function BudgetsPage() {
       const newBudgetsState: Record<string, string> = {};
       if (budgetSnap.exists()) {
         const budgetData = budgetSnap.data() as Record<string, number>;
-        console.log(`BudgetsPage: Budget data found for ${currentMonthYearKey}:`, JSON.stringify(budgetData, null, 2));
+        // console.log(`BudgetsPage: Budget data found for ${currentMonthYearKey}:`, JSON.stringify(budgetData, null, 2));
         effectiveCategories.forEach(cat => {
           newBudgetsState[cat.name] = budgetData[cat.name] !== undefined ? String(budgetData[cat.name]) : '';
         });
       } else {
-        console.log(`BudgetsPage: No budget document found for ${currentMonthYearKey}. Initializing empty for categories.`);
+        // console.log(`BudgetsPage: No budget document found for ${currentMonthYearKey}. Initializing empty for categories.`);
         effectiveCategories.forEach(cat => {
           newBudgetsState[cat.name] = '';
         });
@@ -126,7 +142,7 @@ export default function BudgetsPage() {
       setBudgets({});
       setIsLoadingPreferencesAndBudgets(false);
     }
-  }, [user, authLoading, fetchPreferencesAndBudgets, currentMonthYearKey, language]);
+  }, [user, authLoading, fetchPreferencesAndBudgets, language]); // Removed currentMonthYearKey as fetchPreferencesAndBudgets depends on it
 
   useEffect(() => {
     if (!user || authLoading) {
@@ -180,14 +196,12 @@ export default function BudgetsPage() {
       setIsLoadingTransactions(false);
     });
     return () => unsubscribe();
-  }, [user, authLoading]); 
+  }, [user, authLoading, toast, translate]); 
 
   const totalIncomeForDisplayedMonth = useMemo(() => {
-    console.log("BudgetsPage: Recalculating totalIncomeForDisplayedMonth. Displayed Date:", displayedDate.toISOString(), "Language:", language);
+    console.log("BudgetsPage: Recalculating totalIncomeForDisplayedMonth. Displayed Date:", displayedDate.toISOString());
     console.log("BudgetsPage: All transactions before filtering (count):", allTransactions.length);
-    // console.log("BudgetsPage: All transactions content:", JSON.stringify(allTransactions.map(t => ({desc: t.description, date: t.date, effMonth: t.effectiveMonth, type: t.type, amount: t.amount}))));
-
-
+    
     const targetYear = getYearFns(displayedDate);
     const targetMonth = getMonthFns(displayedDate); // 0-indexed month
 
@@ -196,27 +210,30 @@ export default function BudgetsPage() {
         
         let transactionMatchesMonth = false;
         let derivedTransactionYear = -1, derivedTransactionMonth = -1;
+        let sourceField = "";
 
         if (t.effectiveMonth && /^\d{4}-\d{2}$/.test(t.effectiveMonth)) {
             const [yearStr, monthStr] = t.effectiveMonth.split('-');
             derivedTransactionYear = parseInt(yearStr, 10);
             derivedTransactionMonth = parseInt(monthStr, 10) - 1; // 0-indexed
             transactionMatchesMonth = (derivedTransactionYear === targetYear && derivedTransactionMonth === targetMonth);
-        } else if (t.date && /^\d{4}-\d{2}-\d{2}$/.test(t.date)) {
+            sourceField = "effectiveMonth";
+        } else if (t.date && /^\d{4}-\d{2}-\d{2}$/.test(t.date)) { // Fallback to transaction.date
             const dateParts = t.date.split('-');
             derivedTransactionYear = parseInt(dateParts[0], 10);
             derivedTransactionMonth = parseInt(dateParts[1], 10) - 1;
             transactionMatchesMonth = (derivedTransactionYear === targetYear && derivedTransactionMonth === targetMonth);
+            sourceField = "date";
         } else {
             console.warn(`BudgetsPage Income Filter (Skipping): Tx ID ${t.id}, Desc: ${t.description}, has no valid effectiveMonth ('${t.effectiveMonth}') or date ('${t.date}').`);
             return false; 
         }
-        console.log(`BudgetsPage Income Filter (Processing): Tx ID ${t.id}, Desc: ${t.description}, Type: ${t.type}, EffMonth: ${t.effectiveMonth}, Date: ${t.date} (Parsed as Y:${derivedTransactionYear}, M:${derivedTransactionMonth}), Target Y:${targetYear}, M:${targetMonth}, Matches: ${transactionMatchesMonth}`);
+        console.log(`BudgetsPage Income Filter (Processing): Tx ID ${t.id}, Desc: ${t.description}, Type: ${t.type}, Date: ${t.date}, EffMonth: ${t.effectiveMonth}, SourceField: ${sourceField}, (Parsed Y:${derivedTransactionYear}, M:${derivedTransactionMonth}), Target Y:${targetYear}, M:${targetMonth}, Matches: ${transactionMatchesMonth}`);
         return transactionMatchesMonth;
       });
-    console.log("BudgetsPage: Filtered income transactions for month (count):", incomeTransactions.length);
+    console.log("BudgetsPage: Filtered income transactions for month (count):", incomeTransactions.length, "Total:", incomeTransactions.reduce((sum, t) => sum + t.amount, 0));
     return incomeTransactions.reduce((sum, t) => sum + t.amount, 0);
-  }, [allTransactions, displayedDate, language]); // Added language as dependency due to console log potentially using it
+  }, [allTransactions, displayedDate]);
 
   const totalBudgetedAmount = useMemo(() => {
     return Object.values(budgets).reduce((sum, valStr) => {
@@ -260,7 +277,7 @@ export default function BudgetsPage() {
     const budgetsToReplicate = Object.fromEntries(
       Object.entries(budgets)
         .map(([key, value]) => [key, parseFloat(value) || 0])
-        .filter(([, value]) => value > 0)
+        .filter(([, value]) => value > 0) // Only replicate budgets with a positive value
         .filter(([key]) => userDisplayCategories.some(cat => cat.name === key))
     );
     if (Object.keys(budgetsToReplicate).length === 0) {
@@ -388,6 +405,3 @@ export default function BudgetsPage() {
     </AppLayout>
   );
 }
-
-
-    
