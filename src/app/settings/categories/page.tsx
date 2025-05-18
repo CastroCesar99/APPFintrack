@@ -46,7 +46,6 @@ import { Edit, Trash2, PlusCircle, TrendingUp, TrendingDown, CircleHelp, type Lu
 import {
   CATEGORIES,
   getCategoryDisplayLabel,
-  type Category,
   type CustomCategoryData,
   type DisplayCategory,
   type TransactionType,
@@ -183,7 +182,7 @@ export default function ManageCategoriesPage() {
     const newCategoryType = data.categoryType;
 
     const isDuplicate = displayCategories.some(
-      (cat) => getCategoryDisplayLabel(cat, language).toLowerCase() === newCategoryName.toLowerCase() || cat.name.toLowerCase() === newCategoryName.toLowerCase()
+      (cat) => (getCategoryDisplayLabel(cat, language).toLowerCase() === newCategoryName.toLowerCase() || cat.name.toLowerCase() === newCategoryName.toLowerCase())
     );
     if (isDuplicate) {
       toast({ title: translate({ en: "Duplicate Category", pt: "Categoria Duplicada" }), description: translate({ en: "This category already exists.", pt: "Esta categoria já existe." }), variant: "destructive" });
@@ -209,6 +208,7 @@ export default function ManageCategoriesPage() {
           updatedAt: serverTimestamp()
         });
       } else {
+        // This case should ideally not happen if user completed onboarding, but as a fallback:
         await setDoc(preferencesDocRef, {
           userDefinedCategories: [newCustomCategory],
           selectedCategories: [newCustomCategory.name],
@@ -220,8 +220,12 @@ export default function ManageCategoriesPage() {
       }
       
       await fetchUserCategories(); 
-      toast({ title: translate({ en: "Category Added", pt: "Categoria Adicionada" }), description: `${newCustomCategory.label[language]} ${translate({ en: "has been added.", pt: "foi adicionada." })}` });
-      addCategoryForm.reset();
+      toast({ title: translate({ en: "Category Added", pt: "Categoria Adicionada" }), description: `${getCategoryDisplayLabel(newCustomCategory, language)} ${translate({ en: "has been added.", pt: "foi adicionada." })}` });
+      addCategoryForm.reset({
+        categoryName: "",
+        selectedIcon: selectableIcons.find(icon => icon.value === 'CircleHelp')?.value || selectableIcons[0]?.value || '',
+        categoryType: 'expense',
+      });
       setIsAddDialogOpen(false);
     } catch (error) {
       console.error("Error adding custom category:", error);
@@ -241,9 +245,9 @@ export default function ManageCategoriesPage() {
         return;
     }
     setCategoryToEdit(category);
-    setOriginalCategoryName(category.name);
+    setOriginalCategoryName(category.name); // Store the original name
     editCategoryForm.reset({
-        categoryName: category.name,
+        categoryName: category.name, // Or getCategoryDisplayLabel(category, language) if labels can differ from name
         selectedIcon: category.icon,
         categoryType: category.type
     });
@@ -252,7 +256,7 @@ export default function ManageCategoriesPage() {
 
   const handleEditCategorySubmit: SubmitHandler<CategoryFormValues> = async (data) => {
     if (!user || !categoryToEdit || !originalCategoryName) {
-        toast({ title: translate({ en: "Error", pt: "Erro" }), description: translate({ en: "Category to edit not found.", pt: "Categoria para editar não encontrada." }), variant: "destructive" });
+        toast({ title: translate({ en: "Error", pt: "Erro" }), description: translate({ en: "Category to edit not found or original name missing.", pt: "Categoria para editar não encontrada ou nome original ausente." }), variant: "destructive" });
         return;
     }
     setIsSaving(true);
@@ -262,7 +266,7 @@ export default function ManageCategoriesPage() {
 
     // Check for duplicates, excluding the original name of the category being edited
     const isDuplicate = displayCategories.some(
-        (cat) => (cat.name.toLowerCase() === updatedCategoryName.toLowerCase() || getCategoryDisplayLabel(cat, language).toLowerCase() === updatedCategoryName.toLowerCase()) && cat.name !== originalCategoryName
+        (cat) => (getCategoryDisplayLabel(cat, language).toLowerCase() === updatedCategoryName.toLowerCase() || cat.name.toLowerCase() === updatedCategoryName.toLowerCase()) && cat.name !== originalCategoryName
     );
     if (isDuplicate) {
         toast({ title: translate({ en: "Duplicate Category", pt: "Categoria Duplicada" }), description: translate({ en: "Another category with this name already exists.", pt: "Outra categoria com este nome já existe." }), variant: "destructive" });
@@ -283,38 +287,37 @@ export default function ManageCategoriesPage() {
 
         if (prefsSnap.exists()) {
             const preferencesData = prefsSnap.data() as UserPreferences;
-            const currentCustomCategories = preferencesData.userDefinedCategories || [];
-            const currentSelectedCategories = preferencesData.selectedCategories || [];
+            let currentCustomCategories = preferencesData.userDefinedCategories || [];
+            let currentSelectedCategories = preferencesData.selectedCategories || [];
 
-            // Update userDefinedCategories
-            const updatedUserDefined = currentCustomCategories.map(cat => 
+            // Update userDefinedCategories: replace the old one
+            currentCustomCategories = currentCustomCategories.map(cat => 
                 cat.name === originalCategoryName ? updatedCustomCategory : cat
             );
 
             // Update selectedCategories if name changed
-            let updatedSelected = [...currentSelectedCategories];
             if (originalCategoryName !== updatedCategoryName) {
-                const index = updatedSelected.indexOf(originalCategoryName);
+                const index = currentSelectedCategories.indexOf(originalCategoryName);
                 if (index > -1) {
-                    updatedSelected.splice(index, 1, updatedCategoryName);
+                    currentSelectedCategories.splice(index, 1, updatedCategoryName);
                 } else {
-                    // If original wasn't selected, but new one should be implicitly (or handle as per product logic)
-                    // For simplicity, if user is editing it, let's assume they want it selected.
-                    updatedSelected.push(updatedCategoryName); 
+                    // If original wasn't selected, new one might need to be added or not based on product logic
+                    // For simplicity, if user is editing it, let's assume they might want it selected if it wasn't.
+                    // Or, ensure that only existing selected items are renamed.
+                    // If original was selected, ensure it's updated.
                 }
-                // Ensure no duplicates if original was not selected but new name matches an already selected one
-                updatedSelected = Array.from(new Set(updatedSelected));
+                 // Ensure no duplicates if original was not selected but new name matches an already selected one
+                currentSelectedCategories = Array.from(new Set(currentSelectedCategories));
             }
 
-
             await updateDoc(preferencesDocRef, {
-                userDefinedCategories: updatedUserDefined,
-                selectedCategories: updatedSelected,
+                userDefinedCategories: currentCustomCategories,
+                selectedCategories: currentSelectedCategories,
                 updatedAt: serverTimestamp()
             });
 
             await fetchUserCategories();
-            toast({ title: translate({ en: "Category Updated", pt: "Categoria Atualizada" }), description: `${updatedCustomCategory.label[language]} ${translate({ en: "has been updated.", pt: "foi atualizada." })}` });
+            toast({ title: translate({ en: "Category Updated", pt: "Categoria Atualizada" }), description: `${getCategoryDisplayLabel(updatedCustomCategory, language)} ${translate({ en: "has been updated.", pt: "foi atualizada." })}` });
             setIsEditDialogOpen(false);
             setCategoryToEdit(null);
             setOriginalCategoryName(null);
@@ -530,7 +533,13 @@ export default function ManageCategoriesPage() {
         </div>
         
         {/* Edit Category Dialog */}
-        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <Dialog open={isEditDialogOpen} onOpenChange={(isOpen) => {
+            setIsEditDialogOpen(isOpen);
+            if (!isOpen) {
+                setCategoryToEdit(null);
+                setOriginalCategoryName(null);
+            }
+        }}>
             <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
                     <DialogTitle>{translate({ en: "Edit Category", pt: "Editar Categoria" })}</DialogTitle>
@@ -617,7 +626,7 @@ export default function ManageCategoriesPage() {
               </div>
             ) : (
               <p className="text-center text-muted-foreground py-8">
-                {translate({ en: "No categories configured yet.", pt: "Nenhuma categoria configurada ainda." })}
+                {translate({ en: "No categories configured yet. Add some using the button above!", pt: "Nenhuma categoria configurada ainda. Adicione algumas usando o botão acima!" })}
               </p>
             )}
           </CardContent>
@@ -648,6 +657,5 @@ export default function ManageCategoriesPage() {
     </AppLayout>
   );
 }
-
 
     
