@@ -8,7 +8,6 @@ var { g: global, __dirname, k: __turbopack_refresh__, m: module } = __turbopack_
 __turbopack_context__.s({
     "CATEGORIES": (()=>CATEGORIES),
     "PAYMENT_METHODS": (()=>PAYMENT_METHODS),
-    "getCategoriesByType": (()=>getCategoriesByType),
     "getCategoryDisplayLabel": (()=>getCategoryDisplayLabel),
     "getCategoryLabel": (()=>getCategoryLabel),
     "getPaymentMethodDisplayLabel": (()=>getPaymentMethodDisplayLabel)
@@ -177,6 +176,15 @@ const CATEGORIES = [
         }
     },
     {
+        name: 'Pets',
+        icon: 'PawPrint',
+        type: 'expense',
+        label: {
+            en: 'Pets',
+            pt: 'Animais de Estimação'
+        }
+    },
+    {
         name: 'Other Expense',
         icon: 'CircleHelp',
         type: 'expense',
@@ -186,23 +194,22 @@ const CATEGORIES = [
         }
     }
 ];
-const getCategoriesByType = (type, allCategories)=>{
-    return allCategories.filter((cat)=>cat.type === type);
-};
 const getCategoryDisplayLabel = (category, currentLanguage)=>{
+    if (!category) return '';
     if (category.label && typeof category.label === 'object' && category.label[currentLanguage]) {
         return category.label[currentLanguage];
     }
-    if (typeof category.label === 'string') {
-        return category.label;
-    }
-    return category.name; // Final fallback is the name identifier
+    return category.name;
 };
 const getCategoryLabel = (categoryName, currentLanguage)=>{
+    if (!categoryName) return '';
     const predefinedCategory = CATEGORIES.find((cat)=>cat.name.toLowerCase() === categoryName.toLowerCase());
     if (predefinedCategory && predefinedCategory.label && predefinedCategory.label[currentLanguage]) {
         return predefinedCategory.label[currentLanguage];
     }
+    // For custom categories, their 'name' field usually holds the display name, or it's already a DisplayCategory object
+    // This part might need refinement if custom categories are only stored by a non-display 'name' and need label lookup.
+    // However, getCategoryDisplayLabel is preferred if you have the DisplayCategory object.
     return categoryName;
 };
 const PAYMENT_METHODS = [
@@ -232,25 +239,24 @@ const PAYMENT_METHODS = [
     }
 ];
 const getPaymentMethodDisplayLabel = (methodInput, currentLanguage)=>{
-    let methodNameString;
+    if (!methodInput) return '';
     let methodObject;
     if (typeof methodInput === 'string') {
-        methodNameString = methodInput;
-        // Try to find in predefined methods first
-        methodObject = PAYMENT_METHODS.find((pm)=>pm.name.toLowerCase() === methodNameString.toLowerCase());
-        // If not found in predefined, it might be a custom one (or just the name if details not available)
-        if (!methodObject) {
-            return methodNameString; // Return the name itself if no predefined match
+        const lowerMethodInput = methodInput.toLowerCase();
+        methodObject = PAYMENT_METHODS.find((pm)=>pm.name.toLowerCase() === lowerMethodInput);
+        if (methodObject && methodObject.label && methodObject.label[currentLanguage]) {
+            return methodObject.label[currentLanguage];
         }
+        // If not predefined, return the input string itself (assuming it's a custom method name)
+        return methodInput;
     } else {
-        methodNameString = methodInput.name;
+        // It's already an object (DisplayPaymentMethod)
         methodObject = methodInput;
+        if (methodObject.label && methodObject.label[currentLanguage]) {
+            return methodObject.label[currentLanguage];
+        }
+        return methodObject.name; // Fallback to name
     }
-    if (methodObject && methodObject.label && typeof methodObject.label === 'object' && methodObject.label[currentLanguage]) {
-        return methodObject.label[currentLanguage];
-    }
-    // Fallback if label structure isn't as expected or if it's a custom method name string without full object
-    return methodNameString;
 };
 if (typeof globalThis.$RefreshHelpers$ === 'object' && globalThis.$RefreshHelpers !== null) {
     __turbopack_context__.k.registerExports(module, globalThis.$RefreshHelpers$);
