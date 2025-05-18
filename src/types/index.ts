@@ -5,7 +5,8 @@ export type ExpenseType = 'upfront' | 'installment' | 'recurring';
 
 export interface Transaction {
   id: string;
-  date: string; // YYYY-MM-DD string
+  date: string; // YYYY-MM-DD string (actual transaction date)
+  effectiveMonth: string; // YYYY-MM string (month it applies to for summaries/filtering)
   description: string;
   amount: number;
   type: TransactionType;
@@ -14,10 +15,10 @@ export interface Transaction {
   installments?: number;
   isRecurring?: boolean;
   expenseNature?: ExpenseNature;
-  expenseType?: ExpenseType; 
-  userId?: string; 
-  createdAt?: any; 
-  updatedAt?: any; 
+  expenseType?: ExpenseType;
+  userId?: string;
+  createdAt?: any;
+  updatedAt?: any;
 }
 
 export const CATEGORIES = [
@@ -45,15 +46,13 @@ export const CATEGORIES = [
 export type CategoryName = typeof CATEGORIES[number]['name'];
 export type Category = typeof CATEGORIES[number];
 
-// For custom categories defined during onboarding or settings
 export interface CustomCategoryData {
-  name: string; 
-  type: TransactionType; // Can be income or expense
-  icon: string; 
-  label: { en: string; pt: string }; 
+  name: string;
+  type: TransactionType;
+  icon: string;
+  label: { en: string; pt: string };
 }
 
-// Union type for display purposes
 export type DisplayCategory = Category | CustomCategoryData;
 
 export const getCategoriesByType = (type: TransactionType, allCategories: DisplayCategory[]): DisplayCategory[] => {
@@ -64,10 +63,10 @@ export const getCategoryDisplayLabel = (category: DisplayCategory, currentLangua
   if (category.label && typeof category.label === 'object' && category.label[currentLanguage]) {
     return category.label[currentLanguage];
   }
-  if (typeof category.label === 'string') { // Fallback for older custom category format if any
+  if (typeof category.label === 'string') {
     return category.label;
   }
-  return category.name; // Final fallback is the name identifier
+  return category.name;
 };
 
 export const getCategoryLabel = (categoryName: CategoryName | string, currentLanguage: 'en' | 'pt'): string => {
@@ -75,6 +74,7 @@ export const getCategoryLabel = (categoryName: CategoryName | string, currentLan
   if (predefinedCategory && predefinedCategory.label && predefinedCategory.label[currentLanguage]) {
     return predefinedCategory.label[currentLanguage];
   }
+  // For custom categories, their name is their label from user input
   return categoryName as string;
 };
 
@@ -97,38 +97,39 @@ export interface CustomPaymentMethodData {
 export type DisplayPaymentMethod = PaymentMethod | CustomPaymentMethodData;
 
 
-export const getPaymentMethodDisplayLabel = (methodInput: DisplayPaymentMethod | string, currentLanguage: 'en' | 'pt'): string => {
+export const getPaymentMethodDisplayLabel = (methodInput: DisplayPaymentMethod | string | undefined, currentLanguage: 'en' | 'pt'): string => {
+  if (!methodInput) return '';
+
   let methodNameString: string;
   let methodObject: DisplayPaymentMethod | undefined;
 
   if (typeof methodInput === 'string') {
     methodNameString = methodInput;
-    // Try to find in predefined methods first
     methodObject = PAYMENT_METHODS.find(pm => pm.name.toLowerCase() === methodNameString.toLowerCase());
-    // If not found in predefined, it might be a custom one (or just the name if details not available)
     if (!methodObject) {
-        return methodNameString; // Return the name itself if no predefined match
+        // If not predefined, it might be a custom method name string.
+        // We don't have its translated label directly here unless it's passed as an object.
+        return methodNameString;
     }
   } else {
     methodNameString = methodInput.name;
-    methodObject = methodInput; 
+    methodObject = methodInput;
   }
 
   if (methodObject && methodObject.label && typeof methodObject.label === 'object' && methodObject.label[currentLanguage]) {
     return methodObject.label[currentLanguage];
   }
-   // Fallback if label structure isn't as expected or if it's a custom method name string without full object
-  return methodNameString; 
+  return methodNameString;
 };
 
 
 export interface UserPreferences {
   language: 'en' | 'pt';
-  selectedCategories: string[]; 
+  selectedCategories: string[];
   userDefinedCategories: CustomCategoryData[];
-  selectedPaymentMethods: string[]; 
+  selectedPaymentMethods: string[];
   userDefinedPaymentMethods: CustomPaymentMethodData[];
-  updatedAt?: any; 
+  updatedAt?: any;
 }
 
     

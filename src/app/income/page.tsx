@@ -8,7 +8,7 @@ import { AppLayout } from "@/components/layout/app-layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { TransactionForm } from "@/components/dashboard/transaction-form";
-import { TransactionItemCard } from "@/components/transactions/transaction-item-card"; 
+import { TransactionItemCard } from "@/components/transactions/transaction-item-card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import {
   AlertDialog,
@@ -19,11 +19,11 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog"; 
+} from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { PlusCircle, ArrowUpDown } from "lucide-react"; 
-import type { Transaction, DisplayCategory, DisplayPaymentMethod, UserPreferences } from "@/types";
-import { CATEGORIES, PAYMENT_METHODS, getCategoryDisplayLabel, getPaymentMethodDisplayLabel } from "@/types"; // Added getPaymentMethodDisplayLabel
+import { PlusCircle, ArrowUpDown } from "lucide-react";
+import type { Transaction, DisplayCategory, DisplayPaymentMethod, UserPreferences, CategoryName } from "@/types";
+import { CATEGORIES, PAYMENT_METHODS, getCategoryDisplayLabel, getPaymentMethodDisplayLabel } from "@/types";
 import { useAuth } from '@/context/auth-context';
 import { useLanguage } from '@/context/language-context';
 import { useDateNavigation } from '@/context/date-navigation-context';
@@ -50,8 +50,8 @@ export default function IncomePage() {
   const [isClient, setIsClient] = useState(false);
   const [transactionToDelete, setTransactionToDelete] = useState<Transaction | null>(null);
 
-  const [userCategories, setUserCategories] = useState<DisplayCategory[]>(() => [...CATEGORIES]);
-  const [userPaymentMethods, setUserPaymentMethods] = useState<DisplayPaymentMethod[]>(() => [...PAYMENT_METHODS]);
+  const [userCategories, setUserCategories] = useState<DisplayCategory[]>([]);
+  const [userPaymentMethods, setUserPaymentMethods] = useState<DisplayPaymentMethod[]>([]);
   const [isLoadingPreferences, setIsLoadingPreferences] = useState(true);
   const unsubscribePreferencesRef = useRef<(() => void) | null>(null);
 
@@ -67,8 +67,8 @@ export default function IncomePage() {
   // Listener for User Preferences
   useEffect(() => {
     if (!userId || !isClient || authLoading) {
-      setUserCategories([...CATEGORIES]);
-      setUserPaymentMethods([...PAYMENT_METHODS]);
+      setUserCategories([...CATEGORIES].sort((a,b) => getCategoryDisplayLabel(a, language).localeCompare(getCategoryDisplayLabel(b,language))));
+      setUserPaymentMethods([...PAYMENT_METHODS].sort((a,b) => getPaymentMethodDisplayLabel(a,language).localeCompare(getPaymentMethodDisplayLabel(b,language))));
       setIsLoadingPreferences(false);
       if (unsubscribePreferencesRef.current) {
         unsubscribePreferencesRef.current();
@@ -78,9 +78,13 @@ export default function IncomePage() {
     }
 
     setIsLoadingPreferences(true);
-    const preferencesDocRef = doc(db, `users/${userId}/preferences/userPreferences`);
+    const preferencesDocRef = doc(db, 'users/' + userId + '/preferences/userPreferences');
 
-    const unsubscribe = onSnapshot(preferencesDocRef, (docSnap) => {
+    if (unsubscribePreferencesRef.current) {
+        unsubscribePreferencesRef.current();
+    }
+
+    unsubscribePreferencesRef.current = onSnapshot(preferencesDocRef, (docSnap) => {
       let finalCategories: DisplayCategory[] = [...CATEGORIES];
       let finalPaymentMethods: DisplayPaymentMethod[] = [...PAYMENT_METHODS];
 
@@ -88,26 +92,26 @@ export default function IncomePage() {
         const preferencesData = docSnap.data() as UserPreferences;
         
         const customCategoryDefs = preferencesData.userDefinedCategories || [];
-        const allPredefinedCategories = [...CATEGORIES];
-        const customCategoriesWithType: DisplayCategory[] = customCategoryDefs.map(c => ({ ...c, type: c.type || 'expense' })); 
-        const combinedCategories = [...allPredefinedCategories, ...customCategoriesWithType];
+        const customCategoriesAsDisplay: DisplayCategory[] = customCategoryDefs.map(c => ({ ...c, label: c.label || {en: c.name, pt: c.name} }));
+        const allPossibleCategories = [...CATEGORIES, ...customCategoriesAsDisplay];
         const uniqueCategoriesMap = new Map<string, DisplayCategory>();
-        combinedCategories.forEach(cat => uniqueCategoriesMap.set(cat.name.toLowerCase(), cat));
+        allPossibleCategories.forEach(cat => uniqueCategoriesMap.set(cat.name.toLowerCase(), cat));
         finalCategories = Array.from(uniqueCategoriesMap.values());
-
-        const customPaymentMethodDefs = preferencesData.userDefinedPaymentMethods || [];
-        const basePaymentMethodsMap = new Map<string, DisplayPaymentMethod>();
-        PAYMENT_METHODS.forEach(pm => basePaymentMethodsMap.set(pm.name.toLowerCase(), pm));
-        customPaymentMethodDefs.forEach(customPm => basePaymentMethodsMap.set(customPm.name.toLowerCase(), customPm));
         
-        const selectedPaymentMethodNames = preferencesData.selectedPaymentMethods || [];
-        if (selectedPaymentMethodNames.length > 0) {
-            const effectivePMs = Array.from(basePaymentMethodsMap.values()).filter(pm => 
-                selectedPaymentMethodNames.some(name => name.toLowerCase() === pm.name.toLowerCase())
-            );
-            finalPaymentMethods = effectivePMs.length > 0 ? effectivePMs : Array.from(basePaymentMethodsMap.values());
+        const customPaymentMethodDefs = preferencesData.userDefinedPaymentMethods || [];
+        const customMethodsAsDisplay: DisplayPaymentMethod[] = customPaymentMethodDefs.map(cpm => ({ ...cpm, label: cpm.label || {en: cpm.name, pt: cpm.name} }));
+        const allPossiblePaymentMethods = [...PAYMENT_METHODS, ...customMethodsAsDisplay];
+        const uniquePaymentMethodsMap = new Map<string, DisplayPaymentMethod>();
+        allPossiblePaymentMethods.forEach(pm => uniquePaymentMethodsMap.set(pm.name.toLowerCase(), pm));
+        
+        const selectedPmNames = new Set((preferencesData.selectedPaymentMethods || []).map(name => name.toLowerCase()));
+        if (selectedPmNames.size > 0) {
+            finalPaymentMethods = Array.from(uniquePaymentMethodsMap.values()).filter(pm => selectedPmNames.has(pm.name.toLowerCase()));
+            if(finalPaymentMethods.length === 0) { 
+                finalPaymentMethods = Array.from(uniquePaymentMethodsMap.values());
+            }
         } else {
-            finalPaymentMethods = Array.from(basePaymentMethodsMap.values());
+            finalPaymentMethods = Array.from(uniquePaymentMethodsMap.values());
         }
       }
       setUserCategories(finalCategories.sort((a,b) => getCategoryDisplayLabel(a, language).localeCompare(getCategoryDisplayLabel(b,language))));
@@ -120,12 +124,11 @@ export default function IncomePage() {
         description: translate({ en: "Could not load your preferences.", pt: "Não foi possível carregar suas preferências." }),
         variant: "destructive",
       });
-      setUserCategories([...CATEGORIES]); 
-      setUserPaymentMethods([...PAYMENT_METHODS]); 
+      setUserCategories([...CATEGORIES].sort((a,b) => getCategoryDisplayLabel(a, language).localeCompare(getCategoryDisplayLabel(b,language))));
+      setUserPaymentMethods([...PAYMENT_METHODS].sort((a,b) => getPaymentMethodDisplayLabel(a,language).localeCompare(getPaymentMethodDisplayLabel(b,language))));
       setIsLoadingPreferences(false);
     });
-    unsubscribePreferencesRef.current = unsubscribe;
-
+    
     return () => {
       if (unsubscribePreferencesRef.current) {
         unsubscribePreferencesRef.current();
@@ -149,6 +152,8 @@ export default function IncomePage() {
       const fetchedTransactions = querySnapshot.docs.map(docSnap => {
         const data = docSnap.data();
         let dateString = data.date;
+        let effectiveMonthString = data.effectiveMonth;
+
         if (data.date && typeof data.date === 'object' && data.date instanceof Timestamp) {
           dateString = formatDateFns(data.date.toDate(), "yyyy-MM-dd");
         } else if (typeof data.date === 'string' && data.date.includes('T')) {
@@ -162,11 +167,22 @@ export default function IncomePage() {
            console.warn("IncomePage: Transaction has unexpected date format. Fallback to current date. Date was:", data.date);
            dateString = formatDateFns(new Date(), "yyyy-MM-dd");
         }
-        return { 
-          ...data, 
-          id: docSnap.id, 
+
+        if (!effectiveMonthString && dateString) {
+          try {
+            effectiveMonthString = formatDateFns(parseDateFns(dateString, "yyyy-MM-dd", new Date()), "yyyy-MM");
+          } catch (e) {
+            console.warn(`IncomePage: Could not parse date ${dateString} to derive effectiveMonth for tx ${docSnap.id}`);
+            effectiveMonthString = formatDateFns(new Date(), "yyyy-MM");
+          }
+        }
+
+        return {
+          ...data,
+          id: docSnap.id,
           date: dateString,
-          isRecurring: data.isRecurring 
+          effectiveMonth: effectiveMonthString,
+          isRecurring: data.isRecurring === true, // Ensure boolean
         } as Transaction;
       });
       setAllTransactions(fetchedTransactions);
@@ -189,25 +205,12 @@ export default function IncomePage() {
   }, [userCategories]);
 
   const incomeForDisplayedPeriod = useMemo(() => {
-    const targetYear = getYearFns(displayedDate);
-    const targetMonth = getMonthFns(displayedDate); 
+    const targetEffectiveMonth = formatDateFns(displayedDate, "yyyy-MM");
 
     let filteredTransactions = allTransactions.filter(t => {
       if (t.type !== 'income') return false;
-      
-      const dateParts = t.date.split('-');
-       if (dateParts.length !== 3) {
-        console.warn("IncomePage: Invalid date format for transaction ID " + t.id + ": " + t.date);
-        return false;
-      }
-      const transactionYear = parseInt(dateParts[0], 10);
-      const transactionMonth = parseInt(dateParts[1], 10) - 1; 
-
-      if (isNaN(transactionYear) || isNaN(transactionMonth)) {
-        console.warn("IncomePage: Could not parse year/month for transaction ID " + t.id + ": " + t.date);
-        return false;
-      }
-      return transactionYear === targetYear && transactionMonth === targetMonth;
+      const transactionEffectiveMonth = t.effectiveMonth || (t.date ? formatDateFns(parseDateFns(t.date, "yyyy-MM-dd", new Date()), "yyyy-MM") : "");
+      return transactionEffectiveMonth === targetEffectiveMonth;
     });
 
     // Sorting logic
@@ -230,7 +233,7 @@ export default function IncomePage() {
     } else if (sortOption === 'descriptionAsc') {
       filteredTransactions.sort((a, b) => a.description.localeCompare(b.description));
     }
-    
+
     return filteredTransactions;
   }, [allTransactions, displayedDate, sortOption, language, getCategoryObjectByName]);
 
@@ -243,21 +246,22 @@ export default function IncomePage() {
     const tx = allTransactions.find(t => t.id === transactionId);
     if (tx) {
       setTransactionToEdit(tx);
-      setIsEditFormOpen(true); 
+      setIsEditFormOpen(true);
     } else {
       toast({ title: translate({ en: "Error", pt: "Erro" }), description: translate({ en: "Transaction not found.", pt: "Transação não encontrada." }), variant: "destructive" });
     }
   };
 
-  const handleSaveTransaction = async (formData: Omit<Transaction, "id" | "userId" | "createdAt" | "updatedAt">, id?: string) => {
+  const handleSaveTransaction = async (formData: Omit<Transaction, "id" | "userId" | "createdAt" | "updatedAt" | "effectiveMonth">, id?: string) => {
     if (!userId) {
       toast({ title: translate({ en: "Error", pt: "Erro" }), description: translate({ en: "User not authenticated.", pt: "Usuário não autenticado." }), variant: "destructive" });
       return;
     }
-    const dataPayload = { ...formData, type: 'income' as 'income' };
+    const effectiveMonth = formatDateFns(displayedDate, "yyyy-MM");
+    const dataPayload = { ...formData, type: 'income' as 'income', effectiveMonth };
     const cleanPayload = Object.fromEntries(Object.entries(dataPayload).filter(([_, v]) => v !== undefined)) as Partial<Transaction>;
 
-    if (id) { 
+    if (id) {
       const transactionDocRef = doc(db, "users/" + userId + "/transactions", id);
       try {
         await updateDoc(transactionDocRef, { ...cleanPayload, updatedAt: serverTimestamp() });
@@ -268,7 +272,7 @@ export default function IncomePage() {
         console.error("IncomePage: Error updating income:", error);
         toast({ title: translate({ en: "Error Updating Income", pt: "Erro ao Atualizar Receita" }), description: (error.message || translate({ en: "Could not update income.", pt: "Não foi possível atualizar a receita." })) + (error.code ? " (Code: " + error.code + ")" : ''), variant: "destructive" });
       }
-    } else { 
+    } else {
       try {
         const transactionsColRef = collection(db, "users/" + userId + "/transactions");
         await addDoc(transactionsColRef, { ...cleanPayload, userId: userId, createdAt: serverTimestamp() });
@@ -280,7 +284,7 @@ export default function IncomePage() {
       }
     }
   };
-  
+
   const openDeleteConfirmation = (transactionId: string) => {
     const tx = allTransactions.find(t => t.id === transactionId);
     if (tx) {
@@ -337,7 +341,7 @@ export default function IncomePage() {
           <h1 className="text-3xl font-bold tracking-tight text-foreground">
             {pageTitle} - {displayedMonthYearLabel}
           </h1>
-          <Dialog open={isAddFormOpen} onOpenChange={setIsAddFormOpen} modal={false}>
+          <Dialog open={isAddFormOpen} onOpenChange={setIsAddFormOpen}>
             <DialogTrigger asChild>
               <Button variant="outline" className="w-full sm:w-auto">
                 <PlusCircle className="mr-2 h-4 w-4" />
@@ -358,13 +362,13 @@ export default function IncomePage() {
                 defaultDate={displayedDate}
                 userCategories={userCategories}
                 userPaymentMethods={userPaymentMethods}
-                key={"add-income-" + displayedDate.toISOString()} 
+                key={"add-income-" + displayedDate.toISOString()}
               />
             </DialogContent>
           </Dialog>
         </div>
 
-        <Dialog open={isEditFormOpen} onOpenChange={setIsEditFormOpen} modal={false}>
+        <Dialog open={isEditFormOpen} onOpenChange={setIsEditFormOpen}>
           <DialogContent className="sm:max-w-[425px]">
             <DialogHeader>
               <DialogTitle>{translate({ en: "Edit Income", pt: "Editar Receita" })}</DialogTitle>
@@ -416,10 +420,10 @@ export default function IncomePage() {
             ) : incomeForDisplayedPeriod.length > 0 ? (
               <div className="grid grid-cols-1 gap-4">
                 {incomeForDisplayedPeriod.map(tx => (
-                  <TransactionItemCard 
-                    key={tx.id} 
-                    transaction={tx} 
-                    onEdit={handleOpenEditDialog} 
+                  <TransactionItemCard
+                    key={tx.id}
+                    transaction={tx}
+                    onEdit={handleOpenEditDialog}
                     onDelete={openDeleteConfirmation}
                   />
                 ))}
@@ -438,8 +442,8 @@ export default function IncomePage() {
             <AlertDialogHeader>
               <AlertDialogTitle>{translate({en: "Confirm Deletion", pt: "Confirmar Exclusão"})}</AlertDialogTitle>
               <AlertDialogDescription>
-                {translate({en: "Are you sure you want to delete the income: ", pt: "Tem certeza que deseja excluir a receita: "})} 
-                <strong>{transactionToDelete.description}</strong> ({formatCurrency(transactionToDelete.amount)})? 
+                {translate({en: "Are you sure you want to delete the income: ", pt: "Tem certeza que deseja excluir a receita: "})}
+                <strong>{transactionToDelete.description}</strong> ({formatCurrency(transactionToDelete.amount)})?
                 {translate({en: " This action cannot be undone.", pt: " Esta ação não pode ser desfeita."})}
               </AlertDialogDescription>
             </AlertDialogHeader>
@@ -455,5 +459,5 @@ export default function IncomePage() {
     </AppLayout>
   );
 }
-    
+
     

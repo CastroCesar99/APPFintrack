@@ -8,7 +8,7 @@ import { AppLayout } from "@/components/layout/app-layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { TransactionForm } from "@/components/dashboard/transaction-form";
-import { TransactionItemCard } from "@/components/transactions/transaction-item-card"; 
+import { TransactionItemCard } from "@/components/transactions/transaction-item-card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import {
   AlertDialog,
@@ -46,16 +46,16 @@ export default function ExpensesPage() {
 
   const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
   const [isLoadingTransactions, setIsLoadingTransactions] = useState(true);
-  
+
   const [isAddFormOpen, setIsAddFormOpen] = useState(false);
   const [isEditFormOpen, setIsEditFormOpen] = useState(false);
   const [transactionToEdit, setTransactionToEdit] = useState<Transaction | null>(null);
-  
+
   const [isClient, setIsClient] = useState(false);
   const [transactionToDelete, setTransactionToDelete] = useState<Transaction | null>(null);
 
-  const [userCategories, setUserCategories] = useState<DisplayCategory[]>(() => [...CATEGORIES]);
-  const [userPaymentMethods, setUserPaymentMethods] = useState<DisplayPaymentMethod[]>(() => [...PAYMENT_METHODS]);
+  const [userCategories, setUserCategories] = useState<DisplayCategory[]>([]);
+  const [userPaymentMethods, setUserPaymentMethods] = useState<DisplayPaymentMethod[]>([]);
   const [isLoadingPreferences, setIsLoadingPreferences] = useState(true);
   const unsubscribePreferencesRef = useRef<(() => void) | null>(null);
 
@@ -66,7 +66,7 @@ export default function ExpensesPage() {
   }, []);
 
   // Listener for User Preferences
-  useEffect(() => {
+ useEffect(() => {
     if (!userId || !isClient || authLoading) {
       setUserCategories([...CATEGORIES].sort((a,b) => getCategoryDisplayLabel(a, language).localeCompare(getCategoryDisplayLabel(b,language))));
       setUserPaymentMethods([...PAYMENT_METHODS].sort((a,b) => getPaymentMethodDisplayLabel(a,language).localeCompare(getPaymentMethodDisplayLabel(b,language))));
@@ -79,44 +79,46 @@ export default function ExpensesPage() {
     }
 
     setIsLoadingPreferences(true);
-    const preferencesDocRef = doc(db, `users/${userId}/preferences/userPreferences`);
+    const preferencesDocRef = doc(db, 'users/' + userId + '/preferences/userPreferences');
 
     if (unsubscribePreferencesRef.current) {
-      unsubscribePreferencesRef.current();
+        unsubscribePreferencesRef.current();
     }
 
     unsubscribePreferencesRef.current = onSnapshot(preferencesDocRef, (docSnap) => {
-      let finalCategories: DisplayCategory[] = [...CATEGORIES];
-      let finalPaymentMethods: DisplayPaymentMethod[] = [...PAYMENT_METHODS];
+      let finalCategories: DisplayCategory[] = [...CATEGORIES]; // Start with all predefined
+      let finalPaymentMethods: DisplayPaymentMethod[] = [...PAYMENT_METHODS]; // Start with all predefined
 
       if (docSnap.exists()) {
         const preferencesData = docSnap.data() as UserPreferences;
         
         const customCategoryDefs = preferencesData.userDefinedCategories || [];
-        const allPredefinedCategories = [...CATEGORIES]; 
-        const customCategoriesWithType: DisplayCategory[] = customCategoryDefs.map(c => ({ ...c, type: c.type || 'expense', label: c.label || {en: c.name, pt: c.name} })); 
-        
-        const combinedCategories = [...allPredefinedCategories, ...customCategoriesWithType];
+        // Combine predefined and custom categories
+        const customCategoriesAsDisplay: DisplayCategory[] = customCategoryDefs.map(c => ({ ...c, label: c.label || {en: c.name, pt: c.name} }));
+        const allPossibleCategories = [...CATEGORIES, ...customCategoriesAsDisplay];
         const uniqueCategoriesMap = new Map<string, DisplayCategory>();
-        combinedCategories.forEach(cat => uniqueCategoriesMap.set(cat.name.toLowerCase(), cat));
+        allPossibleCategories.forEach(cat => uniqueCategoriesMap.set(cat.name.toLowerCase(), cat));
         finalCategories = Array.from(uniqueCategoriesMap.values());
-
-        const customPaymentMethodDefs = preferencesData.userDefinedPaymentMethods || [];
-        const basePaymentMethodsMap = new Map<string, DisplayPaymentMethod>();
-        PAYMENT_METHODS.forEach(pm => basePaymentMethodsMap.set(pm.name.toLowerCase(), pm));
-        customPaymentMethodDefs.forEach(customPm => {
-            basePaymentMethodsMap.set(customPm.name.toLowerCase(), { ...customPm, label: customPm.label || {en: customPm.name, pt: customPm.name} }); 
-        });
         
-        const selectedPaymentMethodNames = preferencesData.selectedPaymentMethods || [];
-        if (selectedPaymentMethodNames.length > 0) {
-            const effectivePMs = Array.from(basePaymentMethodsMap.values()).filter(pm => 
-                selectedPaymentMethodNames.some(name => name.toLowerCase() === pm.name.toLowerCase())
-            );
-            finalPaymentMethods = effectivePMs.length > 0 ? effectivePMs : Array.from(basePaymentMethodsMap.values());
+        const customPaymentMethodDefs = preferencesData.userDefinedPaymentMethods || [];
+        const customMethodsAsDisplay: DisplayPaymentMethod[] = customPaymentMethodDefs.map(cpm => ({ ...cpm, label: cpm.label || {en: cpm.name, pt: cpm.name} }));
+        const allPossiblePaymentMethods = [...PAYMENT_METHODS, ...customMethodsAsDisplay];
+        const uniquePaymentMethodsMap = new Map<string, DisplayPaymentMethod>();
+        allPossiblePaymentMethods.forEach(pm => uniquePaymentMethodsMap.set(pm.name.toLowerCase(), pm));
+        
+        // Filter by selectedPaymentMethods if available
+        const selectedPmNames = new Set((preferencesData.selectedPaymentMethods || []).map(name => name.toLowerCase()));
+        if (selectedPmNames.size > 0) {
+            finalPaymentMethods = Array.from(uniquePaymentMethodsMap.values()).filter(pm => selectedPmNames.has(pm.name.toLowerCase()));
+            if(finalPaymentMethods.length === 0) { // Fallback if selection results in empty (e.g. stale selection)
+                finalPaymentMethods = Array.from(uniquePaymentMethodsMap.values());
+            }
         } else {
-            finalPaymentMethods = Array.from(basePaymentMethodsMap.values());
+            finalPaymentMethods = Array.from(uniquePaymentMethodsMap.values());
         }
+
+      } else {
+        // No preferences doc, use all predefined
       }
       setUserCategories(finalCategories.sort((a,b) => getCategoryDisplayLabel(a, language).localeCompare(getCategoryDisplayLabel(b,language))));
       setUserPaymentMethods(finalPaymentMethods.sort((a,b) => getPaymentMethodDisplayLabel(a,language).localeCompare(getPaymentMethodDisplayLabel(b,language))));
@@ -128,8 +130,8 @@ export default function ExpensesPage() {
         description: translate({ en: "Could not load your preferences.", pt: "Não foi possível carregar suas preferências." }),
         variant: "destructive",
       });
-      setUserCategories([...CATEGORIES].sort((a,b) => getCategoryDisplayLabel(a, language).localeCompare(getCategoryDisplayLabel(b,language)))); 
-      setUserPaymentMethods([...PAYMENT_METHODS].sort((a,b) => getPaymentMethodDisplayLabel(a,language).localeCompare(getPaymentMethodDisplayLabel(b,language)))); 
+      setUserCategories([...CATEGORIES].sort((a,b) => getCategoryDisplayLabel(a, language).localeCompare(getCategoryDisplayLabel(b,language))));
+      setUserPaymentMethods([...PAYMENT_METHODS].sort((a,b) => getPaymentMethodDisplayLabel(a,language).localeCompare(getPaymentMethodDisplayLabel(b,language))));
       setIsLoadingPreferences(false);
     });
 
@@ -138,13 +140,13 @@ export default function ExpensesPage() {
         unsubscribePreferencesRef.current();
       }
     };
-  }, [userId, isClient, authLoading, language, toast, translate]); 
+  }, [userId, isClient, authLoading, language, toast, translate]);
 
   // Fetch all transactions
   useEffect(() => {
     if (!userId || authLoading || !isClient) {
       if (!authLoading && !userId && isClient) router.push('/login');
-      setIsLoadingTransactions(false); 
+      setIsLoadingTransactions(false);
       return;
     }
 
@@ -156,6 +158,8 @@ export default function ExpensesPage() {
       const fetchedTransactions = querySnapshot.docs.map(docSnap => {
         const data = docSnap.data();
         let dateString = data.date;
+        let effectiveMonthString = data.effectiveMonth;
+
         if (data.date && typeof data.date === 'object' && data.date instanceof Timestamp) {
           dateString = formatDateFns(data.date.toDate(), "yyyy-MM-dd");
         } else if (typeof data.date === 'string' && data.date.includes('T')) {
@@ -169,15 +173,26 @@ export default function ExpensesPage() {
            console.warn("ExpensesPage: Transaction has unexpected date format. Fallback to current date. Date was: " + String(data.date));
            dateString = formatDateFns(new Date(), "yyyy-MM-dd");
         }
-        return { 
-          ...data, 
-          id: docSnap.id, 
+
+        if (!effectiveMonthString && dateString) {
+          try {
+            effectiveMonthString = formatDateFns(parseDateFns(dateString, "yyyy-MM-dd", new Date()), "yyyy-MM");
+          } catch (e) {
+            console.warn(`ExpensesPage: Could not parse date ${dateString} to derive effectiveMonth for tx ${docSnap.id}`);
+            effectiveMonthString = formatDateFns(new Date(), "yyyy-MM");
+          }
+        }
+
+        return {
+          ...data,
+          id: docSnap.id,
           date: dateString,
+          effectiveMonth: effectiveMonthString,
           expenseType: data.expenseType,
           installments: data.installments,
           paymentMethod: data.paymentMethod,
-          isRecurring: data.isRecurring === true, // Ensure boolean
-          expenseNature: data.expenseNature 
+          isRecurring: data.isRecurring === true,
+          expenseNature: data.expenseNature
         } as Transaction;
       });
       setAllTransactions(fetchedTransactions);
@@ -200,25 +215,12 @@ export default function ExpensesPage() {
   }, [userCategories]);
 
   const expensesForDisplayedPeriod = useMemo(() => {
-    const targetYear = getYearFns(displayedDate);
-    const targetMonth = getMonthFns(displayedDate);
+    const targetEffectiveMonth = formatDateFns(displayedDate, "yyyy-MM");
 
     let filteredTransactions = allTransactions.filter(t => {
       if (t.type !== 'expense') return false;
-      
-      const dateParts = t.date.split('-');
-      if (dateParts.length !== 3) {
-        console.warn("ExpensesPage: Invalid date format for transaction ID " + t.id + ": " + t.date);
-        return false;
-      }
-      const transactionYear = parseInt(dateParts[0], 10);
-      const transactionMonth = parseInt(dateParts[1], 10) - 1; 
-
-      if (isNaN(transactionYear) || isNaN(transactionMonth)) {
-        console.warn("ExpensesPage: Could not parse year/month for transaction ID " + t.id + ": " + t.date);
-        return false;
-      }
-      return transactionYear === targetYear && transactionMonth === targetMonth;
+      const transactionEffectiveMonth = t.effectiveMonth || (t.date ? formatDateFns(parseDateFns(t.date, "yyyy-MM-dd", new Date()), "yyyy-MM") : "");
+      return transactionEffectiveMonth === targetEffectiveMonth;
     });
 
     // Sorting logic
@@ -260,16 +262,17 @@ export default function ExpensesPage() {
     }
   };
 
-  const handleSaveTransaction = async (formData: Omit<Transaction, "id" | "userId" | "createdAt" | "updatedAt">, id?: string) => {
+  const handleSaveTransaction = async (formData: Omit<Transaction, "id" | "userId" | "createdAt" | "updatedAt" | "effectiveMonth">, id?: string) => {
     if (!userId) {
       toast({ title: translate({ en: "Error", pt: "Erro" }), description: translate({ en: "User not authenticated.", pt: "Usuário não autenticado." }), variant: "destructive" });
       return;
     }
 
-    const dataPayload = { ...formData, type: 'expense' as 'expense' };
+    const effectiveMonth = formatDateFns(displayedDate, "yyyy-MM");
+    const dataPayload = { ...formData, type: 'expense' as 'expense', effectiveMonth };
     const cleanPayload = Object.fromEntries(Object.entries(dataPayload).filter(([_, v]) => v !== undefined)) as Partial<Transaction>;
 
-    if (id) { 
+    if (id) {
       const transactionDocRef = doc(db, "users/" + userId + "/transactions", id);
       try {
         await updateDoc(transactionDocRef, { ...cleanPayload, updatedAt: serverTimestamp() });
@@ -280,7 +283,7 @@ export default function ExpensesPage() {
         console.error("ExpensesPage: Error updating expense:", error);
         toast({ title: translate({ en: "Error Updating Expense", pt: "Erro ao Atualizar Despesa" }), description: (error.message || translate({ en: "Could not update expense.", pt: "Não foi possível atualizar a despesa." })) + (error.code ? " (Code: " + error.code + ")" : ''), variant: "destructive" });
       }
-    } else { 
+    } else {
       try {
         const transactionsColRef = collection(db, "users/" + userId + "/transactions");
         await addDoc(transactionsColRef, { ...cleanPayload, userId: userId, createdAt: serverTimestamp() });
@@ -292,7 +295,7 @@ export default function ExpensesPage() {
       }
     }
   };
-  
+
   const openDeleteConfirmation = (transactionId: string) => {
     const tx = allTransactions.find(t => t.id === transactionId);
     if (tx) {
@@ -344,9 +347,9 @@ export default function ExpensesPage() {
 
   return (
     <AppLayout>
-      <div className="space-y-6"> 
-        <div className="sm:flex sm:items-center sm:justify-between">
-          <h1 className="text-3xl font-bold tracking-tight text-foreground mb-4 sm:mb-0">
+      <div className="space-y-6">
+        <div className="flex flex-col items-stretch gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">
             {pageTitle} - {displayedMonthYearLabel}
           </h1>
           <Dialog open={isAddFormOpen} onOpenChange={setIsAddFormOpen}>
@@ -366,11 +369,11 @@ export default function ExpensesPage() {
               <TransactionForm
                 onSave={handleSaveTransaction}
                 initialType="expense"
-                transactionToEdit={null} 
+                transactionToEdit={null}
                 defaultDate={displayedDate}
                 userCategories={userCategories}
                 userPaymentMethods={userPaymentMethods}
-                key={"add-" + displayedDate.toISOString()} 
+                key={"add-expense-" + displayedDate.toISOString()}
               />
             </DialogContent>
           </Dialog>
@@ -391,12 +394,12 @@ export default function ExpensesPage() {
                 transactionToEdit={transactionToEdit}
                 userCategories={userCategories}
                 userPaymentMethods={userPaymentMethods}
-                key={"edit-" + transactionToEdit.id + "-" + displayedDate.toISOString()}
+                key={"edit-expense-" + transactionToEdit.id + "-" + displayedDate.toISOString()}
               />
             )}
           </DialogContent>
         </Dialog>
-        
+
         <div className="mb-4">
           <Select value={sortOption} onValueChange={(value) => setSortOption(value as SortOptionValue)}>
             <SelectTrigger className="w-full sm:w-[280px]">
@@ -428,10 +431,10 @@ export default function ExpensesPage() {
             ) : expensesForDisplayedPeriod.length > 0 ? (
               <div className="grid grid-cols-1 gap-4">
                 {expensesForDisplayedPeriod.map(tx => (
-                  <TransactionItemCard 
-                    key={tx.id} 
-                    transaction={tx} 
-                    onEdit={handleOpenEditDialog} 
+                  <TransactionItemCard
+                    key={tx.id}
+                    transaction={tx}
+                    onEdit={handleOpenEditDialog}
                     onDelete={openDeleteConfirmation}
                   />
                 ))}
@@ -450,8 +453,8 @@ export default function ExpensesPage() {
             <AlertDialogHeader>
               <AlertDialogTitle>{translate({en: "Confirm Deletion", pt: "Confirmar Exclusão"})}</AlertDialogTitle>
               <AlertDialogDescription>
-                {translate({en: "Are you sure you want to delete the expense: ", pt: "Tem certeza que deseja excluir a despesa: "})} 
-                <strong>{transactionToDelete.description}</strong> ({formatCurrency(transactionToDelete.amount)})? 
+                {translate({en: "Are you sure you want to delete the expense: ", pt: "Tem certeza que deseja excluir a despesa: "})}
+                <strong>{transactionToDelete.description}</strong> ({formatCurrency(transactionToDelete.amount)})?
                 {translate({en: " This action cannot be undone.", pt: " Esta ação não pode ser desfeita."})}
               </AlertDialogDescription>
             </AlertDialogHeader>
