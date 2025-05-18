@@ -15,7 +15,7 @@ import { Separator } from '@/components/ui/separator';
 import { Card, CardHeader, CardContent, CardTitle, CardDescription } from "@/components/ui/card";
 import { db } from '@/lib/firebase';
 import { doc, setDoc, getDoc, serverTimestamp, collection, query, orderBy, onSnapshot, Timestamp } from "firebase/firestore";
-import { format as formatDateFns, addMonths, getYear as getYearFns, getMonth as getMonthFns, parseISO as parseISODateFns } from 'date-fns';
+import { format as formatDateFns, addMonths, getYear as getYearFns, getMonth as getMonthFns, parse as parseDateFns } from 'date-fns';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatCurrency } from '@/lib/utils';
 import { DollarSign, TrendingUp } from 'lucide-react';
@@ -40,8 +40,7 @@ export default function BudgetsPage() {
   const fetchPreferencesAndBudgets = useCallback(async () => {
     if (!user) {
       setIsLoadingPreferencesAndBudgets(false);
-      // Default to all predefined expense categories if no user
-      setUserDisplayCategories(CATEGORIES.filter(cat => cat.type === 'expense'));
+      setUserDisplayCategories(CATEGORIES.filter(cat => cat.type === 'expense').sort((a, b) => getCategoryDisplayLabel(a, language).localeCompare(getCategoryDisplayLabel(b, language))));
       setBudgets({});
       return;
     }
@@ -53,51 +52,37 @@ export default function BudgetsPage() {
       const prefsSnap = await getDoc(prefsDocRef);
 
       const customMap = new Map<string, CustomCategoryData>();
-      let selectedNamesSet = new Set<string>();
-      let hasSpecificSelections = false;
+      let selectedCategoryNames: Set<string> | null = null;
 
       if (prefsSnap.exists()) {
         const prefsData = prefsSnap.data() as UserPreferences;
-        const customDefs = prefsData.userDefinedCategories || [];
-        customDefs.forEach(cd => customMap.set(cd.name, cd));
-        
+        (prefsData.userDefinedCategories || []).forEach(cd => customMap.set(cd.name.toLowerCase(), cd));
         if (prefsData.selectedCategories && prefsData.selectedCategories.length > 0) {
-          selectedNamesSet = new Set(prefsData.selectedCategories);
-          hasSpecificSelections = true;
+          selectedCategoryNames = new Set(prefsData.selectedCategories.map(name => name.toLowerCase()));
         }
       }
 
-      // Start with all predefined expense categories
-      const predefinedExpenseCats = CATEGORIES.filter(cat => cat.type === 'expense');
-
-      // Map predefined categories, overriding with custom definitions if they exist
-      let candidateCategories = predefinedExpenseCats.map(pCat => {
-        return customMap.get(pCat.name) || pCat;
+      let candidateCategories: DisplayCategory[] = CATEGORIES.filter(cat => cat.type === 'expense').map(pCat => {
+        return customMap.get(pCat.name.toLowerCase()) || pCat;
       });
-
-      // Add purely custom expense categories (those not overriding a predefined one by name)
-      customMap.forEach(customCat => {
-        if (customCat.type === 'expense' && !candidateCategories.some(cc => cc.name === customCat.name)) {
+      
+      customMap.forEach((customCat, nameKey) => {
+        if (customCat.type === 'expense' && !candidateCategories.some(cc => cc.name.toLowerCase() === nameKey)) {
           candidateCategories.push(customCat);
         }
       });
-      
-      // Filter by selected names if specific selections were made, otherwise use all candidates
-      if (hasSpecificSelections) {
-        effectiveCategories = candidateCategories.filter(cat => selectedNamesSet.has(cat.name));
+
+      if (selectedCategoryNames) {
+        effectiveCategories = candidateCategories.filter(cat => selectedCategoryNames!.has(cat.name.toLowerCase()));
       } else {
-        // If no selections in prefs, default to all available (predefined w/ overrides + purely custom)
         effectiveCategories = candidateCategories;
       }
       
-      // Fallback if somehow effectiveCategories is still empty, ensure it shows at least predefined ones
       if (effectiveCategories.length === 0) {
-          effectiveCategories = predefinedExpenseCats.map(pCat => customMap.get(pCat.name) || pCat);
+          effectiveCategories = CATEGORIES.filter(cat => cat.type === 'expense').map(pCat => customMap.get(pCat.name.toLowerCase()) || pCat);
       }
       
-      console.log("BudgetsPage: TRACER --- Effective categories for display:", JSON.stringify(effectiveCategories.map(c => ({name: c.name, label: getCategoryDisplayLabel(c, language)}))));
       setUserDisplayCategories(effectiveCategories.sort((a, b) => getCategoryDisplayLabel(a, language).localeCompare(getCategoryDisplayLabel(b, language))));
-
 
       const budgetDocRef = doc(db, `users/${user.uid}/budgets/${currentMonthYearKey}`);
       const budgetSnap = await getDoc(budgetDocRef);
@@ -117,35 +102,32 @@ export default function BudgetsPage() {
       setBudgets(newBudgetsState);
 
     } catch (error) {
-      console.error("Error loading user preferences or budgets:", error);
+      console.error("BudgetsPage: Error loading user preferences or budgets:", error);
       toast({
         title: translate({ en: "Error Loading Data", pt: "Erro ao Carregar Dados" }),
         description: translate({ en: "Could not load your preferences or budgets.", pt: "Não foi possível carregar suas preferências ou orçamentos." }),
         variant: "destructive",
       });
-      // Fallback to predefined expense categories on error
-      const predefinedExpenseCats = CATEGORIES.filter(cat => cat.type === 'expense');
-      setUserDisplayCategories(predefinedExpenseCats);
+      const fallbackCategories = CATEGORIES.filter(cat => cat.type === 'expense').sort((a, b) => getCategoryDisplayLabel(a, language).localeCompare(getCategoryDisplayLabel(b, language)));
+      setUserDisplayCategories(fallbackCategories);
       const errorBudgets: Record<string, string> = {};
-      predefinedExpenseCats.forEach(cat => { errorBudgets[cat.name] = ''; });
+      fallbackCategories.forEach(cat => { errorBudgets[cat.name] = ''; });
       setBudgets(errorBudgets);
     } finally {
       setIsLoadingPreferencesAndBudgets(false);
     }
-  }, [user, currentMonthYearKey, toast, translate, language]); // Added language
+  }, [user, currentMonthYearKey, toast, translate, language]);
 
   useEffect(() => {
     if (!authLoading && user) {
       fetchPreferencesAndBudgets();
     } else if (!authLoading && !user) {
-      // Clear/reset for logged out state
-      setUserDisplayCategories(CATEGORIES.filter(cat => cat.type === 'expense'));
+      setUserDisplayCategories(CATEGORIES.filter(cat => cat.type === 'expense').sort((a,b) => getCategoryDisplayLabel(a, language).localeCompare(getCategoryDisplayLabel(b, language))));
       setBudgets({});
       setIsLoadingPreferencesAndBudgets(false);
     }
-  }, [user, authLoading, fetchPreferencesAndBudgets, currentMonthYearKey]); // Added currentMonthYearKey to re-fetch if month changes
+  }, [user, authLoading, fetchPreferencesAndBudgets, currentMonthYearKey, language]);
 
-  // Fetch all transactions for income summary
   useEffect(() => {
     if (!user || authLoading) {
       setIsLoadingTransactions(false);
@@ -162,13 +144,33 @@ export default function BudgetsPage() {
         let dateString = data.date;
         if (data.date && typeof data.date === 'object' && data.date instanceof Timestamp) {
           dateString = formatDateFns(data.date.toDate(), "yyyy-MM-dd");
-        } else if (typeof data.date === 'string' && data.date.includes('T')) {
-          try { dateString = formatDateFns(parseISODateFns(data.date), "yyyy-MM-dd"); }
-          catch (e) { dateString = formatDateFns(new Date(), "yyyy-MM-dd"); }
+        } else if (typeof data.date === 'string' && data.date.includes('T')) { 
+          try { dateString = formatDateFns(parseDateFns(data.date, "yyyy-MM-dd'T'HH:mm:ss.SSSXXX", new Date(0)), "yyyy-MM-dd"); } 
+          catch (e) { 
+            try { dateString = formatDateFns(parseDateFns(data.date, "yyyy-MM-dd'T'HH:mm:ssXXX", new Date(0)), "yyyy-MM-dd"); } 
+            catch (e2) {
+              try { dateString = formatDateFns(new Date(data.date), "yyyy-MM-dd"); } 
+              catch (e3) {
+                console.warn("BudgetsPage: Failed to parse date string to yyyy-MM-dd:", data.date, e3);
+                dateString = formatDateFns(new Date(), "yyyy-MM-dd");
+              }
+            }
+          }
         } else if (typeof data.date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(data.date)) {
-          dateString = formatDateFns(new Date(), "yyyy-MM-dd");
+           console.warn("BudgetsPage: Transaction has unexpected date format. Fallback to current date. Date was:", data.date);
+           dateString = formatDateFns(new Date(), "yyyy-MM-dd"); 
         }
-        return { ...data, id: docSnap.id, date: dateString } as Transaction;
+
+        let effectiveMonthString = data.effectiveMonth;
+        if (!effectiveMonthString && dateString) {
+            try {
+                effectiveMonthString = formatDateFns(parseDateFns(dateString, "yyyy-MM-dd", new Date(0)), "yyyy-MM");
+            } catch (e) {
+                console.warn(`BudgetsPage: Could not parse date ${dateString} to derive effectiveMonth for tx ${docSnap.id}:`, e);
+                effectiveMonthString = formatDateFns(new Date(), "yyyy-MM"); 
+            }
+        }
+        return { ...data, id: docSnap.id, date: dateString, effectiveMonth: effectiveMonthString } as Transaction;
       });
       setAllTransactions(fetchedTransactions);
       setIsLoadingTransactions(false);
@@ -178,23 +180,43 @@ export default function BudgetsPage() {
       setIsLoadingTransactions(false);
     });
     return () => unsubscribe();
-  }, [user, authLoading, toast, translate]);
+  }, [user, authLoading]); 
 
   const totalIncomeForDisplayedMonth = useMemo(() => {
+    console.log("BudgetsPage: Recalculating totalIncomeForDisplayedMonth. Displayed Date:", displayedDate.toISOString(), "Language:", language);
+    console.log("BudgetsPage: All transactions before filtering (count):", allTransactions.length);
+    // console.log("BudgetsPage: All transactions content:", JSON.stringify(allTransactions.map(t => ({desc: t.description, date: t.date, effMonth: t.effectiveMonth, type: t.type, amount: t.amount}))));
+
+
     const targetYear = getYearFns(displayedDate);
-    const targetMonth = getMonthFns(displayedDate);
-    return allTransactions
-      .filter(t => {
+    const targetMonth = getMonthFns(displayedDate); // 0-indexed month
+
+    const incomeTransactions = allTransactions.filter(t => {
         if (t.type !== 'income') return false;
-        if (!t.date || typeof t.date !== 'string') return false;
-        const dateParts = t.date.split('-');
-        if (dateParts.length !== 3) return false;
-        const transactionYear = parseInt(dateParts[0], 10);
-        const transactionMonth = parseInt(dateParts[1], 10) - 1;
-        return transactionYear === targetYear && transactionMonth === targetMonth;
-      })
-      .reduce((sum, t) => sum + t.amount, 0);
-  }, [allTransactions, displayedDate]);
+        
+        let transactionMatchesMonth = false;
+        let derivedTransactionYear = -1, derivedTransactionMonth = -1;
+
+        if (t.effectiveMonth && /^\d{4}-\d{2}$/.test(t.effectiveMonth)) {
+            const [yearStr, monthStr] = t.effectiveMonth.split('-');
+            derivedTransactionYear = parseInt(yearStr, 10);
+            derivedTransactionMonth = parseInt(monthStr, 10) - 1; // 0-indexed
+            transactionMatchesMonth = (derivedTransactionYear === targetYear && derivedTransactionMonth === targetMonth);
+        } else if (t.date && /^\d{4}-\d{2}-\d{2}$/.test(t.date)) {
+            const dateParts = t.date.split('-');
+            derivedTransactionYear = parseInt(dateParts[0], 10);
+            derivedTransactionMonth = parseInt(dateParts[1], 10) - 1;
+            transactionMatchesMonth = (derivedTransactionYear === targetYear && derivedTransactionMonth === targetMonth);
+        } else {
+            console.warn(`BudgetsPage Income Filter (Skipping): Tx ID ${t.id}, Desc: ${t.description}, has no valid effectiveMonth ('${t.effectiveMonth}') or date ('${t.date}').`);
+            return false; 
+        }
+        console.log(`BudgetsPage Income Filter (Processing): Tx ID ${t.id}, Desc: ${t.description}, Type: ${t.type}, EffMonth: ${t.effectiveMonth}, Date: ${t.date} (Parsed as Y:${derivedTransactionYear}, M:${derivedTransactionMonth}), Target Y:${targetYear}, M:${targetMonth}, Matches: ${transactionMatchesMonth}`);
+        return transactionMatchesMonth;
+      });
+    console.log("BudgetsPage: Filtered income transactions for month (count):", incomeTransactions.length);
+    return incomeTransactions.reduce((sum, t) => sum + t.amount, 0);
+  }, [allTransactions, displayedDate, language]); // Added language as dependency due to console log potentially using it
 
   const totalBudgetedAmount = useMemo(() => {
     return Object.values(budgets).reduce((sum, valStr) => {
@@ -202,7 +224,6 @@ export default function BudgetsPage() {
       return sum + (isNaN(valNum) ? 0 : valNum);
     }, 0);
   }, [budgets]);
-
 
   const handleBudgetChange = (categoryName: string, amount: string) => {
     setBudgets(prevBudgets => ({ ...prevBudgets, [categoryName]: amount }));
@@ -224,7 +245,7 @@ export default function BudgetsPage() {
       await setDoc(budgetDocRef, { ...budgetsToSave, lastUpdated: serverTimestamp() }, { merge: true });
       toast({ title: translate({ en: "Budgets Saved", pt: "Orçamentos Salvos" }), description: `${translate({ en: "Your budgets for", pt: "Seus orçamentos para" })} ${displayedMonthYearLabel} ${translate({ en: "have been saved.", pt: "foram salvos." })}` });
     } catch (error) {
-      console.error("Error saving budgets:", error);
+      console.error("BudgetsPage: Error saving budgets:", error);
       toast({ title: translate({ en: "Error Saving Budgets", pt: "Erro ao Salvar Orçamentos" }), description: translate({ en: "Could not save your budgets.", pt: "Não foi possível salvar seus orçamentos." }), variant: "destructive" });
     } finally {
       setIsSaving(false);
@@ -239,7 +260,7 @@ export default function BudgetsPage() {
     const budgetsToReplicate = Object.fromEntries(
       Object.entries(budgets)
         .map(([key, value]) => [key, parseFloat(value) || 0])
-        .filter(([, value]) => value > 0) // Only replicate budgets with a positive value
+        .filter(([, value]) => value > 0)
         .filter(([key]) => userDisplayCategories.some(cat => cat.name === key))
     );
     if (Object.keys(budgetsToReplicate).length === 0) {
@@ -256,7 +277,7 @@ export default function BudgetsPage() {
       await setDoc(budgetDocRefNextMonth, { ...budgetsToReplicate, lastUpdated: serverTimestamp() }, { merge: true });
       toast({ title: translate({ en: "Budgets Replicated", pt: "Orçamentos Replicados" }), description: `${translate({ en: "Current budgets have been replicated to", pt: "Os orçamentos atuais foram replicados para" })} ${nextMonthLabel}.` });
     } catch (error) {
-      console.error("Error replicating budgets:", error);
+      console.error("BudgetsPage: Error replicating budgets:", error);
       toast({ title: translate({ en: "Error Replicating Budgets", pt: "Erro ao Replicar Orçamentos" }), description: translate({ en: "Could not replicate your budgets.", pt: "Não foi possível replicar seus orçamentos." }), variant: "destructive" });
     } finally {
       setIsReplicating(false);
@@ -275,7 +296,6 @@ export default function BudgetsPage() {
   if (!user && !authLoading) {
      return <AppLayout><div className="flex items-center justify-center h-full"><p className="text-foreground">{translate({ en: "Please log in to manage budgets.", pt: "Por favor, faça login para gerenciar orçamentos." })}</p></div></AppLayout>;
   }
-
 
   return (
     <AppLayout>
@@ -335,9 +355,8 @@ export default function BudgetsPage() {
         
         <Separator />
 
-        {isLoadingPreferencesAndBudgets ? ( // Changed to specific loading state
+        {isLoadingPreferencesAndBudgets ? (
            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-            {/* Show skeletons based on a typical number or fixed number if userDisplayCategories is empty */}
             {(userDisplayCategories.length > 0 ? userDisplayCategories : Array(10).fill(0)).map((_, index) => (
               <Card key={index} className="w-full shadow-lg">
                 <CardHeader className="pb-2">
@@ -369,3 +388,6 @@ export default function BudgetsPage() {
     </AppLayout>
   );
 }
+
+
+    
