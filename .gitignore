@@ -3,3 +3,4 @@ gitignore
     out/
     tsconfig.tsbuildinfo
     node_modules/
+node_modules
