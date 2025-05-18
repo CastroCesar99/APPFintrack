@@ -2395,8 +2395,8 @@ function ManageCategoriesPage() {
     const [isAddDialogOpen, setIsAddDialogOpen] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(false);
     const [isEditDialogOpen, setIsEditDialogOpen] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(false);
     const [categoryToEdit, setCategoryToEdit] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(null);
-    const [originalCategoryName, setOriginalCategoryName] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(null);
-    const [isSaving, setIsSaving] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(false);
+    const [originalCategoryName, setOriginalCategoryName] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(null); // For edit duplicate check
+    const [isSaving, setIsSaving] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(false); // General saving state for add/edit/delete
     const [categoryToDelete, setCategoryToDelete] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(null);
     const addCategoryForm = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$react$2d$hook$2d$form$2f$dist$2f$index$2e$esm$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useForm"])({
         resolver: (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$hookform$2f$resolvers$2f$zod$2f$dist$2f$zod$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__["zodResolver"])(categoryFormSchema),
@@ -2419,6 +2419,7 @@ function ManageCategoriesPage() {
     const fetchUserCategories = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useCallback"])({
         "ManageCategoriesPage.useCallback[fetchUserCategories]": async ()=>{
             if (!user) {
+                // If no user, just show predefined categories. They won't be editable/deletable anyway without a user.
                 const sortedPredefined = [
                     ...__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["CATEGORIES"]
                 ].sort({
@@ -2434,10 +2435,11 @@ function ManageCategoriesPage() {
                 const preferencesDocSnap = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$esm2017$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["getDoc"])(preferencesDocRef);
                 let effectiveCategories = [
                     ...__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["CATEGORIES"]
-                ];
+                ]; // Start with all predefined
                 if (preferencesDocSnap.exists()) {
                     const preferencesData = preferencesDocSnap.data();
                     const customCategories = preferencesData.userDefinedCategories || [];
+                    // Ensure custom categories have the full DisplayCategory structure
                     const customCategoriesWithType = customCategories.map({
                         "ManageCategoriesPage.useCallback[fetchUserCategories].customCategoriesWithType": (cc)=>({
                                 ...cc,
@@ -2445,9 +2447,10 @@ function ManageCategoriesPage() {
                                 label: cc.label || {
                                     en: cc.name,
                                     pt: cc.name
-                                }
+                                } // Ensure label object exists
                             })
                     }["ManageCategoriesPage.useCallback[fetchUserCategories].customCategoriesWithType"]);
+                    // Add custom categories, avoiding duplicates by name (case-insensitive)
                     const categoryNames = new Set(effectiveCategories.map({
                         "ManageCategoriesPage.useCallback[fetchUserCategories]": (cat)=>cat.name.toLowerCase()
                     }["ManageCategoriesPage.useCallback[fetchUserCategories]"]));
@@ -2460,6 +2463,7 @@ function ManageCategoriesPage() {
                         }
                     }["ManageCategoriesPage.useCallback[fetchUserCategories]"]);
                 }
+                // Sort all categories by their display label in the current language
                 setDisplayCategories(effectiveCategories.sort({
                     "ManageCategoriesPage.useCallback[fetchUserCategories]": (a, b)=>(0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["getCategoryDisplayLabel"])(a, language).localeCompare((0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["getCategoryDisplayLabel"])(b, language))
                 }["ManageCategoriesPage.useCallback[fetchUserCategories]"]));
@@ -2476,6 +2480,7 @@ function ManageCategoriesPage() {
                     }),
                     variant: "destructive"
                 });
+                // Fallback to predefined if there's an error
                 const sortedPredefinedOnError = [
                     ...__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["CATEGORIES"]
                 ].sort({
@@ -2505,8 +2510,9 @@ function ManageCategoriesPage() {
     ]);
     const isPredefinedCategory = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useCallback"])({
         "ManageCategoriesPage.useCallback[isPredefinedCategory]": (categoryName)=>{
+            // Case-insensitive check against predefined category names
             return __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["CATEGORIES"].some({
-                "ManageCategoriesPage.useCallback[isPredefinedCategory]": (cat)=>cat.name === categoryName
+                "ManageCategoriesPage.useCallback[isPredefinedCategory]": (cat)=>cat.name.toLowerCase() === categoryName.toLowerCase()
             }["ManageCategoriesPage.useCallback[isPredefinedCategory]"]);
         }
     }["ManageCategoriesPage.useCallback[isPredefinedCategory]"], []);
@@ -2529,6 +2535,7 @@ function ManageCategoriesPage() {
         const newCategoryName = data.categoryName.trim();
         const newCategoryIcon = data.selectedIcon;
         const newCategoryType = data.categoryType;
+        // Check for duplicates against current displayCategories (which includes predefined and existing custom)
         const isDuplicate = displayCategories.some((cat)=>(0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["getCategoryDisplayLabel"])(cat, language).toLowerCase() === newCategoryName.toLowerCase() || cat.name.toLowerCase() === newCategoryName.toLowerCase());
         if (isDuplicate) {
             toast({
@@ -2537,8 +2544,8 @@ function ManageCategoriesPage() {
                     pt: "Categoria Duplicada"
                 }),
                 description: translate({
-                    en: "This category already exists.",
-                    pt: "Esta categoria já existe."
+                    en: "This category name already exists.",
+                    pt: "Este nome de categoria já existe."
                 }),
                 variant: "destructive"
             });
@@ -2564,7 +2571,7 @@ function ManageCategoriesPage() {
                     updatedAt: (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$esm2017$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["serverTimestamp"])()
                 });
             } else {
-                // This case should ideally not happen if user completed onboarding, but as a fallback:
+                // If preferences doc doesn't exist, create it
                 await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$esm2017$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["setDoc"])(preferencesDocRef, {
                     userDefinedCategories: [
                         newCustomCategory
@@ -2578,7 +2585,7 @@ function ManageCategoriesPage() {
                     updatedAt: (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$esm2017$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["serverTimestamp"])()
                 });
             }
-            await fetchUserCategories();
+            await fetchUserCategories(); // Refresh the list
             toast({
                 title: translate({
                     en: "Category Added",
@@ -2628,7 +2635,7 @@ function ManageCategoriesPage() {
             return;
         }
         setCategoryToEdit(category);
-        setOriginalCategoryName(category.name); // Store the original name
+        setOriginalCategoryName(category.name); // Store the original name for duplicate check
         editCategoryForm.reset({
             categoryName: category.name,
             selectedIcon: category.icon,
@@ -2651,12 +2658,26 @@ function ManageCategoriesPage() {
             });
             return;
         }
+        if (isPredefinedCategory(originalCategoryName)) {
+            toast({
+                title: translate({
+                    en: "Error",
+                    pt: "Erro"
+                }),
+                description: translate({
+                    en: "Cannot edit predefined categories.",
+                    pt: "Não é possível editar categorias pré-definidas."
+                }),
+                variant: "destructive"
+            });
+            return;
+        }
         setIsSaving(true);
         const updatedCategoryName = data.categoryName.trim();
         const updatedIcon = data.selectedIcon;
         const updatedType = data.categoryType;
         // Check for duplicates, excluding the original name of the category being edited
-        const isDuplicate = displayCategories.some((cat)=>((0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["getCategoryDisplayLabel"])(cat, language).toLowerCase() === updatedCategoryName.toLowerCase() || cat.name.toLowerCase() === updatedCategoryName.toLowerCase()) && cat.name !== originalCategoryName);
+        const isDuplicate = displayCategories.some((cat)=>((0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["getCategoryDisplayLabel"])(cat, language).toLowerCase() === updatedCategoryName.toLowerCase() || cat.name.toLowerCase() === updatedCategoryName.toLowerCase()) && cat.name.toLowerCase() !== originalCategoryName.toLowerCase());
         if (isDuplicate) {
             toast({
                 title: translate({
@@ -2689,17 +2710,12 @@ function ManageCategoriesPage() {
                 let currentCustomCategories = preferencesData.userDefinedCategories || [];
                 let currentSelectedCategories = preferencesData.selectedCategories || [];
                 // Update userDefinedCategories: replace the old one
-                currentCustomCategories = currentCustomCategories.map((cat)=>cat.name === originalCategoryName ? updatedCustomCategory : cat);
+                currentCustomCategories = currentCustomCategories.map((cat)=>cat.name.toLowerCase() === originalCategoryName.toLowerCase() ? updatedCustomCategory : cat);
                 // Update selectedCategories if name changed
-                if (originalCategoryName !== updatedCategoryName) {
-                    const index = currentSelectedCategories.indexOf(originalCategoryName);
+                if (originalCategoryName.toLowerCase() !== updatedCategoryName.toLowerCase()) {
+                    const index = currentSelectedCategories.map((name)=>name.toLowerCase()).indexOf(originalCategoryName.toLowerCase());
                     if (index > -1) {
                         currentSelectedCategories.splice(index, 1, updatedCategoryName);
-                    } else {
-                    // If original wasn't selected, new one might need to be added or not based on product logic
-                    // For simplicity, if user is editing it, let's assume they might want it selected if it wasn't.
-                    // Or, ensure that only existing selected items are renamed.
-                    // If original was selected, ensure it's updated.
                     }
                     // Ensure no duplicates if original was not selected but new name matches an already selected one
                     currentSelectedCategories = Array.from(new Set(currentSelectedCategories));
@@ -2709,7 +2725,7 @@ function ManageCategoriesPage() {
                     selectedCategories: currentSelectedCategories,
                     updatedAt: (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$esm2017$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["serverTimestamp"])()
                 });
-                await fetchUserCategories();
+                await fetchUserCategories(); // Refresh list
                 toast({
                     title: translate({
                         en: "Category Updated",
@@ -2782,15 +2798,15 @@ function ManageCategoriesPage() {
             const prefsSnap = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$esm2017$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["getDoc"])(preferencesDocRef);
             if (prefsSnap.exists()) {
                 const currentPrefs = prefsSnap.data();
-                const updatedUserDefined = (currentPrefs.userDefinedCategories || []).filter((cat)=>cat.name !== categoryToDelete.name);
-                const updatedSelected = (currentPrefs.selectedCategories || []).filter((name)=>name !== categoryToDelete.name);
+                const updatedUserDefined = (currentPrefs.userDefinedCategories || []).filter((cat)=>cat.name.toLowerCase() !== categoryToDelete.name.toLowerCase());
+                const updatedSelected = (currentPrefs.selectedCategories || []).filter((name)=>name.toLowerCase() !== categoryToDelete.name.toLowerCase());
                 await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$esm2017$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["updateDoc"])(preferencesDocRef, {
                     userDefinedCategories: updatedUserDefined,
                     selectedCategories: updatedSelected,
                     updatedAt: (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$esm2017$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["serverTimestamp"])()
                 });
             }
-            await fetchUserCategories();
+            await fetchUserCategories(); // Refresh list
             toast({
                 title: translate({
                     en: "Category Deleted",
@@ -2832,6 +2848,20 @@ function ManageCategoriesPage() {
         });
     };
     const renderCategoryForm = (formInstance, onSubmitHandler, dialogType)=>{
+        const dialogTitle = dialogType === "add" ? translate({
+            en: "Add New Category",
+            pt: "Adicionar Nova Categoria"
+        }) : translate({
+            en: "Edit Category",
+            pt: "Editar Categoria"
+        });
+        const dialogDescription = dialogType === "add" ? translate({
+            en: "Enter name, select icon, and choose type.",
+            pt: "Digite o nome, selecione um ícone e escolha o tipo."
+        }) : translate({
+            en: "Update the name, icon, or type of your custom category.",
+            pt: "Atualize o nome, ícone ou tipo da sua categoria personalizada."
+        });
         const submitButtonText = dialogType === "add" ? isSaving ? translate({
             en: "Adding...",
             pt: "Adicionando..."
@@ -2845,123 +2875,59 @@ function ManageCategoriesPage() {
             en: "Save Changes",
             pt: "Salvar Alterações"
         });
-        return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Form"], {
-            ...formInstance,
-            children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("form", {
-                onSubmit: formInstance.handleSubmit(onSubmitHandler),
-                className: "space-y-4 py-4",
-                children: [
-                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormField"], {
-                        control: formInstance.control,
-                        name: "categoryName",
-                        render: ({ field })=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormItem"], {
-                                children: [
-                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormLabel"], {
-                                        children: translate({
-                                            en: "Category Name",
-                                            pt: "Nome da Categoria"
-                                        })
-                                    }, void 0, false, {
-                                        fileName: "[project]/src/app/settings/categories/page.tsx",
-                                        lineNumber: 405,
-                                        columnNumber: 21
-                                    }, void 0),
-                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormControl"], {
-                                        children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$input$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Input"], {
-                                            placeholder: translate({
-                                                en: "e.g., Side Hustle",
-                                                pt: "ex: Renda Extra"
-                                            }),
-                                            ...field
-                                        }, void 0, false, {
-                                            fileName: "[project]/src/app/settings/categories/page.tsx",
-                                            lineNumber: 409,
-                                            columnNumber: 23
-                                        }, void 0)
-                                    }, void 0, false, {
-                                        fileName: "[project]/src/app/settings/categories/page.tsx",
-                                        lineNumber: 408,
-                                        columnNumber: 21
-                                    }, void 0),
-                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormMessage"], {}, void 0, false, {
-                                        fileName: "[project]/src/app/settings/categories/page.tsx",
-                                        lineNumber: 414,
-                                        columnNumber: 21
-                                    }, void 0)
-                                ]
-                            }, void 0, true, {
-                                fileName: "[project]/src/app/settings/categories/page.tsx",
-                                lineNumber: 404,
-                                columnNumber: 19
-                            }, void 0)
-                    }, void 0, false, {
-                        fileName: "[project]/src/app/settings/categories/page.tsx",
-                        lineNumber: 400,
-                        columnNumber: 15
-                    }, this),
-                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormField"], {
-                        control: formInstance.control,
-                        name: "selectedIcon",
-                        render: ({ field })=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormItem"], {
-                                children: [
-                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormLabel"], {
-                                        children: translate({
-                                            en: "Icon",
-                                            pt: "Ícone"
-                                        })
-                                    }, void 0, false, {
-                                        fileName: "[project]/src/app/settings/categories/page.tsx",
-                                        lineNumber: 423,
-                                        columnNumber: 21
-                                    }, void 0),
-                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Select"], {
-                                        onValueChange: field.onChange,
-                                        value: field.value,
+        return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$dialog$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["DialogContent"], {
+            className: "sm:max-w-[425px]",
+            children: [
+                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$dialog$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["DialogHeader"], {
+                    children: [
+                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$dialog$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["DialogTitle"], {
+                            children: dialogTitle
+                        }, void 0, false, {
+                            fileName: "[project]/src/app/settings/categories/page.tsx",
+                            lineNumber: 414,
+                            columnNumber: 17
+                        }, this),
+                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$dialog$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["DialogDescription"], {
+                            children: dialogDescription
+                        }, void 0, false, {
+                            fileName: "[project]/src/app/settings/categories/page.tsx",
+                            lineNumber: 415,
+                            columnNumber: 17
+                        }, this)
+                    ]
+                }, void 0, true, {
+                    fileName: "[project]/src/app/settings/categories/page.tsx",
+                    lineNumber: 413,
+                    columnNumber: 13
+                }, this),
+                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Form"], {
+                    ...formInstance,
+                    children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("form", {
+                        onSubmit: formInstance.handleSubmit(onSubmitHandler),
+                        className: "space-y-4 py-4",
+                        children: [
+                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormField"], {
+                                control: formInstance.control,
+                                name: "categoryName",
+                                render: ({ field })=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormItem"], {
                                         children: [
+                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormLabel"], {
+                                                children: translate({
+                                                    en: "Category Name",
+                                                    pt: "Nome da Categoria"
+                                                })
+                                            }, void 0, false, {
+                                                fileName: "[project]/src/app/settings/categories/page.tsx",
+                                                lineNumber: 424,
+                                                columnNumber: 25
+                                            }, void 0),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormControl"], {
-                                                children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["SelectTrigger"], {
-                                                    className: "w-full",
-                                                    children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["SelectValue"], {
-                                                        placeholder: translate({
-                                                            en: "Select an icon",
-                                                            pt: "Selecione um ícone"
-                                                        }),
-                                                        children: field.value ? (()=>{
-                                                            const foundIconOption = selectableIcons.find((i)=>i.value === field.value);
-                                                            const IconComp = foundIconOption ? foundIconOption.iconComponent : __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$circle$2d$help$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__CircleHelp$3e$__["CircleHelp"];
-                                                            const labelText = foundIconOption ? translate(foundIconOption.label) : field.value;
-                                                            return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                                                                className: "flex items-center gap-2",
-                                                                children: [
-                                                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(IconComp, {
-                                                                        className: "h-4 w-4 text-muted-foreground"
-                                                                    }, void 0, false, {
-                                                                        fileName: "[project]/src/app/settings/categories/page.tsx",
-                                                                        lineNumber: 437,
-                                                                        columnNumber: 37
-                                                                    }, void 0),
-                                                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
-                                                                        children: labelText
-                                                                    }, void 0, false, {
-                                                                        fileName: "[project]/src/app/settings/categories/page.tsx",
-                                                                        lineNumber: 438,
-                                                                        columnNumber: 37
-                                                                    }, void 0)
-                                                                ]
-                                                            }, void 0, true, {
-                                                                fileName: "[project]/src/app/settings/categories/page.tsx",
-                                                                lineNumber: 436,
-                                                                columnNumber: 35
-                                                            }, void 0);
-                                                        })() : translate({
-                                                            en: "Select an icon",
-                                                            pt: "Selecione um ícone"
-                                                        })
-                                                    }, void 0, false, {
-                                                        fileName: "[project]/src/app/settings/categories/page.tsx",
-                                                        lineNumber: 429,
-                                                        columnNumber: 28
-                                                    }, void 0)
+                                                children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$input$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Input"], {
+                                                    placeholder: translate({
+                                                        en: "e.g., Side Hustle",
+                                                        pt: "ex: Renda Extra"
+                                                    }),
+                                                    ...field
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/app/settings/categories/page.tsx",
                                                     lineNumber: 428,
@@ -2970,231 +2936,326 @@ function ManageCategoriesPage() {
                                             }, void 0, false, {
                                                 fileName: "[project]/src/app/settings/categories/page.tsx",
                                                 lineNumber: 427,
-                                                columnNumber: 23
+                                                columnNumber: 25
                                             }, void 0),
-                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["SelectContent"], {
-                                                children: selectableIcons.map((iconOption)=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["SelectItem"], {
-                                                        value: iconOption.value,
-                                                        children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                                                            className: "flex items-center gap-2",
-                                                            children: [
-                                                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(iconOption.iconComponent, {
-                                                                    className: "h-4 w-4 text-muted-foreground"
-                                                                }, void 0, false, {
-                                                                    fileName: "[project]/src/app/settings/categories/page.tsx",
-                                                                    lineNumber: 452,
-                                                                    columnNumber: 31
-                                                                }, void 0),
-                                                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
-                                                                    children: translate(iconOption.label)
-                                                                }, void 0, false, {
-                                                                    fileName: "[project]/src/app/settings/categories/page.tsx",
-                                                                    lineNumber: 453,
-                                                                    columnNumber: 31
-                                                                }, void 0)
-                                                            ]
-                                                        }, void 0, true, {
-                                                            fileName: "[project]/src/app/settings/categories/page.tsx",
-                                                            lineNumber: 451,
-                                                            columnNumber: 29
-                                                        }, void 0)
-                                                    }, iconOption.value, false, {
-                                                        fileName: "[project]/src/app/settings/categories/page.tsx",
-                                                        lineNumber: 450,
-                                                        columnNumber: 27
-                                                    }, void 0))
-                                            }, void 0, false, {
+                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormMessage"], {}, void 0, false, {
                                                 fileName: "[project]/src/app/settings/categories/page.tsx",
-                                                lineNumber: 448,
-                                                columnNumber: 23
+                                                lineNumber: 433,
+                                                columnNumber: 25
                                             }, void 0)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/src/app/settings/categories/page.tsx",
-                                        lineNumber: 426,
-                                        columnNumber: 21
-                                    }, void 0),
-                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormMessage"], {}, void 0, false, {
-                                        fileName: "[project]/src/app/settings/categories/page.tsx",
-                                        lineNumber: 459,
+                                        lineNumber: 423,
                                         columnNumber: 21
                                     }, void 0)
-                                ]
-                            }, void 0, true, {
-                                fileName: "[project]/src/app/settings/categories/page.tsx",
-                                lineNumber: 422,
-                                columnNumber: 19
-                            }, void 0)
-                    }, void 0, false, {
-                        fileName: "[project]/src/app/settings/categories/page.tsx",
-                        lineNumber: 418,
-                        columnNumber: 15
-                    }, this),
-                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormField"], {
-                        control: formInstance.control,
-                        name: "categoryType",
-                        render: ({ field })=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormItem"], {
-                                className: "space-y-2",
-                                children: [
-                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormLabel"], {
-                                        children: translate({
-                                            en: "Category Type",
-                                            pt: "Tipo da Categoria"
-                                        })
-                                    }, void 0, false, {
-                                        fileName: "[project]/src/app/settings/categories/page.tsx",
-                                        lineNumber: 468,
-                                        columnNumber: 21
-                                    }, void 0),
-                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormControl"], {
-                                        children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$radio$2d$group$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["RadioGroup"], {
-                                            onValueChange: field.onChange,
-                                            value: field.value,
-                                            className: "flex flex-row items-center space-x-3 pt-1",
-                                            children: [
-                                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormItem"], {
-                                                    className: "flex items-center space-x-1.5",
-                                                    children: [
-                                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormControl"], {
-                                                            children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$radio$2d$group$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["RadioGroupItem"], {
-                                                                value: "income",
-                                                                id: `type-income-${dialogType}-dialog`
-                                                            }, void 0, false, {
-                                                                fileName: "[project]/src/app/settings/categories/page.tsx",
-                                                                lineNumber: 477,
-                                                                columnNumber: 35
-                                                            }, void 0)
-                                                        }, void 0, false, {
-                                                            fileName: "[project]/src/app/settings/categories/page.tsx",
-                                                            lineNumber: 476,
-                                                            columnNumber: 31
-                                                        }, void 0),
-                                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$label$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Label"], {
-                                                            htmlFor: `type-income-${dialogType}-dialog`,
-                                                            className: "font-normal",
-                                                            children: translate({
-                                                                en: "Income",
-                                                                pt: "Receita"
-                                                            })
-                                                        }, void 0, false, {
-                                                            fileName: "[project]/src/app/settings/categories/page.tsx",
-                                                            lineNumber: 479,
-                                                            columnNumber: 31
-                                                        }, void 0)
-                                                    ]
-                                                }, void 0, true, {
-                                                    fileName: "[project]/src/app/settings/categories/page.tsx",
-                                                    lineNumber: 475,
-                                                    columnNumber: 27
-                                                }, void 0),
-                                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormItem"], {
-                                                    className: "flex items-center space-x-1.5",
-                                                    children: [
-                                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormControl"], {
-                                                            children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$radio$2d$group$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["RadioGroupItem"], {
-                                                                value: "expense",
-                                                                id: `type-expense-${dialogType}-dialog`
-                                                            }, void 0, false, {
-                                                                fileName: "[project]/src/app/settings/categories/page.tsx",
-                                                                lineNumber: 483,
-                                                                columnNumber: 35
-                                                            }, void 0)
-                                                        }, void 0, false, {
-                                                            fileName: "[project]/src/app/settings/categories/page.tsx",
-                                                            lineNumber: 482,
-                                                            columnNumber: 31
-                                                        }, void 0),
-                                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$label$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Label"], {
-                                                            htmlFor: `type-expense-${dialogType}-dialog`,
-                                                            className: "font-normal",
-                                                            children: translate({
-                                                                en: "Expense",
-                                                                pt: "Despesa"
-                                                            })
-                                                        }, void 0, false, {
-                                                            fileName: "[project]/src/app/settings/categories/page.tsx",
-                                                            lineNumber: 485,
-                                                            columnNumber: 31
-                                                        }, void 0)
-                                                    ]
-                                                }, void 0, true, {
-                                                    fileName: "[project]/src/app/settings/categories/page.tsx",
-                                                    lineNumber: 481,
-                                                    columnNumber: 27
-                                                }, void 0)
-                                            ]
-                                        }, void 0, true, {
-                                            fileName: "[project]/src/app/settings/categories/page.tsx",
-                                            lineNumber: 470,
-                                            columnNumber: 23
-                                        }, void 0)
-                                    }, void 0, false, {
-                                        fileName: "[project]/src/app/settings/categories/page.tsx",
-                                        lineNumber: 469,
-                                        columnNumber: 21
-                                    }, void 0),
-                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormMessage"], {}, void 0, false, {
-                                        fileName: "[project]/src/app/settings/categories/page.tsx",
-                                        lineNumber: 489,
-                                        columnNumber: 21
-                                    }, void 0)
-                                ]
-                            }, void 0, true, {
-                                fileName: "[project]/src/app/settings/categories/page.tsx",
-                                lineNumber: 467,
-                                columnNumber: 19
-                            }, void 0)
-                    }, void 0, false, {
-                        fileName: "[project]/src/app/settings/categories/page.tsx",
-                        lineNumber: 463,
-                        columnNumber: 15
-                    }, this),
-                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$dialog$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["DialogFooter"], {
-                        children: [
-                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$dialog$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["DialogClose"], {
-                                asChild: true,
-                                children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$button$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Button"], {
-                                    type: "button",
-                                    variant: "outline",
-                                    disabled: isSaving,
-                                    children: translate({
-                                        en: "Cancel",
-                                        pt: "Cancelar"
-                                    })
-                                }, void 0, false, {
-                                    fileName: "[project]/src/app/settings/categories/page.tsx",
-                                    lineNumber: 495,
-                                    columnNumber: 19
-                                }, this)
                             }, void 0, false, {
                                 fileName: "[project]/src/app/settings/categories/page.tsx",
-                                lineNumber: 494,
+                                lineNumber: 419,
                                 columnNumber: 17
                             }, this),
-                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$button$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Button"], {
-                                type: "submit",
-                                disabled: isSaving,
-                                children: submitButtonText
+                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormField"], {
+                                control: formInstance.control,
+                                name: "selectedIcon",
+                                render: ({ field })=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormItem"], {
+                                        children: [
+                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormLabel"], {
+                                                children: translate({
+                                                    en: "Icon",
+                                                    pt: "Ícone"
+                                                })
+                                            }, void 0, false, {
+                                                fileName: "[project]/src/app/settings/categories/page.tsx",
+                                                lineNumber: 442,
+                                                columnNumber: 25
+                                            }, void 0),
+                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Select"], {
+                                                onValueChange: field.onChange,
+                                                value: field.value,
+                                                children: [
+                                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormControl"], {
+                                                        children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["SelectTrigger"], {
+                                                            className: "w-full",
+                                                            children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["SelectValue"], {
+                                                                placeholder: translate({
+                                                                    en: "Select an icon",
+                                                                    pt: "Selecione um ícone"
+                                                                }),
+                                                                children: field.value ? (()=>{
+                                                                    const foundIconOption = selectableIcons.find((i)=>i.value === field.value);
+                                                                    const IconComp = foundIconOption ? foundIconOption.iconComponent : __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$circle$2d$help$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__CircleHelp$3e$__["CircleHelp"];
+                                                                    const labelText = foundIconOption ? translate(foundIconOption.label) : field.value;
+                                                                    return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                                                        className: "flex items-center gap-2",
+                                                                        children: [
+                                                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(IconComp, {
+                                                                                className: "h-4 w-4 text-muted-foreground"
+                                                                            }, void 0, false, {
+                                                                                fileName: "[project]/src/app/settings/categories/page.tsx",
+                                                                                lineNumber: 456,
+                                                                                columnNumber: 41
+                                                                            }, void 0),
+                                                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
+                                                                                children: labelText
+                                                                            }, void 0, false, {
+                                                                                fileName: "[project]/src/app/settings/categories/page.tsx",
+                                                                                lineNumber: 457,
+                                                                                columnNumber: 41
+                                                                            }, void 0)
+                                                                        ]
+                                                                    }, void 0, true, {
+                                                                        fileName: "[project]/src/app/settings/categories/page.tsx",
+                                                                        lineNumber: 455,
+                                                                        columnNumber: 37
+                                                                    }, void 0);
+                                                                })() : translate({
+                                                                    en: "Select an icon",
+                                                                    pt: "Selecione um ícone"
+                                                                })
+                                                            }, void 0, false, {
+                                                                fileName: "[project]/src/app/settings/categories/page.tsx",
+                                                                lineNumber: 448,
+                                                                columnNumber: 29
+                                                            }, void 0)
+                                                        }, void 0, false, {
+                                                            fileName: "[project]/src/app/settings/categories/page.tsx",
+                                                            lineNumber: 447,
+                                                            columnNumber: 29
+                                                        }, void 0)
+                                                    }, void 0, false, {
+                                                        fileName: "[project]/src/app/settings/categories/page.tsx",
+                                                        lineNumber: 446,
+                                                        columnNumber: 25
+                                                    }, void 0),
+                                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["SelectContent"], {
+                                                        children: selectableIcons.map((iconOption)=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["SelectItem"], {
+                                                                value: iconOption.value,
+                                                                children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                                                    className: "flex items-center gap-2",
+                                                                    children: [
+                                                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(iconOption.iconComponent, {
+                                                                            className: "h-4 w-4 text-muted-foreground"
+                                                                        }, void 0, false, {
+                                                                            fileName: "[project]/src/app/settings/categories/page.tsx",
+                                                                            lineNumber: 471,
+                                                                            columnNumber: 33
+                                                                        }, void 0),
+                                                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
+                                                                            children: translate(iconOption.label)
+                                                                        }, void 0, false, {
+                                                                            fileName: "[project]/src/app/settings/categories/page.tsx",
+                                                                            lineNumber: 472,
+                                                                            columnNumber: 33
+                                                                        }, void 0)
+                                                                    ]
+                                                                }, void 0, true, {
+                                                                    fileName: "[project]/src/app/settings/categories/page.tsx",
+                                                                    lineNumber: 470,
+                                                                    columnNumber: 33
+                                                                }, void 0)
+                                                            }, iconOption.value, false, {
+                                                                fileName: "[project]/src/app/settings/categories/page.tsx",
+                                                                lineNumber: 469,
+                                                                columnNumber: 29
+                                                            }, void 0))
+                                                    }, void 0, false, {
+                                                        fileName: "[project]/src/app/settings/categories/page.tsx",
+                                                        lineNumber: 467,
+                                                        columnNumber: 25
+                                                    }, void 0)
+                                                ]
+                                            }, void 0, true, {
+                                                fileName: "[project]/src/app/settings/categories/page.tsx",
+                                                lineNumber: 445,
+                                                columnNumber: 25
+                                            }, void 0),
+                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormMessage"], {}, void 0, false, {
+                                                fileName: "[project]/src/app/settings/categories/page.tsx",
+                                                lineNumber: 478,
+                                                columnNumber: 25
+                                            }, void 0)
+                                        ]
+                                    }, void 0, true, {
+                                        fileName: "[project]/src/app/settings/categories/page.tsx",
+                                        lineNumber: 441,
+                                        columnNumber: 21
+                                    }, void 0)
                             }, void 0, false, {
                                 fileName: "[project]/src/app/settings/categories/page.tsx",
-                                lineNumber: 499,
+                                lineNumber: 437,
+                                columnNumber: 17
+                            }, this),
+                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormField"], {
+                                control: formInstance.control,
+                                name: "categoryType",
+                                render: ({ field })=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormItem"], {
+                                        className: "space-y-2",
+                                        children: [
+                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormLabel"], {
+                                                children: translate({
+                                                    en: "Category Type",
+                                                    pt: "Tipo da Categoria"
+                                                })
+                                            }, void 0, false, {
+                                                fileName: "[project]/src/app/settings/categories/page.tsx",
+                                                lineNumber: 487,
+                                                columnNumber: 25
+                                            }, void 0),
+                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormControl"], {
+                                                children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$radio$2d$group$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["RadioGroup"], {
+                                                    onValueChange: field.onChange,
+                                                    value: field.value,
+                                                    className: "flex flex-row items-center space-x-3 pt-1",
+                                                    children: [
+                                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormItem"], {
+                                                            className: "flex items-center space-x-1.5",
+                                                            children: [
+                                                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormControl"], {
+                                                                    children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$radio$2d$group$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["RadioGroupItem"], {
+                                                                        value: "income",
+                                                                        id: `type-income-${dialogType}-dialog`
+                                                                    }, void 0, false, {
+                                                                        fileName: "[project]/src/app/settings/categories/page.tsx",
+                                                                        lineNumber: 496,
+                                                                        columnNumber: 37
+                                                                    }, void 0)
+                                                                }, void 0, false, {
+                                                                    fileName: "[project]/src/app/settings/categories/page.tsx",
+                                                                    lineNumber: 495,
+                                                                    columnNumber: 33
+                                                                }, void 0),
+                                                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$label$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Label"], {
+                                                                    htmlFor: `type-income-${dialogType}-dialog`,
+                                                                    className: "font-normal",
+                                                                    children: translate({
+                                                                        en: "Income",
+                                                                        pt: "Receita"
+                                                                    })
+                                                                }, void 0, false, {
+                                                                    fileName: "[project]/src/app/settings/categories/page.tsx",
+                                                                    lineNumber: 498,
+                                                                    columnNumber: 33
+                                                                }, void 0)
+                                                            ]
+                                                        }, void 0, true, {
+                                                            fileName: "[project]/src/app/settings/categories/page.tsx",
+                                                            lineNumber: 494,
+                                                            columnNumber: 29
+                                                        }, void 0),
+                                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormItem"], {
+                                                            className: "flex items-center space-x-1.5",
+                                                            children: [
+                                                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormControl"], {
+                                                                    children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$radio$2d$group$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["RadioGroupItem"], {
+                                                                        value: "expense",
+                                                                        id: `type-expense-${dialogType}-dialog`
+                                                                    }, void 0, false, {
+                                                                        fileName: "[project]/src/app/settings/categories/page.tsx",
+                                                                        lineNumber: 502,
+                                                                        columnNumber: 37
+                                                                    }, void 0)
+                                                                }, void 0, false, {
+                                                                    fileName: "[project]/src/app/settings/categories/page.tsx",
+                                                                    lineNumber: 501,
+                                                                    columnNumber: 33
+                                                                }, void 0),
+                                                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$label$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Label"], {
+                                                                    htmlFor: `type-expense-${dialogType}-dialog`,
+                                                                    className: "font-normal",
+                                                                    children: translate({
+                                                                        en: "Expense",
+                                                                        pt: "Despesa"
+                                                                    })
+                                                                }, void 0, false, {
+                                                                    fileName: "[project]/src/app/settings/categories/page.tsx",
+                                                                    lineNumber: 504,
+                                                                    columnNumber: 33
+                                                                }, void 0)
+                                                            ]
+                                                        }, void 0, true, {
+                                                            fileName: "[project]/src/app/settings/categories/page.tsx",
+                                                            lineNumber: 500,
+                                                            columnNumber: 29
+                                                        }, void 0)
+                                                    ]
+                                                }, void 0, true, {
+                                                    fileName: "[project]/src/app/settings/categories/page.tsx",
+                                                    lineNumber: 489,
+                                                    columnNumber: 25
+                                                }, void 0)
+                                            }, void 0, false, {
+                                                fileName: "[project]/src/app/settings/categories/page.tsx",
+                                                lineNumber: 488,
+                                                columnNumber: 25
+                                            }, void 0),
+                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormMessage"], {}, void 0, false, {
+                                                fileName: "[project]/src/app/settings/categories/page.tsx",
+                                                lineNumber: 508,
+                                                columnNumber: 25
+                                            }, void 0)
+                                        ]
+                                    }, void 0, true, {
+                                        fileName: "[project]/src/app/settings/categories/page.tsx",
+                                        lineNumber: 486,
+                                        columnNumber: 21
+                                    }, void 0)
+                            }, void 0, false, {
+                                fileName: "[project]/src/app/settings/categories/page.tsx",
+                                lineNumber: 482,
+                                columnNumber: 17
+                            }, this),
+                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$dialog$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["DialogFooter"], {
+                                children: [
+                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$dialog$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["DialogClose"], {
+                                        asChild: true,
+                                        children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$button$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Button"], {
+                                            type: "button",
+                                            variant: "outline",
+                                            disabled: isSaving,
+                                            children: translate({
+                                                en: "Cancel",
+                                                pt: "Cancelar"
+                                            })
+                                        }, void 0, false, {
+                                            fileName: "[project]/src/app/settings/categories/page.tsx",
+                                            lineNumber: 514,
+                                            columnNumber: 21
+                                        }, this)
+                                    }, void 0, false, {
+                                        fileName: "[project]/src/app/settings/categories/page.tsx",
+                                        lineNumber: 513,
+                                        columnNumber: 21
+                                    }, this),
+                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$button$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Button"], {
+                                        type: "submit",
+                                        disabled: isSaving,
+                                        children: submitButtonText
+                                    }, void 0, false, {
+                                        fileName: "[project]/src/app/settings/categories/page.tsx",
+                                        lineNumber: 518,
+                                        columnNumber: 21
+                                    }, this)
+                                ]
+                            }, void 0, true, {
+                                fileName: "[project]/src/app/settings/categories/page.tsx",
+                                lineNumber: 512,
                                 columnNumber: 17
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/src/app/settings/categories/page.tsx",
-                        lineNumber: 493,
-                        columnNumber: 15
+                        lineNumber: 418,
+                        columnNumber: 17
                     }, this)
-                ]
-            }, void 0, true, {
-                fileName: "[project]/src/app/settings/categories/page.tsx",
-                lineNumber: 399,
-                columnNumber: 13
-            }, this)
-        }, void 0, false, {
+                }, void 0, false, {
+                    fileName: "[project]/src/app/settings/categories/page.tsx",
+                    lineNumber: 417,
+                    columnNumber: 13
+                }, this)
+            ]
+        }, void 0, true, {
             fileName: "[project]/src/app/settings/categories/page.tsx",
-            lineNumber: 398,
+            lineNumber: 412,
             columnNumber: 9
         }, this);
     };
@@ -3214,7 +3275,7 @@ function ManageCategoriesPage() {
                                 })
                             }, void 0, false, {
                                 fileName: "[project]/src/app/settings/categories/page.tsx",
-                                lineNumber: 513,
+                                lineNumber: 533,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$dialog$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Dialog"], {
@@ -3231,7 +3292,7 @@ function ManageCategoriesPage() {
                                                     className: "mr-2 h-4 w-4"
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/app/settings/categories/page.tsx",
-                                                    lineNumber: 519,
+                                                    lineNumber: 539,
                                                     columnNumber: 17
                                                 }, this),
                                                 translate({
@@ -3241,62 +3302,25 @@ function ManageCategoriesPage() {
                                             ]
                                         }, void 0, true, {
                                             fileName: "[project]/src/app/settings/categories/page.tsx",
-                                            lineNumber: 518,
+                                            lineNumber: 538,
                                             columnNumber: 15
                                         }, this)
                                     }, void 0, false, {
                                         fileName: "[project]/src/app/settings/categories/page.tsx",
-                                        lineNumber: 517,
+                                        lineNumber: 537,
                                         columnNumber: 13
                                     }, this),
-                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$dialog$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["DialogContent"], {
-                                        className: "sm:max-w-[425px]",
-                                        children: [
-                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$dialog$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["DialogHeader"], {
-                                                children: [
-                                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$dialog$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["DialogTitle"], {
-                                                        children: translate({
-                                                            en: "Add New Category",
-                                                            pt: "Adicionar Nova Categoria"
-                                                        })
-                                                    }, void 0, false, {
-                                                        fileName: "[project]/src/app/settings/categories/page.tsx",
-                                                        lineNumber: 525,
-                                                        columnNumber: 17
-                                                    }, this),
-                                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$dialog$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["DialogDescription"], {
-                                                        children: translate({
-                                                            en: "Enter name, select icon, and choose type.",
-                                                            pt: "Digite o nome, selecione um ícone e escolha o tipo."
-                                                        })
-                                                    }, void 0, false, {
-                                                        fileName: "[project]/src/app/settings/categories/page.tsx",
-                                                        lineNumber: 526,
-                                                        columnNumber: 17
-                                                    }, this)
-                                                ]
-                                            }, void 0, true, {
-                                                fileName: "[project]/src/app/settings/categories/page.tsx",
-                                                lineNumber: 524,
-                                                columnNumber: 15
-                                            }, this),
-                                            renderCategoryForm(addCategoryForm, handleAddCategorySubmit, "add")
-                                        ]
-                                    }, void 0, true, {
-                                        fileName: "[project]/src/app/settings/categories/page.tsx",
-                                        lineNumber: 523,
-                                        columnNumber: 13
-                                    }, this)
+                                    renderCategoryForm(addCategoryForm, handleAddCategorySubmit, "add")
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/src/app/settings/categories/page.tsx",
-                                lineNumber: 516,
+                                lineNumber: 536,
                                 columnNumber: 11
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/src/app/settings/categories/page.tsx",
-                        lineNumber: 512,
+                        lineNumber: 532,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$dialog$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Dialog"], {
@@ -3308,47 +3332,10 @@ function ManageCategoriesPage() {
                                 setOriginalCategoryName(null);
                             }
                         },
-                        children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$dialog$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["DialogContent"], {
-                            className: "sm:max-w-[425px]",
-                            children: [
-                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$dialog$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["DialogHeader"], {
-                                    children: [
-                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$dialog$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["DialogTitle"], {
-                                            children: translate({
-                                                en: "Edit Category",
-                                                pt: "Editar Categoria"
-                                            })
-                                        }, void 0, false, {
-                                            fileName: "[project]/src/app/settings/categories/page.tsx",
-                                            lineNumber: 545,
-                                            columnNumber: 21
-                                        }, this),
-                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$dialog$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["DialogDescription"], {
-                                            children: translate({
-                                                en: "Update the name, icon, or type of your custom category.",
-                                                pt: "Atualize o nome, ícone ou tipo da sua categoria personalizada."
-                                            })
-                                        }, void 0, false, {
-                                            fileName: "[project]/src/app/settings/categories/page.tsx",
-                                            lineNumber: 546,
-                                            columnNumber: 21
-                                        }, this)
-                                    ]
-                                }, void 0, true, {
-                                    fileName: "[project]/src/app/settings/categories/page.tsx",
-                                    lineNumber: 544,
-                                    columnNumber: 17
-                                }, this),
-                                categoryToEdit && renderCategoryForm(editCategoryForm, handleEditCategorySubmit, "edit")
-                            ]
-                        }, void 0, true, {
-                            fileName: "[project]/src/app/settings/categories/page.tsx",
-                            lineNumber: 543,
-                            columnNumber: 13
-                        }, this)
+                        children: categoryToEdit && renderCategoryForm(editCategoryForm, handleEditCategorySubmit, "edit")
                     }, void 0, false, {
                         fileName: "[project]/src/app/settings/categories/page.tsx",
-                        lineNumber: 536,
+                        lineNumber: 548,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Card"], {
@@ -3363,7 +3350,7 @@ function ManageCategoriesPage() {
                                         })
                                     }, void 0, false, {
                                         fileName: "[project]/src/app/settings/categories/page.tsx",
-                                        lineNumber: 557,
+                                        lineNumber: 561,
                                         columnNumber: 13
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["CardDescription"], {
@@ -3373,13 +3360,13 @@ function ManageCategoriesPage() {
                                         })
                                     }, void 0, false, {
                                         fileName: "[project]/src/app/settings/categories/page.tsx",
-                                        lineNumber: 558,
+                                        lineNumber: 562,
                                         columnNumber: 13
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/src/app/settings/categories/page.tsx",
-                                lineNumber: 556,
+                                lineNumber: 560,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["CardContent"], {
@@ -3399,34 +3386,11 @@ function ManageCategoriesPage() {
                                                                     className: "h-6 w-6 rounded"
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/app/settings/categories/page.tsx",
-                                                                    lineNumber: 569,
-                                                                    columnNumber: 25
-                                                                }, this),
-                                                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$skeleton$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Skeleton"], {
-                                                                    className: "h-5 w-32"
-                                                                }, void 0, false, {
-                                                                    fileName: "[project]/src/app/settings/categories/page.tsx",
-                                                                    lineNumber: 570,
-                                                                    columnNumber: 25
-                                                                }, this)
-                                                            ]
-                                                        }, void 0, true, {
-                                                            fileName: "[project]/src/app/settings/categories/page.tsx",
-                                                            lineNumber: 568,
-                                                            columnNumber: 23
-                                                        }, this),
-                                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                                                            className: "flex items-center gap-2",
-                                                            children: [
-                                                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$skeleton$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Skeleton"], {
-                                                                    className: "h-8 w-8"
-                                                                }, void 0, false, {
-                                                                    fileName: "[project]/src/app/settings/categories/page.tsx",
                                                                     lineNumber: 573,
                                                                     columnNumber: 25
                                                                 }, this),
                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$skeleton$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Skeleton"], {
-                                                                    className: "h-8 w-8"
+                                                                    className: "h-5 w-32"
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/app/settings/categories/page.tsx",
                                                                     lineNumber: 574,
@@ -3437,34 +3401,61 @@ function ManageCategoriesPage() {
                                                             fileName: "[project]/src/app/settings/categories/page.tsx",
                                                             lineNumber: 572,
                                                             columnNumber: 23
+                                                        }, this),
+                                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                                            className: "flex items-center gap-2",
+                                                            children: [
+                                                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$skeleton$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Skeleton"], {
+                                                                    className: "h-8 w-8"
+                                                                }, void 0, false, {
+                                                                    fileName: "[project]/src/app/settings/categories/page.tsx",
+                                                                    lineNumber: 577,
+                                                                    columnNumber: 25
+                                                                }, this),
+                                                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$skeleton$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Skeleton"], {
+                                                                    className: "h-8 w-8"
+                                                                }, void 0, false, {
+                                                                    fileName: "[project]/src/app/settings/categories/page.tsx",
+                                                                    lineNumber: 578,
+                                                                    columnNumber: 25
+                                                                }, this)
+                                                            ]
+                                                        }, void 0, true, {
+                                                            fileName: "[project]/src/app/settings/categories/page.tsx",
+                                                            lineNumber: 576,
+                                                            columnNumber: 23
                                                         }, this)
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "[project]/src/app/settings/categories/page.tsx",
-                                                    lineNumber: 567,
+                                                    lineNumber: 571,
                                                     columnNumber: 21
                                                 }, this),
                                                 i < 4 && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$separator$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Separator"], {}, void 0, false, {
                                                     fileName: "[project]/src/app/settings/categories/page.tsx",
-                                                    lineNumber: 577,
+                                                    lineNumber: 581,
                                                     columnNumber: 31
                                                 }, this)
                                             ]
                                         }, `skeleton-cat-${i}`, true, {
                                             fileName: "[project]/src/app/settings/categories/page.tsx",
-                                            lineNumber: 566,
+                                            lineNumber: 570,
                                             columnNumber: 19
                                         }, this))
                                 }, void 0, false, {
                                     fileName: "[project]/src/app/settings/categories/page.tsx",
-                                    lineNumber: 564,
+                                    lineNumber: 568,
                                     columnNumber: 15
                                 }, this) : displayCategories.length > 0 ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                                    className: "space-y-4",
-                                    children: displayCategories.map((category, index)=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"].Fragment, {
+                                    className: "space-y-1",
+                                    children: displayCategories.map((category, index)=>{
+                                        const isPredefined = isPredefinedCategory(category.name);
+                                        // Diagnostic Log
+                                        console.log(`Category: "${(0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["getCategoryDisplayLabel"])(category, language)}", Name for check: "${category.name}", Is Predefined: ${isPredefined}`);
+                                        return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"].Fragment, {
                                             children: [
                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                                                    className: "flex items-center justify-between py-3",
+                                                    className: "flex items-center justify-between py-3 hover:bg-muted/50 rounded-md px-2 -mx-2",
                                                     children: [
                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                                                             className: "flex items-center gap-3",
@@ -3474,8 +3465,8 @@ function ManageCategoriesPage() {
                                                                     className: "h-6 w-6 text-muted-foreground"
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/app/settings/categories/page.tsx",
-                                                                    lineNumber: 587,
-                                                                    columnNumber: 25
+                                                                    lineNumber: 595,
+                                                                    columnNumber: 27
                                                                 }, this),
                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                                                                     className: "flex flex-col",
@@ -3485,47 +3476,47 @@ function ManageCategoriesPage() {
                                                                             children: (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["getCategoryDisplayLabel"])(category, language)
                                                                         }, void 0, false, {
                                                                             fileName: "[project]/src/app/settings/categories/page.tsx",
-                                                                            lineNumber: 589,
-                                                                            columnNumber: 28
+                                                                            lineNumber: 597,
+                                                                            columnNumber: 29
                                                                         }, this),
                                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$badge$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Badge"], {
                                                                             variant: category.type === 'income' ? 'secondary' : 'outline',
-                                                                            className: `w-fit text-xs ${category.type === 'income' ? 'bg-green-100 text-green-700 border-green-300 dark:bg-green-900/50 dark:text-green-300 dark:border-green-700' : 'bg-red-100 text-red-700 border-red-300 dark:bg-red-900/50 dark:text-red-300 dark:border-red-700'}`,
+                                                                            className: `w-fit text-xs ${category.type === 'income' ? 'bg-green-100 text-green-700 border-green-200 dark:bg-green-900/50 dark:text-green-300 dark:border-green-700/50' : 'bg-red-100 text-red-700 border-red-200 dark:bg-red-900/50 dark:text-red-300 dark:border-red-700/50'}`,
                                                                             children: [
                                                                                 category.type === 'income' ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$trending$2d$up$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__TrendingUp$3e$__["TrendingUp"], {
                                                                                     className: "mr-1 h-3 w-3"
                                                                                 }, void 0, false, {
                                                                                     fileName: "[project]/src/app/settings/categories/page.tsx",
-                                                                                    lineNumber: 596,
-                                                                                    columnNumber: 59
+                                                                                    lineNumber: 604,
+                                                                                    columnNumber: 61
                                                                                 }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$trending$2d$down$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__TrendingDown$3e$__["TrendingDown"], {
                                                                                     className: "mr-1 h-3 w-3"
                                                                                 }, void 0, false, {
                                                                                     fileName: "[project]/src/app/settings/categories/page.tsx",
-                                                                                    lineNumber: 596,
-                                                                                    columnNumber: 101
+                                                                                    lineNumber: 604,
+                                                                                    columnNumber: 103
                                                                                 }, this),
                                                                                 getCategoryTypeLabel(category.type)
                                                                             ]
                                                                         }, void 0, true, {
                                                                             fileName: "[project]/src/app/settings/categories/page.tsx",
-                                                                            lineNumber: 592,
-                                                                            columnNumber: 27
+                                                                            lineNumber: 600,
+                                                                            columnNumber: 29
                                                                         }, this)
                                                                     ]
                                                                 }, void 0, true, {
                                                                     fileName: "[project]/src/app/settings/categories/page.tsx",
-                                                                    lineNumber: 588,
-                                                                    columnNumber: 25
+                                                                    lineNumber: 596,
+                                                                    columnNumber: 27
                                                                 }, this)
                                                             ]
                                                         }, void 0, true, {
                                                             fileName: "[project]/src/app/settings/categories/page.tsx",
-                                                            lineNumber: 586,
-                                                            columnNumber: 23
+                                                            lineNumber: 594,
+                                                            columnNumber: 25
                                                         }, this),
                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                                                            className: "flex items-center gap-2",
+                                                            className: "flex items-center gap-1",
                                                             children: [
                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$button$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Button"], {
                                                                     variant: "ghost",
@@ -3535,67 +3526,69 @@ function ManageCategoriesPage() {
                                                                         en: "Edit",
                                                                         pt: "Editar"
                                                                     }) + " " + (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["getCategoryDisplayLabel"])(category, language),
-                                                                    disabled: isPredefinedCategory(category.name),
+                                                                    disabled: isPredefined || isSaving,
+                                                                    className: isPredefined ? "text-muted-foreground/50 cursor-not-allowed" : "",
                                                                     children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$square$2d$pen$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__Edit$3e$__["Edit"], {
                                                                         className: "h-4 w-4"
                                                                     }, void 0, false, {
                                                                         fileName: "[project]/src/app/settings/categories/page.tsx",
-                                                                        lineNumber: 609,
-                                                                        columnNumber: 27
+                                                                        lineNumber: 618,
+                                                                        columnNumber: 29
                                                                     }, this)
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/app/settings/categories/page.tsx",
-                                                                    lineNumber: 602,
-                                                                    columnNumber: 25
+                                                                    lineNumber: 610,
+                                                                    columnNumber: 27
                                                                 }, this),
                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$button$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Button"], {
                                                                     variant: "ghost",
                                                                     size: "icon",
                                                                     onClick: ()=>openDeleteConfirmation(category),
-                                                                    className: "text-destructive hover:text-destructive/90 hover:bg-destructive/10",
+                                                                    className: ` ${isPredefined ? "text-muted-foreground/50 cursor-not-allowed" : "text-destructive hover:text-destructive/90 hover:bg-destructive/10"}`,
                                                                     "aria-label": translate({
                                                                         en: "Delete",
                                                                         pt: "Excluir"
                                                                     }) + " " + (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["getCategoryDisplayLabel"])(category, language),
-                                                                    disabled: isPredefinedCategory(category.name),
+                                                                    disabled: isPredefined || isSaving,
                                                                     children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$trash$2d$2$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__Trash2$3e$__["Trash2"], {
                                                                         className: "h-4 w-4"
                                                                     }, void 0, false, {
                                                                         fileName: "[project]/src/app/settings/categories/page.tsx",
-                                                                        lineNumber: 619,
-                                                                        columnNumber: 27
+                                                                        lineNumber: 628,
+                                                                        columnNumber: 29
                                                                     }, this)
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/app/settings/categories/page.tsx",
-                                                                    lineNumber: 611,
-                                                                    columnNumber: 25
+                                                                    lineNumber: 620,
+                                                                    columnNumber: 27
                                                                 }, this)
                                                             ]
                                                         }, void 0, true, {
                                                             fileName: "[project]/src/app/settings/categories/page.tsx",
-                                                            lineNumber: 601,
-                                                            columnNumber: 23
+                                                            lineNumber: 609,
+                                                            columnNumber: 25
                                                         }, this)
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "[project]/src/app/settings/categories/page.tsx",
-                                                    lineNumber: 585,
-                                                    columnNumber: 21
+                                                    lineNumber: 593,
+                                                    columnNumber: 23
                                                 }, this),
                                                 index < displayCategories.length - 1 && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$separator$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Separator"], {}, void 0, false, {
                                                     fileName: "[project]/src/app/settings/categories/page.tsx",
-                                                    lineNumber: 623,
-                                                    columnNumber: 62
+                                                    lineNumber: 632,
+                                                    columnNumber: 64
                                                 }, this)
                                             ]
                                         }, category.name, true, {
                                             fileName: "[project]/src/app/settings/categories/page.tsx",
-                                            lineNumber: 584,
-                                            columnNumber: 19
-                                        }, this))
+                                            lineNumber: 592,
+                                            columnNumber: 21
+                                        }, this);
+                                    })
                                 }, void 0, false, {
                                     fileName: "[project]/src/app/settings/categories/page.tsx",
-                                    lineNumber: 582,
+                                    lineNumber: 586,
                                     columnNumber: 15
                                 }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
                                     className: "text-center text-muted-foreground py-8",
@@ -3605,24 +3598,24 @@ function ManageCategoriesPage() {
                                     })
                                 }, void 0, false, {
                                     fileName: "[project]/src/app/settings/categories/page.tsx",
-                                    lineNumber: 628,
+                                    lineNumber: 638,
                                     columnNumber: 15
                                 }, this)
                             }, void 0, false, {
                                 fileName: "[project]/src/app/settings/categories/page.tsx",
-                                lineNumber: 562,
+                                lineNumber: 566,
                                 columnNumber: 11
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/src/app/settings/categories/page.tsx",
-                        lineNumber: 555,
+                        lineNumber: 559,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/src/app/settings/categories/page.tsx",
-                lineNumber: 511,
+                lineNumber: 531,
                 columnNumber: 7
             }, this),
             categoryToDelete && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$alert$2d$dialog$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["AlertDialog"], {
@@ -3639,7 +3632,7 @@ function ManageCategoriesPage() {
                                     })
                                 }, void 0, false, {
                                     fileName: "[project]/src/app/settings/categories/page.tsx",
-                                    lineNumber: 639,
+                                    lineNumber: 649,
                                     columnNumber: 15
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$alert$2d$dialog$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["AlertDialogDescription"], {
@@ -3653,7 +3646,7 @@ function ManageCategoriesPage() {
                                             children: (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["getCategoryDisplayLabel"])(categoryToDelete, language)
                                         }, void 0, false, {
                                             fileName: "[project]/src/app/settings/categories/page.tsx",
-                                            lineNumber: 642,
+                                            lineNumber: 652,
                                             columnNumber: 17
                                         }, this),
                                         "?",
@@ -3665,13 +3658,13 @@ function ManageCategoriesPage() {
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/src/app/settings/categories/page.tsx",
-                                    lineNumber: 640,
+                                    lineNumber: 650,
                                     columnNumber: 15
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/src/app/settings/categories/page.tsx",
-                            lineNumber: 638,
+                            lineNumber: 648,
                             columnNumber: 13
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$alert$2d$dialog$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["AlertDialogFooter"], {
@@ -3685,7 +3678,7 @@ function ManageCategoriesPage() {
                                     })
                                 }, void 0, false, {
                                     fileName: "[project]/src/app/settings/categories/page.tsx",
-                                    lineNumber: 647,
+                                    lineNumber: 657,
                                     columnNumber: 15
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$alert$2d$dialog$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["AlertDialogAction"], {
@@ -3701,30 +3694,30 @@ function ManageCategoriesPage() {
                                     })
                                 }, void 0, false, {
                                     fileName: "[project]/src/app/settings/categories/page.tsx",
-                                    lineNumber: 650,
+                                    lineNumber: 660,
                                     columnNumber: 15
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/src/app/settings/categories/page.tsx",
-                            lineNumber: 646,
+                            lineNumber: 656,
                             columnNumber: 13
                         }, this)
                     ]
                 }, void 0, true, {
                     fileName: "[project]/src/app/settings/categories/page.tsx",
-                    lineNumber: 637,
+                    lineNumber: 647,
                     columnNumber: 11
                 }, this)
             }, void 0, false, {
                 fileName: "[project]/src/app/settings/categories/page.tsx",
-                lineNumber: 636,
+                lineNumber: 646,
                 columnNumber: 9
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/src/app/settings/categories/page.tsx",
-        lineNumber: 510,
+        lineNumber: 530,
         columnNumber: 5
     }, this);
 }

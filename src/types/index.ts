@@ -40,6 +40,7 @@ export const CATEGORIES = [
   { name: 'Education', icon: 'BookOpen', type: 'expense', label: { en: 'Education', pt: 'Educação' } },
   { name: 'Personal Care', icon: 'Sparkles', type: 'expense', label: { en: 'Personal Care', pt: 'Cuidados Pessoais'} },
   { name: 'Gifts/Donations', icon: 'Gift', type: 'expense', label: { en: 'Gifts/Donations', pt: 'Presentes/Doações'} },
+  { name: 'Pets', icon: 'PawPrint', type: 'expense', label: { en: 'Pets', pt: 'Animais de Estimação' } },
   { name: 'Other Expense', icon: 'CircleHelp', type: 'expense', label: { en: 'Other Expense', pt: 'Outras Despesas'} },
 ] as const;
 
@@ -47,10 +48,10 @@ export type CategoryName = typeof CATEGORIES[number]['name'];
 export type Category = typeof CATEGORIES[number];
 
 export interface CustomCategoryData {
-  name: string;
+  name: string; // This is the unique ID/key
   type: TransactionType;
   icon: string;
-  label: { en: string; pt: string };
+  label: { en: string; pt: string }; // For display purposes
 }
 
 export type DisplayCategory = Category | CustomCategoryData;
@@ -59,22 +60,21 @@ export const getCategoriesByType = (type: TransactionType, allCategories: Displa
   return allCategories.filter(cat => cat.type === type);
 };
 
-export const getCategoryDisplayLabel = (category: DisplayCategory, currentLanguage: 'en' | 'pt'): string => {
+export const getCategoryDisplayLabel = (category: DisplayCategory | undefined, currentLanguage: 'en' | 'pt'): string => {
+  if (!category) return '';
   if (category.label && typeof category.label === 'object' && category.label[currentLanguage]) {
     return category.label[currentLanguage];
   }
-  if (typeof category.label === 'string') {
-    return category.label;
-  }
+  // Fallback for older custom categories that might only have category.name
   return category.name;
 };
 
-export const getCategoryLabel = (categoryName: CategoryName | string, currentLanguage: 'en' | 'pt'): string => {
+export const getCategoryLabel = (categoryName: CategoryName | string | undefined, currentLanguage: 'en' | 'pt'): string => {
+  if (!categoryName) return '';
   const predefinedCategory = CATEGORIES.find(cat => cat.name.toLowerCase() === (categoryName as string).toLowerCase());
   if (predefinedCategory && predefinedCategory.label && predefinedCategory.label[currentLanguage]) {
     return predefinedCategory.label[currentLanguage];
   }
-  // For custom categories, their name is their label from user input
   return categoryName as string;
 };
 
@@ -105,31 +105,30 @@ export const getPaymentMethodDisplayLabel = (methodInput: DisplayPaymentMethod |
 
   if (typeof methodInput === 'string') {
     methodNameString = methodInput;
+    // Try to find in predefined
     methodObject = PAYMENT_METHODS.find(pm => pm.name.toLowerCase() === methodNameString.toLowerCase());
-    if (!methodObject) {
-        // If not predefined, it might be a custom method name string.
-        // We don't have its translated label directly here unless it's passed as an object.
-        return methodNameString;
+    if (methodObject && methodObject.label && methodObject.label[currentLanguage]) {
+      return methodObject.label[currentLanguage];
     }
+    // If not in predefined, it's a custom method name, return it as is
+    return methodNameString;
   } else {
-    methodNameString = methodInput.name;
+    // It's already an object (DisplayPaymentMethod)
     methodObject = methodInput;
+    if (methodObject.label && methodObject.label[currentLanguage]) {
+      return methodObject.label[currentLanguage];
+    }
+    return methodObject.name; // Fallback to name if label structure is odd
   }
-
-  if (methodObject && methodObject.label && typeof methodObject.label === 'object' && methodObject.label[currentLanguage]) {
-    return methodObject.label[currentLanguage];
-  }
-  return methodNameString;
 };
 
 
 export interface UserPreferences {
   language: 'en' | 'pt';
-  selectedCategories: string[];
-  userDefinedCategories: CustomCategoryData[];
+  selectedCategories: string[]; // Names of categories user wants to actively use/see in forms by default
+  userDefinedCategories: CustomCategoryData[]; // Custom categories created by user
+  deselectedPredefinedCategories?: string[]; // Names of predefined categories user wants to hide/not use
   selectedPaymentMethods: string[];
   userDefinedPaymentMethods: CustomPaymentMethodData[];
   updatedAt?: any;
 }
-
-    
