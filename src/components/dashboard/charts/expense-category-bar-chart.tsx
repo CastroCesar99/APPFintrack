@@ -22,7 +22,7 @@ import { formatCurrency } from "@/lib/utils";
 
 interface ExpenseCategoryBarChartProps {
   transactions: Transaction[];
-  userCategories: DisplayCategory[]; // Added to get correct display names
+  userCategories: DisplayCategory[];
 }
 
 const chartColors = [
@@ -49,9 +49,9 @@ export function ExpenseCategoryBarChart({ transactions, userCategories }: Expens
 
      return Object.entries(expensesByCategory)
       .map(([internalName, value]) => {
-        const categoryDetail = userCategories.find(cat => cat.name === internalName);
+        const categoryDetail = userCategories.find(cat => cat.name.toLowerCase() === internalName.toLowerCase());
         return {
-          name: internalName, // Keep original name for keying in chartConfig
+          name: internalName, 
           value,
           displayName: categoryDetail ? getCategoryDisplayLabel(categoryDetail, language) : internalName,
         };
@@ -107,6 +107,7 @@ export function ExpenseCategoryBarChart({ transactions, userCategories }: Expens
             content={
               <ChartTooltipContent
                 formatter={(value, name, item) => {
+                    // Ensure item.payload.name is treated as string for config lookup
                     const configEntry = chartConfig[item.payload.name as string];
                     return `${configEntry?.label || item.payload.name}: ${formatCurrency(value as number)}`;
                 }}
