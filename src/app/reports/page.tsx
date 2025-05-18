@@ -37,8 +37,6 @@ import { formatCurrency, cn } from '@/lib/utils';
 import { ExportData } from '@/components/dashboard/export-data';
 import { Progress } from "@/components/ui/progress";
 import { CategoryIcon } from "@/components/icons";
-// import { generateFinancialSummary, type FinancialSummaryInput, type FinancialSummaryOutput } from '@/ai/flows/financial-summary-flow';
-
 
 interface BudgetComparisonItem {
   categoryName: string;
@@ -58,16 +56,14 @@ export default function ReportsPage() {
 
   const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
   const [isLoadingTransactions, setIsLoadingTransactions] = useState(true);
-  const [isClient, setIsClient] = useState(false);
-
+  
   const [userDisplayCategories, setUserDisplayCategories] = useState<DisplayCategory[]>([]);
   const [isLoadingPreferences, setIsLoadingPreferences] = useState(true);
   
   const [loadedBudgets, setLoadedBudgets] = useState<Record<string, number> | null>(null);
   const [isLoadingBudgets, setIsLoadingBudgets] = useState(true);
-
-  // const [financialInsights, setFinancialInsights] = useState<FinancialSummaryOutput | null>(null);
-  // const [isLoadingInsights, setIsLoadingInsights] = useState(false);
+  
+  const [isClient, setIsClient] = useState(false);
 
   const effectMountedRef = useRef(true);
   const unsubscribeTransactionsRef = useRef<(() => void) | null>(null);
@@ -93,7 +89,7 @@ export default function ReportsPage() {
         unsubscribePreferencesRef.current = null;
       }
     };
-  }, [userId]); // Keep userId to re-evaluate if user changes, though listeners inside should handle it
+  }, [userId]);
 
   // Fetch All Transactions
   useEffect(() => {
@@ -101,8 +97,8 @@ export default function ReportsPage() {
 
     if (!userId || authLoading || !isClient) {
       if (effectMountedRef.current) {
-        setIsLoadingTransactions(false);
         setAllTransactions([]);
+        setIsLoadingTransactions(false); // Ensure loading is false on early exit
       }
       if (unsubscribeTransactionsRef.current) {
         console.log("ReportsPage (TX Effect): No user/auth/client, cleaning up existing TX listener for UserID:", userId);
@@ -112,7 +108,7 @@ export default function ReportsPage() {
       return;
     }
 
-    if (effectMountedRef.current && !isLoadingTransactions) setIsLoadingTransactions(true);
+    setIsLoadingTransactions(true);
     console.log("ReportsPage (TX Effect): Setting up transaction listener for UserID:", userId);
     const transactionsColRef = collection(db, 'users/' + userId + '/transactions');
     const q_transactions = query(transactionsColRef, orderBy("date", "desc"));
@@ -131,35 +127,40 @@ export default function ReportsPage() {
       console.log("ReportsPage (TX Snapshot): Transaction listener fired. Docs count:", querySnapshot.docs.length, "for UserID:", userId);
       const fetchedTransactions = querySnapshot.docs.map(docSnap => {
         const data = docSnap.data();
-        let dateString = data.date; // Should be YYYY-MM-DD string
-        let effectiveMonthString = data.effectiveMonth; // Should be YYYY-MM string
+        let dateString = data.date; 
+        let effectiveMonthString = data.effectiveMonth;
 
         if (data.date && typeof data.date === 'object' && data.date instanceof Timestamp) {
           dateString = formatDateFns(data.date.toDate(), "yyyy-MM-dd");
         } else if (typeof data.date === 'string') {
-          if (data.date.includes('T')) { // Likely an ISO string
-            try {
-              dateString = formatDateFns(parseISODateFns(data.date), "yyyy-MM-dd");
-            } catch (e) {
-              console.warn("ReportsPage: Failed to parse ISO date string: " + data.date, e);
-              dateString = formatDateFns(new Date(), "yyyy-MM-dd"); // Fallback
+            if (/^\d{4}-\d{2}-\d{2}$/.test(data.date)) {
+                // Already in YYYY-MM-DD
+            } else if (data.date.includes('T')) { 
+                try { 
+                    dateString = formatDateFns(parseISODateFns(data.date), "yyyy-MM-dd"); 
+                } catch (e1) {
+                   try { 
+                       dateString = formatDateFns(new Date(data.date), "yyyy-MM-dd");
+                   } catch (e2) {
+                       console.warn("ReportsPage: Failed to parse existing datetime string to yyyy-MM-dd (fallback for " + String(data.date) + "): " + String(e2));
+                       dateString = formatDateFns(new Date(), "yyyy-MM-dd");
+                   }
+                }
+            } else {
+                 console.warn("ReportsPage: Transaction has unexpected date string format. Attempting general parse. Date was:", data.date, "ID:", docSnap.id);
+                 try {
+                    dateString = formatDateFns(new Date(data.date), "yyyy-MM-dd");
+                 } catch (e) {
+                    console.warn("ReportsPage: General parse failed for date string. Fallback to current date. Date was:", data.date, "ID:", docSnap.id, e);
+                    dateString = formatDateFns(new Date(), "yyyy-MM-dd"); 
+                 }
             }
-          } else if (!/^\d{4}-\d{2}-\d{2}$/.test(data.date)) {
-             console.warn("ReportsPage: Non-standard date string format: " + data.date + ". Attempting general parse.");
-             try {
-                dateString = formatDateFns(new Date(data.date), "yyyy-MM-dd");
-             } catch(e) {
-                console.warn("ReportsPage: General parse failed for date string: " + data.date + ". Fallback.", e);
-                dateString = formatDateFns(new Date(), "yyyy-MM-dd");
-             }
-          }
-          // If it's already YYYY-MM-DD, dateString remains as is.
         } else {
-           console.warn("ReportsPage: Transaction has missing or non-string/non-Timestamp date: " + String(data.date) + ". Fallback.");
+           console.warn("ReportsPage: Transaction has missing or non-string/non-Timestamp date. Fallback to current date YYYY-MM-DD. Date was:", data.date, "ID:", docSnap.id);
            dateString = formatDateFns(new Date(), "yyyy-MM-dd"); 
         }
 
-        if (!effectiveMonthString || !/^\d{4}-\d{2}$/.test(effectiveMonthString)) {
+        if (!effectiveMonthString && dateString) {
           try {
             effectiveMonthString = formatDateFns(parseDateFns(dateString, "yyyy-MM-dd", new Date(0)), "yyyy-MM");
           } catch (e) {
@@ -182,7 +183,7 @@ export default function ReportsPage() {
       });
       if (effectMountedRef.current) {
         setAllTransactions(fetchedTransactions);
-        if (isLoadingTransactions) setIsLoadingTransactions(false);
+        setIsLoadingTransactions(false);
       }
     }, (error) => {
       if (!effectMountedRef.current) return;
@@ -194,17 +195,17 @@ export default function ReportsPage() {
       });
       if (effectMountedRef.current) {
         setAllTransactions([]);
-        if (isLoadingTransactions) setIsLoadingTransactions(false);
+        setIsLoadingTransactions(false);
       }
     });
-    return () => { // Cleanup for this effect instance
+    return () => { 
         if (unsubscribeTransactionsRef.current) {
             console.log("ReportsPage (TX Effect Cleanup): Unsubscribing TX listener for UserID:", userId);
             unsubscribeTransactionsRef.current();
             unsubscribeTransactionsRef.current = null;
         }
     };
-  }, [userId, authLoading, isClient, toast, translate]); // Removed isLoadingTransactions from here
+  }, [userId, authLoading, isClient, toast, translate]); 
 
   // Fetch User Preferences
   useEffect(() => {
@@ -213,7 +214,7 @@ export default function ReportsPage() {
     if (!userId || !isClient || authLoading) {
       if (effectMountedRef.current) {
         setUserDisplayCategories([...CATEGORIES].sort((a, b) => getCategoryDisplayLabel(a, language).localeCompare(getCategoryDisplayLabel(b, language))));
-        if (isLoadingPreferences) setIsLoadingPreferences(false);
+        setIsLoadingPreferences(false); // Ensure loading is false on early exit
       }
       if (unsubscribePreferencesRef.current) {
         console.log("ReportsPage (Prefs Effect): No user/client/auth, cleaning up existing prefs listener for UserID:", userId);
@@ -223,7 +224,7 @@ export default function ReportsPage() {
       return;
     }
 
-    if (effectMountedRef.current && !isLoadingPreferences) setIsLoadingPreferences(true);
+    setIsLoadingPreferences(true);
     const preferencesDocRef = doc(db, "users/" + userId + "/preferences/userPreferences");
     
     if (unsubscribePreferencesRef.current) {
@@ -248,22 +249,19 @@ export default function ReportsPage() {
         const customCategoriesFromDb: CustomCategoryData[] = prefsData.userDefinedCategories || [];
         const deselectedPredefinedNames = new Set((prefsData.deselectedPredefinedCategories || []).map(name => name.toLowerCase()));
         
-        // Start with predefined categories that are not deselected, applying overrides
         CATEGORIES.forEach(pCat => {
           if (!deselectedPredefinedNames.has(pCat.name.toLowerCase())) {
             const customOverride = customCategoriesFromDb.find(cc => cc.name.toLowerCase() === pCat.name.toLowerCase());
             if (customOverride) {
-              // If a custom entry exists with the same internal name, it fully replaces the predefined one for display
-              finalCategories.push({ ...pCat, ...customOverride, name: pCat.name }); // Ensure original name is kept if just label/icon changed
+              finalCategories.push({ ...pCat, label: customOverride.label, icon: customOverride.icon, type: customOverride.type || pCat.type });
             } else {
               finalCategories.push({ ...pCat });
             }
           }
         });
 
-        // Add purely custom categories (those not overriding a predefined one by name)
         customCategoriesFromDb.forEach(customCat => {
-          if (!CATEGORIES.some(pCat => pCat.name.toLowerCase() === customCat.name.toLowerCase())) {
+          if (!finalCategories.some(fc => fc.name.toLowerCase() === customCat.name.toLowerCase())) {
             finalCategories.push(customCat);
           }
         });
@@ -275,7 +273,7 @@ export default function ReportsPage() {
       
       if (effectMountedRef.current) {
         setUserDisplayCategories(finalCategories.sort((a, b) => getCategoryDisplayLabel(a, language).localeCompare(getCategoryDisplayLabel(b, language))));
-        if (isLoadingPreferences) setIsLoadingPreferences(false);
+        setIsLoadingPreferences(false);
         console.log("ReportsPage (Prefs Snapshot): UserDisplayCategories set. Count:", finalCategories.length);
       }
     }, (error) => {
@@ -288,29 +286,28 @@ export default function ReportsPage() {
       });
       if (effectMountedRef.current) {
         setUserDisplayCategories([...CATEGORIES].sort((a, b) => getCategoryDisplayLabel(a, language).localeCompare(getCategoryDisplayLabel(b, language))));
-        if (isLoadingPreferences) setIsLoadingPreferences(false);
+        setIsLoadingPreferences(false);
       }
     });
-    return () => { // Cleanup for this effect instance
+    return () => { 
         if (unsubscribePreferencesRef.current) {
             console.log("ReportsPage (Prefs Effect Cleanup): Unsubscribing Prefs listener for UserID:", userId);
             unsubscribePreferencesRef.current();
             unsubscribePreferencesRef.current = null;
         }
     };
-  }, [userId, isClient, authLoading, language, toast, translate]); // Removed isLoadingPreferences
+  }, [userId, isClient, authLoading, language, toast, translate]); 
 
-  // Fetch Budgets for the displayed month
   const fetchBudgetsInternal = useCallback(async () => {
     if (!userId || !isClient || !displayedDate || !effectMountedRef.current) {
       if (effectMountedRef.current) {
         setLoadedBudgets(null);
-        if (isLoadingBudgets) setIsLoadingBudgets(false); 
+        setIsLoadingBudgets(false); 
       }
       return;
     }
 
-    if (effectMountedRef.current) setIsLoadingBudgets(true); // Set loading true at the start of fetch
+    if (effectMountedRef.current) setIsLoadingBudgets(true);
     const budgetMonthKey = formatDateFns(displayedDate, 'yyyy-MM');
     console.log('ReportsPage: Fetching budgets for month: ' + budgetMonthKey + ' for UserID: ' + userId);
     const budgetDocRef = doc(db, "users/" + userId + "/budgets/" + budgetMonthKey);
@@ -318,8 +315,8 @@ export default function ReportsPage() {
     try {
       const docSnap = await getDoc(budgetDocRef);
       if (!effectMountedRef.current) {
-        if (isLoadingBudgets) setIsLoadingBudgets(false); // Ensure it's set false if unmounted
-        return;
+          if (isLoadingBudgets) setIsLoadingBudgets(false); 
+          return;
       }
 
       if (docSnap.exists()) {
@@ -331,15 +328,15 @@ export default function ReportsPage() {
           }
         }
         console.log('ReportsPage: Budgets data loaded for ' + budgetMonthKey + ':', validBudgets);
-        setLoadedBudgets(validBudgets);
+        if (effectMountedRef.current) setLoadedBudgets(validBudgets);
       } else {
         console.log('ReportsPage: No budget document for ' + budgetMonthKey + '. Setting empty.');
-        setLoadedBudgets({}); 
+        if (effectMountedRef.current) setLoadedBudgets({}); 
       }
     } catch (error) {
       if (!effectMountedRef.current) {
-        if (isLoadingBudgets) setIsLoadingBudgets(false); // Ensure it's set false if unmounted during error
-        return;
+          if (isLoadingBudgets) setIsLoadingBudgets(false);
+          return;
       }
       console.error("ReportsPage: Error loading budgets for month " + budgetMonthKey + ":", error);
       toast({
@@ -347,31 +344,29 @@ export default function ReportsPage() {
         description: translate({ en: "Could not load budget data for comparison.", pt: "Não foi possível carregar os dados do orçamento para comparação." }),
         variant: "destructive"
       });
-      if (effectMountedRef.current) setLoadedBudgets({}); // Set to empty on error
+      if (effectMountedRef.current) setLoadedBudgets({}); 
     } finally {
-      if (effectMountedRef.current && isLoadingBudgets) setIsLoadingBudgets(false); // Always set to false in finally
+      if (effectMountedRef.current) setIsLoadingBudgets(false); 
     }
-  }, [userId, isClient, displayedDate, toast, translate]); // Removed isLoadingBudgets from dependency
+  }, [userId, isClient, displayedDate, toast, translate]); // Added isLoadingBudgets back for useCallback stability
 
   useEffect(() => {
     if (userId && isClient && !authLoading) { 
         fetchBudgetsInternal();
-    } else if ((!userId || authLoading) && isClient) { // If user logs out or auth is still pending but client is ready
-        if(effectMountedRef.current) {
-            setLoadedBudgets(null);
-            if (isLoadingBudgets) setIsLoadingBudgets(false);
-        }
+    } else if (effectMountedRef.current) { // Ensure to set false if conditions not met
+        setLoadedBudgets(null);
+        setIsLoadingBudgets(false);
     }
   }, [userId, isClient, authLoading, displayedDate, fetchBudgetsInternal]);
 
 
   const transactionsForDisplayedPeriod = useMemo(() => {
     const targetYear = getYearFns(displayedDate);
-    const targetMonth = getMonthFns(displayedDate); // 0-indexed
+    const targetMonth = getMonthFns(displayedDate); 
     const firstDayOfTargetMonth = startOfMonth(displayedDate);
     const targetEffectiveMonth = formatDateFns(displayedDate, "yyyy-MM");
 
-    console.log(`ReportsPage: TRACER --- transactionsForDisplayedPeriod: Recalculating for Year: ${targetYear} Month: ${targetMonth} (0-indexed for ${displayedMonthYearLabel} ), TargetEffMonth: ${targetEffectiveMonth} All transactions count: ${allTransactions.length}`);
+    console.log("ReportsPage: TRACER --- transactionsForDisplayedPeriod: Recalculating for Year:", targetYear, "Month:", targetMonth, "(0-indexed for", displayedMonthYearLabel, "), TargetEffMonth:", targetEffectiveMonth, "All transactions count:", allTransactions.length);
     
     if (!allTransactions || allTransactions.length === 0) {
       console.log("ReportsPage: TRACER --- transactionsForDisplayedPeriod: No transactions in allTransactions, returning empty.");
@@ -379,7 +374,6 @@ export default function ReportsPage() {
     }
     
     let filtered: Transaction[] = [];
-
     allTransactions.forEach(t => {
       let includeTransaction = false;
       let reason = "";
@@ -391,7 +385,7 @@ export default function ReportsPage() {
         const isInstallmentActiveThisMonth = monthDiff >= 0 && monthDiff < t.installments;
         reason = "Installment Check";
         if (isInstallmentActiveThisMonth) includeTransaction = true;
-      } else if (t.isRecurring === true && t.expenseType !== 'installment') {
+      } else if (t.isRecurring === true && (t.expenseType !== 'installment')) {
         const originalTransactionYear = getYearFns(originalTransactionDate);
         const originalTransactionMonth = getMonthFns(originalTransactionDate);
         reason = "Recurring Check";
@@ -406,13 +400,13 @@ export default function ReportsPage() {
         }
       }
       
-      console.log(`ReportsPage TX Filter: ID: ${t.id}, Date: ${t.date}, EffMonth: ${t.effectiveMonth}, Type: ${t.type}, ExpType: ${t.expenseType}, isRec: ${t.isRecurring}, Inst: ${t.installments}, Amount: ${t.amount}, Included: ${includeTransaction}, Reason: ${reason}, Target: ${targetEffectiveMonth}`);
+      console.log("ReportsPage TX Filter: ID:", t.id, "Date:", t.date, "EffMonth:", t.effectiveMonth, "Type:", t.type, "ExpType:", t.expenseType, "isRec:", t.isRecurring, "Inst:", t.installments, "Amount:", t.amount, "Included:", includeTransaction, "Reason:", reason, "Target:", targetEffectiveMonth);
 
       if (includeTransaction) {
         filtered.push(t);
       }
     });
-    console.log(`ReportsPage: TRACER --- transactionsForDisplayedPeriod: Found ${filtered.length} transactions for the period.`);
+    console.log("ReportsPage: TRACER --- transactionsForDisplayedPeriod: Found", filtered.length, "transactions for the period.");
     return filtered;
   }, [allTransactions, displayedDate, displayedMonthYearLabel]);
 
@@ -477,8 +471,8 @@ export default function ReportsPage() {
       let percentage = 0;
       if (budgeted > 0) {
         percentage = Math.round((actual / budgeted) * 100);
-      } else if (actual > 0) {
-        percentage = 1000; // Indicates spending with no budget, effectively infinite percentage
+      } else if (actual > 0) { // Spending with no budget
+        percentage = 1000; // Effectively infinite percentage, will be capped by progress bar max
       }
       
       return {
@@ -527,8 +521,9 @@ export default function ReportsPage() {
   const pageTitle = translate({ en: "Reports", pt: "Relatórios" });
   const overallLoading = !isClient || authLoading || isLoadingTransactions || isLoadingPreferences || isLoadingBudgets;
 
-  console.log(`ReportsPage: Rendering state. isClient: ${isClient}, authLoading: ${authLoading}, isLoadingTransactions: ${isLoadingTransactions}, isLoadingPreferences: ${isLoadingPreferences}, isLoadingBudgets: ${isLoadingBudgets}, overallLoading: ${overallLoading}`);
+  console.log("ReportsPage: Rendering state. isClient:", isClient, "authLoading:", authLoading, "isLoadingTransactions:", isLoadingTransactions, "isLoadingPreferences:", isLoadingPreferences, "isLoadingBudgets:", isLoadingBudgets, "overallLoading:", overallLoading);
   if (overallLoading) {
+    console.log("ReportsPage: Rendering loading state.");
     return (
       <AppLayout>
         <div className="space-y-6">
@@ -587,7 +582,6 @@ export default function ReportsPage() {
           <ExportData transactions={transactionsForDisplayedPeriod} />
         </div>
 
-        {/* Summary Cards */}
         <div className="grid gap-4 md:grid-cols-3">
           <Card className="shadow-lg">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -618,7 +612,6 @@ export default function ReportsPage() {
           </Card>
         </div>
 
-        {/* Fixed vs Variable Expenses */}
         <div className="grid gap-4 md:grid-cols-2">
           <Card className="shadow-lg">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -640,7 +633,6 @@ export default function ReportsPage() {
           </Card>
         </div>
 
-        {/* AI Insights Placeholder */}
         <Card className="shadow-lg bg-muted/50">
           <CardHeader className="flex flex-row items-start gap-4 space-y-0">
             <Terminal className="h-8 w-8 text-primary flex-shrink-0 mt-1" />
@@ -660,7 +652,6 @@ export default function ReportsPage() {
           </CardContent>
         </Card>
         
-        {/* Budget vs. Actual Spending */}
         <Card className="shadow-lg bg-muted/50">
           <CardHeader>
             <CardTitle>{translate({ en: "Budget vs. Actual Spending", pt: "Orçamento vs. Gasto Real" })}</CardTitle>
@@ -695,14 +686,14 @@ export default function ReportsPage() {
                        )}
                     </div>
                      <Progress 
-                        value={item.budgeted > 0 ? Math.min(item.percentage, 100) : (item.actual > 0 ? 100 : 0) } 
+                        value={item.budgeted > 0 ? Math.min(item.percentage, 100) : (item.actual > 0 ? 0 : 0) } // Show 0% if no budget, even if spent
                         className="h-2 mb-1" 
                         indicatorClassName={
                             item.budgeted > 0 
                             ? (item.percentage > 100 ? "bg-destructive" 
                                 : item.percentage > 80 ? "bg-yellow-500 dark:bg-yellow-600" 
                                 : "bg-primary")
-                            : (item.actual > 0 ? "bg-muted-foreground" : "bg-secondary") // Neutral if no budget but has spending
+                            : "bg-muted-foreground" // Neutral if no budget
                         }
                     />
                     <div className="flex justify-between text-xs text-muted-foreground">
@@ -732,7 +723,6 @@ export default function ReportsPage() {
           </CardContent>
         </Card>
 
-        {/* Expense Breakdown Chart */}
         <Card className="shadow-lg">
           <CardHeader>
             <CardTitle>{translate({ en: "Expense Breakdown by Category", pt: "Detalhamento de Despesas por Categoria" })}</CardTitle>
@@ -757,3 +747,4 @@ export default function ReportsPage() {
   );
 }
  
+
