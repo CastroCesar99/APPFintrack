@@ -1465,6 +1465,10 @@ body {
   background-color: hsl(var(--muted));
 }
 
+.bg-muted-foreground {
+  background-color: hsl(var(--muted-foreground));
+}
+
 .bg-muted\/50 {
   background-color: hsl(var(--muted) / .5);
 }
@@ -1501,10 +1505,6 @@ body {
 .bg-yellow-500 {
   --tw-bg-opacity: 1;
   background-color: rgb(234 179 8 / var(--tw-bg-opacity, 1));
-}
-
-.bg-muted-foreground {
-  background-color: hsl(var(--muted-foreground));
 }
 
 .fill-current {
@@ -2814,6 +2814,10 @@ body {
 
   .sm\:block {
     display: block;
+  }
+
+  .sm\:flex {
+    display: flex;
   }
 
   .sm\:table-cell {
