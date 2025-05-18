@@ -41,18 +41,17 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { CategoryIcon, getSelectableIcons, iconNameToComponentMap } from "@/components/icons";
+import { CategoryIcon, getSelectableIcons, iconNameToComponentMap, PaymentMethodIcon } from "@/components/icons"; // Added PaymentMethodIcon just in case
 import { Edit, Trash2, PlusCircle, TrendingUp, TrendingDown, CircleHelp, type LucideIcon } from "lucide-react";
 import {
   CATEGORIES,
-  getCategoryDisplayLabel, // Already imported
+  getCategoryDisplayLabel,
   type CustomCategoryData,
   type DisplayCategory,
   type TransactionType,
   type UserPreferences,
-  PAYMENT_METHODS, 
   type Category,
-  type CategoryName, // Added CategoryName
+  type CategoryName,
 } from "@/types";
 import { useLanguage } from "@/context/language-context";
 import { useToast } from "@/hooks/use-toast";
@@ -89,7 +88,7 @@ export default function ManageCategoriesPage() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [categoryToEdit, setCategoryToEdit] = useState<DisplayCategory | null>(null);
-  const [originalCategoryName, setOriginalCategoryName] = useState<string | null>(null); 
+  const [originalCategoryName, setOriginalCategoryName] = useState<string | null>(null); // Stores the internal name
 
   const [isSaving, setIsSaving] = useState(false);
   const [categoryToDelete, setCategoryToDelete] = useState<DisplayCategory | null>(null);
@@ -112,8 +111,8 @@ export default function ManageCategoriesPage() {
     },
   });
 
-  const isPredefinedCategory = useCallback((categoryName: string): boolean => {
-    return CATEGORIES.some(cat => cat.name.toLowerCase() === categoryName.toLowerCase());
+  const isPredefinedCategory = useCallback((categoryInternalName: string): boolean => {
+    return CATEGORIES.some(cat => cat.name.toLowerCase() === categoryInternalName.toLowerCase());
   }, []);
 
   const fetchUserCategories = useCallback(async () => {
@@ -131,34 +130,37 @@ export default function ManageCategoriesPage() {
       const preferencesDocSnap = await getDoc(preferencesDocRef);
       
       let effectiveCategories: DisplayCategory[] = [];
-      const deselectedPredefinedNames: string[] = [];
 
       if (preferencesDocSnap.exists()) {
         const prefsData = preferencesDocSnap.data() as UserPreferences;
-        (prefsData.deselectedPredefinedCategories || []).forEach(name => deselectedPredefinedNames.push(name.toLowerCase()));
-
-        // Start with predefined categories that are not in the user's deselected list
-        effectiveCategories = CATEGORIES.filter(
-          predefCat => !deselectedPredefinedNames.includes(predefCat.name.toLowerCase())
-        );
+        const deselectedNames = (prefsData.deselectedPredefinedCategories || []).map(name => name.toLowerCase());
+        const customCategoriesFromDb = prefsData.userDefinedCategories || [];
         
-        const customCategories = prefsData.userDefinedCategories || [];
         const customCategoriesMap = new Map<string, CustomCategoryData>();
-        customCategories.forEach(cc => customCategoriesMap.set(cc.name.toLowerCase(), cc));
+        customCategoriesFromDb.forEach(cc => customCategoriesMap.set(cc.name.toLowerCase(), cc));
 
-        // Override/add custom categories
-        // If a custom category has the same name as a (non-deselected) predefined one, it replaces it
-        effectiveCategories = effectiveCategories.map(cat => {
-          const customOverride = customCategoriesMap.get(cat.name.toLowerCase());
+        // Start with predefined categories that are not deselected
+        effectiveCategories = CATEGORIES.filter(
+          predefCat => !deselectedNames.includes(predefCat.name.toLowerCase())
+        ).map(predefCat => {
+          // Check if this predefined category has a custom override
+          const customOverride = customCategoriesMap.get(predefCat.name.toLowerCase());
           if (customOverride) {
-            customCategoriesMap.delete(cat.name.toLowerCase()); 
-            return customOverride;
+            customCategoriesMap.delete(predefCat.name.toLowerCase()); // Remove from map as it's been used
+            return customOverride; // Use the custom version (which includes custom label, icon, type)
           }
-          return cat;
+          return predefCat; // Use the predefined version
         });
-        customCategoriesMap.forEach(customCat => effectiveCategories.push(customCat));
+        
+        // Add any remaining custom categories (those that didn't override a predefined one by internal name)
+        customCategoriesMap.forEach(customCat => {
+            if (!effectiveCategories.some(ec => ec.name.toLowerCase() === customCat.name.toLowerCase())) {
+                 effectiveCategories.push(customCat);
+            }
+        });
 
       } else {
+        // No preferences doc, use all predefined
         effectiveCategories = [...CATEGORIES];
       }
       
@@ -172,10 +174,7 @@ export default function ManageCategoriesPage() {
         description: translate({ en: "Could not load your categories.", pt: "Não foi possível carregar suas categorias." }),
         variant: "destructive",
       });
-      const sortedPredefinedOnError = [...CATEGORIES].sort((a, b) => 
-        getCategoryDisplayLabel(a, language).localeCompare(getCategoryDisplayLabel(b, language))
-      );
-      setDisplayCategories(sortedPredefinedOnError);
+      setDisplayCategories([...CATEGORIES].sort((a, b) => getCategoryDisplayLabel(a, language).localeCompare(getCategoryDisplayLabel(b, language))));
     } finally {
       setIsLoading(false);
     }
@@ -189,63 +188,55 @@ export default function ManageCategoriesPage() {
 
 
   const handleAddCategorySubmit: SubmitHandler<CategoryFormValues> = async (data) => {
-    if (!user) {
-      toast({ title: translate({ en: "Authentication Error", pt: "Erro de Autenticação" }), description: translate({ en: "You must be logged in.", pt: "Você precisa estar logado." }), variant: "destructive" });
-      return;
-    }
+    if (!user) return;
     setIsSaving(true);
-    const newCategoryName = data.categoryName.trim();
+    const newCategoryDisplayName = data.categoryName.trim(); // This is also the new internal name for brand-new categories
     const newCategoryIcon = data.selectedIcon;
     const newCategoryType = data.categoryType;
 
-    const isDuplicate = displayCategories.some(
-      (cat) => (getCategoryDisplayLabel(cat, language).toLowerCase() === newCategoryName.toLowerCase() || cat.name.toLowerCase() === newCategoryName.toLowerCase())
+    const isDisplayNameDuplicate = displayCategories.some(
+      (cat) => getCategoryDisplayLabel(cat, language).toLowerCase() === newCategoryDisplayName.toLowerCase()
     );
-    if (isDuplicate) {
-      toast({ title: translate({ en: "Duplicate Category", pt: "Categoria Duplicada" }), description: translate({ en: "This category name already exists.", pt: "Este nome de categoria já existe." }), variant: "destructive" });
+    if (isDisplayNameDuplicate) {
+      toast({ title: translate({ en: "Duplicate Category", pt: "Categoria Duplicada" }), description: translate({ en: "A category with this display name already exists.", pt: "Uma categoria com este nome de exibição já existe." }), variant: "destructive" });
       setIsSaving(false);
       return;
     }
 
     const newCustomCategory: CustomCategoryData = {
-      name: newCategoryName, 
+      name: newCategoryDisplayName, // For new categories, name (identifier) is the display name
       icon: newCategoryIcon,
       type: newCategoryType,
-      label: { en: newCategoryName, pt: newCategoryName }, 
+      label: { en: newCategoryDisplayName, pt: newCategoryDisplayName }, 
     };
 
     try {
       const preferencesDocRef = doc(db, `users/${user.uid}/preferences/userPreferences`);
       const prefsSnap = await getDoc(preferencesDocRef);
-      let currentDeselectedPredefined = prefsSnap.exists() ? (prefsSnap.data() as UserPreferences).deselectedPredefinedCategories || [] : [];
-      currentDeselectedPredefined = currentDeselectedPredefined.filter(dn => dn.toLowerCase() !== newCustomCategory.name.toLowerCase());
-
+      
       if (prefsSnap.exists()) {
         await updateDoc(preferencesDocRef, {
           userDefinedCategories: arrayUnion(newCustomCategory),
-          selectedCategories: arrayUnion(newCustomCategory.name),
-          deselectedPredefinedCategories: currentDeselectedPredefined,
+          selectedCategories: arrayUnion(newCustomCategory.name), // Add by its internal name
+          deselectedPredefinedCategories: arrayRemove(newCustomCategory.name), // Ensure it's not in deselected if it matches a predefined
           updatedAt: serverTimestamp()
         });
       } else {
+        // Create preferences doc if it doesn't exist
         await setDoc(preferencesDocRef, {
-          userDefinedCategories: [newCustomCategory],
+          language: language,
           selectedCategories: [newCustomCategory.name],
+          userDefinedCategories: [newCustomCategory],
           deselectedPredefinedCategories: [],
-          selectedPaymentMethods: PAYMENT_METHODS.map(pm => pm.name), 
-          userDefinedPaymentMethods: [], 
-          language: language, 
+          selectedPaymentMethods: [], // Initialize if needed
+          userDefinedPaymentMethods: [], // Initialize if needed
           updatedAt: serverTimestamp()
         });
       }
       
       await fetchUserCategories(); 
       toast({ title: translate({ en: "Category Added", pt: "Categoria Adicionada" }), description: `${getCategoryDisplayLabel(newCustomCategory, language)} ${translate({ en: "has been added.", pt: "foi adicionada." })}` });
-      addCategoryForm.reset({
-        categoryName: "",
-        selectedIcon: selectableIcons.find(icon => icon.value === 'CircleHelp')?.value || selectableIcons[0]?.value || '',
-        categoryType: 'expense',
-      });
+      addCategoryForm.reset();
       setIsAddDialogOpen(false);
     } catch (error) {
       console.error("Error adding custom category:", error);
@@ -257,9 +248,9 @@ export default function ManageCategoriesPage() {
 
   const handleOpenEditDialog = (category: DisplayCategory) => {
     setCategoryToEdit(category);
-    setOriginalCategoryName(category.name as string); 
+    setOriginalCategoryName(category.name); // Store the internal name
     editCategoryForm.reset({
-        categoryName: getCategoryDisplayLabel(category, language), // Use translated label here
+        categoryName: getCategoryDisplayLabel(category, language), // Populate form with display name
         selectedIcon: category.icon,
         categoryType: category.type
     });
@@ -267,112 +258,89 @@ export default function ManageCategoriesPage() {
   };
 
   const handleEditCategorySubmit: SubmitHandler<CategoryFormValues> = async (data) => {
-    if (!user || !categoryToEdit || !originalCategoryName) {
-        toast({ title: translate({ en: "Error", pt: "Erro" }), description: translate({ en: "Category to edit not found or original name missing.", pt: "Categoria para editar não encontrada ou nome original ausente." }), variant: "destructive" });
-        return;
-    }
+    if (!user || !categoryToEdit || !originalCategoryName) return;
 
     setIsSaving(true);
-    const updatedCategoryDisplayName = data.categoryName.trim(); // This is what user sees and types
-    const updatedIcon = data.selectedIcon;
-    const updatedType = data.categoryType;
-    
-    // Determine if the category being edited was originally predefined
-    const wasOriginallyPredefined = isPredefinedCategory(originalCategoryName);
-    
-    // The new internal name should be the updated display name if it changed, 
-    // or the original internal name if the display name didn't change (or if it was predefined and only icon/type changed)
-    let newInternalName = originalCategoryName;
-    if (getCategoryDisplayLabel(categoryToEdit, language).toLowerCase() !== updatedCategoryDisplayName.toLowerCase()) {
-        newInternalName = updatedCategoryDisplayName; // User actively changed the name
-    }
-
-    // Check for duplicates, excluding the original internal name of the category being edited
-    const isDuplicate = displayCategories.some(
-      (cat) => (cat.name.toLowerCase() === newInternalName.toLowerCase()) && cat.name.toLowerCase() !== originalCategoryName.toLowerCase()
-    );
-
-    if (isDuplicate) {
-        toast({ title: translate({ en: "Duplicate Category", pt: "Categoria Duplicada" }), description: translate({ en: "Another category with this name already exists.", pt: "Outra categoria com este nome já existe." }), variant: "destructive" });
-        setIsSaving(false);
-        return;
-    }
-
-    const updatedCategoryData: CustomCategoryData = {
-        name: newInternalName, // Use the derived internal name
-        icon: updatedIcon,
-        type: updatedType,
-        label: { en: updatedCategoryDisplayName, pt: updatedCategoryDisplayName }, 
-    };
+    const updatedCategoryDisplayName = data.categoryName.trim(); // New display name from form
 
     try {
         const preferencesDocRef = doc(db, `users/${user.uid}/preferences/userPreferences`);
         const prefsSnap = await getDoc(preferencesDocRef);
 
-        if (prefsSnap.exists()) {
-            const preferencesData = prefsSnap.data() as UserPreferences;
-            let currentCustomCategories = preferencesData.userDefinedCategories || [];
-            let currentSelectedCategories = preferencesData.selectedCategories || [];
-            let currentDeselectedPredefined = preferencesData.deselectedPredefinedCategories || [];
-
-            // Remove the old version if it was custom or if its name is changing
-            currentCustomCategories = currentCustomCategories.filter(cat => cat.name.toLowerCase() !== originalCategoryName.toLowerCase());
-            // Add the new/updated version (which will always be a custom category now)
-            currentCustomCategories.push(updatedCategoryData);
-
-            // Update selectedCategories if internal name changed
-            if (originalCategoryName.toLowerCase() !== newInternalName.toLowerCase()) {
-                currentSelectedCategories = currentSelectedCategories.filter(name => name.toLowerCase() !== originalCategoryName.toLowerCase());
-                if (!currentSelectedCategories.map(n=>n.toLowerCase()).includes(newInternalName.toLowerCase())) {
-                    currentSelectedCategories.push(newInternalName);
-                }
-            } else if (!currentSelectedCategories.map(n=>n.toLowerCase()).includes(newInternalName.toLowerCase())) {
-                // If name didn't change, but it was somehow deselected, re-select it.
-                // This also handles if the original was predefined and now customized, it should be considered "selected".
-                currentSelectedCategories.push(newInternalName);
-            }
-            currentSelectedCategories = Array.from(new Set(currentSelectedCategories));
-
-
-            // If original was predefined, it's now "customized". Ensure it's NOT in deselectedPredefined.
-            // If its name changed from a predefined name, the original predefined is NOT deselected.
-            currentDeselectedPredefined = currentDeselectedPredefined.filter(dn => dn.toLowerCase() !== originalCategoryName.toLowerCase() && dn.toLowerCase() !== newInternalName.toLowerCase());
-            // If the user edited a predefined category and *didn't change its name*, it's now a userDefinedCategory
-            // and should not be in deselectedPredefined.
-            if(wasOriginallyPredefined && originalCategoryName.toLowerCase() === newInternalName.toLowerCase()){
-                 currentDeselectedPredefined = currentDeselectedPredefined.filter(dn => dn.toLowerCase() !== originalCategoryName.toLowerCase());
-            }
-
-
-            await updateDoc(preferencesDocRef, {
-                userDefinedCategories: currentCustomCategories,
-                selectedCategories: currentSelectedCategories,
-                deselectedPredefinedCategories: currentDeselectedPredefined,
-                updatedAt: serverTimestamp()
-            });
-
-            await fetchUserCategories(); 
-            toast({ title: translate({ en: "Category Updated", pt: "Categoria Atualizada" }), description: `${getCategoryDisplayLabel(updatedCategoryData, language)} ${translate({ en: "has been updated.", pt: "foi atualizada." })}` });
-            setIsEditDialogOpen(false);
-            setCategoryToEdit(null);
-            setOriginalCategoryName(null);
-        } else {
-            // This case should ideally not happen if user has any preferences
-            // But if it does, we can treat it as adding a new custom category
-             await setDoc(preferencesDocRef, {
-                userDefinedCategories: [updatedCategoryData],
-                selectedCategories: [updatedCategoryData.name],
-                deselectedPredefinedCategories: [],
-                selectedPaymentMethods: PAYMENT_METHODS.map(pm => pm.name),
-                userDefinedPaymentMethods: [],
-                language: language,
-                updatedAt: serverTimestamp()
-            });
-            console.warn("ManageCategoriesPage: Preferences doc didn't exist during edit, created it.");
-            await fetchUserCategories();
-            toast({ title: translate({ en: "Category Updated", pt: "Categoria Atualizada" }) });
-            setIsEditDialogOpen(false);
+        if (!prefsSnap.exists()) {
+            toast({ title: translate({en: "Error", pt: "Erro"}), description: translate({en: "User preferences not found.", pt: "Preferências do usuário não encontradas."}), variant: "destructive"});
+            setIsSaving(false);
+            return;
         }
+        const preferencesData = prefsSnap.data() as UserPreferences;
+        let currentCustomCategories = preferencesData.userDefinedCategories || [];
+        let currentSelectedCategories = preferencesData.selectedCategories || [];
+        
+        const originalIsPredefined = isPredefinedCategory(originalCategoryName);
+        
+        // The internal name for the updated category.
+        // If original was predefined, its internal name doesn't change.
+        // If original was custom, its internal name changes IF the display name (which is its id) changes.
+        const internalNameToUpdate = originalIsPredefined ? originalCategoryName : updatedCategoryDisplayName;
+
+        // Check for display name duplication, excluding the category being edited (if its internal name isn't changing)
+        const otherCategories = displayCategories.filter(c => c.name.toLowerCase() !== originalCategoryName.toLowerCase());
+        const isDisplayNameDuplicate = otherCategories.some(
+            (cat) => getCategoryDisplayLabel(cat, language).toLowerCase() === updatedCategoryDisplayName.toLowerCase()
+        );
+
+        if (isDisplayNameDuplicate) {
+            toast({ title: translate({ en: "Duplicate Category", pt: "Categoria Duplicada" }), description: translate({ en: "Another category with this display name already exists.", pt: "Outra categoria com este nome de exibição já existe." }), variant: "destructive" });
+            setIsSaving(false);
+            return;
+        }
+        
+        const updatedCategoryData: CustomCategoryData = {
+            name: internalNameToUpdate, 
+            icon: data.selectedIcon,
+            type: data.categoryType,
+            label: { en: updatedCategoryDisplayName, pt: updatedCategoryDisplayName },
+        };
+
+        // Find and update/replace in customCategories
+        const existingCustomIndex = currentCustomCategories.findIndex(
+            (cat) => cat.name.toLowerCase() === originalCategoryName.toLowerCase()
+        );
+
+        if (existingCustomIndex !== -1) { // It was an existing custom category
+            currentCustomCategories[existingCustomIndex] = updatedCategoryData;
+        } else { // It was a predefined category being customized, or a new custom one (should not happen here)
+            currentCustomCategories.push(updatedCategoryData);
+        }
+        // Ensure unique by name if somehow duplicates were created (e.g. if originalCategoryName was a display name that changed)
+        const tempMap = new Map<string, CustomCategoryData>();
+        currentCustomCategories.forEach(cat => tempMap.set(cat.name.toLowerCase(), cat));
+        currentCustomCategories = Array.from(tempMap.values());
+
+        // Update selectedCategories if internal name changed (only for originally custom categories)
+        if (!originalIsPredefined && originalCategoryName.toLowerCase() !== internalNameToUpdate.toLowerCase()) {
+            currentSelectedCategories = currentSelectedCategories.filter(
+                (name) => name.toLowerCase() !== originalCategoryName.toLowerCase()
+            );
+        }
+        // Ensure the (potentially new) internal name is in selectedCategories
+        if (!currentSelectedCategories.map(n => n.toLowerCase()).includes(internalNameToUpdate.toLowerCase())) {
+            currentSelectedCategories.push(internalNameToUpdate);
+        }
+        currentSelectedCategories = Array.from(new Set(currentSelectedCategories.map(n => n.trim()).filter(Boolean)));
+
+        await updateDoc(preferencesDocRef, {
+            userDefinedCategories: currentCustomCategories,
+            selectedCategories: currentSelectedCategories,
+            updatedAt: serverTimestamp()
+        });
+
+        await fetchUserCategories(); 
+        toast({ title: translate({ en: "Category Updated", pt: "Categoria Atualizada" }), description: `${updatedCategoryDisplayName} ${translate({ en: "has been updated.", pt: "foi atualizada." })}` });
+        setIsEditDialogOpen(false);
+        setCategoryToEdit(null);
+        setOriginalCategoryName(null);
+        
     } catch (error) {
         console.error("Error updating category:", error);
         toast({ title: translate({ en: "Error", pt: "Erro" }), description: translate({ en: "Could not update category.", pt: "Não foi possível atualizar a categoria." }), variant: "destructive" });
@@ -386,11 +354,7 @@ export default function ManageCategoriesPage() {
   };
 
   const handleDeleteCategory = async () => {
-    if (!user || !categoryToDelete) {
-      toast({ title: translate({ en: "Error", pt: "Erro" }), description: translate({ en: "Category not found or user not authenticated.", pt: "Categoria não encontrada ou usuário não autenticado." }), variant: "destructive" });
-      setCategoryToDelete(null);
-      return;
-    }
+    if (!user || !categoryToDelete) return;
     setIsSaving(true); 
     try {
       const preferencesDocRef = doc(db, `users/${user.uid}/preferences/userPreferences`);
@@ -401,23 +365,25 @@ export default function ManageCategoriesPage() {
         let updatedSelected = currentPrefs.selectedCategories || [];
         let updatedDeselectedPredefined = currentPrefs.deselectedPredefinedCategories || [];
 
-        const categoryInternalName = categoryToDelete.name as string;
-        const isActuallyPredefined = isPredefinedCategory(categoryInternalName);
-        const isAlsoInCustom = updatedUserDefined.some(cat => cat.name.toLowerCase() === categoryInternalName.toLowerCase());
+        const categoryInternalName = categoryToDelete.name; 
+        const wasOriginallyPredefined = isPredefinedCategory(categoryInternalName);
 
-        if (isAlsoInCustom) { // If it's in userDefined (even if it was originally predefined but customized)
-          updatedUserDefined = updatedUserDefined.filter(
-            cat => cat.name.toLowerCase() !== categoryInternalName.toLowerCase()
-          );
-        } else if (isActuallyPredefined) { // It's a predefined category that hasn't been customized, so add to deselected
-          if (!updatedDeselectedPredefined.map(n=>n.toLowerCase()).includes(categoryInternalName.toLowerCase())) {
-            updatedDeselectedPredefined.push(categoryInternalName);
-          }
-        }
+        // Remove from userDefinedCategories if it's there
+        updatedUserDefined = updatedUserDefined.filter(
+          cat => cat.name.toLowerCase() !== categoryInternalName.toLowerCase()
+        );
         
+        // Remove from selectedCategories
         updatedSelected = updatedSelected.filter(
           name => name.toLowerCase() !== categoryInternalName.toLowerCase()
         );
+
+        // If it was originally predefined and not just a custom version, add to deselected
+        if (wasOriginallyPredefined) {
+          if (!updatedDeselectedPredefined.map(n => n.toLowerCase()).includes(categoryInternalName.toLowerCase())) {
+            updatedDeselectedPredefined.push(categoryInternalName);
+          }
+        }
 
         await updateDoc(preferencesDocRef, {
           userDefinedCategories: updatedUserDefined,
@@ -428,10 +394,10 @@ export default function ManageCategoriesPage() {
       }
       
       await fetchUserCategories(); 
-      toast({ title: translate({ en: "Category Action Complete", pt: "Ação da Categoria Concluída" }), description: `${getCategoryDisplayLabel(categoryToDelete, language)} ${translate({ en: "has been processed.", pt: "foi processada." })}` });
+      toast({ title: translate({ en: "Category Processed", pt: "Categoria Processada" }), description: `${getCategoryDisplayLabel(categoryToDelete, language)} ${translate({ en: "has been processed.", pt: "foi processada." })}` });
     } catch (error) {
       console.error("Error processing category action:", error);
-      toast({ title: translate({ en: "Error Processing Action", pt: "Erro ao Processar Ação" }), description: translate({ en: "Could not complete the action for the category.", pt: "Não foi possível concluir a ação para a categoria." }), variant: "destructive" });
+      toast({ title: translate({ en: "Error Processing Action", pt: "Erro ao Processar Ação" }), description: translate({ en: "Could not complete the action.", pt: "Não foi possível concluir a ação." }), variant: "destructive" });
     } finally {
       setIsSaving(false);
       setCategoryToDelete(null);
@@ -632,10 +598,10 @@ export default function ManageCategoriesPage() {
             ) : displayCategories.length > 0 ? (
               <div className="space-y-1">
                 {displayCategories.map((category, index) => {
-                  const isPredefined = isPredefinedCategory(category.name as string);
-                   console.log(`ManageCategoriesPage TRACER --- Rendering category: ${getCategoryDisplayLabel(category, language)}, Original Name: ${category.name}, Is Predefined: ${isPredefined}`);
+                  // const originalIsPredefined = isPredefinedCategory(category.name as string);
+                  console.log(`ManageCategoriesPage TRACER --- Rendering category: ${getCategoryDisplayLabel(category, language)}, Original Name: ${category.name}, Is Predefined: ${isPredefinedCategory(category.name)}`);
                   return (
-                    <React.Fragment key={category.name as string}>
+                    <React.Fragment key={category.name + '-' + index}>
                       <div className="flex items-center justify-between py-3 hover:bg-muted/50 rounded-md px-2 -mx-2">
                         <div className="flex items-center gap-3">
                           <CategoryIcon iconName={category.icon} className="h-6 w-6 text-muted-foreground" />
@@ -695,9 +661,9 @@ export default function ManageCategoriesPage() {
               <AlertDialogDescription>
                 {translate({en: "Are you sure you want to process this action for category:", pt: "Tem certeza que deseja processar esta ação para a categoria:"})}{" "}
                 <strong>{getCategoryDisplayLabel(categoryToDelete, language)}</strong>?{" "}
-                {(isPredefinedCategory(categoryToDelete.name as string) && ! (displayCategories.find(c => c.name === categoryToDelete.name && !isPredefinedCategory(c.name as string) )) )
-                  ? translate({en: "This is a predefined category. Deleting it will hide it from selection. Editing it will create a custom version.", pt: "Esta é uma categoria pré-definida. Excluí-la irá ocultá-la da seleção. Editá-la criará uma versão personalizada."})
-                  : translate({en: "This action might affect existing transactions linked to this category if its name changes.", pt: "Esta ação pode afetar transações existentes vinculadas a esta categoria se o nome dela mudar."})
+                {isPredefinedCategory(categoryToDelete.name)
+                  ? translate({en: "This is a predefined category. Editing it will create a custom version. Deleting it will hide it from selection.", pt: "Esta é uma categoria pré-definida. Editá-la criará uma versão personalizada. Excluí-la irá ocultá-la da seleção."})
+                  : translate({en: "This action might affect existing transactions if its name changes.", pt: "Esta ação pode afetar transações existentes vinculadas a esta categoria se o nome dela mudar."})
                 }
               </AlertDialogDescription>
             </AlertDialogHeader>
