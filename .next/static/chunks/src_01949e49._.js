@@ -2268,7 +2268,7 @@ function ManagePaymentMethodsPage() {
     const [isAddDialogOpen, setIsAddDialogOpen] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(false);
     const [isEditDialogOpen, setIsEditDialogOpen] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(false);
     const [methodToEdit, setMethodToEdit] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(null);
-    const [originalMethodName, setOriginalMethodName] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(null);
+    const [originalMethodName, setOriginalMethodName] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(null); // Stores the internal name
     const [isSaving, setIsSaving] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(false);
     const [methodToDelete, setMethodToDelete] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(null);
     const addMethodForm = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$react$2d$hook$2d$form$2f$dist$2f$index$2e$esm$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useForm"])({
@@ -2288,9 +2288,9 @@ function ManagePaymentMethodsPage() {
         }
     });
     const isTrulyPredefinedMethod = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useCallback"])({
-        "ManagePaymentMethodsPage.useCallback[isTrulyPredefinedMethod]": (methodName)=>{
+        "ManagePaymentMethodsPage.useCallback[isTrulyPredefinedMethod]": (methodInternalName)=>{
             return __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["PAYMENT_METHODS"].some({
-                "ManagePaymentMethodsPage.useCallback[isTrulyPredefinedMethod]": (pm)=>pm.name.toLowerCase() === methodName.toLowerCase()
+                "ManagePaymentMethodsPage.useCallback[isTrulyPredefinedMethod]": (pm)=>pm.name.toLowerCase() === methodInternalName.toLowerCase()
             }["ManagePaymentMethodsPage.useCallback[isTrulyPredefinedMethod]"]);
         }
     }["ManagePaymentMethodsPage.useCallback[isTrulyPredefinedMethod]"], []);
@@ -2310,34 +2310,45 @@ function ManagePaymentMethodsPage() {
                 const preferencesDocRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$esm2017$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["doc"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["db"], `users/${user.uid}/preferences/userPreferences`);
                 const preferencesDocSnap = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$esm2017$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["getDoc"])(preferencesDocRef);
                 let effectiveMethods = [];
-                const deselectedPredefinedNames = [];
                 if (preferencesDocSnap.exists()) {
                     const prefsData = preferencesDocSnap.data();
-                    (prefsData.deselectedPredefinedPaymentMethods || []).forEach({
-                        "ManagePaymentMethodsPage.useCallback[fetchUserPaymentMethods]": (name)=>deselectedPredefinedNames.push(name.toLowerCase())
-                    }["ManagePaymentMethodsPage.useCallback[fetchUserPaymentMethods]"]);
-                    effectiveMethods = __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["PAYMENT_METHODS"].filter({
-                        "ManagePaymentMethodsPage.useCallback[fetchUserPaymentMethods]": (predefMethod)=>!deselectedPredefinedNames.includes(predefMethod.name.toLowerCase())
-                    }["ManagePaymentMethodsPage.useCallback[fetchUserPaymentMethods]"]);
-                    const customMethods = prefsData.userDefinedPaymentMethods || [];
+                    const deselectedPredefinedNames = (prefsData.deselectedPredefinedPaymentMethods || []).map({
+                        "ManagePaymentMethodsPage.useCallback[fetchUserPaymentMethods].deselectedPredefinedNames": (name)=>name.toLowerCase()
+                    }["ManagePaymentMethodsPage.useCallback[fetchUserPaymentMethods].deselectedPredefinedNames"]);
+                    const customMethodsFromDb = prefsData.userDefinedPaymentMethods || [];
                     const customMethodsMap = new Map();
-                    customMethods.forEach({
+                    customMethodsFromDb.forEach({
                         "ManagePaymentMethodsPage.useCallback[fetchUserPaymentMethods]": (cm)=>customMethodsMap.set(cm.name.toLowerCase(), cm)
                     }["ManagePaymentMethodsPage.useCallback[fetchUserPaymentMethods]"]);
-                    effectiveMethods = effectiveMethods.map({
-                        "ManagePaymentMethodsPage.useCallback[fetchUserPaymentMethods]": (meth)=>{
-                            const customOverride = customMethodsMap.get(meth.name.toLowerCase());
+                    // Start with predefined methods that are not deselected
+                    effectiveMethods = __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["PAYMENT_METHODS"].filter({
+                        "ManagePaymentMethodsPage.useCallback[fetchUserPaymentMethods]": (predefMethod)=>!deselectedPredefinedNames.includes(predefMethod.name.toLowerCase())
+                    }["ManagePaymentMethodsPage.useCallback[fetchUserPaymentMethods]"]).map({
+                        "ManagePaymentMethodsPage.useCallback[fetchUserPaymentMethods]": (predefMethod)=>{
+                            // Check if this predefined method has a custom override
+                            const customOverride = customMethodsMap.get(predefMethod.name.toLowerCase());
                             if (customOverride) {
-                                customMethodsMap.delete(meth.name.toLowerCase());
-                                return customOverride;
+                                customMethodsMap.delete(predefMethod.name.toLowerCase()); // Remove from map as it's been used
+                                return {
+                                    ...predefMethod,
+                                    ...customOverride
+                                }; // Use custom version (label, icon) but keep original name/type
                             }
-                            return meth;
+                            return predefMethod; // Use the predefined version
                         }
                     }["ManagePaymentMethodsPage.useCallback[fetchUserPaymentMethods]"]);
+                    // Add any remaining custom methods (those that didn't override a predefined one by internal name)
                     customMethodsMap.forEach({
-                        "ManagePaymentMethodsPage.useCallback[fetchUserPaymentMethods]": (customMeth)=>effectiveMethods.push(customMeth)
+                        "ManagePaymentMethodsPage.useCallback[fetchUserPaymentMethods]": (customMeth)=>{
+                            if (!effectiveMethods.some({
+                                "ManagePaymentMethodsPage.useCallback[fetchUserPaymentMethods]": (em)=>em.name.toLowerCase() === customMeth.name.toLowerCase()
+                            }["ManagePaymentMethodsPage.useCallback[fetchUserPaymentMethods]"])) {
+                                effectiveMethods.push(customMeth);
+                            }
+                        }
                     }["ManagePaymentMethodsPage.useCallback[fetchUserPaymentMethods]"]);
                 } else {
+                    // No preferences doc, use all predefined
                     effectiveMethods = [
                         ...__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["PAYMENT_METHODS"]
                     ];
@@ -2400,18 +2411,20 @@ function ManagePaymentMethodsPage() {
             return;
         }
         setIsSaving(true);
-        const newMethodName = data.methodName.trim();
+        const newMethodDisplayName = data.methodName.trim();
         const newMethodIcon = data.selectedIcon;
-        const isDuplicate = displayPaymentMethods.some((pm)=>(0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["getPaymentMethodDisplayLabel"])(pm, language).toLowerCase() === newMethodName.toLowerCase() || pm.name.toLowerCase() === newMethodName.toLowerCase());
-        if (isDuplicate) {
+        // For a brand new custom method, its internal name is its display name
+        const newMethodInternalName = newMethodDisplayName;
+        const isNameDuplicate = displayPaymentMethods.some((pm)=>(0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["getPaymentMethodDisplayLabel"])(pm, language).toLowerCase() === newMethodDisplayName.toLowerCase() || pm.name.toLowerCase() === newMethodInternalName.toLowerCase());
+        if (isNameDuplicate) {
             toast({
                 title: translate({
                     en: "Duplicate Method",
                     pt: "Método Duplicado"
                 }),
                 description: translate({
-                    en: "This payment method name already exists.",
-                    pt: "Este nome de método de pagamento já existe."
+                    en: "This payment method name or display name already exists.",
+                    pt: "Este nome ou nome de exibição do método de pagamento já existe."
                 }),
                 variant: "destructive"
             });
@@ -2419,23 +2432,21 @@ function ManagePaymentMethodsPage() {
             return;
         }
         const newCustomMethod = {
-            name: newMethodName,
+            name: newMethodInternalName,
             icon: newMethodIcon,
             label: {
-                en: newMethodName,
-                pt: newMethodName
+                en: newMethodDisplayName,
+                pt: newMethodDisplayName
             }
         };
         try {
             const preferencesDocRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$esm2017$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["doc"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["db"], `users/${user.uid}/preferences/userPreferences`);
             const prefsSnap = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$esm2017$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["getDoc"])(preferencesDocRef);
-            let currentDeselectedPredefined = prefsSnap.exists() ? prefsSnap.data().deselectedPredefinedPaymentMethods || [] : [];
-            currentDeselectedPredefined = currentDeselectedPredefined.filter((dn)=>dn.toLowerCase() !== newCustomMethod.name.toLowerCase());
             if (prefsSnap.exists()) {
                 await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$esm2017$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["updateDoc"])(preferencesDocRef, {
                     userDefinedPaymentMethods: (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$esm2017$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["arrayUnion"])(newCustomMethod),
                     selectedPaymentMethods: (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$esm2017$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["arrayUnion"])(newCustomMethod.name),
-                    deselectedPredefinedPaymentMethods: currentDeselectedPredefined,
+                    deselectedPredefinedPaymentMethods: (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$esm2017$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["arrayRemove"])(newCustomMethod.name),
                     updatedAt: (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$esm2017$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["serverTimestamp"])()
                 });
             } else {
@@ -2447,6 +2458,7 @@ function ManagePaymentMethodsPage() {
                         newCustomMethod.name
                     ],
                     deselectedPredefinedPaymentMethods: [],
+                    // Initialize other preference fields if necessary
                     selectedCategories: CATEGORIES.map((c)=>c.name),
                     userDefinedCategories: [],
                     language: language,
@@ -2488,7 +2500,7 @@ function ManagePaymentMethodsPage() {
     };
     const handleOpenEditDialog = (method)=>{
         setMethodToEdit(method);
-        setOriginalMethodName(method.name);
+        setOriginalMethodName(method.name); // Store the internal name
         editMethodForm.reset({
             methodName: (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["getPaymentMethodDisplayLabel"])(method, language),
             selectedIcon: method.icon
@@ -2513,99 +2525,102 @@ function ManagePaymentMethodsPage() {
         setIsSaving(true);
         const updatedMethodDisplayName = data.methodName.trim();
         const updatedIcon = data.selectedIcon;
-        let newInternalName = originalMethodName;
-        if ((0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["getPaymentMethodDisplayLabel"])(methodToEdit, language).toLowerCase() !== updatedMethodDisplayName.toLowerCase()) {
-            newInternalName = updatedMethodDisplayName;
-        }
-        const isDuplicate = displayPaymentMethods.some((meth)=>meth.name.toLowerCase() === newInternalName.toLowerCase() && meth.name.toLowerCase() !== originalMethodName.toLowerCase());
-        if (isDuplicate) {
-            toast({
-                title: translate({
-                    en: "Duplicate Method",
-                    pt: "Método Duplicado"
-                }),
-                description: translate({
-                    en: "Another method with this name already exists.",
-                    pt: "Outro método com este nome já existe."
-                }),
-                variant: "destructive"
-            });
-            setIsSaving(false);
-            return;
-        }
-        const updatedMethodData = {
-            name: newInternalName,
-            icon: updatedIcon,
-            label: {
-                en: updatedMethodDisplayName,
-                pt: updatedMethodDisplayName
-            }
-        };
         try {
             const preferencesDocRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$esm2017$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["doc"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["db"], `users/${user.uid}/preferences/userPreferences`);
             const prefsSnap = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$esm2017$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["getDoc"])(preferencesDocRef);
-            if (prefsSnap.exists()) {
-                const preferencesData = prefsSnap.data();
-                let currentCustomMethods = preferencesData.userDefinedPaymentMethods || [];
-                let currentSelectedMethods = preferencesData.selectedPaymentMethods || [];
-                let currentDeselectedPredefined = preferencesData.deselectedPredefinedPaymentMethods || [];
-                currentCustomMethods = currentCustomMethods.filter((meth)=>meth.name.toLowerCase() !== originalMethodName.toLowerCase());
-                currentCustomMethods.push(updatedMethodData);
-                if (originalMethodName.toLowerCase() !== newInternalName.toLowerCase()) {
-                    currentSelectedMethods = currentSelectedMethods.filter((name)=>name.toLowerCase() !== originalMethodName.toLowerCase());
-                    if (!currentSelectedMethods.map((n)=>n.toLowerCase()).includes(newInternalName.toLowerCase())) {
-                        currentSelectedMethods.push(newInternalName);
-                    }
-                } else if (!currentSelectedMethods.map((n)=>n.toLowerCase()).includes(newInternalName.toLowerCase())) {
-                    currentSelectedMethods.push(newInternalName);
-                }
-                currentSelectedMethods = Array.from(new Set(currentSelectedMethods));
-                currentDeselectedPredefined = currentDeselectedPredefined.filter((dn)=>dn.toLowerCase() !== originalMethodName.toLowerCase() && dn.toLowerCase() !== newInternalName.toLowerCase());
-                await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$esm2017$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["updateDoc"])(preferencesDocRef, {
-                    userDefinedPaymentMethods: currentCustomMethods,
-                    selectedPaymentMethods: currentSelectedMethods,
-                    deselectedPredefinedPaymentMethods: currentDeselectedPredefined,
-                    updatedAt: (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$esm2017$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["serverTimestamp"])()
-                });
-                await fetchUserPaymentMethods();
+            if (!prefsSnap.exists()) {
                 toast({
                     title: translate({
-                        en: "Method Updated",
-                        pt: "Método Atualizado"
+                        en: "Error",
+                        pt: "Erro"
                     }),
-                    description: `${(0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["getPaymentMethodDisplayLabel"])(updatedMethodData, language)} ${translate({
-                        en: "has been updated.",
-                        pt: "foi atualizado."
-                    })}`
+                    description: translate({
+                        en: "User preferences not found.",
+                        pt: "Preferências do usuário não encontradas."
+                    }),
+                    variant: "destructive"
                 });
-                setIsEditDialogOpen(false);
-                setMethodToEdit(null);
-                setOriginalMethodName(null);
-            } else {
-                // This case should ideally not happen if user has any preferences
-                await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$esm2017$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["setDoc"])(preferencesDocRef, {
-                    userDefinedPaymentMethods: [
-                        updatedMethodData
-                    ],
-                    selectedPaymentMethods: [
-                        updatedMethodData.name
-                    ],
-                    deselectedPredefinedPaymentMethods: [],
-                    selectedCategories: CATEGORIES.map((c)=>c.name),
-                    userDefinedCategories: [],
-                    language: language,
-                    updatedAt: (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$esm2017$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["serverTimestamp"])()
-                });
-                console.warn("ManagePaymentMethodsPage: Preferences doc didn't exist during edit, created it.");
-                await fetchUserPaymentMethods();
+                setIsSaving(false);
+                return;
+            }
+            const preferencesData = prefsSnap.data();
+            let currentCustomMethods = preferencesData.userDefinedPaymentMethods || [];
+            let currentSelectedMethods = preferencesData.selectedPaymentMethods || [];
+            let currentDeselectedPredefined = preferencesData.deselectedPredefinedPaymentMethods || [];
+            const wasOriginallyPredefined = isTrulyPredefinedMethod(originalMethodName);
+            // The internal name for the updated method. If it was predefined, its internal name doesn't change.
+            // If it was custom, its internal name changes IF the display name (which serves as its ID) changes.
+            const internalNameForUpdate = wasOriginallyPredefined ? originalMethodName : updatedMethodDisplayName;
+            // Check for display name duplication, excluding the method being edited (if its internal name isn't changing)
+            const otherMethods = displayPaymentMethods.filter((pm)=>pm.name.toLowerCase() !== originalMethodName.toLowerCase());
+            const isDisplayNameDuplicate = otherMethods.some((pm)=>(0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["getPaymentMethodDisplayLabel"])(pm, language).toLowerCase() === updatedMethodDisplayName.toLowerCase());
+            if (isDisplayNameDuplicate && (!wasOriginallyPredefined || originalMethodName.toLowerCase() !== internalNameForUpdate.toLowerCase())) {
                 toast({
                     title: translate({
-                        en: "Method Updated",
-                        pt: "Método Atualizado"
-                    })
+                        en: "Duplicate Method",
+                        pt: "Método Duplicado"
+                    }),
+                    description: translate({
+                        en: "Another method with this display name already exists.",
+                        pt: "Outro método com este nome de exibição já existe."
+                    }),
+                    variant: "destructive"
                 });
-                setIsEditDialogOpen(false);
+                setIsSaving(false);
+                return;
             }
+            const updatedMethodData = {
+                name: internalNameForUpdate,
+                icon: updatedIcon,
+                label: {
+                    en: updatedMethodDisplayName,
+                    pt: updatedMethodDisplayName
+                }
+            };
+            // Find and update/replace in customMethods
+            const existingCustomIndex = currentCustomMethods.findIndex((pm)=>pm.name.toLowerCase() === originalMethodName.toLowerCase());
+            if (existingCustomIndex !== -1) {
+                currentCustomMethods[existingCustomIndex] = updatedMethodData;
+            } else if (wasOriginallyPredefined) {
+                currentCustomMethods.push(updatedMethodData);
+            }
+            // Ensure unique by name if somehow duplicates were created (e.g. if originalMethodName was a display name that changed)
+            const tempMap = new Map();
+            currentCustomMethods.forEach((pm)=>tempMap.set(pm.name.toLowerCase(), pm));
+            currentCustomMethods = Array.from(tempMap.values());
+            // Update selectedMethods if internal name changed (only for originally custom methods that were renamed)
+            if (!wasOriginallyPredefined && originalMethodName.toLowerCase() !== internalNameForUpdate.toLowerCase()) {
+                currentSelectedMethods = currentSelectedMethods.filter((name)=>name.toLowerCase() !== originalMethodName.toLowerCase());
+            }
+            // Ensure the (potentially new) internal name is in selectedMethods
+            if (!currentSelectedMethods.map((n)=>n.toLowerCase()).includes(internalNameForUpdate.toLowerCase())) {
+                currentSelectedMethods.push(internalNameForUpdate);
+            }
+            currentSelectedMethods = Array.from(new Set(currentSelectedMethods.map((n)=>n.trim()).filter(Boolean)));
+            // If a predefined method was customized, ensure it's not in deselected
+            if (wasOriginallyPredefined) {
+                currentDeselectedPredefined = currentDeselectedPredefined.filter((name)=>name.toLowerCase() !== originalMethodName.toLowerCase());
+            }
+            await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$esm2017$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["updateDoc"])(preferencesDocRef, {
+                userDefinedPaymentMethods: currentCustomMethods,
+                selectedPaymentMethods: currentSelectedMethods,
+                deselectedPredefinedPaymentMethods: currentDeselectedPredefined,
+                updatedAt: (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$esm2017$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["serverTimestamp"])()
+            });
+            await fetchUserPaymentMethods();
+            toast({
+                title: translate({
+                    en: "Method Updated",
+                    pt: "Método Atualizado"
+                }),
+                description: `${(0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["getPaymentMethodDisplayLabel"])(updatedMethodData, language)} ${translate({
+                    en: "has been updated.",
+                    pt: "foi atualizado."
+                })}`
+            });
+            setIsEditDialogOpen(false);
+            setMethodToEdit(null);
+            setOriginalMethodName(null);
         } catch (error) {
             console.error("Error updating payment method:", error);
             toast({
@@ -2653,15 +2668,16 @@ function ManagePaymentMethodsPage() {
                 let updatedDeselectedPredefined = currentPrefs.deselectedPredefinedPaymentMethods || [];
                 const methodInternalName = methodToDelete.name;
                 const wasOriginallyPredefined = isTrulyPredefinedMethod(methodInternalName);
-                const isAlsoInCustom = updatedUserDefined.some((meth)=>meth.name.toLowerCase() === methodInternalName.toLowerCase());
-                if (isAlsoInCustom) {
-                    updatedUserDefined = updatedUserDefined.filter((meth)=>meth.name.toLowerCase() !== methodInternalName.toLowerCase());
-                } else if (wasOriginallyPredefined) {
+                // Remove from userDefinedPaymentMethods if it's there (covers custom methods and customized predefined ones)
+                updatedUserDefined = updatedUserDefined.filter((meth)=>meth.name.toLowerCase() !== methodInternalName.toLowerCase());
+                // Remove from selectedPaymentMethods
+                updatedSelected = updatedSelected.filter((name)=>name.toLowerCase() !== methodInternalName.toLowerCase());
+                // If it was an original predefined method being "deleted", add its internal name to deselectedPredefinedPaymentMethods
+                if (wasOriginallyPredefined) {
                     if (!updatedDeselectedPredefined.map((n)=>n.toLowerCase()).includes(methodInternalName.toLowerCase())) {
                         updatedDeselectedPredefined.push(methodInternalName);
                     }
                 }
-                updatedSelected = updatedSelected.filter((name)=>name.toLowerCase() !== methodInternalName.toLowerCase());
                 await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$esm2017$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["updateDoc"])(preferencesDocRef, {
                     userDefinedPaymentMethods: updatedUserDefined,
                     selectedPaymentMethods: updatedSelected,
@@ -2735,20 +2751,20 @@ function ManagePaymentMethodsPage() {
                             children: dialogTitle
                         }, void 0, false, {
                             fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                            lineNumber: 407,
+                            lineNumber: 427,
                             columnNumber: 17
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$dialog$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["DialogDescription"], {
                             children: dialogDescription
                         }, void 0, false, {
                             fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                            lineNumber: 408,
+                            lineNumber: 428,
                             columnNumber: 17
                         }, this)
                     ]
                 }, void 0, true, {
                     fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                    lineNumber: 406,
+                    lineNumber: 426,
                     columnNumber: 13
                 }, this),
                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Form"], {
@@ -2769,7 +2785,7 @@ function ManagePaymentMethodsPage() {
                                                 })
                                             }, void 0, false, {
                                                 fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                                lineNumber: 417,
+                                                lineNumber: 437,
                                                 columnNumber: 25
                                             }, void 0),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormControl"], {
@@ -2781,28 +2797,28 @@ function ManagePaymentMethodsPage() {
                                                     ...field
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                                    lineNumber: 421,
+                                                    lineNumber: 441,
                                                     columnNumber: 25
                                                 }, void 0)
                                             }, void 0, false, {
                                                 fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                                lineNumber: 420,
+                                                lineNumber: 440,
                                                 columnNumber: 25
                                             }, void 0),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormMessage"], {}, void 0, false, {
                                                 fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                                lineNumber: 426,
+                                                lineNumber: 446,
                                                 columnNumber: 25
                                             }, void 0)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                        lineNumber: 416,
+                                        lineNumber: 436,
                                         columnNumber: 21
                                     }, void 0)
                             }, void 0, false, {
                                 fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                lineNumber: 412,
+                                lineNumber: 432,
                                 columnNumber: 17
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormField"], {
@@ -2817,7 +2833,7 @@ function ManagePaymentMethodsPage() {
                                                 })
                                             }, void 0, false, {
                                                 fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                                lineNumber: 435,
+                                                lineNumber: 455,
                                                 columnNumber: 25
                                             }, void 0),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Select"], {
@@ -2828,6 +2844,10 @@ function ManagePaymentMethodsPage() {
                                                         children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["SelectTrigger"], {
                                                             className: "w-full",
                                                             children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["SelectValue"], {
+                                                                placeholder: translate({
+                                                                    en: "Select an icon",
+                                                                    pt: "Selecione um ícone"
+                                                                }),
                                                                 children: field.value ? (()=>{
                                                                     const foundIconOption = selectableIcons.find((i)=>i.value === field.value);
                                                                     const IconComp = foundIconOption ? foundIconOption.iconComponent : __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$circle$2d$help$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__CircleHelp$3e$__["CircleHelp"];
@@ -2839,20 +2859,20 @@ function ManagePaymentMethodsPage() {
                                                                                 className: "h-4 w-4 text-muted-foreground"
                                                                             }, void 0, false, {
                                                                                 fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                                                                lineNumber: 449,
+                                                                                lineNumber: 469,
                                                                                 columnNumber: 41
                                                                             }, void 0),
                                                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
                                                                                 children: labelText
                                                                             }, void 0, false, {
                                                                                 fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                                                                lineNumber: 450,
+                                                                                lineNumber: 470,
                                                                                 columnNumber: 41
                                                                             }, void 0)
                                                                         ]
                                                                     }, void 0, true, {
                                                                         fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                                                        lineNumber: 448,
+                                                                        lineNumber: 468,
                                                                         columnNumber: 39
                                                                     }, void 0);
                                                                 })() : translate({
@@ -2861,17 +2881,17 @@ function ManagePaymentMethodsPage() {
                                                                 })
                                                             }, void 0, false, {
                                                                 fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                                                lineNumber: 441,
+                                                                lineNumber: 461,
                                                                 columnNumber: 30
                                                             }, void 0)
                                                         }, void 0, false, {
                                                             fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                                            lineNumber: 440,
+                                                            lineNumber: 460,
                                                             columnNumber: 29
                                                         }, void 0)
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                                        lineNumber: 439,
+                                                        lineNumber: 459,
                                                         columnNumber: 27
                                                     }, void 0),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["SelectContent"], {
@@ -2884,52 +2904,52 @@ function ManagePaymentMethodsPage() {
                                                                             className: "h-4 w-4 text-muted-foreground"
                                                                         }, void 0, false, {
                                                                             fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                                                            lineNumber: 464,
+                                                                            lineNumber: 484,
                                                                             columnNumber: 35
                                                                         }, void 0),
                                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
                                                                             children: translate(iconOption.label)
                                                                         }, void 0, false, {
                                                                             fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                                                            lineNumber: 465,
+                                                                            lineNumber: 485,
                                                                             columnNumber: 35
                                                                         }, void 0)
                                                                     ]
                                                                 }, void 0, true, {
                                                                     fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                                                    lineNumber: 463,
+                                                                    lineNumber: 483,
                                                                     columnNumber: 33
                                                                 }, void 0)
                                                             }, iconOption.value, false, {
                                                                 fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                                                lineNumber: 462,
+                                                                lineNumber: 482,
                                                                 columnNumber: 31
                                                             }, void 0))
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                                        lineNumber: 460,
+                                                        lineNumber: 480,
                                                         columnNumber: 27
                                                     }, void 0)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                                lineNumber: 438,
+                                                lineNumber: 458,
                                                 columnNumber: 25
                                             }, void 0),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormMessage"], {}, void 0, false, {
                                                 fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                                lineNumber: 471,
+                                                lineNumber: 491,
                                                 columnNumber: 25
                                             }, void 0)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                        lineNumber: 434,
+                                        lineNumber: 454,
                                         columnNumber: 21
                                     }, void 0)
                             }, void 0, false, {
                                 fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                lineNumber: 430,
+                                lineNumber: 450,
                                 columnNumber: 17
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$dialog$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["DialogFooter"], {
@@ -2946,12 +2966,12 @@ function ManagePaymentMethodsPage() {
                                             })
                                         }, void 0, false, {
                                             fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                            lineNumber: 477,
+                                            lineNumber: 497,
                                             columnNumber: 21
                                         }, this)
                                     }, void 0, false, {
                                         fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                        lineNumber: 476,
+                                        lineNumber: 496,
                                         columnNumber: 21
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$button$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Button"], {
@@ -2960,30 +2980,30 @@ function ManagePaymentMethodsPage() {
                                         children: submitButtonText
                                     }, void 0, false, {
                                         fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                        lineNumber: 481,
+                                        lineNumber: 501,
                                         columnNumber: 21
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                lineNumber: 475,
+                                lineNumber: 495,
                                 columnNumber: 17
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                        lineNumber: 411,
+                        lineNumber: 431,
                         columnNumber: 17
                     }, this)
                 }, void 0, false, {
                     fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                    lineNumber: 410,
+                    lineNumber: 430,
                     columnNumber: 13
                 }, this)
             ]
         }, void 0, true, {
             fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-            lineNumber: 405,
+            lineNumber: 425,
             columnNumber: 9
         }, this);
     };
@@ -3003,7 +3023,7 @@ function ManagePaymentMethodsPage() {
                                 })
                             }, void 0, false, {
                                 fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                lineNumber: 496,
+                                lineNumber: 516,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$dialog$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Dialog"], {
@@ -3020,7 +3040,7 @@ function ManagePaymentMethodsPage() {
                                                     className: "mr-2 h-4 w-4"
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                                    lineNumber: 502,
+                                                    lineNumber: 522,
                                                     columnNumber: 17
                                                 }, this),
                                                 translate({
@@ -3030,25 +3050,25 @@ function ManagePaymentMethodsPage() {
                                             ]
                                         }, void 0, true, {
                                             fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                            lineNumber: 501,
+                                            lineNumber: 521,
                                             columnNumber: 15
                                         }, this)
                                     }, void 0, false, {
                                         fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                        lineNumber: 500,
+                                        lineNumber: 520,
                                         columnNumber: 13
                                     }, this),
                                     renderMethodForm(addMethodForm, handleAddMethodSubmit, "add")
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                lineNumber: 499,
+                                lineNumber: 519,
                                 columnNumber: 11
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                        lineNumber: 495,
+                        lineNumber: 515,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$dialog$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Dialog"], {
@@ -3063,7 +3083,7 @@ function ManagePaymentMethodsPage() {
                         children: methodToEdit && renderMethodForm(editMethodForm, handleEditMethodSubmit, "edit")
                     }, void 0, false, {
                         fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                        lineNumber: 510,
+                        lineNumber: 530,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Card"], {
@@ -3078,7 +3098,7 @@ function ManagePaymentMethodsPage() {
                                         })
                                     }, void 0, false, {
                                         fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                        lineNumber: 522,
+                                        lineNumber: 542,
                                         columnNumber: 13
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["CardDescription"], {
@@ -3088,13 +3108,13 @@ function ManagePaymentMethodsPage() {
                                         })
                                     }, void 0, false, {
                                         fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                        lineNumber: 523,
+                                        lineNumber: 543,
                                         columnNumber: 13
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                lineNumber: 521,
+                                lineNumber: 541,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["CardContent"], {
@@ -3114,20 +3134,20 @@ function ManagePaymentMethodsPage() {
                                                                     className: "h-6 w-6 rounded"
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                                                    lineNumber: 534,
+                                                                    lineNumber: 554,
                                                                     columnNumber: 25
                                                                 }, this),
                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$skeleton$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Skeleton"], {
                                                                     className: "h-5 w-32"
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                                                    lineNumber: 535,
+                                                                    lineNumber: 555,
                                                                     columnNumber: 25
                                                                 }, this)
                                                             ]
                                                         }, void 0, true, {
                                                             fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                                            lineNumber: 533,
+                                                            lineNumber: 553,
                                                             columnNumber: 23
                                                         }, this),
                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -3137,42 +3157,42 @@ function ManagePaymentMethodsPage() {
                                                                     className: "h-8 w-8"
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                                                    lineNumber: 538,
+                                                                    lineNumber: 558,
                                                                     columnNumber: 25
                                                                 }, this),
                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$skeleton$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Skeleton"], {
                                                                     className: "h-8 w-8"
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                                                    lineNumber: 539,
+                                                                    lineNumber: 559,
                                                                     columnNumber: 25
                                                                 }, this)
                                                             ]
                                                         }, void 0, true, {
                                                             fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                                            lineNumber: 537,
+                                                            lineNumber: 557,
                                                             columnNumber: 23
                                                         }, this)
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                                    lineNumber: 532,
+                                                    lineNumber: 552,
                                                     columnNumber: 21
                                                 }, this),
                                                 i < 2 && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$separator$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Separator"], {}, void 0, false, {
                                                     fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                                    lineNumber: 542,
+                                                    lineNumber: 562,
                                                     columnNumber: 31
                                                 }, this)
                                             ]
                                         }, `skeleton-pm-${i}`, true, {
                                             fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                            lineNumber: 531,
+                                            lineNumber: 551,
                                             columnNumber: 19
                                         }, this))
                                 }, void 0, false, {
                                     fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                    lineNumber: 529,
+                                    lineNumber: 549,
                                     columnNumber: 15
                                 }, this) : displayPaymentMethods.length > 0 ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                                     className: "space-y-1",
@@ -3189,7 +3209,7 @@ function ManagePaymentMethodsPage() {
                                                                     className: "h-6 w-6 text-muted-foreground"
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                                                    lineNumber: 552,
+                                                                    lineNumber: 572,
                                                                     columnNumber: 25
                                                                 }, this),
                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -3197,13 +3217,13 @@ function ManagePaymentMethodsPage() {
                                                                     children: (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["getPaymentMethodDisplayLabel"])(method, language)
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                                                    lineNumber: 553,
+                                                                    lineNumber: 573,
                                                                     columnNumber: 25
                                                                 }, this)
                                                             ]
                                                         }, void 0, true, {
                                                             fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                                            lineNumber: 551,
+                                                            lineNumber: 571,
                                                             columnNumber: 23
                                                         }, this),
                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -3222,12 +3242,12 @@ function ManagePaymentMethodsPage() {
                                                                         className: "h-4 w-4"
                                                                     }, void 0, false, {
                                                                         fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                                                        lineNumber: 565,
+                                                                        lineNumber: 585,
                                                                         columnNumber: 27
                                                                     }, this)
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                                                    lineNumber: 558,
+                                                                    lineNumber: 578,
                                                                     columnNumber: 25
                                                                 }, this),
                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$button$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Button"], {
@@ -3244,40 +3264,40 @@ function ManagePaymentMethodsPage() {
                                                                         className: "h-4 w-4"
                                                                     }, void 0, false, {
                                                                         fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                                                        lineNumber: 575,
+                                                                        lineNumber: 595,
                                                                         columnNumber: 27
                                                                     }, this)
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                                                    lineNumber: 567,
+                                                                    lineNumber: 587,
                                                                     columnNumber: 25
                                                                 }, this)
                                                             ]
                                                         }, void 0, true, {
                                                             fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                                            lineNumber: 557,
+                                                            lineNumber: 577,
                                                             columnNumber: 23
                                                         }, this)
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                                    lineNumber: 550,
+                                                    lineNumber: 570,
                                                     columnNumber: 21
                                                 }, this),
                                                 index < displayPaymentMethods.length - 1 && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$separator$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Separator"], {}, void 0, false, {
                                                     fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                                    lineNumber: 579,
+                                                    lineNumber: 599,
                                                     columnNumber: 66
                                                 }, this)
                                             ]
                                         }, method.name, true, {
                                             fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                            lineNumber: 549,
+                                            lineNumber: 569,
                                             columnNumber: 19
                                         }, this))
                                 }, void 0, false, {
                                     fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                    lineNumber: 547,
+                                    lineNumber: 567,
                                     columnNumber: 15
                                 }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
                                     className: "text-center text-muted-foreground py-8",
@@ -3287,24 +3307,24 @@ function ManagePaymentMethodsPage() {
                                     })
                                 }, void 0, false, {
                                     fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                    lineNumber: 584,
+                                    lineNumber: 604,
                                     columnNumber: 15
                                 }, this)
                             }, void 0, false, {
                                 fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                lineNumber: 527,
+                                lineNumber: 547,
                                 columnNumber: 11
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                        lineNumber: 520,
+                        lineNumber: 540,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                lineNumber: 494,
+                lineNumber: 514,
                 columnNumber: 7
             }, this),
             methodToDelete && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$alert$2d$dialog$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["AlertDialog"], {
@@ -3321,7 +3341,7 @@ function ManagePaymentMethodsPage() {
                                     })
                                 }, void 0, false, {
                                     fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                    lineNumber: 595,
+                                    lineNumber: 615,
                                     columnNumber: 15
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$alert$2d$dialog$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["AlertDialogDescription"], {
@@ -3335,28 +3355,35 @@ function ManagePaymentMethodsPage() {
                                             children: (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["getPaymentMethodDisplayLabel"])(methodToDelete, language)
                                         }, void 0, false, {
                                             fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                            lineNumber: 598,
+                                            lineNumber: 618,
                                             columnNumber: 17
                                         }, this),
                                         "?",
                                         " ",
-                                        isTrulyPredefinedMethod(methodToDelete.name) && !displayPaymentMethods.find((m)=>m.name === methodToDelete.name && !__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["PAYMENT_METHODS"].includes(m)) ? translate({
-                                            en: "This is a predefined method. Deleting it will hide it from selection. Editing it will create a custom version.",
-                                            pt: "Este é um método pré-definido. Excluí-lo irá ocultá-lo da seleção. Editá-lo criará uma versão personalizada."
+                                        isTrulyPredefinedMethod(methodToDelete.name) ? translate({
+                                            en: "This is a predefined method. Editing it will create a custom version. Deleting it will hide it from selection.",
+                                            pt: "Este é um método pré-definido. Editá-lo criará uma versão personalizada. Excluí-lo irá ocultá-la da seleção."
                                         }) : translate({
                                             en: "This action might affect existing transactions if the name changes.",
                                             pt: "Esta ação pode afetar transações existentes se o nome mudar."
+                                        }),
+                                        isTrulyPredefinedMethod(methodToDelete.name) && !userDefinedPaymentMethods.find((pm)=>pm.name === methodToDelete.name) ? translate({
+                                            en: " Deleting a predefined method will hide it from future selections.",
+                                            pt: " Excluir um método pré-definido o ocultará de seleções futuras."
+                                        }) : translate({
+                                            en: " Deleting a custom method will remove it permanently.",
+                                            pt: " Excluir um método personalizado o removerá permanentemente."
                                         })
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                    lineNumber: 596,
+                                    lineNumber: 616,
                                     columnNumber: 15
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                            lineNumber: 594,
+                            lineNumber: 614,
                             columnNumber: 13
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$alert$2d$dialog$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["AlertDialogFooter"], {
@@ -3370,7 +3397,7 @@ function ManagePaymentMethodsPage() {
                                     })
                                 }, void 0, false, {
                                     fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                    lineNumber: 606,
+                                    lineNumber: 630,
                                     columnNumber: 15
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$alert$2d$dialog$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["AlertDialogAction"], {
@@ -3386,30 +3413,30 @@ function ManagePaymentMethodsPage() {
                                     })
                                 }, void 0, false, {
                                     fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                    lineNumber: 609,
+                                    lineNumber: 633,
                                     columnNumber: 15
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                            lineNumber: 605,
+                            lineNumber: 629,
                             columnNumber: 13
                         }, this)
                     ]
                 }, void 0, true, {
                     fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                    lineNumber: 593,
+                    lineNumber: 613,
                     columnNumber: 11
                 }, this)
             }, void 0, false, {
                 fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                lineNumber: 592,
+                lineNumber: 612,
                 columnNumber: 9
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-        lineNumber: 493,
+        lineNumber: 513,
         columnNumber: 5
     }, this);
 }
