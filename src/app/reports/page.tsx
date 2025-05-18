@@ -16,7 +16,20 @@ import { useDateNavigation } from '@/context/date-navigation-context';
 import { useToast } from "@/hooks/use-toast";
 import { db } from '@/lib/firebase';
 import { collection, query, orderBy, onSnapshot, Timestamp, doc, getDoc } from "firebase/firestore";
-import { format as formatDateFns, parseISO as parseISODateFns, parse as parseDateFns, startOfMonth, endOfMonth } from 'date-fns';
+import { 
+  format as formatDateFns, 
+  parseISO as parseISODateFns, 
+  parse as parseDateFns, 
+  startOfMonth, 
+  endOfMonth,
+  getYear as getYearFns,
+  getMonth as getMonthFns,
+  getDate as getDateFns,
+  setDate as setDateFnsDate,
+  lastDayOfMonth,
+  differenceInCalendarMonths,
+  isWithinInterval
+} from 'date-fns';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ExpenseCategoryBarChart } from '@/components/dashboard/charts/expense-category-bar-chart';
 import { formatCurrency, cn } from '@/lib/utils';
@@ -57,79 +70,62 @@ export default function ReportsPage() {
 
   // Fetch User Preferences (for category display names and icons)
   useEffect(() => {
-    if (!user || authLoading || !isClient) {
+    if (!user || !isClient || authLoading) {
       setIsLoadingPreferences(false); 
       setUserDisplayCategories([...CATEGORIES]); 
       return;
     }
     setIsLoadingPreferences(true);
-    const fetchPrefs = async () => {
-      if (!user) {
-        setUserDisplayCategories([...CATEGORIES].sort((a,b) => getCategoryDisplayLabel(a,language).localeCompare(getCategoryDisplayLabel(b,language))));
-        setIsLoadingPreferences(false);
-        return;
-      }
-      try {
-        const preferencesDocRef = doc(db, `users/${user.uid}/preferences/userPreferences`);
-        const preferencesDocSnap = await getDoc(preferencesDocRef);
-        
+    const preferencesDocRef = doc(db, `users/${user.uid}/preferences/userPreferences`);
+    
+    const unsubscribe = onSnapshot(preferencesDocRef, (docSnap) => {
         let finalCategories: DisplayCategory[] = [];
+        if (docSnap.exists()) {
+            const prefsData = docSnap.data() as UserPreferences;
+            const customCategoriesFromDb: CustomCategoryData[] = prefsData.userDefinedCategories || [];
+            const deselectedPredefinedNames = new Set((prefsData.deselectedPredefinedCategories || []).map(name => name.toLowerCase()));
+            
+            const customCategoriesMap = new Map<string, CustomCategoryData>();
+            customCategoriesFromDb.forEach(cc => customCategoriesMap.set(cc.name.toLowerCase(), cc));
 
-        if (preferencesDocSnap.exists()) {
-          const prefsData = preferencesDocSnap.data() as UserPreferences;
-          const customCategoriesFromDb: CustomCategoryData[] = prefsData.userDefinedCategories || [];
-          const deselectedPredefinedNames = new Set((prefsData.deselectedPredefinedCategories || []).map(name => name.toLowerCase()));
-          
-          const customCategoriesMap = new Map<string, CustomCategoryData>();
-          customCategoriesFromDb.forEach(cc => {
-            customCategoriesMap.set(cc.name.toLowerCase(), cc);
-          });
-
-          // Start with predefined categories that are not deselected
-          finalCategories = CATEGORIES
-            .filter(pCat => !deselectedPredefinedNames.has(pCat.name.toLowerCase()))
-            .map(pCat => {
-              const customOverride = customCategoriesMap.get(pCat.name.toLowerCase());
-              if (customOverride) {
-                customCategoriesMap.delete(pCat.name.toLowerCase()); 
-                // Use the custom version (which includes custom label, icon, type)
-                // Ensure the original predefined type is preserved if the custom one doesn't specify one or has a different one
-                return { ...pCat, ...customOverride, type: pCat.type }; 
-              }
-              return pCat; // Use the predefined version
+            finalCategories = CATEGORIES
+                .filter(pCat => !deselectedPredefinedNames.has(pCat.name.toLowerCase()))
+                .map(pCat => {
+                    const customOverride = customCategoriesMap.get(pCat.name.toLowerCase());
+                    if (customOverride) {
+                        customCategoriesMap.delete(pCat.name.toLowerCase()); 
+                        return { ...pCat, ...customOverride, type: pCat.type }; 
+                    }
+                    return pCat;
+                });
+            
+            customCategoriesMap.forEach(customCat => {
+                if (!finalCategories.some(c => c.name.toLowerCase() === customCat.name.toLowerCase())) {
+                    finalCategories.push(customCat);
+                }
             });
-          
-          // Add any remaining custom categories (those that didn't override a predefined one by internal name)
-          customCategoriesMap.forEach(customCat => {
-            if (!finalCategories.some(c => c.name.toLowerCase() === customCat.name.toLowerCase())) {
-              finalCategories.push(customCat);
-            }
-          });
-
         } else {
-          finalCategories = [...CATEGORIES]; // Default to all predefined if no preferences
+            finalCategories = [...CATEGORIES];
         }
         
-        if (finalCategories.length === 0) { // Fallback if all categories were deselected/removed
+        if (finalCategories.length === 0) { 
             finalCategories = [...CATEGORIES];
         }
         
         setUserDisplayCategories(finalCategories.sort((a, b) => getCategoryDisplayLabel(a, language).localeCompare(getCategoryDisplayLabel(b, language))));
-
-      } catch (error) {
+        setIsLoadingPreferences(false);
+    }, (error) => {
         console.error("ReportsPage: Error fetching user preferences:", error);
         toast({
-          title: translate({ en: "Error Loading Preferences", pt: "Erro ao Carregar Preferências" }),
-          description: translate({ en: "Could not load category details.", pt: "Não foi possível carregar detalhes das categorias." }),
-          variant: "destructive",
+            title: translate({ en: "Error Loading Preferences", pt: "Erro ao Carregar Preferências" }),
+            description: translate({ en: "Could not load category details.", pt: "Não foi possível carregar detalhes das categorias." }),
+            variant: "destructive",
         });
         setUserDisplayCategories([...CATEGORIES].sort((a, b) => getCategoryDisplayLabel(a, language).localeCompare(getCategoryDisplayLabel(b, language))));
-      } finally {
         setIsLoadingPreferences(false);
-      }
-    };
-    if(user && isClient) fetchPrefs();
-  }, [user, authLoading, isClient, language, toast, translate]);
+    });
+    return () => unsubscribe();
+  }, [user, isClient, authLoading, language, toast, translate]);
 
 
   // Fetch Transactions
@@ -155,8 +151,16 @@ export default function ReportsPage() {
           if (/^\d{4}-\d{2}-\d{2}$/.test(data.date)) {
             dateString = data.date;
           } else if (data.date.includes('T')) {
-            try { dateString = formatDateFns(parseISODateFns(data.date), "yyyy-MM-dd"); }
-            catch (e) { console.warn("ReportsPage (TX Date Parse ISO): Failed for tx " + docSnap.id + ": " + String(data.date), e); dateString = formatDateFns(new Date(), "yyyy-MM-dd");}
+            try { 
+                dateString = formatDateFns(parseISODateFns(data.date), "yyyy-MM-dd"); 
+            }
+            catch (e1) { 
+                try {
+                    dateString = formatDateFns(new Date(data.date), "yyyy-MM-dd");
+                } catch (e2) {
+                    console.warn("ReportsPage (TX Date Parse ISO Fallback): Failed for tx " + docSnap.id + ": " + String(data.date), e2); dateString = formatDateFns(new Date(), "yyyy-MM-dd");
+                }
+            }
           } else {
              try { dateString = formatDateFns(new Date(data.date), "yyyy-MM-dd"); }
              catch (e) { console.warn("ReportsPage (TX Date Parse General): Failed for tx " + docSnap.id + ": " + String(data.date), e); dateString = formatDateFns(new Date(), "yyyy-MM-dd");}
@@ -167,14 +171,17 @@ export default function ReportsPage() {
         }
 
         let effectiveMonthString = data.effectiveMonth;
-        if (!effectiveMonthString && dateString) {
+        if (!effectiveMonthString && dateString && /^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
             try {
                 effectiveMonthString = formatDateFns(parseDateFns(dateString, "yyyy-MM-dd", new Date(0)), "yyyy-MM");
             } catch (e) {
                 console.warn("ReportsPage: Could not parse date " + String(dateString) + " to derive effectiveMonth for tx " + String(docSnap.id));
                 effectiveMonthString = formatDateFns(new Date(), "yyyy-MM"); 
             }
+        } else if (!effectiveMonthString) {
+            effectiveMonthString = formatDateFns(new Date(), "yyyy-MM");
         }
+
         return {
             ...data,
             id: docSnap.id,
@@ -182,7 +189,7 @@ export default function ReportsPage() {
             effectiveMonth: effectiveMonthString,
             paymentMethod: data.paymentMethod,
             installments: data.installments,
-            isRecurring: data.isRecurring,
+            isRecurring: data.isRecurring === true,
             expenseNature: data.expenseNature,
             expenseType: data.expenseType,
         } as Transaction;
@@ -246,9 +253,60 @@ export default function ReportsPage() {
 
 
   const transactionsForDisplayedPeriod = useMemo(() => {
-    const targetEffectiveMonth = formatDateFns(displayedDate, "yyyy-MM");
-    return allTransactions.filter(t => t.effectiveMonth === targetEffectiveMonth);
+    const targetYear = getYearFns(displayedDate);
+    const targetMonth = getMonthFns(displayedDate); // 0-indexed
+    const firstDayOfTargetMonth = startOfMonth(displayedDate);
+    const targetEffectiveMonthString = formatDateFns(displayedDate, "yyyy-MM");
+
+    let filtered: Transaction[] = [];
+
+    allTransactions.forEach(t => {
+      let includeTransaction = false;
+      let transactionDateForComparison: Date;
+      try {
+        transactionDateForComparison = parseDateFns(t.date, "yyyy-MM-dd", new Date(0));
+      } catch (e) {
+        console.warn(`ReportsPage: Invalid original date format for transaction ID ${t.id}: ${t.date}`);
+        return; // Skip this transaction if date is unparseable
+      }
+
+      if (t.type === 'expense' && t.expenseType === 'installment' && t.installments && t.installments > 0) {
+        const installmentSeriesStartDate = startOfMonth(transactionDateForComparison);
+        const monthDiff = differenceInCalendarMonths(firstDayOfTargetMonth, installmentSeriesStartDate);
+        if (monthDiff >= 0 && monthDiff < t.installments) {
+          includeTransaction = true;
+        }
+      } else if (t.isRecurring === true && t.expenseType !== 'installment') {
+        const originalTransactionYear = getYearFns(transactionDateForComparison);
+        const originalTransactionMonth = getMonthFns(transactionDateForComparison);
+        if (originalTransactionYear < targetYear || (originalTransactionYear === targetYear && originalTransactionMonth <= targetMonth)) {
+          includeTransaction = true;
+        }
+      } else if (!t.isRecurring && t.expenseType !== 'installment') {
+        if (t.effectiveMonth === targetEffectiveMonthString) {
+          includeTransaction = true;
+        }
+      } else if (t.type === 'income') { // Handle income separately for clarity
+         if (t.isRecurring === true) {
+            const originalTransactionYear = getYearFns(transactionDateForComparison);
+            const originalTransactionMonth = getMonthFns(transactionDateForComparison);
+            if (originalTransactionYear < targetYear || (originalTransactionYear === targetYear && originalTransactionMonth <= targetMonth)) {
+                includeTransaction = true;
+            }
+         } else { // Non-recurring income
+            if (t.effectiveMonth === targetEffectiveMonthString) {
+                includeTransaction = true;
+            }
+         }
+      }
+      
+      if (includeTransaction) {
+        filtered.push(t);
+      }
+    });
+    return filtered;
   }, [allTransactions, displayedDate]);
+
 
   const totalIncomeForPeriod = useMemo(() =>
     transactionsForDisplayedPeriod
@@ -285,7 +343,7 @@ export default function ReportsPage() {
     transactionsForDisplayedPeriod
       .filter(t => t.type === 'expense')
       .forEach(t => {
-        const categoryKey = t.category as string; // Assuming t.category is the internal name
+        const categoryKey = t.category as string; 
         actualSpending[categoryKey] = (actualSpending[categoryKey] || 0) + t.amount;
       });
 
@@ -305,8 +363,6 @@ export default function ReportsPage() {
       const budgeted = loadedBudgets[internalName] || 0;
       const actual = actualSpending[internalName] || 0;
       const difference = budgeted - actual;
-      // Handle percentage: if budget is 0 and actual > 0, consider it 1000% over to trigger red bar.
-      // If budget is 0 and actual is 0, percentage is 0.
       const percentageRaw = budgeted > 0 ? (actual / budgeted) * 100 : (actual > 0 ? 1000 : 0); 
       
       return {
@@ -318,14 +374,14 @@ export default function ReportsPage() {
         percentage: percentageRaw
       };
     }).filter(item => item.budgeted > 0 || item.actual > 0) 
-      .sort((a,b) => (b.budgeted + b.actual) - (a.budgeted + a.actual)); // Sort by most significant activity
+      .sort((a,b) => (b.budgeted + b.actual) - (a.budgeted + a.actual)); 
   }, [loadedBudgets, transactionsForDisplayedPeriod, userDisplayCategories, language, isLoadingPreferences]);
 
   const expenseDataForChart = useMemo(() => {
     const expensesByCategory = transactionsForDisplayedPeriod
       .filter((t) => t.type === "expense")
       .reduce((acc, t) => {
-        const categoryInternalName = t.category as string; // internal name
+        const categoryInternalName = t.category as string; 
         acc[categoryInternalName] = (acc[categoryInternalName] || 0) + t.amount;
         return acc;
       }, {} as Record<string, number>);
@@ -511,7 +567,7 @@ export default function ReportsPage() {
                           item.percentage > 100 ? "bg-destructive" 
                           : item.percentage > 80 ? "bg-yellow-500" 
                           : "bg-primary"
-                        ) : (item.actual > 0 ? "bg-primary" : "bg-secondary") // If no budget but has actual spending, show primary
+                        ) : (item.actual > 0 ? "bg-primary" : "bg-secondary") 
                       }
                     />
                     <div className="flex justify-between text-xs text-muted-foreground">

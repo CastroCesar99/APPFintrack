@@ -3535,7 +3535,12 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$firebase$2f$
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/@firebase/firestore/dist/index.node.mjs [app-ssr] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$format$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$locals$3e$__ = __turbopack_context__.i("[project]/node_modules/date-fns/format.mjs [app-ssr] (ecmascript) <locals>");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$parseISO$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/date-fns/parseISO.mjs [app-ssr] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$getMonth$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/date-fns/getMonth.mjs [app-ssr] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$parse$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$locals$3e$__ = __turbopack_context__.i("[project]/node_modules/date-fns/parse.mjs [app-ssr] (ecmascript) <locals>");
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$startOfMonth$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/date-fns/startOfMonth.mjs [app-ssr] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$getDate$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/date-fns/getDate.mjs [app-ssr] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$setDate$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/date-fns/setDate.mjs [app-ssr] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$lastDayOfMonth$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/date-fns/lastDayOfMonth.mjs [app-ssr] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$utils$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/lib/utils.ts [app-ssr] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$skeleton$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/components/ui/skeleton.tsx [app-ssr] (ecmascript)");
 "use client";
@@ -3573,8 +3578,12 @@ function IncomePage() {
     const [isAddFormOpen, setIsAddFormOpen] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])(false);
     const [isClient, setIsClient] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])(false);
     const [transactionToDelete, setTransactionToDelete] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])(null);
-    const [userCategories, setUserCategories] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])([]);
-    const [userPaymentMethods, setUserPaymentMethods] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])([]);
+    const [userCategories, setUserCategories] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])(()=>[
+            ...__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["CATEGORIES"]
+        ]);
+    const [userPaymentMethods, setUserPaymentMethods] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])(()=>[
+            ...__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["PAYMENT_METHODS"]
+        ]);
     const [isLoadingPreferences, setIsLoadingPreferences] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])(true);
     const unsubscribePreferencesRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useRef"])(null);
     const [isEditFormOpen, setIsEditFormOpen] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])(false);
@@ -3605,52 +3614,54 @@ function IncomePage() {
             unsubscribePreferencesRef.current();
         }
         unsubscribePreferencesRef.current = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["onSnapshot"])(preferencesDocRef, (docSnap)=>{
-            let finalCategories = [
-                ...__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["CATEGORIES"]
-            ];
-            let finalPaymentMethods = [
-                ...__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["PAYMENT_METHODS"]
-            ];
-            if (docSnap.exists()) {
-                const preferencesData = docSnap.data();
-                const customCategoryDefs = preferencesData.userDefinedCategories || [];
-                const customCategoriesAsDisplay = customCategoryDefs.map((c)=>({
-                        ...c,
-                        label: c.label || {
-                            en: c.name,
-                            pt: c.name
-                        }
-                    }));
-                const allPossibleCategories = [
-                    ...__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["CATEGORIES"],
-                    ...customCategoriesAsDisplay
-                ];
-                const uniqueCategoriesMap = new Map();
-                allPossibleCategories.forEach((cat)=>uniqueCategoriesMap.set(cat.name.toLowerCase(), cat));
-                finalCategories = Array.from(uniqueCategoriesMap.values());
-                const customPaymentMethodDefs = preferencesData.userDefinedPaymentMethods || [];
-                const customMethodsAsDisplay = customPaymentMethodDefs.map((cpm)=>({
-                        ...cpm,
-                        label: cpm.label || {
-                            en: cpm.name,
-                            pt: cpm.name
-                        }
-                    }));
-                const allPossiblePaymentMethods = [
-                    ...__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["PAYMENT_METHODS"],
-                    ...customMethodsAsDisplay
-                ];
-                const uniquePaymentMethodsMap = new Map();
-                allPossiblePaymentMethods.forEach((pm)=>uniquePaymentMethodsMap.set(pm.name.toLowerCase(), pm));
-                const selectedPmNames = new Set((preferencesData.selectedPaymentMethods || []).map((name)=>name.toLowerCase()));
-                if (selectedPmNames.size > 0) {
-                    finalPaymentMethods = Array.from(uniquePaymentMethodsMap.values()).filter((pm)=>selectedPmNames.has(pm.name.toLowerCase()));
-                    if (finalPaymentMethods.length === 0) {
-                        finalPaymentMethods = Array.from(uniquePaymentMethodsMap.values());
-                    }
+            let finalCategories = [];
+            const predefinedCategoryMap = new Map(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["CATEGORIES"].map((cat)=>[
+                    cat.name.toLowerCase(),
+                    cat
+                ]));
+            const userDefinedCategoriesFromPrefs = docSnap.exists() ? docSnap.data().userDefinedCategories || [] : [];
+            predefinedCategoryMap.forEach((cat)=>finalCategories.push(cat));
+            userDefinedCategoriesFromPrefs.forEach((customCat)=>{
+                const existingIndex = finalCategories.findIndex((fc)=>fc.name.toLowerCase() === customCat.name.toLowerCase());
+                if (existingIndex !== -1) {
+                    finalCategories[existingIndex] = {
+                        ...finalCategories[existingIndex],
+                        ...customCat
+                    };
                 } else {
-                    finalPaymentMethods = Array.from(uniquePaymentMethodsMap.values());
+                    finalCategories.push(customCat);
                 }
+            });
+            let finalPaymentMethods = [];
+            const predefinedPaymentMethodMap = new Map(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["PAYMENT_METHODS"].map((pm)=>[
+                    pm.name.toLowerCase(),
+                    pm
+                ]));
+            const userDefinedPaymentMethodsFromPrefs = docSnap.exists() ? docSnap.data().userDefinedPaymentMethods || [] : [];
+            const selectedPaymentMethodNames = new Set(docSnap.exists() ? (docSnap.data().selectedPaymentMethods || []).map((name)=>name.toLowerCase()) : []);
+            predefinedPaymentMethodMap.forEach((pm)=>finalPaymentMethods.push(pm));
+            userDefinedPaymentMethodsFromPrefs.forEach((customPm)=>{
+                const existingIndex = finalPaymentMethods.findIndex((fpm)=>fpm.name.toLowerCase() === customPm.name.toLowerCase());
+                if (existingIndex !== -1) {
+                    finalPaymentMethods[existingIndex] = {
+                        ...finalPaymentMethods[existingIndex],
+                        ...customPm
+                    };
+                } else {
+                    finalPaymentMethods.push(customPm);
+                }
+            });
+            if (selectedPaymentMethodNames.size > 0) {
+                finalPaymentMethods = finalPaymentMethods.filter((pm)=>selectedPaymentMethodNames.has(pm.name.toLowerCase()));
+                if (finalPaymentMethods.length === 0 && predefinedPaymentMethodMap.size + userDefinedPaymentMethodsFromPrefs.length > 0) {
+                    finalPaymentMethods = []; // Re-populate if selection resulted in empty
+                    predefinedPaymentMethodMap.forEach((pm)=>finalPaymentMethods.push(pm));
+                    userDefinedPaymentMethodsFromPrefs.forEach((customPm)=>{});
+                }
+            }
+            if (finalPaymentMethods.length === 0 && predefinedPaymentMethodMap.size + userDefinedPaymentMethodsFromPrefs.length > 0) {
+                predefinedPaymentMethodMap.forEach((pm)=>finalPaymentMethods.push(pm));
+                userDefinedPaymentMethodsFromPrefs.forEach((customPm)=>{});
             }
             setUserCategories(finalCategories.sort((a, b)=>(0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["getCategoryDisplayLabel"])(a, language).localeCompare((0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["getCategoryDisplayLabel"])(b, language))));
             setUserPaymentMethods(finalPaymentMethods.sort((a, b)=>(0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["getPaymentMethodDisplayLabel"])(a, language).localeCompare((0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["getPaymentMethodDisplayLabel"])(b, language))));
@@ -3693,6 +3704,7 @@ function IncomePage() {
         if (!userId || authLoading || !isClient) {
             if (!authLoading && !userId && isClient) router.push('/login');
             setIsLoadingTransactions(false);
+            setAllTransactions([]);
             return;
         }
         setIsLoadingTransactions(true);
@@ -3705,20 +3717,36 @@ function IncomePage() {
                 let effectiveMonthString = data.effectiveMonth;
                 if (data.date && typeof data.date === 'object' && data.date instanceof __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Timestamp"]) {
                     dateString = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$format$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$locals$3e$__["format"])(data.date.toDate(), "yyyy-MM-dd");
-                } else if (typeof data.date === 'string' && data.date.includes('T')) {
-                    try {
-                        dateString = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$format$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$locals$3e$__["format"])((0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$parseISO$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["parseISO"])(data.date), "yyyy-MM-dd");
-                    } catch (e) {
-                        console.warn("IncomePage: Failed to parse ISO date string: " + String(data.date), e);
-                        dateString = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$format$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$locals$3e$__["format"])(new Date(), "yyyy-MM-dd");
+                } else if (typeof data.date === 'string') {
+                    if (/^\d{4}-\d{2}-\d{2}$/.test(data.date)) {
+                    // Already in YYYY-MM-DD
+                    } else if (data.date.includes('T')) {
+                        try {
+                            dateString = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$format$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$locals$3e$__["format"])((0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$parseISO$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["parseISO"])(data.date), "yyyy-MM-dd");
+                        } catch (e1) {
+                            try {
+                                dateString = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$format$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$locals$3e$__["format"])(new Date(data.date), "yyyy-MM-dd");
+                            } catch (e2) {
+                                console.warn("IncomePage: Failed to parse existing datetime string to yyyy-MM-dd (fallback): " + String(data.date), e2);
+                                dateString = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$format$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$locals$3e$__["format"])(new Date(), "yyyy-MM-dd");
+                            }
+                        }
+                    } else {
+                        console.warn("IncomePage: Transaction has unexpected date string format. Attempting general parse. Date was:", data.date, "ID:", docSnap.id);
+                        try {
+                            dateString = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$format$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$locals$3e$__["format"])(new Date(data.date), "yyyy-MM-dd");
+                        } catch (e) {
+                            console.warn("IncomePage: General parse failed for date string. Fallback to current date. Date was:", data.date, "ID:", docSnap.id, e);
+                            dateString = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$format$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$locals$3e$__["format"])(new Date(), "yyyy-MM-dd");
+                        }
                     }
-                } else if (typeof data.date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(data.date)) {
-                    console.warn("IncomePage: Transaction has unexpected date format. Fallback to current date. Date was:", data.date);
+                } else {
+                    console.warn("IncomePage: Transaction has missing or non-string/non-Timestamp date. Fallback to current date YYYY-MM-DD. Date was:", data.date, "ID:", docSnap.id);
                     dateString = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$format$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$locals$3e$__["format"])(new Date(), "yyyy-MM-dd");
                 }
                 if (!effectiveMonthString && dateString) {
                     try {
-                        effectiveMonthString = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$format$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$locals$3e$__["format"])((0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$parse$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$locals$3e$__["parse"])(dateString, "yyyy-MM-dd", new Date()), "yyyy-MM");
+                        effectiveMonthString = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$format$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$locals$3e$__["format"])((0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$parse$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$locals$3e$__["parse"])(dateString, "yyyy-MM-dd", new Date(0)), "yyyy-MM");
                     } catch (e) {
                         console.warn(`IncomePage: Could not parse date ${dateString} to derive effectiveMonth for tx ${docSnap.id}`);
                         effectiveMonthString = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$format$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$locals$3e$__["format"])(new Date(), "yyyy-MM");
@@ -3747,6 +3775,7 @@ function IncomePage() {
                 }),
                 variant: "destructive"
             });
+            setAllTransactions([]);
             setIsLoadingTransactions(false);
         });
         return ()=>unsubscribe();
@@ -3765,22 +3794,41 @@ function IncomePage() {
     ]);
     const incomeForDisplayedPeriod = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useMemo"])(()=>{
         const targetEffectiveMonth = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$format$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$locals$3e$__["format"])(displayedDate, "yyyy-MM");
-        let filteredTransactions = allTransactions.filter((t)=>{
-            if (t.type !== 'income') return false;
-            const transactionEffectiveMonth = t.effectiveMonth || (t.date ? (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$format$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$locals$3e$__["format"])((0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$parse$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$locals$3e$__["parse"])(t.date, "yyyy-MM-dd", new Date()), "yyyy-MM") : "");
-            return transactionEffectiveMonth === targetEffectiveMonth;
+        const firstDayOfDisplayedMonth = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$startOfMonth$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["startOfMonth"])(displayedDate);
+        const monthlyDisplayTransactions = [];
+        allTransactions.forEach((t)=>{
+            if (t.type !== 'income') return;
+            if (t.isRecurring) {
+                const originalTransactionDate = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$parse$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$locals$3e$__["parse"])(t.date, "yyyy-MM-dd", new Date(0));
+                const firstDayOfOriginalTxMonth = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$startOfMonth$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["startOfMonth"])(originalTransactionDate);
+                if (firstDayOfOriginalTxMonth <= firstDayOfDisplayedMonth) {
+                    const projectedDateDay = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$getDate$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["getDate"])(originalTransactionDate);
+                    let projectedDateForDisplay = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$setDate$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["setDate"])(firstDayOfDisplayedMonth, projectedDateDay);
+                    const lastDayOfDisplayedMonth = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$lastDayOfMonth$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["lastDayOfMonth"])(displayedDate);
+                    if ((0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$getDate$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["getDate"])(projectedDateForDisplay) !== projectedDateDay || (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$getMonth$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["getMonth"])(projectedDateForDisplay) !== (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$getMonth$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["getMonth"])(displayedDate)) {
+                        projectedDateForDisplay = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$setDate$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["setDate"])(firstDayOfDisplayedMonth, Math.min(projectedDateDay, (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$getDate$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["getDate"])(lastDayOfDisplayedMonth)));
+                    }
+                    monthlyDisplayTransactions.push({
+                        ...t,
+                        date: (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$format$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$locals$3e$__["format"])(projectedDateForDisplay, "yyyy-MM-dd"),
+                        id: `${t.id}_proj_${targetEffectiveMonth}` // Unique ID for projected item
+                    });
+                }
+            } else if (t.effectiveMonth === targetEffectiveMonth) {
+                monthlyDisplayTransactions.push(t);
+            }
         });
         // Sorting logic
         if (sortOption === 'dateAsc') {
-            filteredTransactions.sort((a, b)=>(0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$parse$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$locals$3e$__["parse"])(a.date, "yyyy-MM-dd", new Date(0)).getTime() - (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$parse$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$locals$3e$__["parse"])(b.date, "yyyy-MM-dd", new Date(0)).getTime());
+            monthlyDisplayTransactions.sort((a, b)=>(0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$parse$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$locals$3e$__["parse"])(a.date, "yyyy-MM-dd", new Date(0)).getTime() - (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$parse$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$locals$3e$__["parse"])(b.date, "yyyy-MM-dd", new Date(0)).getTime());
         } else if (sortOption === 'dateDesc') {
-            filteredTransactions.sort((a, b)=>(0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$parse$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$locals$3e$__["parse"])(b.date, "yyyy-MM-dd", new Date(0)).getTime() - (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$parse$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$locals$3e$__["parse"])(a.date, "yyyy-MM-dd", new Date(0)).getTime());
+            monthlyDisplayTransactions.sort((a, b)=>(0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$parse$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$locals$3e$__["parse"])(b.date, "yyyy-MM-dd", new Date(0)).getTime() - (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$parse$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$locals$3e$__["parse"])(a.date, "yyyy-MM-dd", new Date(0)).getTime());
         } else if (sortOption === 'amountAsc') {
-            filteredTransactions.sort((a, b)=>a.amount - b.amount);
+            monthlyDisplayTransactions.sort((a, b)=>a.amount - b.amount);
         } else if (sortOption === 'amountDesc') {
-            filteredTransactions.sort((a, b)=>b.amount - a.amount);
+            monthlyDisplayTransactions.sort((a, b)=>b.amount - a.amount);
         } else if (sortOption === 'categoryAsc') {
-            filteredTransactions.sort((a, b)=>{
+            monthlyDisplayTransactions.sort((a, b)=>{
                 const catA = getCategoryObjectByName(a.category);
                 const catB = getCategoryObjectByName(b.category);
                 const labelA = catA ? (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["getCategoryDisplayLabel"])(catA, language) : a.category;
@@ -3788,9 +3836,9 @@ function IncomePage() {
                 return labelA.localeCompare(labelB);
             });
         } else if (sortOption === 'descriptionAsc') {
-            filteredTransactions.sort((a, b)=>a.description.localeCompare(b.description));
+            monthlyDisplayTransactions.sort((a, b)=>a.description.localeCompare(b.description));
         }
-        return filteredTransactions;
+        return monthlyDisplayTransactions;
     }, [
         allTransactions,
         displayedDate,
@@ -3836,20 +3884,20 @@ function IncomePage() {
             });
             return;
         }
-        const effectiveMonth = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$format$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$locals$3e$__["format"])(displayedDate, "yyyy-MM");
-        const dataPayload = {
+        const effectiveMonth = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$format$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$locals$3e$__["format"])(displayedDate, "yyyy-MM"); // Associate with the currently displayed month
+        const fullPayload = {
             ...formData,
             type: 'income',
-            effectiveMonth
+            effectiveMonth,
+            userId
         };
-        const cleanPayload = Object.fromEntries(Object.entries(dataPayload).filter(([_, v])=>v !== undefined));
+        const dataToSave = Object.fromEntries(Object.entries(fullPayload).filter(([_, value])=>value !== undefined));
+        if (dataToSave.isRecurring === undefined) dataToSave.isRecurring = false;
         if (id) {
             const transactionDocRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["doc"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["db"], "users/" + userId + "/transactions", id);
+            dataToSave.updatedAt = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["serverTimestamp"])();
             try {
-                await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["updateDoc"])(transactionDocRef, {
-                    ...cleanPayload,
-                    updatedAt: (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["serverTimestamp"])()
-                });
+                await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["updateDoc"])(transactionDocRef, dataToSave);
                 toast({
                     title: translate({
                         en: "Income Updated",
@@ -3877,13 +3925,10 @@ function IncomePage() {
                 });
             }
         } else {
+            dataToSave.createdAt = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["serverTimestamp"])();
             try {
                 const transactionsColRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["collection"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["db"], "users/" + userId + "/transactions");
-                await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["addDoc"])(transactionsColRef, {
-                    ...cleanPayload,
-                    userId: userId,
-                    createdAt: (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["serverTimestamp"])()
-                });
+                await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["addDoc"])(transactionsColRef, dataToSave);
                 toast({
                     title: translate({
                         en: "Income Added",
@@ -3912,9 +3957,21 @@ function IncomePage() {
         }
     };
     const openDeleteConfirmation = (transactionId)=>{
-        const tx = allTransactions.find((t)=>t.id === transactionId);
+        const tx = allTransactions.find((t)=>t.id === transactionId || `${t.id}_proj_${(0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$format$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$locals$3e$__["format"])(displayedDate, "yyyy-MM")}` === transactionId);
         if (tx) {
-            setTransactionToDelete(tx);
+            setTransactionToDelete(tx); // Store original transaction for deletion
+        } else {
+            toast({
+                title: translate({
+                    en: "Error",
+                    pt: "Erro"
+                }),
+                description: translate({
+                    en: "Transaction to delete not found.",
+                    pt: "Transação para excluir não encontrada."
+                }),
+                variant: "destructive"
+            });
         }
     };
     const confirmDeleteTransaction = async ()=>{
@@ -3934,7 +3991,7 @@ function IncomePage() {
             return;
         }
         try {
-            const docRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["doc"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["db"], "users/" + userId + "/transactions", transactionToDelete.id);
+            const docRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["doc"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["db"], "users/" + userId + "/transactions", transactionToDelete.id); // Use original ID
             await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["deleteDoc"])(docRef);
             toast({
                 title: translate({
@@ -4029,7 +4086,7 @@ function IncomePage() {
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/src/app/income/page.tsx",
-                                lineNumber: 341,
+                                lineNumber: 418,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$dialog$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Dialog"], {
@@ -4046,7 +4103,7 @@ function IncomePage() {
                                                     className: "mr-2 h-4 w-4"
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/app/income/page.tsx",
-                                                    lineNumber: 347,
+                                                    lineNumber: 424,
                                                     columnNumber: 17
                                                 }, this),
                                                 translate({
@@ -4056,12 +4113,12 @@ function IncomePage() {
                                             ]
                                         }, void 0, true, {
                                             fileName: "[project]/src/app/income/page.tsx",
-                                            lineNumber: 346,
+                                            lineNumber: 423,
                                             columnNumber: 15
                                         }, this)
                                     }, void 0, false, {
                                         fileName: "[project]/src/app/income/page.tsx",
-                                        lineNumber: 345,
+                                        lineNumber: 422,
                                         columnNumber: 13
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$dialog$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["DialogContent"], {
@@ -4076,7 +4133,7 @@ function IncomePage() {
                                                         })
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/app/income/page.tsx",
-                                                        lineNumber: 353,
+                                                        lineNumber: 430,
                                                         columnNumber: 17
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$dialog$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["DialogDescription"], {
@@ -4086,13 +4143,13 @@ function IncomePage() {
                                                         })
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/app/income/page.tsx",
-                                                        lineNumber: 354,
+                                                        lineNumber: 431,
                                                         columnNumber: 17
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/src/app/income/page.tsx",
-                                                lineNumber: 352,
+                                                lineNumber: 429,
                                                 columnNumber: 15
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$dashboard$2f$transaction$2d$form$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["TransactionForm"], {
@@ -4104,26 +4161,26 @@ function IncomePage() {
                                                 userPaymentMethods: userPaymentMethods
                                             }, "add-income-" + displayedDate.toISOString(), false, {
                                                 fileName: "[project]/src/app/income/page.tsx",
-                                                lineNumber: 358,
+                                                lineNumber: 435,
                                                 columnNumber: 15
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/src/app/income/page.tsx",
-                                        lineNumber: 351,
+                                        lineNumber: 428,
                                         columnNumber: 13
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/src/app/income/page.tsx",
-                                lineNumber: 344,
+                                lineNumber: 421,
                                 columnNumber: 11
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/src/app/income/page.tsx",
-                        lineNumber: 340,
-                        columnNumber: 10
+                        lineNumber: 417,
+                        columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$dialog$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Dialog"], {
                         open: isEditFormOpen,
@@ -4140,7 +4197,7 @@ function IncomePage() {
                                             })
                                         }, void 0, false, {
                                             fileName: "[project]/src/app/income/page.tsx",
-                                            lineNumber: 374,
+                                            lineNumber: 451,
                                             columnNumber: 15
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$dialog$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["DialogDescription"], {
@@ -4150,13 +4207,13 @@ function IncomePage() {
                                             })
                                         }, void 0, false, {
                                             fileName: "[project]/src/app/income/page.tsx",
-                                            lineNumber: 375,
+                                            lineNumber: 452,
                                             columnNumber: 15
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/src/app/income/page.tsx",
-                                    lineNumber: 373,
+                                    lineNumber: 450,
                                     columnNumber: 13
                                 }, this),
                                 transactionToEdit && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$dashboard$2f$transaction$2d$form$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["TransactionForm"], {
@@ -4167,18 +4224,18 @@ function IncomePage() {
                                     userPaymentMethods: userPaymentMethods
                                 }, "edit-income-" + transactionToEdit.id + "-" + displayedDate.toISOString(), false, {
                                     fileName: "[project]/src/app/income/page.tsx",
-                                    lineNumber: 380,
+                                    lineNumber: 457,
                                     columnNumber: 15
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/src/app/income/page.tsx",
-                            lineNumber: 372,
+                            lineNumber: 449,
                             columnNumber: 11
                         }, this)
                     }, void 0, false, {
                         fileName: "[project]/src/app/income/page.tsx",
-                        lineNumber: 371,
+                        lineNumber: 448,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -4194,7 +4251,7 @@ function IncomePage() {
                                             className: "mr-2 h-4 w-4"
                                         }, void 0, false, {
                                             fileName: "[project]/src/app/income/page.tsx",
-                                            lineNumber: 395,
+                                            lineNumber: 472,
                                             columnNumber: 15
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["SelectValue"], {
@@ -4204,13 +4261,13 @@ function IncomePage() {
                                             })
                                         }, void 0, false, {
                                             fileName: "[project]/src/app/income/page.tsx",
-                                            lineNumber: 396,
+                                            lineNumber: 473,
                                             columnNumber: 15
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/src/app/income/page.tsx",
-                                    lineNumber: 394,
+                                    lineNumber: 471,
                                     columnNumber: 13
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["SelectContent"], {
@@ -4219,23 +4276,23 @@ function IncomePage() {
                                             children: option.label
                                         }, option.value, false, {
                                             fileName: "[project]/src/app/income/page.tsx",
-                                            lineNumber: 400,
+                                            lineNumber: 477,
                                             columnNumber: 17
                                         }, this))
                                 }, void 0, false, {
                                     fileName: "[project]/src/app/income/page.tsx",
-                                    lineNumber: 398,
+                                    lineNumber: 475,
                                     columnNumber: 13
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/src/app/income/page.tsx",
-                            lineNumber: 393,
+                            lineNumber: 470,
                             columnNumber: 11
                         }, this)
                     }, void 0, false, {
                         fileName: "[project]/src/app/income/page.tsx",
-                        lineNumber: 392,
+                        lineNumber: 469,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Card"], {
@@ -4252,7 +4309,7 @@ function IncomePage() {
                                         })
                                     }, void 0, false, {
                                         fileName: "[project]/src/app/income/page.tsx",
-                                        lineNumber: 410,
+                                        lineNumber: 487,
                                         columnNumber: 13
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["CardDescription"], {
@@ -4268,13 +4325,13 @@ function IncomePage() {
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/src/app/income/page.tsx",
-                                        lineNumber: 411,
+                                        lineNumber: 488,
                                         columnNumber: 13
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/src/app/income/page.tsx",
-                                lineNumber: 409,
+                                lineNumber: 486,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["CardContent"], {
@@ -4286,27 +4343,27 @@ function IncomePage() {
                                             className: "h-36 w-full rounded-lg"
                                         }, i, false, {
                                             fileName: "[project]/src/app/income/page.tsx",
-                                            lineNumber: 418,
+                                            lineNumber: 495,
                                             columnNumber: 46
                                         }, this))
                                 }, void 0, false, {
                                     fileName: "[project]/src/app/income/page.tsx",
-                                    lineNumber: 417,
+                                    lineNumber: 494,
                                     columnNumber: 15
                                 }, this) : incomeForDisplayedPeriod.length > 0 ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                                     className: "grid grid-cols-1 gap-4",
                                     children: incomeForDisplayedPeriod.map((tx)=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$transactions$2f$transaction$2d$item$2d$card$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["TransactionItemCard"], {
                                             transaction: tx,
-                                            onEdit: handleOpenEditDialog,
-                                            onDelete: openDeleteConfirmation
+                                            onEdit: ()=>handleOpenEditDialog(tx.id.startsWith('temp-') || tx.id.includes('_proj_') || tx.id.includes('_inst_') ? tx.id.split('_')[0] : tx.id),
+                                            onDelete: ()=>openDeleteConfirmation(tx.id.startsWith('temp-') || tx.id.includes('_proj_') || tx.id.includes('_inst_') ? tx.id.split('_')[0] : tx.id)
                                         }, tx.id, false, {
                                             fileName: "[project]/src/app/income/page.tsx",
-                                            lineNumber: 423,
+                                            lineNumber: 500,
                                             columnNumber: 19
                                         }, this))
                                 }, void 0, false, {
                                     fileName: "[project]/src/app/income/page.tsx",
-                                    lineNumber: 421,
+                                    lineNumber: 498,
                                     columnNumber: 15
                                 }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
                                     className: "text-center text-muted-foreground py-8",
@@ -4316,24 +4373,24 @@ function IncomePage() {
                                     })
                                 }, void 0, false, {
                                     fileName: "[project]/src/app/income/page.tsx",
-                                    lineNumber: 432,
+                                    lineNumber: 509,
                                     columnNumber: 15
                                 }, this)
                             }, void 0, false, {
                                 fileName: "[project]/src/app/income/page.tsx",
-                                lineNumber: 415,
+                                lineNumber: 492,
                                 columnNumber: 11
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/src/app/income/page.tsx",
-                        lineNumber: 408,
+                        lineNumber: 485,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/src/app/income/page.tsx",
-                lineNumber: 339,
+                lineNumber: 416,
                 columnNumber: 7
             }, this),
             transactionToDelete && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$alert$2d$dialog$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["AlertDialog"], {
@@ -4350,7 +4407,7 @@ function IncomePage() {
                                     })
                                 }, void 0, false, {
                                     fileName: "[project]/src/app/income/page.tsx",
-                                    lineNumber: 443,
+                                    lineNumber: 520,
                                     columnNumber: 15
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$alert$2d$dialog$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["AlertDialogDescription"], {
@@ -4363,7 +4420,7 @@ function IncomePage() {
                                             children: transactionToDelete.description
                                         }, void 0, false, {
                                             fileName: "[project]/src/app/income/page.tsx",
-                                            lineNumber: 446,
+                                            lineNumber: 523,
                                             columnNumber: 17
                                         }, this),
                                         " (",
@@ -4376,13 +4433,13 @@ function IncomePage() {
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/src/app/income/page.tsx",
-                                    lineNumber: 444,
+                                    lineNumber: 521,
                                     columnNumber: 15
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/src/app/income/page.tsx",
-                            lineNumber: 442,
+                            lineNumber: 519,
                             columnNumber: 13
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$alert$2d$dialog$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["AlertDialogFooter"], {
@@ -4395,7 +4452,7 @@ function IncomePage() {
                                     })
                                 }, void 0, false, {
                                     fileName: "[project]/src/app/income/page.tsx",
-                                    lineNumber: 451,
+                                    lineNumber: 528,
                                     columnNumber: 15
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$alert$2d$dialog$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["AlertDialogAction"], {
@@ -4407,30 +4464,30 @@ function IncomePage() {
                                     })
                                 }, void 0, false, {
                                     fileName: "[project]/src/app/income/page.tsx",
-                                    lineNumber: 452,
+                                    lineNumber: 529,
                                     columnNumber: 15
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/src/app/income/page.tsx",
-                            lineNumber: 450,
+                            lineNumber: 527,
                             columnNumber: 13
                         }, this)
                     ]
                 }, void 0, true, {
                     fileName: "[project]/src/app/income/page.tsx",
-                    lineNumber: 441,
+                    lineNumber: 518,
                     columnNumber: 11
                 }, this)
             }, void 0, false, {
                 fileName: "[project]/src/app/income/page.tsx",
-                lineNumber: 440,
+                lineNumber: 517,
                 columnNumber: 9
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/src/app/income/page.tsx",
-        lineNumber: 338,
+        lineNumber: 415,
         columnNumber: 5
     }, this);
 }
