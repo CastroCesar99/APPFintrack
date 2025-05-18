@@ -19,14 +19,11 @@ const Progress = React.forwardRef<
     {...props}
   >
     <ProgressPrimitive.Indicator
-      // Ensure the default 'bg-primary' is applied if indicatorClassName doesn't override background color
       className={cn("h-full w-full flex-1 transition-all", indicatorClassName ? indicatorClassName : "bg-primary")}
-      style={{ transform: `translateX(-${100 - (Math.max(0, Math.min(value || 0, 100)))}%)` }} // Ensure value is between 0 and 100 for transform
+      style={{ transform: `translateX(-${100 - (Math.max(0, Math.min(value || 0, 100)))}%)` }} 
     />
   </ProgressPrimitive.Root>
 ))
 Progress.displayName = ProgressPrimitive.Root.displayName
 
 export { Progress }
-
-    

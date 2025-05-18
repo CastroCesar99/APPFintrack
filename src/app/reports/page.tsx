@@ -28,7 +28,8 @@ import {
   setDate as setDateFnsDate,
   lastDayOfMonth,
   differenceInCalendarMonths,
-  isWithinInterval
+  isWithinInterval,
+  addMonths
 } from 'date-fns';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ExpenseCategoryBarChart } from '@/components/dashboard/charts/expense-category-bar-chart';
@@ -72,7 +73,7 @@ export default function ReportsPage() {
   useEffect(() => {
     if (!user || !isClient || authLoading) {
       setIsLoadingPreferences(false); 
-      setUserDisplayCategories([...CATEGORIES]); 
+      setUserDisplayCategories([...CATEGORIES].sort((a, b) => getCategoryDisplayLabel(a, language).localeCompare(getCategoryDisplayLabel(b, language)))); 
       return;
     }
     setIsLoadingPreferences(true);
@@ -80,6 +81,8 @@ export default function ReportsPage() {
     
     const unsubscribe = onSnapshot(preferencesDocRef, (docSnap) => {
         let finalCategories: DisplayCategory[] = [];
+        const predefinedCategoryMap = new Map(CATEGORIES.map(cat => [cat.name.toLowerCase(), cat]));
+
         if (docSnap.exists()) {
             const prefsData = docSnap.data() as UserPreferences;
             const customCategoriesFromDb: CustomCategoryData[] = prefsData.userDefinedCategories || [];
@@ -88,27 +91,30 @@ export default function ReportsPage() {
             const customCategoriesMap = new Map<string, CustomCategoryData>();
             customCategoriesFromDb.forEach(cc => customCategoriesMap.set(cc.name.toLowerCase(), cc));
 
-            finalCategories = CATEGORIES
-                .filter(pCat => !deselectedPredefinedNames.has(pCat.name.toLowerCase()))
-                .map(pCat => {
+            // Start with predefined categories that are not deselected
+            CATEGORIES.forEach(pCat => {
+                if (!deselectedPredefinedNames.has(pCat.name.toLowerCase())) {
                     const customOverride = customCategoriesMap.get(pCat.name.toLowerCase());
                     if (customOverride) {
-                        customCategoriesMap.delete(pCat.name.toLowerCase()); 
-                        return { ...pCat, ...customOverride, type: pCat.type }; 
+                        finalCategories.push({ ...pCat, ...customOverride, name: pCat.name }); // Keep original name as key
+                        customCategoriesMap.delete(pCat.name.toLowerCase());
+                    } else {
+                        finalCategories.push(pCat);
                     }
-                    return pCat;
-                });
-            
-            customCategoriesMap.forEach(customCat => {
-                if (!finalCategories.some(c => c.name.toLowerCase() === customCat.name.toLowerCase())) {
-                    finalCategories.push(customCat);
                 }
             });
-        } else {
+            
+            // Add any remaining (purely new) custom categories
+            customCategoriesMap.forEach(customCat => {
+                 if (!finalCategories.some(c => c.name.toLowerCase() === customCat.name.toLowerCase())) {
+                    finalCategories.push(customCat);
+                 }
+            });
+        } else { // No preferences, use all predefined
             finalCategories = [...CATEGORIES];
         }
         
-        if (finalCategories.length === 0) { 
+        if (finalCategories.length === 0 && CATEGORIES.length > 0) { // Fallback if selection resulted in empty
             finalCategories = [...CATEGORIES];
         }
         
@@ -162,8 +168,8 @@ export default function ReportsPage() {
                 }
             }
           } else {
-             try { dateString = formatDateFns(new Date(data.date), "yyyy-MM-dd"); }
-             catch (e) { console.warn("ReportsPage (TX Date Parse General): Failed for tx " + docSnap.id + ": " + String(data.date), e); dateString = formatDateFns(new Date(), "yyyy-MM-dd");}
+             console.warn("ReportsPage: Invalid date format for transaction ID " + String(docSnap.id) + ": " + String(data.date));
+             dateString = formatDateFns(new Date(), "yyyy-MM-dd");
           }
         } else {
            console.warn("ReportsPage (TX Date Parse Missing/Invalid): Invalid date for tx " + docSnap.id + ":", data.date);
@@ -212,7 +218,7 @@ export default function ReportsPage() {
 
   // Fetch Budgets for the displayed month
   useEffect(() => {
-    if (!user || authLoading || !isClient) {
+    if (!user || authLoading || !isClient || !displayedDate) {
       setIsLoadingBudgets(false);
       setLoadedBudgets(null);
       return;
@@ -257,28 +263,27 @@ export default function ReportsPage() {
     const targetMonth = getMonthFns(displayedDate); // 0-indexed
     const firstDayOfTargetMonth = startOfMonth(displayedDate);
     const targetEffectiveMonthString = formatDateFns(displayedDate, "yyyy-MM");
-
     let filtered: Transaction[] = [];
 
     allTransactions.forEach(t => {
       let includeTransaction = false;
-      let transactionDateForComparison: Date;
+      let originalTransactionDate: Date;
       try {
-        transactionDateForComparison = parseDateFns(t.date, "yyyy-MM-dd", new Date(0));
+        originalTransactionDate = parseDateFns(t.date, "yyyy-MM-dd", new Date(0));
       } catch (e) {
         console.warn(`ReportsPage: Invalid original date format for transaction ID ${t.id}: ${t.date}`);
-        return; // Skip this transaction if date is unparseable
+        return; 
       }
 
       if (t.type === 'expense' && t.expenseType === 'installment' && t.installments && t.installments > 0) {
-        const installmentSeriesStartDate = startOfMonth(transactionDateForComparison);
+        const installmentSeriesStartDate = startOfMonth(originalTransactionDate);
         const monthDiff = differenceInCalendarMonths(firstDayOfTargetMonth, installmentSeriesStartDate);
         if (monthDiff >= 0 && monthDiff < t.installments) {
           includeTransaction = true;
         }
       } else if (t.isRecurring === true && t.expenseType !== 'installment') {
-        const originalTransactionYear = getYearFns(transactionDateForComparison);
-        const originalTransactionMonth = getMonthFns(transactionDateForComparison);
+        const originalTransactionYear = getYearFns(originalTransactionDate);
+        const originalTransactionMonth = getMonthFns(originalTransactionDate);
         if (originalTransactionYear < targetYear || (originalTransactionYear === targetYear && originalTransactionMonth <= targetMonth)) {
           includeTransaction = true;
         }
@@ -286,14 +291,14 @@ export default function ReportsPage() {
         if (t.effectiveMonth === targetEffectiveMonthString) {
           includeTransaction = true;
         }
-      } else if (t.type === 'income') { // Handle income separately for clarity
+      } else if (t.type === 'income') { 
          if (t.isRecurring === true) {
-            const originalTransactionYear = getYearFns(transactionDateForComparison);
-            const originalTransactionMonth = getMonthFns(transactionDateForComparison);
+            const originalTransactionYear = getYearFns(originalTransactionDate);
+            const originalTransactionMonth = getMonthFns(originalTransactionDate);
             if (originalTransactionYear < targetYear || (originalTransactionYear === targetYear && originalTransactionMonth <= targetMonth)) {
                 includeTransaction = true;
             }
-         } else { // Non-recurring income
+         } else { 
             if (t.effectiveMonth === targetEffectiveMonthString) {
                 includeTransaction = true;
             }
@@ -363,7 +368,12 @@ export default function ReportsPage() {
       const budgeted = loadedBudgets[internalName] || 0;
       const actual = actualSpending[internalName] || 0;
       const difference = budgeted - actual;
-      const percentageRaw = budgeted > 0 ? (actual / budgeted) * 100 : (actual > 0 ? 1000 : 0); 
+      let percentage = 0;
+      if (budgeted > 0) {
+        percentage = (actual / budgeted) * 100;
+      } else if (actual > 0) {
+        percentage = 1000; // Indicates spending with no budget, can be >100 for visual cue
+      }
       
       return {
         categoryName: displayName,
@@ -371,7 +381,7 @@ export default function ReportsPage() {
         budgeted,
         actual,
         difference,
-        percentage: percentageRaw
+        percentage
       };
     }).filter(item => item.budgeted > 0 || item.actual > 0) 
       .sort((a,b) => (b.budgeted + b.actual) - (a.budgeted + a.actual)); 
@@ -406,7 +416,7 @@ export default function ReportsPage() {
     return (
       <AppLayout>
         <div className="space-y-6">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div className="flex flex-col items-stretch gap-4 sm:flex-row sm:items-center sm:justify-between">
             <Skeleton className="h-9 w-1/3" />
             <Skeleton className="h-9 w-32" />
           </div>
@@ -449,7 +459,7 @@ export default function ReportsPage() {
   return (
     <AppLayout>
       <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div className="flex flex-col items-stretch gap-4 sm:flex-row sm:items-center sm:justify-between">
           <h1 className="text-3xl font-bold tracking-tight text-foreground">
             {pageTitle} - {displayedMonthYearLabel}
           </h1>
@@ -560,14 +570,14 @@ export default function ReportsPage() {
                       )}
                     </div>
                     <Progress 
-                      value={item.budgeted > 0 ? Math.min(item.percentage, 100) : (item.actual > 0 ? 100 : 0) }
+                      value={item.budgeted > 0 ? Math.min(item.percentage, 100) : 0 } // If budget is 0, progress is 0
                       className="h-2 mb-1" 
                        indicatorClassName={
                         item.budgeted > 0 ? (
                           item.percentage > 100 ? "bg-destructive" 
                           : item.percentage > 80 ? "bg-yellow-500" 
                           : "bg-primary"
-                        ) : (item.actual > 0 ? "bg-primary" : "bg-secondary") 
+                        ) : "bg-secondary" // Neutral color if budget is 0
                       }
                     />
                     <div className="flex justify-between text-xs text-muted-foreground">
@@ -618,5 +628,3 @@ export default function ReportsPage() {
     </AppLayout>
   );
 }
-
-    
