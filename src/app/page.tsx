@@ -15,8 +15,9 @@ import { collection, query, orderBy, onSnapshot, doc, getDoc, addDoc, serverTime
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency, cn } from "@/lib/utils";
 import { CategoryIcon } from "@/components/icons"; 
-import { Package, Wallet } from "lucide-react"; // Import Package and Wallet from lucide-react
+import { Package, Wallet } from "lucide-react";
 import { useDateNavigation } from '@/context/date-navigation-context';
+import { useLanguage } from '@/context/language-context'; // Added import
 import {
   format as formatDateFns,
   parse as parseDateFns,
@@ -364,7 +365,7 @@ export default function DashboardPage() {
         console.log("Dashboard: TRACER --- Main useEffect: Listener active, but isLoadingTransactions true. Likely waiting for initial snapshot for user:", userId);
       } else if (effectMountedRef.current && isLoadingTransactions && !unsubscribeTransactionsRef.current) {
         console.warn("Dashboard: TRACER --- Main useEffect: isLoadingTransactions is true, but NO snapshot listener is active. This might be an issue for user:", userId);
-        setIsLoadingTransactions(false); 
+        if (effectMountedRef.current) setIsLoadingTransactions(false); 
       }
     }
     return fullCleanup;
@@ -381,6 +382,7 @@ export default function DashboardPage() {
     }
     if(effectMountedRef.current) setIsLoadingBudgets(true);
     const budgetMonthKey = formatDateFns(displayedDate, 'yyyy-MM');
+    console.log(`Dashboard: TRACER --- Loading budgets for user ${userId}, month: ${budgetMonthKey}`);
     const budgetDocRef = doc(db, 'users/' + userId + '/budgets/' + budgetMonthKey);
     try {
       const docSnap = await getDoc(budgetDocRef);
@@ -388,6 +390,7 @@ export default function DashboardPage() {
 
       if (docSnap.exists()) {
         const budgetData = docSnap.data() as Record<string, any>; 
+        console.log(`Dashboard: TRACER --- Budgets data FOUND for ${budgetMonthKey}:`, JSON.stringify(budgetData));
         const validBudgets: Record<string, number> = {};
         for (const key in budgetData) {
           if (key !== 'lastUpdated' && Object.prototype.hasOwnProperty.call(budgetData, key) && typeof budgetData[key] === 'number') {
@@ -396,6 +399,7 @@ export default function DashboardPage() {
         }
         setLoadedBudgetsForMonth(validBudgets);
       } else { 
+        console.log(`Dashboard: TRACER --- No budgets data found for ${budgetMonthKey}. Setting to empty.`);
         setLoadedBudgetsForMonth({}); 
       }
     } catch (error) {
@@ -421,7 +425,6 @@ export default function DashboardPage() {
     console.log("Dashboard: TRACER --- onAddTransaction: Received date from form:", newTransactionData.date);
     console.log("Dashboard: TRACER --- onAddTransaction: Full newTransactionData received from form:", JSON.stringify(newTransactionData, null, 2));
 
-
     const fullPayload = {
       ...newTransactionData, 
       userId: userId,
@@ -432,15 +435,20 @@ export default function DashboardPage() {
       Object.entries(fullPayload).filter(([_, value]) => value !== undefined)
     ) as Partial<Transaction & { createdAt: any; userId: string }>;
 
+    // Explicitly set isRecurring based on expenseType for expenses, or from checkbox for income
     if (dataToSave.type === 'expense') {
       dataToSave.isRecurring = dataToSave.expenseType === 'recurring';
-    } else { 
+    } else { // income
+      // newTransactionData.isRecurring should be boolean from the checkbox
       dataToSave.isRecurring = newTransactionData.isRecurring === true; 
     }
+    // Ensure installments are not marked as recurring in the generic sense
     if(dataToSave.expenseType === 'installment' && dataToSave.isRecurring) {
+        console.warn("Dashboard: TRACER --- Correcting an installment transaction that was also marked as recurring. Installments are finite.");
         dataToSave.isRecurring = false; 
     }
-     if (dataToSave.isRecurring === undefined) { 
+    // Default isRecurring to false if still undefined for any reason
+    if (dataToSave.isRecurring === undefined) { 
         dataToSave.isRecurring = false;
     }
     
@@ -791,5 +799,3 @@ export default function DashboardPage() {
     </AppLayout>
   );
 }
-
-    
