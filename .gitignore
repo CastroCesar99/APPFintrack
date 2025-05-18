@@ -1,2 +1,5 @@
-/.next/cache
-/node_modules
+gitignore
+    .next/
+    out/
+    tsconfig.tsbuildinfo
+    node_modules/
