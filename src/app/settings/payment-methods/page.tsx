@@ -39,7 +39,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { PaymentMethodIcon, getSelectableIcons, iconNameToComponentMap } from "@/components/icons"; 
+import { PaymentMethodIcon, getSelectableIcons, iconNameToComponentMap, CategoryIcon } from "@/components/icons"; 
 import { Edit, Trash2, PlusCircle, CircleHelp } from "lucide-react";
 import {
   PAYMENT_METHODS,
@@ -81,7 +81,7 @@ export default function ManagePaymentMethodsPage() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [methodToEdit, setMethodToEdit] = useState<DisplayPaymentMethod | null>(null);
-  const [originalMethodName, setOriginalMethodName] = useState<string | null>(null);
+  const [originalMethodName, setOriginalMethodName] = useState<string | null>(null); // Stores the internal name
 
   const [isSaving, setIsSaving] = useState(false);
   const [methodToDelete, setMethodToDelete] = useState<DisplayPaymentMethod | null>(null);
@@ -102,8 +102,8 @@ export default function ManagePaymentMethodsPage() {
     },
   });
 
-  const isTrulyPredefinedMethod = useCallback((methodName: string): boolean => {
-    return PAYMENT_METHODS.some(pm => pm.name.toLowerCase() === methodName.toLowerCase());
+  const isTrulyPredefinedMethod = useCallback((methodInternalName: string): boolean => {
+    return PAYMENT_METHODS.some(pm => pm.name.toLowerCase() === methodInternalName.toLowerCase());
   }, []);
 
 
@@ -119,31 +119,36 @@ export default function ManagePaymentMethodsPage() {
       const preferencesDocSnap = await getDoc(preferencesDocRef);
       
       let effectiveMethods: DisplayPaymentMethod[] = [];
-      const deselectedPredefinedNames: string[] = [];
 
       if (preferencesDocSnap.exists()) {
         const prefsData = preferencesDocSnap.data() as UserPreferences;
-        (prefsData.deselectedPredefinedPaymentMethods || []).forEach(name => deselectedPredefinedNames.push(name.toLowerCase()));
+        const deselectedPredefinedNames = (prefsData.deselectedPredefinedPaymentMethods || []).map(name => name.toLowerCase());
+        const customMethodsFromDb = prefsData.userDefinedPaymentMethods || [];
+        
+        const customMethodsMap = new Map<string, CustomPaymentMethodData>();
+        customMethodsFromDb.forEach(cm => customMethodsMap.set(cm.name.toLowerCase(), cm));
 
+        // Start with predefined methods that are not deselected
         effectiveMethods = PAYMENT_METHODS.filter(
           predefMethod => !deselectedPredefinedNames.includes(predefMethod.name.toLowerCase())
-        );
-        
-        const customMethods = prefsData.userDefinedPaymentMethods || [];
-        const customMethodsMap = new Map<string, CustomPaymentMethodData>();
-        customMethods.forEach(cm => customMethodsMap.set(cm.name.toLowerCase(), cm));
-
-        effectiveMethods = effectiveMethods.map(meth => {
-          const customOverride = customMethodsMap.get(meth.name.toLowerCase());
+        ).map(predefMethod => {
+          // Check if this predefined method has a custom override
+          const customOverride = customMethodsMap.get(predefMethod.name.toLowerCase());
           if (customOverride) {
-            customMethodsMap.delete(meth.name.toLowerCase()); 
-            return customOverride;
+            customMethodsMap.delete(predefMethod.name.toLowerCase()); // Remove from map as it's been used
+            return { ...predefMethod, ...customOverride }; // Use custom version (label, icon) but keep original name/type
           }
-          return meth;
+          return predefMethod; // Use the predefined version
         });
-        customMethodsMap.forEach(customMeth => effectiveMethods.push(customMeth));
-
+        
+        // Add any remaining custom methods (those that didn't override a predefined one by internal name)
+        customMethodsMap.forEach(customMeth => {
+             if (!effectiveMethods.some(em => em.name.toLowerCase() === customMeth.name.toLowerCase())) {
+                effectiveMethods.push(customMeth);
+             }
+        });
       } else {
+        // No preferences doc, use all predefined
         effectiveMethods = [...PAYMENT_METHODS];
       }
       
@@ -174,35 +179,36 @@ export default function ManagePaymentMethodsPage() {
       return;
     }
     setIsSaving(true);
-    const newMethodName = data.methodName.trim();
+    const newMethodDisplayName = data.methodName.trim();
     const newMethodIcon = data.selectedIcon;
+    
+    // For a brand new custom method, its internal name is its display name
+    const newMethodInternalName = newMethodDisplayName; 
 
-    const isDuplicate = displayPaymentMethods.some(
-      (pm) => (getPaymentMethodDisplayLabel(pm, language).toLowerCase() === newMethodName.toLowerCase() || pm.name.toLowerCase() === newMethodName.toLowerCase())
+    const isNameDuplicate = displayPaymentMethods.some(
+      (pm) => (getPaymentMethodDisplayLabel(pm, language).toLowerCase() === newMethodDisplayName.toLowerCase() || pm.name.toLowerCase() === newMethodInternalName.toLowerCase())
     );
-    if (isDuplicate) {
-      toast({ title: translate({ en: "Duplicate Method", pt: "Método Duplicado" }), description: translate({ en: "This payment method name already exists.", pt: "Este nome de método de pagamento já existe." }), variant: "destructive" });
+    if (isNameDuplicate) {
+      toast({ title: translate({ en: "Duplicate Method", pt: "Método Duplicado" }), description: translate({ en: "This payment method name or display name already exists.", pt: "Este nome ou nome de exibição do método de pagamento já existe." }), variant: "destructive" });
       setIsSaving(false);
       return;
     }
 
     const newCustomMethod: CustomPaymentMethodData = {
-      name: newMethodName, 
+      name: newMethodInternalName, 
       icon: newMethodIcon,
-      label: { en: newMethodName, pt: newMethodName }, 
+      label: { en: newMethodDisplayName, pt: newMethodDisplayName }, 
     };
 
     try {
       const preferencesDocRef = doc(db, `users/${user.uid}/preferences/userPreferences`);
       const prefsSnap = await getDoc(preferencesDocRef);
-      let currentDeselectedPredefined = prefsSnap.exists() ? (prefsSnap.data() as UserPreferences).deselectedPredefinedPaymentMethods || [] : [];
-      currentDeselectedPredefined = currentDeselectedPredefined.filter(dn => dn.toLowerCase() !== newCustomMethod.name.toLowerCase());
-
+      
       if (prefsSnap.exists()) {
         await updateDoc(preferencesDocRef, {
           userDefinedPaymentMethods: arrayUnion(newCustomMethod),
-          selectedPaymentMethods: arrayUnion(newCustomMethod.name),
-          deselectedPredefinedPaymentMethods: currentDeselectedPredefined,
+          selectedPaymentMethods: arrayUnion(newCustomMethod.name), // Add by its internal name
+          deselectedPredefinedPaymentMethods: arrayRemove(newCustomMethod.name), // Ensure it's not in deselected if it happens to match a predefined name
           updatedAt: serverTimestamp()
         });
       } else {
@@ -210,6 +216,7 @@ export default function ManagePaymentMethodsPage() {
           userDefinedPaymentMethods: [newCustomMethod],
           selectedPaymentMethods: [newCustomMethod.name],
           deselectedPredefinedPaymentMethods: [],
+          // Initialize other preference fields if necessary
           selectedCategories: CATEGORIES.map(c => c.name), 
           userDefinedCategories: [],
           language: language, 
@@ -234,9 +241,9 @@ export default function ManagePaymentMethodsPage() {
 
   const handleOpenEditDialog = (method: DisplayPaymentMethod) => {
     setMethodToEdit(method);
-    setOriginalMethodName(method.name as string); 
+    setOriginalMethodName(method.name as string); // Store the internal name
     editMethodForm.reset({
-        methodName: getPaymentMethodDisplayLabel(method, language),
+        methodName: getPaymentMethodDisplayLabel(method, language), // Populate form with display name
         selectedIcon: method.icon
     });
     setIsEditDialogOpen(true);
@@ -251,80 +258,90 @@ export default function ManagePaymentMethodsPage() {
     const updatedMethodDisplayName = data.methodName.trim();
     const updatedIcon = data.selectedIcon;
     
-    let newInternalName = originalMethodName;
-    if (getPaymentMethodDisplayLabel(methodToEdit, language).toLowerCase() !== updatedMethodDisplayName.toLowerCase()) {
-        newInternalName = updatedMethodDisplayName;
-    }
-
-    const isDuplicate = displayPaymentMethods.some(
-      (meth) => (meth.name.toLowerCase() === newInternalName.toLowerCase()) && meth.name.toLowerCase() !== originalMethodName.toLowerCase()
-    );
-    if (isDuplicate) {
-        toast({ title: translate({ en: "Duplicate Method", pt: "Método Duplicado" }), description: translate({ en: "Another method with this name already exists.", pt: "Outro método com este nome já existe." }), variant: "destructive" });
-        setIsSaving(false);
-        return;
-    }
-
-    const updatedMethodData: CustomPaymentMethodData = {
-        name: newInternalName,
-        icon: updatedIcon,
-        label: { en: updatedMethodDisplayName, pt: updatedMethodDisplayName }, 
-    };
-
     try {
         const preferencesDocRef = doc(db, `users/${user.uid}/preferences/userPreferences`);
         const prefsSnap = await getDoc(preferencesDocRef);
 
-        if (prefsSnap.exists()) {
-            const preferencesData = prefsSnap.data() as UserPreferences;
-            let currentCustomMethods = preferencesData.userDefinedPaymentMethods || [];
-            let currentSelectedMethods = preferencesData.selectedPaymentMethods || [];
-            let currentDeselectedPredefined = preferencesData.deselectedPredefinedPaymentMethods || [];
-
-            currentCustomMethods = currentCustomMethods.filter(meth => meth.name.toLowerCase() !== originalMethodName.toLowerCase());
-            currentCustomMethods.push(updatedMethodData);
-
-            if (originalMethodName.toLowerCase() !== newInternalName.toLowerCase()) {
-                currentSelectedMethods = currentSelectedMethods.filter(name => name.toLowerCase() !== originalMethodName.toLowerCase());
-                 if (!currentSelectedMethods.map(n=>n.toLowerCase()).includes(newInternalName.toLowerCase())) {
-                    currentSelectedMethods.push(newInternalName);
-                }
-            } else if (!currentSelectedMethods.map(n=>n.toLowerCase()).includes(newInternalName.toLowerCase())) {
-                currentSelectedMethods.push(newInternalName);
-            }
-            currentSelectedMethods = Array.from(new Set(currentSelectedMethods));
-            
-            currentDeselectedPredefined = currentDeselectedPredefined.filter(dn => dn.toLowerCase() !== originalMethodName.toLowerCase() && dn.toLowerCase() !== newInternalName.toLowerCase());
-
-
-            await updateDoc(preferencesDocRef, {
-                userDefinedPaymentMethods: currentCustomMethods,
-                selectedPaymentMethods: currentSelectedMethods,
-                deselectedPredefinedPaymentMethods: currentDeselectedPredefined,
-                updatedAt: serverTimestamp()
-            });
-
-            await fetchUserPaymentMethods(); 
-            toast({ title: translate({ en: "Method Updated", pt: "Método Atualizado" }), description: `${getPaymentMethodDisplayLabel(updatedMethodData, language)} ${translate({ en: "has been updated.", pt: "foi atualizado." })}` });
-            setIsEditDialogOpen(false);
-            setMethodToEdit(null);
-            setOriginalMethodName(null);
-        } else {
-            // This case should ideally not happen if user has any preferences
-             await setDoc(preferencesDocRef, {
-                userDefinedPaymentMethods: [updatedMethodData],
-                selectedPaymentMethods: [updatedMethodData.name],
-                deselectedPredefinedPaymentMethods: [],
-                selectedCategories: CATEGORIES.map(c => c.name),
-                userDefinedCategories: [],
-                language: language,
-                updatedAt: serverTimestamp()
-            });
-            console.warn("ManagePaymentMethodsPage: Preferences doc didn't exist during edit, created it.");
-            await fetchUserPaymentMethods();
-            toast({ title: translate({ en: "Method Updated", pt: "Método Atualizado" }) });
-            setIsEditDialogOpen(false);
+        if (!prefsSnap.exists()) {
+            toast({ title: translate({en: "Error", pt: "Erro"}), description: translate({en: "User preferences not found.", pt: "Preferências do usuário não encontradas."}), variant: "destructive"});
+            setIsSaving(false);
+            return;
         }
+        const preferencesData = prefsSnap.data() as UserPreferences;
+        let currentCustomMethods = preferencesData.userDefinedPaymentMethods || [];
+        let currentSelectedMethods = preferencesData.selectedPaymentMethods || [];
+        let currentDeselectedPredefined = preferencesData.deselectedPredefinedPaymentMethods || [];
+
+        const wasOriginallyPredefined = isTrulyPredefinedMethod(originalMethodName);
+        
+        // The internal name for the updated method. If it was predefined, its internal name doesn't change.
+        // If it was custom, its internal name changes IF the display name (which serves as its ID) changes.
+        const internalNameForUpdate = wasOriginallyPredefined ? originalMethodName : updatedMethodDisplayName;
+
+        // Check for display name duplication, excluding the method being edited (if its internal name isn't changing)
+        const otherMethods = displayPaymentMethods.filter(pm => pm.name.toLowerCase() !== originalMethodName.toLowerCase());
+        const isDisplayNameDuplicate = otherMethods.some(
+            (pm) => getPaymentMethodDisplayLabel(pm, language).toLowerCase() === updatedMethodDisplayName.toLowerCase()
+        );
+
+        if (isDisplayNameDuplicate && (!wasOriginallyPredefined || originalMethodName.toLowerCase() !== internalNameForUpdate.toLowerCase()) ) {
+            toast({ title: translate({ en: "Duplicate Method", pt: "Método Duplicado" }), description: translate({ en: "Another method with this display name already exists.", pt: "Outro método com este nome de exibição já existe." }), variant: "destructive" });
+            setIsSaving(false);
+            return;
+        }
+        
+        const updatedMethodData: CustomPaymentMethodData = {
+            name: internalNameForUpdate, 
+            icon: updatedIcon,
+            label: { en: updatedMethodDisplayName, pt: updatedMethodDisplayName },
+        };
+
+        // Find and update/replace in customMethods
+        const existingCustomIndex = currentCustomMethods.findIndex(
+            (pm) => pm.name.toLowerCase() === originalMethodName.toLowerCase()
+        );
+
+        if (existingCustomIndex !== -1) { // It was an existing custom method or a customized predefined one
+            currentCustomMethods[existingCustomIndex] = updatedMethodData;
+        } else if (wasOriginallyPredefined) { // It was a predefined method being customized for the first time
+            currentCustomMethods.push(updatedMethodData);
+        }
+        // Ensure unique by name if somehow duplicates were created (e.g. if originalMethodName was a display name that changed)
+        const tempMap = new Map<string, CustomPaymentMethodData>();
+        currentCustomMethods.forEach(pm => tempMap.set(pm.name.toLowerCase(), pm));
+        currentCustomMethods = Array.from(tempMap.values());
+
+        // Update selectedMethods if internal name changed (only for originally custom methods that were renamed)
+        if (!wasOriginallyPredefined && originalMethodName.toLowerCase() !== internalNameForUpdate.toLowerCase()) {
+            currentSelectedMethods = currentSelectedMethods.filter(
+                (name) => name.toLowerCase() !== originalMethodName.toLowerCase()
+            );
+        }
+        // Ensure the (potentially new) internal name is in selectedMethods
+        if (!currentSelectedMethods.map(n => n.toLowerCase()).includes(internalNameForUpdate.toLowerCase())) {
+            currentSelectedMethods.push(internalNameForUpdate);
+        }
+        currentSelectedMethods = Array.from(new Set(currentSelectedMethods.map(n => n.trim()).filter(Boolean)));
+        
+        // If a predefined method was customized, ensure it's not in deselected
+        if(wasOriginallyPredefined) {
+            currentDeselectedPredefined = currentDeselectedPredefined.filter(name => name.toLowerCase() !== originalMethodName.toLowerCase());
+        }
+
+
+        await updateDoc(preferencesDocRef, {
+            userDefinedPaymentMethods: currentCustomMethods,
+            selectedPaymentMethods: currentSelectedMethods,
+            deselectedPredefinedPaymentMethods: currentDeselectedPredefined,
+            updatedAt: serverTimestamp()
+        });
+
+        await fetchUserPaymentMethods(); 
+        toast({ title: translate({ en: "Method Updated", pt: "Método Atualizado" }), description: `${getPaymentMethodDisplayLabel(updatedMethodData, language)} ${translate({ en: "has been updated.", pt: "foi atualizado." })}` });
+        setIsEditDialogOpen(false);
+        setMethodToEdit(null);
+        setOriginalMethodName(null);
+        
     } catch (error) {
         console.error("Error updating payment method:", error);
         toast({ title: translate({ en: "Error", pt: "Erro" }), description: translate({ en: "Could not update payment method.", pt: "Não foi possível atualizar o método de pagamento." }), variant: "destructive" });
@@ -347,29 +364,32 @@ export default function ManagePaymentMethodsPage() {
     try {
       const preferencesDocRef = doc(db, `users/${user.uid}/preferences/userPreferences`);
       const prefsSnap = await getDoc(preferencesDocRef);
+
       if (prefsSnap.exists()) {
         const currentPrefs = prefsSnap.data() as UserPreferences;
         let updatedUserDefined = currentPrefs.userDefinedPaymentMethods || [];
         let updatedSelected = currentPrefs.selectedPaymentMethods || [];
         let updatedDeselectedPredefined = currentPrefs.deselectedPredefinedPaymentMethods || [];
 
-        const methodInternalName = methodToDelete.name as string;
+        const methodInternalName = methodToDelete.name;
         const wasOriginallyPredefined = isTrulyPredefinedMethod(methodInternalName);
-        const isAlsoInCustom = updatedUserDefined.some(meth => meth.name.toLowerCase() === methodInternalName.toLowerCase());
 
-        if (isAlsoInCustom) { 
-          updatedUserDefined = updatedUserDefined.filter(
-            meth => meth.name.toLowerCase() !== methodInternalName.toLowerCase()
-          );
-        } else if (wasOriginallyPredefined) { 
-          if (!updatedDeselectedPredefined.map(n=>n.toLowerCase()).includes(methodInternalName.toLowerCase())) {
-            updatedDeselectedPredefined.push(methodInternalName);
-          }
-        }
+        // Remove from userDefinedPaymentMethods if it's there (covers custom methods and customized predefined ones)
+        updatedUserDefined = updatedUserDefined.filter(
+          meth => meth.name.toLowerCase() !== methodInternalName.toLowerCase()
+        );
         
+        // Remove from selectedPaymentMethods
         updatedSelected = updatedSelected.filter(
           name => name.toLowerCase() !== methodInternalName.toLowerCase()
         );
+
+        // If it was an original predefined method being "deleted", add its internal name to deselectedPredefinedPaymentMethods
+        if (wasOriginallyPredefined) {
+          if (!updatedDeselectedPredefined.map(n => n.toLowerCase()).includes(methodInternalName.toLowerCase())) {
+            updatedDeselectedPredefined.push(methodInternalName);
+          }
+        }
 
         await updateDoc(preferencesDocRef, {
           userDefinedPaymentMethods: updatedUserDefined,
@@ -438,7 +458,7 @@ export default function ManagePaymentMethodsPage() {
                         <Select onValueChange={field.onChange} value={field.value}>
                           <FormControl>
                             <SelectTrigger className="w-full">
-                             <SelectValue>
+                             <SelectValue placeholder={translate({ en: "Select an icon", pt: "Selecione um ícone" })}>
                                 {field.value ? (
                                   (() => {
                                     const foundIconOption = selectableIcons.find(i => i.value === field.value);
@@ -596,10 +616,14 @@ export default function ManagePaymentMethodsPage() {
               <AlertDialogDescription>
                 {translate({en: "Are you sure you want to process this action for method:", pt: "Tem certeza que deseja processar esta ação para o método:"})}{" "}
                 <strong>{getPaymentMethodDisplayLabel(methodToDelete, language)}</strong>?{" "}
-                {isTrulyPredefinedMethod(methodToDelete.name as string) && !displayPaymentMethods.find(m => m.name === methodToDelete.name && !(PAYMENT_METHODS as ReadonlyArray<DisplayPaymentMethod>).includes(m))
-                  ? translate({en: "This is a predefined method. Deleting it will hide it from selection. Editing it will create a custom version.", pt: "Este é um método pré-definido. Excluí-lo irá ocultá-lo da seleção. Editá-lo criará uma versão personalizada."})
+                {isTrulyPredefinedMethod(methodToDelete.name as string)
+                  ? translate({en: "This is a predefined method. Editing it will create a custom version. Deleting it will hide it from selection.", pt: "Este é um método pré-definido. Editá-lo criará uma versão personalizada. Excluí-lo irá ocultá-la da seleção."})
                   : translate({en: "This action might affect existing transactions if the name changes.", pt: "Esta ação pode afetar transações existentes se o nome mudar."})
                 }
+                 {isTrulyPredefinedMethod(methodToDelete.name as string) && !userDefinedPaymentMethods.find(pm => pm.name === methodToDelete.name) ? 
+                    translate({ en: " Deleting a predefined method will hide it from future selections.", pt: " Excluir um método pré-definido o ocultará de seleções futuras."})
+                    : translate({ en: " Deleting a custom method will remove it permanently.", pt: " Excluir um método personalizado o removerá permanentemente."})
+                 }
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
