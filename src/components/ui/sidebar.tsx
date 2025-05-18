@@ -28,8 +28,8 @@ const SIDEBAR_WIDTH_ICON = "3rem"
 const SIDEBAR_KEYBOARD_SHORTCUT = "b"
 
 type SidebarContext = {
-  state: "expanded" | "collapsed"
-  open: boolean
+  state: "expanded" | "collapsed" // This state is now primarily for conceptual understanding on desktop
+  open: boolean // Represents desktop 'expanded' state
   setOpen: (open: boolean) => void
   openMobile: boolean
   setOpenMobile: (open: boolean) => void
@@ -71,18 +71,22 @@ const SidebarProvider = React.forwardRef<
     const isMobile = useIsMobile()
     const [openMobile, setOpenMobile] = React.useState(false)
 
+    // For desktop sidebar: 'open' state is now fixed to true due to defaultOpen and no toggle.
+    // The 'setOpen' function is kept for type compatibility but won't be effectively used for desktop.
     const [_open, _setOpen] = React.useState(defaultOpen)
-    const open = openProp ?? _open
+    const open = openProp ?? _open // Should always be true for desktop given defaultOpen=true
     const setOpen = React.useCallback(
       (value: boolean | ((value: boolean) => boolean)) => {
+        // This function no longer effectively changes the desktop sidebar state
+        // as toggling is disabled for desktop.
         const openState = typeof value === "function" ? value(open) : value
         if (setOpenProp) {
           setOpenProp(openState)
         } else {
-          _setOpen(openState)
+          // _setOpen(openState); // Commented out to prevent desktop state changes
         }
-        if (typeof document !== 'undefined') { // Check if document is defined (client-side)
-          document.cookie = `${SIDEBAR_COOKIE_NAME}=${openState}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`
+        if (typeof document !== 'undefined') {
+          // document.cookie = `${SIDEBAR_COOKIE_NAME}=${openState}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`
         }
       },
       [setOpenProp, open]
@@ -92,7 +96,7 @@ const SidebarProvider = React.forwardRef<
       if (isMobile) {
         setOpenMobile((currentOpenMobile) => !currentOpenMobile);
       }
-      // Desktop sidebar toggling is disabled
+      // Desktop sidebar toggling is disabled.
     }, [isMobile, setOpenMobile])
 
     React.useEffect(() => {
@@ -105,13 +109,13 @@ const SidebarProvider = React.forwardRef<
           toggleSidebar()
         }
       }
-      if (typeof window !== 'undefined') { // Check if window is defined (client-side)
+      if (typeof window !== 'undefined') {
         window.addEventListener("keydown", handleKeyDown)
         return () => window.removeEventListener("keydown", handleKeyDown)
       }
     }, [toggleSidebar])
 
-    const state = open ? "expanded" : "collapsed"
+    const state = open ? "expanded" : "collapsed" // For desktop, this will always be "expanded"
 
     const contextValue = React.useMemo<SidebarContext>(
       () => ({
@@ -133,7 +137,7 @@ const SidebarProvider = React.forwardRef<
             style={
               {
                 "--sidebar-width": SIDEBAR_WIDTH,
-                "--sidebar-width-icon": SIDEBAR_WIDTH_ICON,
+                "--sidebar-width-icon": SIDEBAR_WIDTH_ICON, // Kept for potential future use or other components
                 ...style,
               } as React.CSSProperties
             }
@@ -158,7 +162,7 @@ const Sidebar = React.forwardRef<
   React.ComponentProps<"div"> & {
     side?: "left" | "right"
     variant?: "sidebar" | "floating" | "inset"
-    collapsible?: "offcanvas" | "icon" | "none"
+    collapsible?: "offcanvas" | "icon" | "none" // Prop kept, but desktop icon-collapsible styling removed
   }
 >(
   (
@@ -174,7 +178,7 @@ const Sidebar = React.forwardRef<
   ) => {
     const { isMobile, state, openMobile, setOpenMobile } = useSidebar()
 
-    if (collapsible === "none") {
+    if (collapsible === "none") { // This path remains for explicitly non-collapsible sidebars
       return (
         <div
           className={cn(
@@ -203,43 +207,40 @@ const Sidebar = React.forwardRef<
             }
             side={side}
           >
-            <SheetTitle className="sr-only">Navegação Principal</SheetTitle> 
+            <SheetTitle className="sr-only">Navegação Principal</SheetTitle>
             <div className="flex h-full w-full flex-col">{children}</div>
           </SheetContent>
         </Sheet>
       )
     }
 
+    // Desktop view: always expanded
     return (
       <div
         ref={ref}
         className="group peer hidden md:block text-sidebar-foreground"
-        data-state={state} // Desktop sidebar is always expanded, so state is always 'expanded'
-        data-collapsible={collapsible === "icon" && state === "collapsed" ? "icon" : ""} //This might be simplified as state is always 'expanded'
+        data-state="expanded" // Always expanded for desktop
+        // data-collapsible attribute removed as its conditional classes caused hydration issues
         data-variant={variant}
         data-side={side}
       >
         <div
           className={cn(
-            "duration-200 relative h-svh w-[--sidebar-width] bg-transparent transition-[width] ease-linear",
-            "group-data-[collapsible=offcanvas]:w-0",
-            "group-data-[side=right]:rotate-180",
-             // Desktop sidebar is always expanded, so icon-related width changes are not active
+            "relative h-svh w-[--sidebar-width] bg-transparent", // Fixed width
             variant === "floating" || variant === "inset"
-              ? "" // "group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)_+_theme(spacing.4))]"
-              : "" // "group-data-[collapsible=icon]:w-[--sidebar-width-icon]"
+              ? "" 
+              : "" 
           )}
         />
         <div
           className={cn(
-            "duration-200 fixed inset-y-0 z-10 hidden h-svh w-[--sidebar-width] transition-[left,right,width] ease-linear md:flex",
+            "fixed inset-y-0 z-10 hidden h-svh w-[--sidebar-width] md:flex", // Fixed width
             side === "left"
-              ? "left-0 group-data-[collapsible=offcanvas]:left-[calc(var(--sidebar-width)*-1)]"
-              : "right-0 group-data-[collapsible=offcanvas]:right-[calc(var(--sidebar-width)*-1)]",
-            // Desktop sidebar is always expanded
+              ? "left-0"
+              : "right-0",
             variant === "floating" || variant === "inset"
-              ? "p-2" // group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)_+_theme(spacing.4)_+2px)]"
-              : "group-data-[side=left]:border-r group-data-[side=right]:border-l", // "group-data-[collapsible=icon]:w-[--sidebar-width-icon] group-data-[side=left]:border-r group-data-[side=right]:border-l",
+              ? "p-2"
+              : "group-data-[side=left]:border-r group-data-[side=right]:border-l",
             className
           )}
           {...props}
@@ -269,7 +270,7 @@ const SidebarTrigger = React.forwardRef<
       data-sidebar="trigger"
       variant="ghost"
       size="icon"
-      className={cn("h-7 w-7 md:hidden", className)} // Ensure it's hidden on md and up
+      className={cn("h-7 w-7 md:hidden", className)}
       onClick={(event) => {
         onClick?.(event)
         toggleSidebar()
@@ -287,39 +288,29 @@ const SidebarRail = React.forwardRef<
   HTMLButtonElement,
   React.ComponentProps<"button">
 >(({ className, ...props }, ref) => {
-  const { toggleSidebar, isMobile } = useSidebar();
+  const { isMobile } = useSidebar(); // toggleSidebar removed as it's a no-op for desktop
   const [mounted, setMounted] = React.useState(false);
 
   React.useEffect(() => {
     setMounted(true);
   }, []);
 
-  if (!mounted) {
-    return null; // Avoid hydration mismatch by rendering nothing on server and initial client render
+  if (!mounted || isMobile) {
+    return null; 
   }
 
-  if (isMobile) { // After mount, if it's mobile, render nothing
-    return null;
-  }
-
-  // Only render for desktop after mount (isMobile will be false)
-  // And since desktop toggling is disabled, this button effectively does nothing.
-  // Consider removing it entirely if it's not needed visually.
+  // Desktop rail is now effectively non-functional for toggling
   return (
     <button
       ref={ref}
       data-sidebar="rail"
-      aria-label="Toggle Sidebar"
+      aria-label="Sidebar Rail" // Changed label as it no longer toggles
       tabIndex={-1}
-      onClick={toggleSidebar} // toggleSidebar now only affects mobile, so this is a no-op on desktop
-      title="Toggle Sidebar"
+      // onClick={toggleSidebar} // Removed onClick as desktop sidebar is fixed
+      title="Sidebar Rail" // Changed title
       className={cn(
-        "absolute inset-y-0 z-20 w-4 -translate-x-1/2 transition-all ease-linear after:absolute after:inset-y-0 after:left-1/2 after:w-[2px] hover:after:bg-sidebar-border group-data-[side=left]:-right-4 group-data-[side=right]:left-0 md:flex", // Changed sm:flex to md:flex
-        "[[data-side=left]_&]:cursor-w-resize [[data-side=right]_&]:cursor-e-resize",
-        "[[data-side=left][data-state=collapsed]_&]:cursor-e-resize [[data-side=right][data-state=collapsed]_&]:cursor-w-resize", // These states are less relevant now
-        "group-data-[collapsible=offcanvas]:translate-x-0 group-data-[collapsible=offcanvas]:after:left-full group-data-[collapsible=offcanvas]:hover:bg-sidebar",
-        "[[data-side=left][data-collapsible=offcanvas]_&]:-right-2",
-        "[[data-side=right][data-collapsible=offcanvas]_&]:-left-2",
+        "absolute inset-y-0 z-20 w-4 -translate-x-1/2 after:absolute after:inset-y-0 after:left-1/2 after:w-[2px] group-data-[side=left]:-right-4 group-data-[side=right]:left-0 md:flex",
+        "cursor-default", // No longer a resize/toggle cursor
         className
       )}
       {...props}
@@ -338,7 +329,11 @@ const SidebarInset = React.forwardRef<
       className={cn(
         "relative flex min-h-svh flex-1 flex-col bg-background",
         "peer-data-[variant=inset]:min-h-[calc(100svh-theme(spacing.4))] md:peer-data-[variant=inset]:m-2 md:peer-data-[variant=inset]:ml-0 md:peer-data-[variant=inset]:rounded-xl md:peer-data-[variant=inset]:shadow",
-         // Desktop sidebar is always expanded, so no need for collapsed state adjustment
+        "md:peer-data-[side=left]:pl-[--sidebar-width] md:peer-data-[side=right]:pr-[--sidebar-width]", // Always apply expanded width padding
+        "md:peer-data-[variant=floating]:peer-data-[side=left]:pl-[calc(var(--sidebar-width)_+_theme(spacing.4))]",
+        "md:peer-data-[variant=floating]:peer-data-[side=right]:pr-[calc(var(--sidebar-width)_+_theme(spacing.4))]",
+        "md:peer-data-[variant=inset]:peer-data-[side=left]:pl-[calc(var(--sidebar-width)_+_theme(spacing.4))]",
+        "md:peer-data-[variant=inset]:peer-data-[side=right]:pr-[calc(var(--sidebar-width)_+_theme(spacing.4))]",
         className
       )}
       {...props}
@@ -419,7 +414,7 @@ const SidebarContent = React.forwardRef<
       ref={ref}
       data-sidebar="content"
       className={cn(
-        "flex min-h-0 flex-1 flex-col gap-2 overflow-auto", // Removed icon-collapsible specific overflow class
+        "flex min-h-0 flex-1 flex-col gap-2 overflow-auto p-2", // Always p-2 for desktop
         className
       )}
       {...props}
@@ -454,8 +449,8 @@ const SidebarGroupLabel = React.forwardRef<
       ref={ref}
       data-sidebar="group-label"
       className={cn(
-        "duration-200 flex h-8 shrink-0 items-center rounded-md px-2 text-xs font-medium text-sidebar-foreground/70 outline-none ring-sidebar-ring transition-[margin,opa] ease-linear focus-visible:ring-2 [&>svg]:size-4 [&>svg]:shrink-0",
-        // "group-data-[collapsible=icon]:-mt-8 group-data-[collapsible=icon]:opacity-0", // Not relevant if desktop sidebar is always expanded
+        "flex h-8 shrink-0 items-center rounded-md px-2 text-xs font-medium text-sidebar-foreground/70 outline-none ring-sidebar-ring focus-visible:ring-2 [&>svg]:size-4 [&>svg]:shrink-0",
+        // Removed icon-collapsible specific classes
         className
       )}
       {...props}
@@ -477,7 +472,7 @@ const SidebarGroupAction = React.forwardRef<
       className={cn(
         "absolute right-3 top-3.5 flex aspect-square w-5 items-center justify-center rounded-md p-0 text-sidebar-foreground outline-none ring-sidebar-ring transition-transform hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 [&>svg]:size-4 [&>svg]:shrink-0",
         "after:absolute after:-inset-2 after:md:hidden",
-        // "group-data-[collapsible=icon]:hidden", // Not relevant
+        // Removed icon-collapsible specific classes
         className
       )}
       {...props}
@@ -527,7 +522,7 @@ SidebarMenuItem.displayName = "SidebarMenuItem"
 
 const sidebarMenuButtonVariants = cva(
   "peer/menu-button flex w-full items-center gap-2 overflow-hidden rounded-md p-2 text-left text-sm outline-none ring-sidebar-ring transition-[width,height,padding] hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 group-has-[[data-sidebar=menu-action]]/menu-item:pr-8 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:bg-sidebar-accent data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground data-[state=open]:hover:bg-sidebar-accent data-[state=open]:hover:text-sidebar-accent-foreground [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0",
-  // "group-data-[collapsible=icon]:!size-8 group-data-[collapsible=icon]:!p-2" // Not relevant
+  // Removed icon-collapsible specific classes
   {
     variants: {
       variant: {
@@ -538,7 +533,7 @@ const sidebarMenuButtonVariants = cva(
       size: {
         default: "h-8 text-sm",
         sm: "h-7 text-xs",
-        lg: "h-12 text-sm", // "group-data-[collapsible=icon]:!p-0" // Not relevant
+        lg: "h-12 text-sm",
       },
     },
     defaultVariants: {
@@ -569,7 +564,7 @@ const SidebarMenuButton = React.forwardRef<
     ref
   ) => {
     const Comp = asChild ? Slot : "button"
-    const { isMobile, state } = useSidebar() // state is now always 'expanded' for desktop
+    const { isMobile } = useSidebar() // 'state' removed as desktop is always expanded
 
     const button = (
       <Comp
@@ -582,7 +577,7 @@ const SidebarMenuButton = React.forwardRef<
       />
     )
 
-    if (!tooltip) {
+    if (!tooltip || isMobile) { // Tooltip only for desktop, and desktop is always expanded, so no icon-only tooltips.
       return button
     }
 
@@ -591,15 +586,15 @@ const SidebarMenuButton = React.forwardRef<
         children: tooltip,
       }
     }
-
+    // Tooltip is simplified as it's always expanded on desktop.
+    // For icon-only tooltips to work, we'd need state to be "collapsed".
     return (
       <Tooltip>
         <TooltipTrigger asChild>{button}</TooltipTrigger>
         <TooltipContent
           side="right"
           align="center"
-          // Tooltip hidden logic simplified as desktop state is always expanded
-          hidden={state !== "collapsed" || isMobile} // This effectively means hidden on mobile if state could be "collapsed"
+          hidden={isMobile} // Hide on mobile; always show text on desktop.
           {...tooltip}
         />
       </Tooltip>
@@ -627,7 +622,7 @@ const SidebarMenuAction = React.forwardRef<
         "peer-data-[size=sm]/menu-button:top-1",
         "peer-data-[size=default]/menu-button:top-1.5",
         "peer-data-[size=lg]/menu-button:top-2.5",
-        // "group-data-[collapsible=icon]:hidden", // Not relevant
+        // Removed icon-collapsible specific classes
         showOnHover &&
           "group-focus-within/menu-item:opacity-100 group-hover/menu-item:opacity-100 data-[state=open]:opacity-100 peer-data-[active=true]/menu-button:text-sidebar-accent-foreground md:opacity-0",
         className
@@ -651,7 +646,7 @@ const SidebarMenuBadge = React.forwardRef<
       "peer-data-[size=sm]/menu-button:top-1",
       "peer-data-[size=default]/menu-button:top-1.5",
       "peer-data-[size=lg]/menu-button:top-2.5",
-      // "group-data-[collapsible=icon]:hidden", // Not relevant
+      // Removed icon-collapsible specific classes
       className
     )}
     {...props}
@@ -705,7 +700,7 @@ const SidebarMenuSub = React.forwardRef<
     data-sidebar="menu-sub"
     className={cn(
       "mx-3.5 flex min-w-0 translate-x-px flex-col gap-1 border-l border-sidebar-border px-2.5 py-0.5",
-      // "group-data-[collapsible=icon]:hidden", // Not relevant
+      // Removed icon-collapsible specific classes
       className
     )}
     {...props}
@@ -740,7 +735,7 @@ const SidebarMenuSubButton = React.forwardRef<
         "data-[active=true]:bg-sidebar-accent data-[active=true]:text-sidebar-accent-foreground",
         size === "sm" && "text-xs",
         size === "md" && "text-sm",
-        // "group-data-[collapsible=icon]:hidden", // Not relevant
+        // Removed icon-collapsible specific classes
         className
       )}
       {...props}
@@ -775,3 +770,5 @@ export {
   SidebarTrigger,
   useSidebar,
 }
+
+    

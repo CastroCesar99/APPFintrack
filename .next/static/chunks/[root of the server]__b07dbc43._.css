@@ -3104,6 +3104,30 @@ body {
     border-radius: .75rem;
   }
 
+  .peer[data-side="left"] ~ .md\:peer-data-\[side\=left\]\:pl-\[--sidebar-width\] {
+    padding-left: var(--sidebar-width);
+  }
+
+  .peer[data-side="right"] ~ .md\:peer-data-\[side\=right\]\:pr-\[--sidebar-width\] {
+    padding-right: var(--sidebar-width);
+  }
+
+  .peer[data-variant="floating"][data-side="left"] ~ .md\:peer-data-\[variant\=floating\]\:peer-data-\[side\=left\]\:pl-\[calc\(var\(--sidebar-width\)_\+_theme\(spacing\.4\)\)\] {
+    padding-left: calc(var(--sidebar-width)  + 1rem);
+  }
+
+  .peer[data-variant="floating"][data-side="right"] ~ .md\:peer-data-\[variant\=floating\]\:peer-data-\[side\=right\]\:pr-\[calc\(var\(--sidebar-width\)_\+_theme\(spacing\.4\)\)\] {
+    padding-right: calc(var(--sidebar-width)  + 1rem);
+  }
+
+  .peer[data-variant="inset"][data-side="left"] ~ .md\:peer-data-\[variant\=inset\]\:peer-data-\[side\=left\]\:pl-\[calc\(var\(--sidebar-width\)_\+_theme\(spacing\.4\)\)\] {
+    padding-left: calc(var(--sidebar-width)  + 1rem);
+  }
+
+  .peer[data-variant="inset"][data-side="right"] ~ .md\:peer-data-\[variant\=inset\]\:peer-data-\[side\=right\]\:pr-\[calc\(var\(--sidebar-width\)_\+_theme\(spacing\.4\)\)\] {
+    padding-right: calc(var(--sidebar-width)  + 1rem);
+  }
+
   .peer[data-variant="inset"] ~ .md\:peer-data-\[variant\=inset\]\:shadow {
     --tw-shadow: 0 1px 3px 0 #0000001a, 0 1px 2px -1px #0000001a;
     --tw-shadow-colored: 0 1px 3px 0 var(--tw-shadow-color), 0 1px 2px -1px var(--tw-shadow-color);
