@@ -64,18 +64,18 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useForm, type SubmitHandler, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Form, FormControl, FormDescription as FormDesc, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 
 const selectableIcons = getSelectableIcons();
 
-const addCategoryFormSchema = z.object({
-  newCategoryName: z.string().min(1, { message: "Nome da categoria é obrigatório." }),
-  selectedNewCategoryIcon: z.string().min(1, { message: "Ícone é obrigatório." }),
-  newCategoryType: z.enum(['income', 'expense'] as [TransactionType, ...TransactionType[]], {
+const categoryFormSchema = z.object({
+  categoryName: z.string().min(1, { message: "Nome da categoria é obrigatório." }),
+  selectedIcon: z.string().min(1, { message: "Ícone é obrigatório." }),
+  categoryType: z.enum(['income', 'expense'] as [TransactionType, ...TransactionType[]], {
     required_error: "Tipo da categoria é obrigatório."
   }),
 });
-type AddCategoryFormValues = z.infer<typeof addCategoryFormSchema>;
+type CategoryFormValues = z.infer<typeof categoryFormSchema>;
 
 export default function ManageCategoriesPage() {
   const { language, translate } = useLanguage();
@@ -84,16 +84,30 @@ export default function ManageCategoriesPage() {
 
   const [displayCategories, setDisplayCategories] = useState<DisplayCategory[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [isSavingCategory, setIsSavingCategory] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [categoryToEdit, setCategoryToEdit] = useState<DisplayCategory | null>(null);
+  const [originalCategoryName, setOriginalCategoryName] = useState<string | null>(null);
+
+  const [isSaving, setIsSaving] = useState(false);
   const [categoryToDelete, setCategoryToDelete] = useState<DisplayCategory | null>(null);
 
-  const addCategoryForm = useForm<AddCategoryFormValues>({
-    resolver: zodResolver(addCategoryFormSchema),
+  const addCategoryForm = useForm<CategoryFormValues>({
+    resolver: zodResolver(categoryFormSchema),
     defaultValues: {
-      newCategoryName: "",
-      selectedNewCategoryIcon: selectableIcons.find(icon => icon.value === 'CircleHelp')?.value || selectableIcons[0]?.value || '',
-      newCategoryType: 'expense',
+      categoryName: "",
+      selectedIcon: selectableIcons.find(icon => icon.value === 'CircleHelp')?.value || selectableIcons[0]?.value || '',
+      categoryType: 'expense',
+    },
+  });
+
+  const editCategoryForm = useForm<CategoryFormValues>({
+    resolver: zodResolver(categoryFormSchema),
+    defaultValues: {
+      categoryName: "",
+      selectedIcon: "",
+      categoryType: 'expense',
     },
   });
 
@@ -154,22 +168,26 @@ export default function ManageCategoriesPage() {
     }
   }, [user, authLoading, fetchUserCategories]);
 
-  const handleAddCategorySubmit: SubmitHandler<AddCategoryFormValues> = async (data) => {
+  const isPredefinedCategory = useCallback((categoryName: string) => {
+    return CATEGORIES.some(cat => cat.name === categoryName);
+  }, []);
+
+  const handleAddCategorySubmit: SubmitHandler<CategoryFormValues> = async (data) => {
     if (!user) {
       toast({ title: translate({ en: "Authentication Error", pt: "Erro de Autenticação" }), description: translate({ en: "You must be logged in.", pt: "Você precisa estar logado." }), variant: "destructive" });
       return;
     }
-    setIsSavingCategory(true);
-    const newCategoryName = data.newCategoryName.trim();
-    const newCategoryIcon = data.selectedNewCategoryIcon;
-    const newCategoryType = data.newCategoryType;
+    setIsSaving(true);
+    const newCategoryName = data.categoryName.trim();
+    const newCategoryIcon = data.selectedIcon;
+    const newCategoryType = data.categoryType;
 
     const isDuplicate = displayCategories.some(
       (cat) => getCategoryDisplayLabel(cat, language).toLowerCase() === newCategoryName.toLowerCase() || cat.name.toLowerCase() === newCategoryName.toLowerCase()
     );
     if (isDuplicate) {
       toast({ title: translate({ en: "Duplicate Category", pt: "Categoria Duplicada" }), description: translate({ en: "This category already exists.", pt: "Esta categoria já existe." }), variant: "destructive" });
-      setIsSavingCategory(false);
+      setIsSaving(false);
       return;
     }
 
@@ -202,31 +220,122 @@ export default function ManageCategoriesPage() {
       }
       
       await fetchUserCategories(); 
-      toast({ title: translate({ en: "Category Added", pt: "Categoria Adicionada" }), description: `${newCategoryName} ${translate({ en: "has been added.", pt: "foi adicionada." })}` });
-      addCategoryForm.reset({
-        newCategoryName: "",
-        selectedNewCategoryIcon: selectableIcons.find(icon => icon.value === 'CircleHelp')?.value || selectableIcons[0]?.value || '',
-        newCategoryType: 'expense',
-      });
+      toast({ title: translate({ en: "Category Added", pt: "Categoria Adicionada" }), description: `${newCustomCategory.label[language]} ${translate({ en: "has been added.", pt: "foi adicionada." })}` });
+      addCategoryForm.reset();
       setIsAddDialogOpen(false);
     } catch (error) {
       console.error("Error adding custom category:", error);
       toast({ title: translate({ en: "Error", pt: "Erro" }), description: translate({ en: "Could not add category.", pt: "Não foi possível adicionar a categoria." }), variant: "destructive" });
     } finally {
-      setIsSavingCategory(false);
+      setIsSaving(false);
     }
   };
 
-  const isPredefinedCategory = (categoryName: string) => {
-    return CATEGORIES.some(cat => cat.name === categoryName);
+  const handleOpenEditDialog = (category: DisplayCategory) => {
+    if (isPredefinedCategory(category.name)) {
+        toast({
+            title: translate({ en: "Cannot Edit", pt: "Não Pode Editar" }),
+            description: translate({ en: "Predefined categories cannot be edited.", pt: "Categorias pré-definidas não podem ser editadas." }),
+            variant: "default"
+        });
+        return;
+    }
+    setCategoryToEdit(category);
+    setOriginalCategoryName(category.name);
+    editCategoryForm.reset({
+        categoryName: category.name,
+        selectedIcon: category.icon,
+        categoryType: category.type
+    });
+    setIsEditDialogOpen(true);
   };
+
+  const handleEditCategorySubmit: SubmitHandler<CategoryFormValues> = async (data) => {
+    if (!user || !categoryToEdit || !originalCategoryName) {
+        toast({ title: translate({ en: "Error", pt: "Erro" }), description: translate({ en: "Category to edit not found.", pt: "Categoria para editar não encontrada." }), variant: "destructive" });
+        return;
+    }
+    setIsSaving(true);
+    const updatedCategoryName = data.categoryName.trim();
+    const updatedIcon = data.selectedIcon;
+    const updatedType = data.categoryType;
+
+    // Check for duplicates, excluding the original name of the category being edited
+    const isDuplicate = displayCategories.some(
+        (cat) => (cat.name.toLowerCase() === updatedCategoryName.toLowerCase() || getCategoryDisplayLabel(cat, language).toLowerCase() === updatedCategoryName.toLowerCase()) && cat.name !== originalCategoryName
+    );
+    if (isDuplicate) {
+        toast({ title: translate({ en: "Duplicate Category", pt: "Categoria Duplicada" }), description: translate({ en: "Another category with this name already exists.", pt: "Outra categoria com este nome já existe." }), variant: "destructive" });
+        setIsSaving(false);
+        return;
+    }
+
+    const updatedCustomCategory: CustomCategoryData = {
+        name: updatedCategoryName,
+        icon: updatedIcon,
+        type: updatedType,
+        label: { en: updatedCategoryName, pt: updatedCategoryName },
+    };
+
+    try {
+        const preferencesDocRef = doc(db, `users/${user.uid}/preferences/userPreferences`);
+        const prefsSnap = await getDoc(preferencesDocRef);
+
+        if (prefsSnap.exists()) {
+            const preferencesData = prefsSnap.data() as UserPreferences;
+            const currentCustomCategories = preferencesData.userDefinedCategories || [];
+            const currentSelectedCategories = preferencesData.selectedCategories || [];
+
+            // Update userDefinedCategories
+            const updatedUserDefined = currentCustomCategories.map(cat => 
+                cat.name === originalCategoryName ? updatedCustomCategory : cat
+            );
+
+            // Update selectedCategories if name changed
+            let updatedSelected = [...currentSelectedCategories];
+            if (originalCategoryName !== updatedCategoryName) {
+                const index = updatedSelected.indexOf(originalCategoryName);
+                if (index > -1) {
+                    updatedSelected.splice(index, 1, updatedCategoryName);
+                } else {
+                    // If original wasn't selected, but new one should be implicitly (or handle as per product logic)
+                    // For simplicity, if user is editing it, let's assume they want it selected.
+                    updatedSelected.push(updatedCategoryName); 
+                }
+                // Ensure no duplicates if original was not selected but new name matches an already selected one
+                updatedSelected = Array.from(new Set(updatedSelected));
+            }
+
+
+            await updateDoc(preferencesDocRef, {
+                userDefinedCategories: updatedUserDefined,
+                selectedCategories: updatedSelected,
+                updatedAt: serverTimestamp()
+            });
+
+            await fetchUserCategories();
+            toast({ title: translate({ en: "Category Updated", pt: "Categoria Atualizada" }), description: `${updatedCustomCategory.label[language]} ${translate({ en: "has been updated.", pt: "foi atualizada." })}` });
+            setIsEditDialogOpen(false);
+            setCategoryToEdit(null);
+            setOriginalCategoryName(null);
+        } else {
+            throw new Error("User preferences document not found.");
+        }
+    } catch (error) {
+        console.error("Error updating custom category:", error);
+        toast({ title: translate({ en: "Error", pt: "Erro" }), description: translate({ en: "Could not update category.", pt: "Não foi possível atualizar a categoria." }), variant: "destructive" });
+    } finally {
+        setIsSaving(false);
+    }
+  };
+
 
   const openDeleteConfirmation = (category: DisplayCategory) => {
     if (isPredefinedCategory(category.name)) {
       toast({
         title: translate({ en: "Cannot Delete", pt: "Não Pode Excluir" }),
         description: translate({ en: "Predefined categories cannot be deleted.", pt: "Categorias pré-definidas não podem ser excluídas." }),
-        variant: "destructive"
+        variant: "default"
       });
       return;
     }
@@ -239,7 +348,7 @@ export default function ManageCategoriesPage() {
       setCategoryToDelete(null);
       return;
     }
-    setIsSavingCategory(true); 
+    setIsSaving(true); 
     try {
       const preferencesDocRef = doc(db, `users/${user.uid}/preferences/userPreferences`);
       const prefsSnap = await getDoc(preferencesDocRef);
@@ -265,16 +374,9 @@ export default function ManageCategoriesPage() {
       console.error("Error deleting category:", error);
       toast({ title: translate({ en: "Error Deleting Category", pt: "Erro ao Excluir Categoria" }), description: translate({ en: "Could not delete the category.", pt: "Não foi possível excluir a categoria." }), variant: "destructive" });
     } finally {
-      setIsSavingCategory(false);
+      setIsSaving(false);
       setCategoryToDelete(null);
     }
-  };
-
-  const handleEditPlaceholder = (category: DisplayCategory) => {
-    toast({
-      title: translate({ en: "Feature In Development", pt: "Funcionalidade em Desenvolvimento" }),
-      description: `${translate({en:"Editing", pt: "Editar"})}: ${getCategoryDisplayLabel(category, language)} ${translate({ en: "is coming soon.", pt: "está chegando em breve."})}`,
-    });
   };
 
   const getCategoryTypeLabel = (type: TransactionType) => {
@@ -283,6 +385,123 @@ export default function ManageCategoriesPage() {
     }
     return translate({ en: "Expense", pt: "Despesa" });
   };
+
+  const renderCategoryForm = (formInstance: typeof addCategoryForm | typeof editCategoryForm, onSubmitHandler: SubmitHandler<CategoryFormValues>, dialogType: "add" | "edit") => {
+    const submitButtonText = dialogType === "add" 
+        ? (isSaving ? translate({ en: "Adding...", pt: "Adicionando..." }) : translate({ en: "Add Category", pt: "Adicionar Categoria" }))
+        : (isSaving ? translate({ en: "Saving...", pt: "Salvando..." }) : translate({ en: "Save Changes", pt: "Salvar Alterações" }));
+
+    return (
+        <Form {...formInstance}>
+            <form onSubmit={formInstance.handleSubmit(onSubmitHandler)} className="space-y-4 py-4">
+              <FormField
+                control={formInstance.control}
+                name="categoryName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>
+                      {translate({ en: "Category Name", pt: "Nome da Categoria" })}
+                    </FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder={translate({ en: "e.g., Side Hustle", pt: "ex: Renda Extra"})}
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={formInstance.control}
+                name="selectedIcon"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>
+                       {translate({ en: "Icon", pt: "Ícone" })}
+                    </FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger className="w-full">
+                           <SelectValue placeholder={translate({en: "Select an icon", pt: "Selecione um ícone"})}>
+                            {field.value ? (
+                              (() => {
+                                const foundIconOption = selectableIcons.find(i => i.value === field.value);
+                                const IconComp = foundIconOption ? foundIconOption.iconComponent : CircleHelp; 
+                                const labelText = foundIconOption ? translate(foundIconOption.label) : field.value;
+                                return (
+                                  <div className="flex items-center gap-2">
+                                    <IconComp className="h-4 w-4 text-muted-foreground" />
+                                    <span>{labelText}</span>
+                                  </div>
+                                );
+                              })()
+                            ) : (
+                              translate({ en: "Select an icon", pt: "Selecione um ícone" })
+                            )}
+                          </SelectValue>
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {selectableIcons.map(iconOption => (
+                          <SelectItem key={iconOption.value} value={iconOption.value}>
+                            <div className="flex items-center gap-2">
+                              <iconOption.iconComponent className="h-4 w-4 text-muted-foreground" />
+                              <span>{translate(iconOption.label)}</span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={formInstance.control}
+                name="categoryType"
+                render={({ field }) => (
+                  <FormItem className="space-y-2">
+                    <FormLabel>{translate({ en: "Category Type", pt: "Tipo da Categoria" })}</FormLabel>
+                    <FormControl>
+                      <RadioGroup
+                          onValueChange={field.onChange}
+                          value={field.value}
+                          className="flex flex-row items-center space-x-3 pt-1"
+                      >
+                          <FormItem className="flex items-center space-x-1.5">
+                              <FormControl>
+                                  <RadioGroupItem value="income" id={`type-income-${dialogType}-dialog`} />
+                              </FormControl>
+                              <Label htmlFor={`type-income-${dialogType}-dialog`} className="font-normal">{translate({en: "Income", pt: "Receita"})}</Label>
+                          </FormItem>
+                          <FormItem className="flex items-center space-x-1.5">
+                              <FormControl>
+                                  <RadioGroupItem value="expense" id={`type-expense-${dialogType}-dialog`} />
+                              </FormControl>
+                              <Label htmlFor={`type-expense-${dialogType}-dialog`} className="font-normal">{translate({en: "Expense", pt: "Despesa"})}</Label>
+                          </FormItem>
+                      </RadioGroup>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <DialogFooter>
+                <DialogClose asChild>
+                  <Button type="button" variant="outline" disabled={isSaving}>
+                     {translate({ en: "Cancel", pt: "Cancelar"})}
+                  </Button>
+                </DialogClose>
+                <Button type="submit" disabled={isSaving}>
+                  {submitButtonText}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+    );
+  };
+
 
   return (
     <AppLayout>
@@ -305,116 +524,24 @@ export default function ManageCategoriesPage() {
                   {translate({ en: "Enter name, select icon, and choose type.", pt: "Digite o nome, selecione um ícone e escolha o tipo." })}
                 </DialogDescription>
               </DialogHeader>
-              <Form {...addCategoryForm}>
-                <form onSubmit={addCategoryForm.handleSubmit(handleAddCategorySubmit)} className="space-y-4 py-4">
-                  <FormField
-                    control={addCategoryForm.control}
-                    name="newCategoryName"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>
-                          {translate({ en: "Category Name", pt: "Nome da Categoria" })}
-                        </FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder={translate({ en: "e.g., Side Hustle", pt: "ex: Renda Extra"})}
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={addCategoryForm.control}
-                    name="selectedNewCategoryIcon"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>
-                           {translate({ en: "Icon", pt: "Ícone" })}
-                        </FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <FormControl>
-                            <SelectTrigger className="w-full">
-                               <SelectValue>
-                                {field.value ? (
-                                  (() => {
-                                    const foundIconOption = selectableIcons.find(i => i.value === field.value);
-                                    const IconComp = foundIconOption ? foundIconOption.iconComponent : CircleHelp; // Fallback to CircleHelp directly from lucide-react
-                                    const labelText = foundIconOption ? translate(foundIconOption.label) : field.value;
-                                    return (
-                                      <div className="flex items-center gap-2">
-                                        <IconComp className="h-4 w-4 text-muted-foreground" />
-                                        <span>{labelText}</span>
-                                      </div>
-                                    );
-                                  })()
-                                ) : (
-                                  translate({ en: "Select an icon", pt: "Selecione um ícone" })
-                                )}
-                              </SelectValue>
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {selectableIcons.map(iconOption => (
-                              <SelectItem key={iconOption.value} value={iconOption.value}>
-                                <div className="flex items-center gap-2">
-                                  <iconOption.iconComponent className="h-4 w-4 text-muted-foreground" />
-                                  <span>{translate(iconOption.label)}</span>
-                                </div>
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={addCategoryForm.control}
-                    name="newCategoryType"
-                    render={({ field }) => (
-                      <FormItem className="space-y-2">
-                        <FormLabel>{translate({ en: "Category Type", pt: "Tipo da Categoria" })}</FormLabel>
-                        <FormControl>
-                          <RadioGroup
-                              onValueChange={field.onChange}
-                              value={field.value}
-                              className="flex flex-row items-center space-x-3 pt-1"
-                          >
-                              <FormItem className="flex items-center space-x-1.5">
-                                  <FormControl>
-                                      <RadioGroupItem value="income" id="type-income-cat-dialog" />
-                                  </FormControl>
-                                  <Label htmlFor="type-income-cat-dialog" className="font-normal">{translate({en: "Income", pt: "Receita"})}</Label>
-                              </FormItem>
-                              <FormItem className="flex items-center space-x-1.5">
-                                  <FormControl>
-                                      <RadioGroupItem value="expense" id="type-expense-cat-dialog" />
-                                  </FormControl>
-                                  <Label htmlFor="type-expense-cat-dialog" className="font-normal">{translate({en: "Expense", pt: "Despesa"})}</Label>
-                              </FormItem>
-                          </RadioGroup>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <DialogFooter>
-                    <DialogClose asChild>
-                      <Button type="button" variant="outline" disabled={isSavingCategory}>
-                         {translate({ en: "Cancel", pt: "Cancelar"})}
-                      </Button>
-                    </DialogClose>
-                    <Button type="submit" disabled={isSavingCategory}>
-                      {isSavingCategory ? translate({ en: "Adding...", pt: "Adicionando..." }) : translate({ en: "Add Category", pt: "Adicionar Categoria" })}
-                    </Button>
-                  </DialogFooter>
-                </form>
-              </Form>
+              {renderCategoryForm(addCategoryForm, handleAddCategorySubmit, "add")}
             </DialogContent>
           </Dialog>
         </div>
+        
+        {/* Edit Category Dialog */}
+        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+            <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                    <DialogTitle>{translate({ en: "Edit Category", pt: "Editar Categoria" })}</DialogTitle>
+                    <DialogDescription>
+                        {translate({ en: "Update the name, icon, or type of your custom category.", pt: "Atualize o nome, ícone ou tipo da sua categoria personalizada." })}
+                    </DialogDescription>
+                </DialogHeader>
+                {categoryToEdit && renderCategoryForm(editCategoryForm, handleEditCategorySubmit, "edit")}
+            </DialogContent>
+        </Dialog>
+
 
         <Card className="shadow-lg">
           <CardHeader>
@@ -466,8 +593,9 @@ export default function ManageCategoriesPage() {
                         <Button 
                           variant="ghost" 
                           size="icon" 
-                          onClick={() => handleEditPlaceholder(category)}
+                          onClick={() => handleOpenEditDialog(category)}
                           aria-label={translate({en: "Edit", pt: "Editar"}) + " " + getCategoryDisplayLabel(category, language)}
+                          disabled={isPredefinedCategory(category.name)}
                         >
                           <Edit className="h-4 w-4" />
                         </Button>
@@ -507,11 +635,11 @@ export default function ManageCategoriesPage() {
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel onClick={() => setCategoryToDelete(null)} disabled={isSavingCategory}>
+              <AlertDialogCancel onClick={() => setCategoryToDelete(null)} disabled={isSaving}>
                 {translate({en: "Cancel", pt: "Cancelar"})}
               </AlertDialogCancel>
-              <AlertDialogAction onClick={handleDeleteCategory} disabled={isSavingCategory} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                {isSavingCategory ? translate({en:"Deleting...", pt: "Excluindo..."}) : translate({en: "Delete", pt: "Excluir"})}
+              <AlertDialogAction onClick={handleDeleteCategory} disabled={isSaving} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                {isSaving ? translate({en:"Deleting...", pt: "Excluindo..."}) : translate({en: "Delete", pt: "Excluir"})}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
@@ -520,5 +648,6 @@ export default function ManageCategoriesPage() {
     </AppLayout>
   );
 }
+
 
     

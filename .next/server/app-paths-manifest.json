@@ -1,3 +1,6 @@
 {
-  "/page": "app/page.js"
+  "/expenses/page": "app/expenses/page.js",
+  "/page": "app/page.js",
+  "/settings/categories/page": "app/settings/categories/page.js",
+  "/settings/page": "app/settings/page.js"
 }
