@@ -14,8 +14,8 @@ import { CATEGORIES, getCategoryDisplayLabel, PAYMENT_METHODS, getPaymentMethodD
 import { collection, query, orderBy, onSnapshot, doc, getDoc, addDoc, serverTimestamp, Timestamp, writeBatch, updateDoc, deleteDoc } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency, cn } from "@/lib/utils";
-import { CategoryIcon } from "@/components/icons";
-import { PiggyBank, Package, Wallet, TrendingUp, TrendingDown, DollarSign, ListChecks, Terminal } from "lucide-react"; 
+import { CategoryIcon } from "@/components/icons"; 
+import { Package, Wallet } from "lucide-react"; 
 import { useDateNavigation } from '@/context/date-navigation-context';
 import { useLanguage } from '@/context/language-context';
 import {
@@ -54,8 +54,8 @@ export default function DashboardPage() {
   const [loadedBudgetsForMonth, setLoadedBudgetsForMonth] = useState<Record<string, number> | null>(null);
   const [isLoadingBudgets, setIsLoadingBudgets] = useState(true);
 
-  const [userCategories, setUserCategories] = useState<DisplayCategory[]>([]);
-  const [userPaymentMethods, setUserPaymentMethods] = useState<DisplayPaymentMethod[]>([]);
+  const [userCategories, setUserCategories] = useState<DisplayCategory[]>(() => [...CATEGORIES]);
+  const [userPaymentMethods, setUserPaymentMethods] = useState<DisplayPaymentMethod[]>(() => [...PAYMENT_METHODS]);
   const [isLoadingPreferences, setIsLoadingPreferences] = useState(true);
 
   const [showAllRecentIncome, setShowAllRecentIncome] = useState(false);
@@ -86,15 +86,19 @@ export default function DashboardPage() {
 
   // Listener for User Preferences
   useEffect(() => {
-    if (!effectMountedRef.current) return;
+    if (!effectMountedRef.current) {
+      console.log("DashboardPage: TRACER --- Preferences effect early exit: effectMountedRef is false.");
+      return;
+    }
     if (!userId || !isClient || authLoading) {
       if (effectMountedRef.current) {
         const allPredefinedCategories: DisplayCategory[] = [...CATEGORIES];
         const allPredefinedPaymentMethods: DisplayPaymentMethod[] = [...PAYMENT_METHODS];
         
         setUserCategories(allPredefinedCategories.sort((a,b) => getCategoryDisplayLabel(a, language).localeCompare(getCategoryDisplayLabel(b, language))));
-        setUserPaymentMethods(allPredefinedPaymentMethods.sort((a,b) => getPaymentMethodDisplayLabel(a, language).localeCompare(getPaymentMethodDisplayLabel(b, language))));
+        setUserPaymentMethods(allPredefinedPaymentMethods.sort((a,b) => getPaymentMethodDisplayLabel(a,language).localeCompare(getPaymentMethodDisplayLabel(b,language))));
         if (isLoadingPreferences) setIsLoadingPreferences(false);
+        console.log("DashboardPage: TRACER --- Preferences effect: No user/client/auth. Set default categories/payment methods. isLoadingPreferences set to false.");
       }
       cleanupListener(unsubscribePreferencesRef, "preferences");
       return;
@@ -113,67 +117,57 @@ export default function DashboardPage() {
       }
       console.log("DashboardPage: TRACER --- Preferences snapshot received for UserID:", userId);
 
-      let finalCategories: DisplayCategory[] = [];
-      let finalPaymentMethods: DisplayPaymentMethod[] = [];
-      
-      const predefinedCategoriesMap = new Map(CATEGORIES.map(cat => [cat.name.toLowerCase(), { ...cat }]));
-      const predefinedPaymentMethodsMap = new Map(PAYMENT_METHODS.map(pm => [pm.name.toLowerCase(), { ...pm }]));
+      let finalCategories: DisplayCategory[] = [...CATEGORIES]; // Start with all predefined
+      let finalPaymentMethods: DisplayPaymentMethod[] = [...PAYMENT_METHODS]; // Start with all predefined
       
       if (docSnap.exists()) {
         const prefsData = docSnap.data() as UserPreferences;
         console.log("DashboardPage: TRACER --- Preferences data found for UserID:", userId, "Data:", prefsData);
 
         const userDefinedCategoriesFromPrefs = prefsData.userDefinedCategories || [];
-        const deselectedPredefinedCatNames = new Set((prefsData.deselectedPredefinedCategories || []).map(name => name.toLowerCase()));
+        const customCategoriesMap = new Map(userDefinedCategoriesFromPrefs.map(cat => [cat.name.toLowerCase(), cat]));
         
-        // Populate finalCategories: Start with non-deselected predefined, then override/add custom
-        CATEGORIES.forEach(pCat => {
-          if (!deselectedPredefinedCatNames.has(pCat.name.toLowerCase())) {
-            const customOverride = userDefinedCategoriesFromPrefs.find(udc => udc.name.toLowerCase() === pCat.name.toLowerCase());
-            if (customOverride) {
-              finalCategories.push(customOverride); // Use the custom version
-            } else {
-              finalCategories.push({ ...pCat }); // Use the predefined version
-            }
+        // Merge predefined with custom, custom taking precedence for label/icon
+        finalCategories = CATEGORIES.map(pCat => {
+          const customOverride = customCategoriesMap.get(pCat.name.toLowerCase());
+          return customOverride ? { ...pCat, ...customOverride } : pCat;
+        });
+        // Add purely custom categories
+        userDefinedCategoriesFromPrefs.forEach(udc => {
+          if (!finalCategories.some(fc => fc.name.toLowerCase() === udc.name.toLowerCase())) {
+            finalCategories.push(udc);
           }
         });
-        userDefinedCategoriesFromPrefs.forEach(customCat => {
-          if (!finalCategories.some(fc => fc.name.toLowerCase() === customCat.name.toLowerCase())) {
-            finalCategories.push(customCat); // Add new custom categories not overriding predefined ones
-          }
-        });
+        
+        // Apply deselected
+        const deselectedPredefinedCatNames = new Set((prefsData.deselectedPredefinedCategories || []).map(name => name.toLowerCase()));
+        finalCategories = finalCategories.filter(cat => !deselectedPredefinedCatNames.has(cat.name.toLowerCase()));
 
 
         const userDefinedPaymentMethodsFromPrefs = prefsData.userDefinedPaymentMethods || [];
-        const deselectedPredefinedPmNames = new Set((prefsData.deselectedPredefinedPaymentMethods || []).map(name => name.toLowerCase()));
+        const customPaymentMethodsMap = new Map(userDefinedPaymentMethodsFromPrefs.map(pm => [pm.name.toLowerCase(), pm]));
 
-        PAYMENT_METHODS.forEach(pPm => {
-          if (!deselectedPredefinedPmNames.has(pPm.name.toLowerCase())) {
-            const customOverride = userDefinedPaymentMethodsFromPrefs.find(udpm => udpm.name.toLowerCase() === pPm.name.toLowerCase());
-            if (customOverride) {
-              finalPaymentMethods.push(customOverride);
-            } else {
-              finalPaymentMethods.push({ ...pPm });
+        finalPaymentMethods = PAYMENT_METHODS.map(pPm => {
+            const customOverride = customPaymentMethodsMap.get(pPm.name.toLowerCase());
+            return customOverride ? { ...pPm, ...customOverride } : pPm;
+        });
+        userDefinedPaymentMethodsFromPrefs.forEach(udpm => {
+            if (!finalPaymentMethods.some(fpm => fpm.name.toLowerCase() === udpm.name.toLowerCase())) {
+                finalPaymentMethods.push(udpm);
             }
-          }
         });
-        userDefinedPaymentMethodsFromPrefs.forEach(customPm => {
-          if (!finalPaymentMethods.some(fpm => fpm.name.toLowerCase() === customPm.name.toLowerCase())) {
-            finalPaymentMethods.push(customPm);
-          }
-        });
+        const deselectedPredefinedPmNames = new Set((prefsData.deselectedPredefinedPaymentMethods || []).map(name => name.toLowerCase()));
+        finalPaymentMethods = finalPaymentMethods.filter(pm => !deselectedPredefinedPmNames.has(pm.name.toLowerCase()));
         
       } else {
         console.log("DashboardPage: TRACER --- No preferences document found for UserID:", userId, ". Using all predefined categories and payment methods.");
-        finalCategories = [...CATEGORIES];
-        finalPaymentMethods = [...PAYMENT_METHODS];
       }
       
       if (effectMountedRef.current) {
         setUserCategories(finalCategories.sort((a,b) => getCategoryDisplayLabel(a, language).localeCompare(getCategoryDisplayLabel(b,language))));
         setUserPaymentMethods(finalPaymentMethods.sort((a,b) => getPaymentMethodDisplayLabel(a, language).localeCompare(getPaymentMethodDisplayLabel(b,language))));
         setIsLoadingPreferences(false);
-        console.log("DashboardPage: TRACER --- Set userCategories:", finalCategories.length, "items; Set userPaymentMethods:", finalPaymentMethods.length, "items");
+        console.log("DashboardPage: TRACER --- Set userCategories:", finalCategories.length, "items; Set userPaymentMethods:", finalPaymentMethods.length, "items. isLoadingPreferences set to false.");
       }
     }, (error) => {
       if (!effectMountedRef.current) return;
@@ -208,9 +202,7 @@ export default function DashboardPage() {
     }
     if (authLoading) {
       console.log("Dashboard: TRACER --- Main useEffect: Auth is loading, waiting...");
-      if (effectMountedRef.current && !isLoadingTransactions) {
-        setIsLoadingTransactions(true);
-      }
+      // No need to set isLoadingTransactions here, overallLoading handles authLoading
       return fullCleanup;
     }
     if (!userId) {
@@ -308,7 +300,7 @@ export default function DashboardPage() {
                dateString = formatDateFns(new Date(), "yyyy-MM-dd"); 
             }
 
-            if (dateString && !effectiveMonthString) { // Ensure dateString is valid before parsing
+            if (dateString && !effectiveMonthString) { 
               try {
                   effectiveMonthString = formatDateFns(parseDateFns(dateString, "yyyy-MM-dd", new Date(0)), "yyyy-MM");
               } catch (e) {
@@ -364,6 +356,7 @@ export default function DashboardPage() {
             setTransactions([]);
             if (isLoadingTransactions) { 
                 setIsLoadingTransactions(false);
+                console.log("Dashboard: TRACER --- setIsLoadingTransactions(false) after onSnapshot error for UserID:", currentUserId);
             }
           }
         });
@@ -383,6 +376,7 @@ export default function DashboardPage() {
           setTransactions([]);
           if (isLoadingTransactions) {
             setIsLoadingTransactions(false);
+            console.log("Dashboard: TRACER --- setIsLoadingTransactions(false) in fetchDataInternal catch block for UserID:", currentUserId);
           }
         }
       }
@@ -407,7 +401,8 @@ export default function DashboardPage() {
       }
     }
     return fullCleanup;
-  }, [userId, authLoading, isClient, router, toast, translate, cleanupListener]); 
+  }, [userId, authLoading, isClient, router, toast, translate, cleanupListener]);
+
 
   const loadBudgets = useCallback(async () => {
     if (!userId || !isClient || !effectMountedRef.current) { 
@@ -423,7 +418,10 @@ export default function DashboardPage() {
     const budgetDocRef = doc(db, 'users', userId, 'budgets', budgetMonthKey);
     try {
       const docSnap = await getDoc(budgetDocRef);
-      if (!effectMountedRef.current) return;
+      if (!effectMountedRef.current) {
+        if (isLoadingBudgets && effectMountedRef.current) setIsLoadingBudgets(false); 
+        return;
+      }
 
       if (docSnap.exists()) {
         const budgetData = docSnap.data() as Record<string, any>;
@@ -434,15 +432,18 @@ export default function DashboardPage() {
             validBudgets[key] = budgetData[key];
           }
         }
-        setLoadedBudgetsForMonth(validBudgets);
+        if (effectMountedRef.current) setLoadedBudgetsForMonth(validBudgets);
       } else {
         console.log("Dashboard: TRACER --- No budget document found for this month.");
-        setLoadedBudgetsForMonth({}); 
+        if (effectMountedRef.current) setLoadedBudgetsForMonth({}); 
       }
     } catch (error) {
-      if (!effectMountedRef.current) return;
+      if (!effectMountedRef.current) {
+        if (isLoadingBudgets && effectMountedRef.current) setIsLoadingBudgets(false);
+        return;
+      }
       console.error("Dashboard: TRACER --- LoadBudgets: Error loading budgets for month:", budgetMonthKey, error);
-      setLoadedBudgetsForMonth({}); 
+      if (effectMountedRef.current) setLoadedBudgetsForMonth({}); 
       toast({ title: translate({ en: "Error Loading Budgets", pt: "Erro ao Carregar Orçamentos" }), description: translate({ en: "Could not load your budgets for the summary.", pt: "Não foi possível carregar seus orçamentos para o resumo." }), variant: "destructive" });
     } finally {
       if (effectMountedRef.current) setIsLoadingBudgets(false);
@@ -464,8 +465,9 @@ export default function DashboardPage() {
       toast({ title: translate({ en: "Error", pt: "Erro" }), description: translate({ en: "User not authenticated.", pt: "Usuário não autenticado." }), variant: "destructive" });
       return;
     }
-    console.log("Dashboard: TRACER --- onAddTransaction: Full newTransactionData received from form:", newTransactionData);
-    
+    console.log("Dashboard: TRACER --- onAddTransaction: Received date from form:", newTransactionData.date);
+    console.log("Dashboard: TRACER --- onAddTransaction: Full newTransactionData from form:", JSON.stringify(newTransactionData));
+
     const effectiveMonthForNewTx = formatDateFns(parseDateFns(newTransactionData.date, "yyyy-MM-dd", new Date(0)), "yyyy-MM");
     
     const fullPayload = {
@@ -479,10 +481,9 @@ export default function DashboardPage() {
         Object.entries(fullPayload).filter(([_, value]) => value !== undefined)
     ) as Partial<Transaction & { createdAt: any; userId: string; effectiveMonth: string }>;
 
-    if (dataToSave.isRecurring === undefined && dataToSave.type === 'income') { 
+    if (dataToSave.type === 'expense' && dataToSave.isRecurring === undefined && dataToSave.expenseType !== 'recurring' && dataToSave.expenseType !== 'installment') {
         dataToSave.isRecurring = false;
-    }
-     if (dataToSave.isRecurring === undefined && dataToSave.type === 'expense' && dataToSave.expenseType !== 'recurring' && dataToSave.expenseType !== 'installment') {
+    } else if (dataToSave.type === 'income' && dataToSave.isRecurring === undefined) {
         dataToSave.isRecurring = false;
     }
     
@@ -496,11 +497,11 @@ export default function DashboardPage() {
       console.error("DashboardPage: Error adding transaction to Firestore:", error);
       toast({ title: translate({ en: "Error adding transaction", pt: "Erro ao adicionar transação" }), description: (error.message || translate({ en: "Could not add transaction.", pt: "Não foi possível adicionar a transação." })) + (error.code ? " (Code: " + (error.code || 'N/A') + ")" : ''), variant: "destructive" });
     }
-  }, [userId, toast, translate]); 
+  }, [userId, toast, translate]);
 
 
   const transactionsForDisplayedPeriod = useMemo(() => {
-    console.log("Dashboard: TRACER --- transactionsForDisplayedPeriod: Recalculating for Year:", getYearFns(displayedDate), "Month:", getMonthFns(displayedDate), "(0-indexed for", displayedMonthYearLabel, "), TargetEffMonth:", formatDateFns(displayedDate, "yyyy-MM"), "All transactions count:", transactions.length);
+    console.log("Dashboard: TRACER --- transactionsForDisplayedPeriod: Recalculating for Year:", getYearFns(displayedDate), "Month:", getMonthFns(displayedDate), "(0-indexed for", displayedMonthYearLabel, "), All transactions count:", transactions.length);
     if (transactions.length === 0) {
       console.log("Dashboard: TRACER --- transactionsForDisplayedPeriod: No transactions in allTransactions, returning empty.");
       return [];
@@ -508,50 +509,44 @@ export default function DashboardPage() {
     
     const targetYear = getYearFns(displayedDate);
     const targetMonth = getMonthFns(displayedDate); 
-    const firstDayOfTargetMonth = startOfMonth(displayedDate);
     const targetEffectiveMonth = formatDateFns(displayedDate, "yyyy-MM");
-
+    const firstDayOfTargetMonth = startOfMonth(displayedDate);
+    
     let filtered: Transaction[] = [];
     transactions.forEach(t => {
       let includeTransaction = false;
       let reason = "";
-      
-      if (!t.date || typeof t.date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(t.date)) {
-        console.warn(`Dashboard: TRACER --- Tx Filter: Skipping transaction with invalid date string: ID ${t.id}, Date: ${t.date}`);
-        return; 
-      }
       const originalTransactionDate = parseDateFns(t.date, "yyyy-MM-dd", new Date(0));
 
       if (t.type === 'expense' && t.expenseType === 'installment' && t.installments && t.installments > 0) {
-        const installmentSeriesStartDate = startOfMonth(originalTransactionDate);
-        const monthDiff = differenceInCalendarMonths(firstDayOfTargetMonth, installmentSeriesStartDate);
-        const isInstallmentActiveThisMonth = monthDiff >= 0 && monthDiff < t.installments;
         reason = "Installment Check";
-        if (isInstallmentActiveThisMonth) includeTransaction = true;
-      } else if (t.isRecurring === true && (t.expenseType !== 'installment' || !t.expenseType)) { 
+        const installmentSeriesStartDate = startOfMonth(originalTransactionDate);
+        // const installmentSeriesEndDate = endOfMonth(addMonths(installmentSeriesStartDate, t.installments - 1));
+        // includeTransaction = isWithinInterval(firstDayOfTargetMonth, { start: installmentSeriesStartDate, end: installmentSeriesEndDate });
+        const monthDiff = differenceInCalendarMonths(firstDayOfTargetMonth, installmentSeriesStartDate);
+        includeTransaction = monthDiff >= 0 && monthDiff < t.installments;
+        console.log(`Dashboard: TRACER --- Tx Filter (Installment Check): ID: ${t.id}, DateStr: ${t.date}, OrigDate: ${originalTransactionDate.toISOString()}, StartSeries: ${installmentSeriesStartDate.toISOString()}, TargetMonthStart: ${firstDayOfTargetMonth.toISOString()}, monthDiff: ${monthDiff}, installments: ${t.installments}, isActive: ${includeTransaction}, EffMonth: ${t.effectiveMonth}`);
+      } else if (t.isRecurring === true && (t.expenseType !== 'installment')) { 
+        reason = "Recurring Check";
         const originalTxYear = getYearFns(originalTransactionDate);
         const originalTxMonth = getMonthFns(originalTransactionDate);
-        reason = "Recurring Check";
         if (originalTxYear < targetYear || (originalTxYear === targetYear && originalTxMonth <= targetMonth)) {
           includeTransaction = true;
         }
-      } else if ((!t.isRecurring || t.isRecurring === false) && (!t.expenseType || t.expenseType !== 'installment')) { 
-        const transactionEffectiveMonthToUse = t.effectiveMonth || formatDateFns(originalTransactionDate, "yyyy-MM");
+        console.log(`Dashboard: TRACER --- Tx Filter (Recurring Check): ID: ${t.id}, DateStr: ${t.date}, OrigDate: ${originalTransactionDate.toISOString()}, OrigY: ${originalTxYear}, OrigM: ${originalTxMonth}, TargetY: ${targetYear}, TargetM: ${targetMonth}, isActive: ${includeTransaction}, EffMonth: ${t.effectiveMonth}`);
+      } else if ((!t.isRecurring || t.isRecurring === false) && t.expenseType !== 'installment') { 
         reason = "Non-Recurring Check";
-        if (transactionEffectiveMonthToUse === targetEffectiveMonth) {
-          includeTransaction = true;
-        }
+        if (t.effectiveMonth === targetEffectiveMonth) includeTransaction = true;
+         console.log(`Dashboard: TRACER --- Tx Filter (Non-Recurring Check): ID: ${t.id}, DateStr: ${t.date}, EffMonth: ${t.effectiveMonth}, TargetEffMonth: ${targetEffectiveMonth}, Matches: ${includeTransaction}`);
       }
       
-      console.log(`Dashboard: TRACER --- Tx Filter: ID: ${t.id}, Date: ${t.date}, EffMonth: ${t.effectiveMonth}, Type: ${t.type}, ExpType: ${t.expenseType}, isRec: ${t.isRecurring}, Inst: ${t.installments}, Amount: ${t.amount}, Included: ${includeTransaction}, Reason: ${reason}, Target: ${targetEffectiveMonth}`);
-
       if (includeTransaction) {
         filtered.push(t);
       }
     });
     console.log("Dashboard: TRACER --- transactionsForDisplayedPeriod: Found", filtered.length, "transactions for the period.");
     return filtered;
-  }, [transactions, displayedDate, displayedMonthYearLabel]);
+  }, [transactions, displayedDate]); 
 
 
   const totalIncomeForSummary = useMemo(() => {
@@ -568,7 +563,7 @@ export default function DashboardPage() {
 
     const expensesByCategory: Record<string, number> = {};
     for (const transaction of expensesThisPeriod) {
-      const categoryName = typeof transaction.category === 'string' ? transaction.category : (transaction.category as any).name; // Handle both cases
+      const categoryName = typeof transaction.category === 'string' ? transaction.category : (transaction.category as any).name; 
       expensesByCategory[categoryName] = (expensesByCategory[categoryName] || 0) + transaction.amount;
     }
 
@@ -596,7 +591,7 @@ export default function DashboardPage() {
       } as DisplayCategory & { amount: number };
     }
     return null;
-  }, [transactionsForDisplayedPeriod, userCategories]); 
+  }, [transactionsForDisplayedPeriod, userCategories, language]); 
 
   const totalFixedExpensesForDisplayedPeriod = useMemo(() => {
     return transactionsForDisplayedPeriod.filter(t => t.type === 'expense' && t.expenseNature === 'fixed').reduce((sum, t) => sum + t.amount, 0);
@@ -739,10 +734,10 @@ export default function DashboardPage() {
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-8">
               {[...Array(4)].map((_, i) => <Skeleton key={`summary-skel-${i}`} className="h-24 w-full" />)}
             </div>
-             <Card className="shadow-lg bg-background dark:bg-card">
+            <Card className="shadow-lg bg-background dark:bg-card">
               <CardHeader className="flex flex-row items-start gap-4 space-y-0">
-                 <div className="flex-grow">
-                   <div className="text-xl font-medium leading-none tracking-tight text-foreground">
+                <div className="flex-grow">
+                  <div className="text-xl font-medium leading-none tracking-tight text-foreground">
                     {translate({ en: "Spending Summary", pt: "Resumo de Gastos" })}
                   </div>
                   <CardDescription className="mt-1">
@@ -752,9 +747,28 @@ export default function DashboardPage() {
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <Skeleton className="h-28 w-full" />
-                  <Skeleton className="h-28 w-full" />
-                  <Skeleton className="h-28 w-full" />
+                  <div className="p-4 rounded-lg bg-background dark:bg-card flex flex-col items-center text-center shadow-md">
+                    <p className="text-sm font-medium text-foreground mb-1">{translate({en: "Largest Expense Category", pt: "Principal Categoria de Gasto"})}:</p>
+                    <Skeleton className="h-7 w-7 mb-1 rounded-full"/>
+                    <Skeleton className="h-5 w-3/4 mb-1"/>
+                    <Skeleton className="h-7 w-1/3"/>
+                  </div>
+                  <div className="p-4 rounded-lg bg-background dark:bg-card flex flex-col items-center text-center shadow-md">
+                    <p className="text-sm font-medium text-foreground mb-1">{translate({en: "Total Expenses", pt: "Total de Gastos"})}</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <Skeleton className="h-7 w-7 rounded-full"/>
+                      <Skeleton className="h-5 w-1/2"/>
+                    </div>
+                    <Skeleton className="h-7 w-1/3 mt-1"/>
+                  </div>
+                  <div className="p-4 rounded-lg bg-background dark:bg-card flex flex-col items-center text-center shadow-md">
+                    <p className="text-sm font-medium text-foreground mb-1">{translate({en: "Total Expenses", pt: "Total de Gastos"})}</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <Skeleton className="h-7 w-7 rounded-full"/>
+                      <Skeleton className="h-5 w-1/2"/>
+                    </div>
+                    <Skeleton className="h-7 w-1/3 mt-1"/>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -802,63 +816,62 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             {transactionsForDisplayedPeriod.filter(t => t.type === 'expense').length > 0 ? (
-               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                 
-                  <div className="p-4 rounded-lg bg-background dark:bg-card flex flex-col items-center text-center shadow-md">
-                    <p className="text-sm font-medium text-foreground mb-1">
-                      {translate({ en: "Largest Expense Category", pt: "Principal Categoria de Gasto" })}:
-                    </p>
-                    {largestExpenseCategoryForDisplayedPeriod ? (
-                      <>
-                        <div className="flex items-center gap-2 mt-1">
-                           <CategoryIcon iconName={largestExpenseCategoryForDisplayedPeriod.icon} className="h-7 w-7 text-primary" />
-                           <span className="font-semibold text-lg text-foreground">
-                            {getCategoryDisplayLabel(largestExpenseCategoryForDisplayedPeriod, language)}
-                          </span>
-                        </div>
-                        <p className="text-xl font-bold text-primary mt-1">
-                          {formatCurrency(largestExpenseCategoryForDisplayedPeriod.amount)}
-                        </p>
-                      </>
-                    ) : (
-                       <div className="flex flex-col items-center justify-center w-full h-full">
-                         <p className="text-sm text-muted-foreground mt-2">
-                          {translate({ en: "N/A", pt: "N/D"})}
-                        </p>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="p-4 rounded-lg bg-background dark:bg-card flex flex-col items-center text-center shadow-md">
+                  <p className="text-sm font-medium text-foreground mb-1">
+                    {translate({ en: "Largest Expense Category", pt: "Principal Categoria de Gasto" })}:
+                  </p>
+                  {largestExpenseCategoryForDisplayedPeriod ? (
+                    <>
+                      <div className="flex items-center gap-2 mt-1">
+                        <CategoryIcon iconName={largestExpenseCategoryForDisplayedPeriod.icon} className="h-7 w-7 text-primary" />
+                        <span className="font-semibold text-lg text-foreground">
+                          {getCategoryDisplayLabel(largestExpenseCategoryForDisplayedPeriod, language)}
+                        </span>
                       </div>
-                    )}
-                  </div>
-
-                   <div className="p-4 rounded-lg bg-background dark:bg-card flex flex-col items-center text-center shadow-md">
-                    <p className="text-sm font-medium text-foreground mb-1">
-                      {translate({ en: "Total", pt: "Total de Gastos" })}
-                    </p>
-                    <div className="flex items-center gap-2 mt-1">
-                      <Package className="h-7 w-7 text-primary" />
-                       <span className="font-semibold text-lg text-foreground">
-                         {translate({ en: "Fixed", pt: "Fixos" })}
-                      </span>
+                      <p className="text-xl font-bold text-primary mt-1">
+                        {formatCurrency(largestExpenseCategoryForDisplayedPeriod.amount)}
+                      </p>
+                    </>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center w-full h-full">
+                      <p className="text-sm text-muted-foreground mt-2">
+                        {translate({ en: "N/A", pt: "N/D"})}
+                      </p>
                     </div>
-                    <p className="text-xl font-bold text-primary mt-1">
-                      {formatCurrency(totalFixedExpensesForDisplayedPeriod)}
-                    </p>
-                  </div>
-
-                  <div className="p-4 rounded-lg bg-background dark:bg-card flex flex-col items-center text-center shadow-md">
-                     <p className="text-sm font-medium text-foreground mb-1">
-                       {translate({ en: "Total", pt: "Total de Gastos" })}
-                    </p>
-                    <div className="flex items-center gap-2 mt-1">
-                      <Wallet className="h-7 w-7 text-primary" />
-                       <span className="font-semibold text-lg text-foreground">
-                         {translate({ en: "Variable", pt: "Variáveis" })}
-                      </span>
-                    </div>
-                    <p className="text-xl font-bold text-primary mt-1">
-                      {formatCurrency(totalVariableExpensesForDisplayedPeriod)}
-                    </p>
-                  </div>
+                  )}
                 </div>
+
+                <div className="p-4 rounded-lg bg-background dark:bg-card flex flex-col items-center text-center shadow-md">
+                  <p className="text-sm font-medium text-foreground mb-1">
+                    {translate({ en: "Total Expenses", pt: "Total de Gastos" })}
+                  </p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <Package className="h-7 w-7 text-primary" />
+                    <span className="font-semibold text-lg text-foreground">
+                      {translate({ en: "Fixed", pt: "Fixos" })}
+                    </span>
+                  </div>
+                  <p className="text-xl font-bold text-primary mt-1">
+                    {formatCurrency(totalFixedExpensesForDisplayedPeriod)}
+                  </p>
+                </div>
+
+                <div className="p-4 rounded-lg bg-background dark:bg-card flex flex-col items-center text-center shadow-md">
+                  <p className="text-sm font-medium text-foreground mb-1">
+                    {translate({ en: "Total Expenses", pt: "Total de Gastos" })}
+                  </p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <Wallet className="h-7 w-7 text-primary" />
+                    <span className="font-semibold text-lg text-foreground">
+                      {translate({ en: "Variable", pt: "Variáveis" })}
+                    </span>
+                  </div>
+                  <p className="text-xl font-bold text-primary mt-1">
+                    {formatCurrency(totalVariableExpensesForDisplayedPeriod)}
+                  </p>
+                </div>
+              </div>
             ) : (
               <div className="flex items-center justify-center h-[100px]">
                 <p className="text-muted-foreground">
@@ -905,3 +918,5 @@ export default function DashboardPage() {
     </AppLayout>
   );
 }
+
+    

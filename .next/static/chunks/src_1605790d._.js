@@ -8,7 +8,6 @@ var { g: global, __dirname, k: __turbopack_refresh__, m: module } = __turbopack_
 __turbopack_context__.s({
     "CATEGORIES": (()=>CATEGORIES),
     "PAYMENT_METHODS": (()=>PAYMENT_METHODS),
-    "getCategoriesByType": (()=>getCategoriesByType),
     "getCategoryDisplayLabel": (()=>getCategoryDisplayLabel),
     "getCategoryLabel": (()=>getCategoryLabel),
     "getPaymentMethodDisplayLabel": (()=>getPaymentMethodDisplayLabel)
@@ -177,6 +176,15 @@ const CATEGORIES = [
         }
     },
     {
+        name: 'Pets',
+        icon: 'PawPrint',
+        type: 'expense',
+        label: {
+            en: 'Pets',
+            pt: 'Animais de Estimação'
+        }
+    },
+    {
         name: 'Other Expense',
         icon: 'CircleHelp',
         type: 'expense',
@@ -186,23 +194,22 @@ const CATEGORIES = [
         }
     }
 ];
-const getCategoriesByType = (type, allCategories)=>{
-    return allCategories.filter((cat)=>cat.type === type);
-};
 const getCategoryDisplayLabel = (category, currentLanguage)=>{
+    if (!category) return '';
     if (category.label && typeof category.label === 'object' && category.label[currentLanguage]) {
         return category.label[currentLanguage];
     }
-    if (typeof category.label === 'string') {
-        return category.label;
-    }
-    return category.name; // Final fallback is the name identifier
+    return category.name;
 };
 const getCategoryLabel = (categoryName, currentLanguage)=>{
+    if (!categoryName) return '';
     const predefinedCategory = CATEGORIES.find((cat)=>cat.name.toLowerCase() === categoryName.toLowerCase());
     if (predefinedCategory && predefinedCategory.label && predefinedCategory.label[currentLanguage]) {
         return predefinedCategory.label[currentLanguage];
     }
+    // For custom categories, their 'name' field usually holds the display name, or it's already a DisplayCategory object
+    // This part might need refinement if custom categories are only stored by a non-display 'name' and need label lookup.
+    // However, getCategoryDisplayLabel is preferred if you have the DisplayCategory object.
     return categoryName;
 };
 const PAYMENT_METHODS = [
@@ -232,25 +239,24 @@ const PAYMENT_METHODS = [
     }
 ];
 const getPaymentMethodDisplayLabel = (methodInput, currentLanguage)=>{
-    let methodNameString;
+    if (!methodInput) return '';
     let methodObject;
     if (typeof methodInput === 'string') {
-        methodNameString = methodInput;
-        // Try to find in predefined methods first
-        methodObject = PAYMENT_METHODS.find((pm)=>pm.name.toLowerCase() === methodNameString.toLowerCase());
-        // If not found in predefined, it might be a custom one (or just the name if details not available)
-        if (!methodObject) {
-            return methodNameString; // Return the name itself if no predefined match
+        const lowerMethodInput = methodInput.toLowerCase();
+        methodObject = PAYMENT_METHODS.find((pm)=>pm.name.toLowerCase() === lowerMethodInput);
+        if (methodObject && methodObject.label && methodObject.label[currentLanguage]) {
+            return methodObject.label[currentLanguage];
         }
+        // If not predefined, return the input string itself (assuming it's a custom method name)
+        return methodInput;
     } else {
-        methodNameString = methodInput.name;
+        // It's already an object (DisplayPaymentMethod)
         methodObject = methodInput;
+        if (methodObject.label && methodObject.label[currentLanguage]) {
+            return methodObject.label[currentLanguage];
+        }
+        return methodObject.name; // Fallback to name
     }
-    if (methodObject && methodObject.label && typeof methodObject.label === 'object' && methodObject.label[currentLanguage]) {
-        return methodObject.label[currentLanguage];
-    }
-    // Fallback if label structure isn't as expected or if it's a custom method name string without full object
-    return methodNameString;
 };
 if (typeof globalThis.$RefreshHelpers$ === 'object' && globalThis.$RefreshHelpers !== null) {
     __turbopack_context__.k.registerExports(module, globalThis.$RefreshHelpers$);
@@ -1250,14 +1256,10 @@ function AppLayout({ children }) {
         children: [
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$sidebar$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Sidebar"], {
                 variant: "sidebar",
-                collapsible: "icon",
+                collapsible: "none",
                 children: [
+                    " ",
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$layout$2f$app$2d$sidebar$2d$content$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["AppSidebarContent"], {}, void 0, false, {
-                        fileName: "[project]/src/components/layout/app-layout.tsx",
-                        lineNumber: 15,
-                        columnNumber: 9
-                    }, this),
-                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$sidebar$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["SidebarRail"], {}, void 0, false, {
                         fileName: "[project]/src/components/layout/app-layout.tsx",
                         lineNumber: 16,
                         columnNumber: 9
@@ -1265,7 +1267,7 @@ function AppLayout({ children }) {
                 ]
             }, void 0, true, {
                 fileName: "[project]/src/components/layout/app-layout.tsx",
-                lineNumber: 14,
+                lineNumber: 15,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$sidebar$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["SidebarInset"], {
@@ -1273,7 +1275,7 @@ function AppLayout({ children }) {
                 children: [
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$layout$2f$app$2d$header$2d$content$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["AppHeaderContent"], {}, void 0, false, {
                         fileName: "[project]/src/components/layout/app-layout.tsx",
-                        lineNumber: 19,
+                        lineNumber: 21,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("main", {
@@ -1281,19 +1283,19 @@ function AppLayout({ children }) {
                         children: children
                     }, void 0, false, {
                         fileName: "[project]/src/components/layout/app-layout.tsx",
-                        lineNumber: 20,
+                        lineNumber: 22,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/src/components/layout/app-layout.tsx",
-                lineNumber: 18,
+                lineNumber: 20,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/src/components/layout/app-layout.tsx",
-        lineNumber: 13,
+        lineNumber: 14,
         columnNumber: 5
     }, this);
 }
@@ -1510,7 +1512,6 @@ const Progress = /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d
         className: (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$utils$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["cn"])("relative h-4 w-full overflow-hidden rounded-full bg-secondary", className),
         ...props,
         children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$radix$2d$ui$2f$react$2d$progress$2f$dist$2f$index$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Indicator"], {
-            // Ensure the default 'bg-primary' is applied if indicatorClassName doesn't override background color
             className: (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$utils$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["cn"])("h-full w-full flex-1 transition-all", indicatorClassName ? indicatorClassName : "bg-primary"),
             style: {
                 transform: `translateX(-${100 - Math.max(0, Math.min(value || 0, 100))}%)`
@@ -3781,18 +3782,16 @@ var _s = __turbopack_context__.k.signature();
 ;
 ;
 ;
-function QuickActionsSection({ onAddTransaction, currentDisplayedDate, userCategories, userPaymentMethods }) {
+function QuickActionsSection({ onSave, currentDisplayedDate, userCategories, userPaymentMethods }) {
     _s();
     const { translate } = (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$context$2f$language$2d$context$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useLanguage"])();
     const [isFormOpen, setIsFormOpen] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(false);
     const [formInitialType, setFormInitialType] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])("expense");
-    // State to hold the date for the form, initialized and updated based on currentDisplayedDate
     const [dateForForm, setDateForForm] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(currentDisplayedDate);
-    // Effect to sync dateForForm if currentDisplayedDate changes AND the dialog is NOT open
     (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useEffect"])({
         "QuickActionsSection.useEffect": ()=>{
-            console.log("QuickActionsSection TRACER --- useEffect for currentDisplayedDate running. isFormOpen:", isFormOpen, "New currentDisplayedDate:", currentDisplayedDate.toISOString());
             if (!isFormOpen) {
+                console.log("QuickActionsSection TRACER --- Dialog closed or currentDisplayedDate changed while closed. Syncing dateForForm:", currentDisplayedDate.toISOString());
                 setDateForForm(currentDisplayedDate);
             }
         }
@@ -3801,18 +3800,17 @@ function QuickActionsSection({ onAddTransaction, currentDisplayedDate, userCateg
         isFormOpen
     ]);
     const handleOpenDialog = (type)=>{
-        console.log("QuickActionsSection TRACER --- handleOpenDialog. Type:", type, "currentDisplayedDate prop from Dashboard:", currentDisplayedDate.toISOString());
+        console.log("QuickActionsSection TRACER --- handleOpenDialog. Type:", type, "currentDisplayedDate prop:", currentDisplayedDate.toISOString());
         setFormInitialType(type);
-        setDateForForm(currentDisplayedDate); // Capture the most recent date from dashboard when dialog is opened
+        setDateForForm(currentDisplayedDate);
         setIsFormOpen(true);
     };
     const handleFormSubmit = async (transactionData)=>{
         try {
-            await onAddTransaction(transactionData);
+            await onSave(transactionData); // Using the onSave prop from parent
             setIsFormOpen(false);
         } catch (error) {
             console.error("Error submitting transaction from QuickActionsSection:", error);
-        // Toast error handling is likely in the onAddTransaction prop from DashboardPage
         }
     };
     const quickActionsTitle = translate({
@@ -3839,7 +3837,9 @@ function QuickActionsSection({ onAddTransaction, currentDisplayedDate, userCateg
         en: "Fill in the details for your new transaction.",
         pt: "Preencha os detalhes da sua nova transação."
     });
-    console.log("QuickActionsSection TRACER --- Rendering TransactionForm with formInitialType:", formInitialType, "userCategories length:", userCategories?.length, "first category type:", userCategories?.[0]?.type);
+    // Forcing re-render of TransactionForm when dateForForm changes by using it in the key
+    const formKey = dateForForm.toISOString() + formInitialType;
+    console.log(`QuickActionsSection TRACER --- Rendering TransactionForm with formInitialType: '${formInitialType}', defaultDate: '${dateForForm.toISOString()}', userCategories length: ${userCategories?.length}, First category type if exists: ${userCategories?.[0]?.type}, Form key: ${formKey}`);
     return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Card"], {
         className: "shadow-md bg-muted/50",
         children: [
@@ -3863,7 +3863,6 @@ function QuickActionsSection({ onAddTransaction, currentDisplayedDate, userCateg
                     onOpenChange: setIsFormOpen,
                     modal: false,
                     children: [
-                        " ",
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                             className: "grid grid-cols-1 sm:grid-cols-3 gap-4",
                             children: [
@@ -3942,7 +3941,6 @@ function QuickActionsSection({ onAddTransaction, currentDisplayedDate, userCateg
                             columnNumber: 11
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$dialog$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["DialogContent"], {
-                            className: "sm:max-w-[425px]",
                             children: [
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$dialog$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["DialogHeader"], {
                                     children: [
@@ -3967,12 +3965,13 @@ function QuickActionsSection({ onAddTransaction, currentDisplayedDate, userCateg
                                     columnNumber: 13
                                 }, this),
                                 isFormOpen && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$dashboard$2f$transaction$2d$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["TransactionForm"], {
-                                    onAddTransaction: handleFormSubmit,
+                                    onSave: handleFormSubmit,
                                     initialType: formInitialType,
                                     defaultDate: dateForForm,
                                     userCategories: userCategories,
-                                    userPaymentMethods: userPaymentMethods
-                                }, dateForForm.toISOString() + formInitialType, false, {
+                                    userPaymentMethods: userPaymentMethods,
+                                    transactionToEdit: null
+                                }, formKey, false, {
                                     fileName: "[project]/src/components/dashboard/quick-actions-section.tsx",
                                     lineNumber: 102,
                                     columnNumber: 15
@@ -4029,6 +4028,8 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$icons$2
 var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$utils$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/lib/utils.ts [app-client] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$format$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$locals$3e$__ = __turbopack_context__.i("[project]/node_modules/date-fns/format.mjs [app-client] (ecmascript) <locals>");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$parse$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$locals$3e$__ = __turbopack_context__.i("[project]/node_modules/date-fns/parse.mjs [app-client] (ecmascript) <locals>");
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$locale$2f$pt$2d$BR$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/date-fns/locale/pt-BR.mjs [app-client] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$locale$2f$en$2d$US$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/date-fns/locale/en-US.mjs [app-client] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$context$2f$language$2d$context$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/context/language-context.tsx [app-client] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/types/index.ts [app-client] (ecmascript)");
 ;
@@ -4041,13 +4042,15 @@ var _s = __turbopack_context__.k.signature();
 ;
 ;
 ;
-function RecentTransactionsSection({ title, description, transactions, type, onSeeMore, isExpanded, totalItemsForMonth }) {
+;
+function RecentTransactionsSection({ title, description, transactions, allUserCategories, type, onSeeMore, isExpanded, totalItemsForMonth }) {
     _s();
     const { translate, language } = (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$context$2f$language$2d$context$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useLanguage"])();
-    const showSeeMoreButton = onSeeMore && !isExpanded && transactions.length > 0 && transactions.length < totalItemsForMonth;
-    const showSeeLessButton = onSeeMore && isExpanded && totalItemsForMonth > 5; // Show "See Less" if expanded and more than 5 total
+    const showSeeMoreButton = onSeeMore && !isExpanded && totalItemsForMonth > 5 && transactions.length < totalItemsForMonth;
+    const showSeeLessButton = onSeeMore && isExpanded && totalItemsForMonth > 5;
+    // console.log(`RecentTransactionsSection (${type}): Total for month: ${totalItemsForMonth}, Displaying: ${transactions.length}, isExpanded: ${isExpanded}, ShowMore: ${showSeeMoreButton}, ShowLess: ${showSeeLessButton}, AllUserCategories received:`, allUserCategories);
     return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Card"], {
-        className: "shadow-lg",
+        className: "shadow-lg flex flex-col h-full",
         children: [
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["CardHeader"], {
                 children: [
@@ -4055,133 +4058,160 @@ function RecentTransactionsSection({ title, description, transactions, type, onS
                         children: title
                     }, void 0, false, {
                         fileName: "[project]/src/components/dashboard/recent-transactions-section.tsx",
-                        lineNumber: 39,
+                        lineNumber: 45,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["CardDescription"], {
                         children: description
                     }, void 0, false, {
                         fileName: "[project]/src/components/dashboard/recent-transactions-section.tsx",
-                        lineNumber: 40,
+                        lineNumber: 46,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/src/components/dashboard/recent-transactions-section.tsx",
-                lineNumber: 38,
+                lineNumber: 44,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["CardContent"], {
+                className: "flex flex-col flex-grow",
                 children: [
-                    totalItemsForMonth === 0 ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
-                        className: "text-center text-muted-foreground py-8",
-                        children: type === 'income' ? translate({
-                            en: "No income transactions for this period.",
-                            pt: "Nenhuma transação de receita para este período."
-                        }) : translate({
-                            en: "No expense transactions for this period.",
-                            pt: "Nenhuma transação de despesa para este período."
-                        })
+                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                        className: "flex-grow",
+                        children: totalItemsForMonth === 0 ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                            className: "text-center text-muted-foreground py-8",
+                            children: type === 'income' ? translate({
+                                en: "No income transactions for this period.",
+                                pt: "Nenhuma transação de receita para este período."
+                            }) : translate({
+                                en: "No expense transactions for this period.",
+                                pt: "Nenhuma transação de despesa para este período."
+                            })
+                        }, void 0, false, {
+                            fileName: "[project]/src/components/dashboard/recent-transactions-section.tsx",
+                            lineNumber: 51,
+                            columnNumber: 13
+                        }, this) : transactions.length === 0 && !isExpanded && totalItemsForMonth > 0 ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                            className: "text-center text-muted-foreground py-8",
+                            children: type === 'income' ? translate({
+                                en: "No recent income to display.",
+                                pt: "Nenhuma receita recente para exibir."
+                            }) : translate({
+                                en: "No recent expenses to display.",
+                                pt: "Nenhuma despesa recente para exibir."
+                            })
+                        }, void 0, false, {
+                            fileName: "[project]/src/components/dashboard/recent-transactions-section.tsx",
+                            lineNumber: 58,
+                            columnNumber: 13
+                        }, this) : transactions.length === 0 && isExpanded ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                            className: "text-center text-muted-foreground py-8",
+                            children: type === 'income' ? translate({
+                                en: "No income transactions found for this period.",
+                                pt: "Nenhuma transação de receita encontrada para este período."
+                            }) : translate({
+                                en: "No expense transactions found for this period.",
+                                pt: "Nenhuma transação de despesa encontrada para este período."
+                            })
+                        }, void 0, false, {
+                            fileName: "[project]/src/components/dashboard/recent-transactions-section.tsx",
+                            lineNumber: 65,
+                            columnNumber: 15
+                        }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("ul", {
+                            className: "space-y-4",
+                            children: transactions.map((transaction)=>{
+                                let displayDate = transaction.date;
+                                try {
+                                    const parsedDate = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$parse$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$locals$3e$__["parse"])(transaction.date, "yyyy-MM-dd", new Date(0));
+                                    displayDate = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$format$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$locals$3e$__["format"])(parsedDate, language === 'pt' ? "dd 'de' MMMM, yyyy" : "MMMM dd, yyyy", {
+                                        locale: language === 'pt' ? __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$locale$2f$pt$2d$BR$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__["ptBR"] : __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$locale$2f$en$2d$US$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__["enUS"]
+                                    });
+                                } catch (e) {
+                                    console.warn(`RecentTransactionsSection: Could not parse date string for display: ${transaction.date}`, e);
+                                }
+                                // Find category details from allUserCategories passed from parent
+                                const categoryDetails = allUserCategories.find((cat)=>cat.name === transaction.category);
+                                const categoryDisplayName = categoryDetails ? (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["getCategoryDisplayLabel"])(categoryDetails, language) : transaction.category; // Fallback to raw name if not found (should be rare)
+                                const categoryIconName = categoryDetails?.icon || 'CircleHelp'; // Fallback icon
+                                return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("li", {
+                                    className: "flex items-center justify-between",
+                                    children: [
+                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                            className: "flex items-center gap-3",
+                                            children: [
+                                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$icons$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$locals$3e$__["CategoryIcon"], {
+                                                    iconName: categoryIconName,
+                                                    className: "h-6 w-6 text-muted-foreground"
+                                                }, void 0, false, {
+                                                    fileName: "[project]/src/components/dashboard/recent-transactions-section.tsx",
+                                                    lineNumber: 94,
+                                                    columnNumber: 23
+                                                }, this),
+                                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                                    children: [
+                                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                                                            className: "font-medium",
+                                                            children: transaction.description
+                                                        }, void 0, false, {
+                                                            fileName: "[project]/src/components/dashboard/recent-transactions-section.tsx",
+                                                            lineNumber: 96,
+                                                            columnNumber: 25
+                                                        }, this),
+                                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                                                            className: "text-xs text-muted-foreground",
+                                                            children: [
+                                                                displayDate,
+                                                                " - ",
+                                                                categoryDisplayName
+                                                            ]
+                                                        }, void 0, true, {
+                                                            fileName: "[project]/src/components/dashboard/recent-transactions-section.tsx",
+                                                            lineNumber: 97,
+                                                            columnNumber: 25
+                                                        }, this)
+                                                    ]
+                                                }, void 0, true, {
+                                                    fileName: "[project]/src/components/dashboard/recent-transactions-section.tsx",
+                                                    lineNumber: 95,
+                                                    columnNumber: 23
+                                                }, this)
+                                            ]
+                                        }, void 0, true, {
+                                            fileName: "[project]/src/components/dashboard/recent-transactions-section.tsx",
+                                            lineNumber: 93,
+                                            columnNumber: 21
+                                        }, this),
+                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
+                                            className: (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$utils$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["cn"])("font-semibold", transaction.type === "income" ? "text-green-500" : "text-red-500"),
+                                            children: [
+                                                transaction.type === "income" ? "+" : "-",
+                                                (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$utils$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["formatCurrency"])(transaction.amount)
+                                            ]
+                                        }, void 0, true, {
+                                            fileName: "[project]/src/components/dashboard/recent-transactions-section.tsx",
+                                            lineNumber: 102,
+                                            columnNumber: 21
+                                        }, this)
+                                    ]
+                                }, transaction.id, true, {
+                                    fileName: "[project]/src/components/dashboard/recent-transactions-section.tsx",
+                                    lineNumber: 92,
+                                    columnNumber: 19
+                                }, this);
+                            })
+                        }, void 0, false, {
+                            fileName: "[project]/src/components/dashboard/recent-transactions-section.tsx",
+                            lineNumber: 72,
+                            columnNumber: 13
+                        }, this)
                     }, void 0, false, {
                         fileName: "[project]/src/components/dashboard/recent-transactions-section.tsx",
-                        lineNumber: 44,
-                        columnNumber: 12
-                    }, this) : transactions.length === 0 && isExpanded === false ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
-                        className: "text-center text-muted-foreground py-8",
-                        children: type === 'income' ? translate({
-                            en: "No recent income to display. Click 'See more'.",
-                            pt: "Nenhuma receita recente para exibir. Clique em 'Ver mais'."
-                        }) : translate({
-                            en: "No recent expenses to display. Click 'See more'.",
-                            pt: "Nenhuma despesa recente para exibir. Clique em 'Ver mais'."
-                        })
-                    }, void 0, false, {
-                        fileName: "[project]/src/components/dashboard/recent-transactions-section.tsx",
-                        lineNumber: 51,
-                        columnNumber: 11
-                    }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("ul", {
-                        className: "space-y-4",
-                        children: transactions.map((transaction)=>{
-                            let displayDate = transaction.date;
-                            try {
-                                const parsedDate = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$parse$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$locals$3e$__["parse"])(transaction.date, "yyyy-MM-dd", new Date(0));
-                                displayDate = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$format$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$locals$3e$__["format"])(parsedDate, "MMM dd, yyyy");
-                            } catch (e) {
-                                console.warn(`Could not parse date string for display: ${transaction.date}`, e);
-                            }
-                            return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("li", {
-                                className: "flex items-center justify-between",
-                                children: [
-                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                                        className: "flex items-center gap-3",
-                                        children: [
-                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$icons$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$locals$3e$__["CategoryIcon"], {
-                                                categoryName: transaction.category,
-                                                className: "h-6 w-6 text-muted-foreground"
-                                            }, void 0, false, {
-                                                fileName: "[project]/src/components/dashboard/recent-transactions-section.tsx",
-                                                lineNumber: 70,
-                                                columnNumber: 21
-                                            }, this),
-                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                                                children: [
-                                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
-                                                        className: "font-medium",
-                                                        children: transaction.description
-                                                    }, void 0, false, {
-                                                        fileName: "[project]/src/components/dashboard/recent-transactions-section.tsx",
-                                                        lineNumber: 72,
-                                                        columnNumber: 23
-                                                    }, this),
-                                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
-                                                        className: "text-xs text-muted-foreground",
-                                                        children: [
-                                                            displayDate,
-                                                            " - ",
-                                                            (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["getCategoryLabel"])(transaction.category, language)
-                                                        ]
-                                                    }, void 0, true, {
-                                                        fileName: "[project]/src/components/dashboard/recent-transactions-section.tsx",
-                                                        lineNumber: 73,
-                                                        columnNumber: 23
-                                                    }, this)
-                                                ]
-                                            }, void 0, true, {
-                                                fileName: "[project]/src/components/dashboard/recent-transactions-section.tsx",
-                                                lineNumber: 71,
-                                                columnNumber: 21
-                                            }, this)
-                                        ]
-                                    }, void 0, true, {
-                                        fileName: "[project]/src/components/dashboard/recent-transactions-section.tsx",
-                                        lineNumber: 69,
-                                        columnNumber: 19
-                                    }, this),
-                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
-                                        className: (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$utils$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["cn"])("font-semibold", transaction.type === "income" ? "text-green-500" : "text-red-500"),
-                                        children: [
-                                            transaction.type === "income" ? "+" : "-",
-                                            (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$utils$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["formatCurrency"])(transaction.amount)
-                                        ]
-                                    }, void 0, true, {
-                                        fileName: "[project]/src/components/dashboard/recent-transactions-section.tsx",
-                                        lineNumber: 78,
-                                        columnNumber: 19
-                                    }, this)
-                                ]
-                            }, transaction.id, true, {
-                                fileName: "[project]/src/components/dashboard/recent-transactions-section.tsx",
-                                lineNumber: 68,
-                                columnNumber: 17
-                            }, this);
-                        })
-                    }, void 0, false, {
-                        fileName: "[project]/src/components/dashboard/recent-transactions-section.tsx",
-                        lineNumber: 58,
-                        columnNumber: 11
+                        lineNumber: 49,
+                        columnNumber: 9
                     }, this),
                     (showSeeMoreButton || showSeeLessButton) && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                        className: "mt-4 flex justify-center",
+                        className: "mt-auto pt-4 flex justify-center",
                         children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$button$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Button"], {
                             onClick: onSeeMore,
                             variant: "link",
@@ -4195,24 +4225,24 @@ function RecentTransactionsSection({ title, description, transactions, type, onS
                             })
                         }, void 0, false, {
                             fileName: "[project]/src/components/dashboard/recent-transactions-section.tsx",
-                            lineNumber: 92,
+                            lineNumber: 117,
                             columnNumber: 13
                         }, this)
                     }, void 0, false, {
                         fileName: "[project]/src/components/dashboard/recent-transactions-section.tsx",
-                        lineNumber: 91,
+                        lineNumber: 116,
                         columnNumber: 11
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/src/components/dashboard/recent-transactions-section.tsx",
-                lineNumber: 42,
+                lineNumber: 48,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/src/components/dashboard/recent-transactions-section.tsx",
-        lineNumber: 37,
+        lineNumber: 43,
         columnNumber: 5
     }, this);
 }

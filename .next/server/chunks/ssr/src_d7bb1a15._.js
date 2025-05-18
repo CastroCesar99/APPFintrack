@@ -4005,8 +4005,12 @@ function DashboardPage() {
     const [isClient, setIsClient] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])(false);
     const [loadedBudgetsForMonth, setLoadedBudgetsForMonth] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])(null);
     const [isLoadingBudgets, setIsLoadingBudgets] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])(true);
-    const [userCategories, setUserCategories] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])([]);
-    const [userPaymentMethods, setUserPaymentMethods] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])([]);
+    const [userCategories, setUserCategories] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])(()=>[
+            ...__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["CATEGORIES"]
+        ]);
+    const [userPaymentMethods, setUserPaymentMethods] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])(()=>[
+            ...__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["PAYMENT_METHODS"]
+        ]);
     const [isLoadingPreferences, setIsLoadingPreferences] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])(true);
     const [showAllRecentIncome, setShowAllRecentIncome] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])(false);
     const [showAllRecentExpenses, setShowAllRecentExpenses] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])(false);
@@ -4031,7 +4035,10 @@ function DashboardPage() {
     }, []);
     // Listener for User Preferences
     (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useEffect"])(()=>{
-        if (!effectMountedRef.current) return;
+        if (!effectMountedRef.current) {
+            console.log("DashboardPage: TRACER --- Preferences effect early exit: effectMountedRef is false.");
+            return;
+        }
         if (!userId || !isClient || authLoading) {
             if (effectMountedRef.current) {
                 const allPredefinedCategories = [
@@ -4043,6 +4050,7 @@ function DashboardPage() {
                 setUserCategories(allPredefinedCategories.sort((a, b)=>(0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["getCategoryDisplayLabel"])(a, language).localeCompare((0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["getCategoryDisplayLabel"])(b, language))));
                 setUserPaymentMethods(allPredefinedPaymentMethods.sort((a, b)=>(0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["getPaymentMethodDisplayLabel"])(a, language).localeCompare((0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["getPaymentMethodDisplayLabel"])(b, language))));
                 if (isLoadingPreferences) setIsLoadingPreferences(false);
+                console.log("DashboardPage: TRACER --- Preferences effect: No user/client/auth. Set default categories/payment methods. isLoadingPreferences set to false.");
             }
             cleanupListener(unsubscribePreferencesRef, "preferences");
             return;
@@ -4057,76 +4065,64 @@ function DashboardPage() {
                 return;
             }
             console.log("DashboardPage: TRACER --- Preferences snapshot received for UserID:", userId);
-            let finalCategories = [];
-            let finalPaymentMethods = [];
-            const predefinedCategoriesMap = new Map(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["CATEGORIES"].map((cat)=>[
-                    cat.name.toLowerCase(),
-                    {
-                        ...cat
-                    }
-                ]));
-            const predefinedPaymentMethodsMap = new Map(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["PAYMENT_METHODS"].map((pm)=>[
-                    pm.name.toLowerCase(),
-                    {
-                        ...pm
-                    }
-                ]));
+            let finalCategories = [
+                ...__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["CATEGORIES"]
+            ]; // Start with all predefined
+            let finalPaymentMethods = [
+                ...__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["PAYMENT_METHODS"]
+            ]; // Start with all predefined
             if (docSnap.exists()) {
                 const prefsData = docSnap.data();
                 console.log("DashboardPage: TRACER --- Preferences data found for UserID:", userId, "Data:", prefsData);
                 const userDefinedCategoriesFromPrefs = prefsData.userDefinedCategories || [];
+                const customCategoriesMap = new Map(userDefinedCategoriesFromPrefs.map((cat)=>[
+                        cat.name.toLowerCase(),
+                        cat
+                    ]));
+                // Merge predefined with custom, custom taking precedence for label/icon
+                finalCategories = __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["CATEGORIES"].map((pCat)=>{
+                    const customOverride = customCategoriesMap.get(pCat.name.toLowerCase());
+                    return customOverride ? {
+                        ...pCat,
+                        ...customOverride
+                    } : pCat;
+                });
+                // Add purely custom categories
+                userDefinedCategoriesFromPrefs.forEach((udc)=>{
+                    if (!finalCategories.some((fc)=>fc.name.toLowerCase() === udc.name.toLowerCase())) {
+                        finalCategories.push(udc);
+                    }
+                });
+                // Apply deselected
                 const deselectedPredefinedCatNames = new Set((prefsData.deselectedPredefinedCategories || []).map((name)=>name.toLowerCase()));
-                // Populate finalCategories: Start with non-deselected predefined, then override/add custom
-                __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["CATEGORIES"].forEach((pCat)=>{
-                    if (!deselectedPredefinedCatNames.has(pCat.name.toLowerCase())) {
-                        const customOverride = userDefinedCategoriesFromPrefs.find((udc)=>udc.name.toLowerCase() === pCat.name.toLowerCase());
-                        if (customOverride) {
-                            finalCategories.push(customOverride); // Use the custom version
-                        } else {
-                            finalCategories.push({
-                                ...pCat
-                            }); // Use the predefined version
-                        }
-                    }
-                });
-                userDefinedCategoriesFromPrefs.forEach((customCat)=>{
-                    if (!finalCategories.some((fc)=>fc.name.toLowerCase() === customCat.name.toLowerCase())) {
-                        finalCategories.push(customCat); // Add new custom categories not overriding predefined ones
-                    }
-                });
+                finalCategories = finalCategories.filter((cat)=>!deselectedPredefinedCatNames.has(cat.name.toLowerCase()));
                 const userDefinedPaymentMethodsFromPrefs = prefsData.userDefinedPaymentMethods || [];
+                const customPaymentMethodsMap = new Map(userDefinedPaymentMethodsFromPrefs.map((pm)=>[
+                        pm.name.toLowerCase(),
+                        pm
+                    ]));
+                finalPaymentMethods = __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["PAYMENT_METHODS"].map((pPm)=>{
+                    const customOverride = customPaymentMethodsMap.get(pPm.name.toLowerCase());
+                    return customOverride ? {
+                        ...pPm,
+                        ...customOverride
+                    } : pPm;
+                });
+                userDefinedPaymentMethodsFromPrefs.forEach((udpm)=>{
+                    if (!finalPaymentMethods.some((fpm)=>fpm.name.toLowerCase() === udpm.name.toLowerCase())) {
+                        finalPaymentMethods.push(udpm);
+                    }
+                });
                 const deselectedPredefinedPmNames = new Set((prefsData.deselectedPredefinedPaymentMethods || []).map((name)=>name.toLowerCase()));
-                __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["PAYMENT_METHODS"].forEach((pPm)=>{
-                    if (!deselectedPredefinedPmNames.has(pPm.name.toLowerCase())) {
-                        const customOverride = userDefinedPaymentMethodsFromPrefs.find((udpm)=>udpm.name.toLowerCase() === pPm.name.toLowerCase());
-                        if (customOverride) {
-                            finalPaymentMethods.push(customOverride);
-                        } else {
-                            finalPaymentMethods.push({
-                                ...pPm
-                            });
-                        }
-                    }
-                });
-                userDefinedPaymentMethodsFromPrefs.forEach((customPm)=>{
-                    if (!finalPaymentMethods.some((fpm)=>fpm.name.toLowerCase() === customPm.name.toLowerCase())) {
-                        finalPaymentMethods.push(customPm);
-                    }
-                });
+                finalPaymentMethods = finalPaymentMethods.filter((pm)=>!deselectedPredefinedPmNames.has(pm.name.toLowerCase()));
             } else {
                 console.log("DashboardPage: TRACER --- No preferences document found for UserID:", userId, ". Using all predefined categories and payment methods.");
-                finalCategories = [
-                    ...__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["CATEGORIES"]
-                ];
-                finalPaymentMethods = [
-                    ...__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["PAYMENT_METHODS"]
-                ];
             }
             if (effectMountedRef.current) {
                 setUserCategories(finalCategories.sort((a, b)=>(0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["getCategoryDisplayLabel"])(a, language).localeCompare((0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["getCategoryDisplayLabel"])(b, language))));
                 setUserPaymentMethods(finalPaymentMethods.sort((a, b)=>(0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["getPaymentMethodDisplayLabel"])(a, language).localeCompare((0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["getPaymentMethodDisplayLabel"])(b, language))));
                 setIsLoadingPreferences(false);
-                console.log("DashboardPage: TRACER --- Set userCategories:", finalCategories.length, "items; Set userPaymentMethods:", finalPaymentMethods.length, "items");
+                console.log("DashboardPage: TRACER --- Set userCategories:", finalCategories.length, "items; Set userPaymentMethods:", finalPaymentMethods.length, "items. isLoadingPreferences set to false.");
             }
         }, (error)=>{
             if (!effectMountedRef.current) return;
@@ -4174,9 +4170,7 @@ function DashboardPage() {
         }
         if (authLoading) {
             console.log("Dashboard: TRACER --- Main useEffect: Auth is loading, waiting...");
-            if (effectMountedRef.current && !isLoadingTransactions) {
-                setIsLoadingTransactions(true);
-            }
+            // No need to set isLoadingTransactions here, overallLoading handles authLoading
             return fullCleanup;
         }
         if (!userId) {
@@ -4322,6 +4316,7 @@ function DashboardPage() {
                         setTransactions([]);
                         if (isLoadingTransactions) {
                             setIsLoadingTransactions(false);
+                            console.log("Dashboard: TRACER --- setIsLoadingTransactions(false) after onSnapshot error for UserID:", currentUserId);
                         }
                     }
                 });
@@ -4346,6 +4341,7 @@ function DashboardPage() {
                     setTransactions([]);
                     if (isLoadingTransactions) {
                         setIsLoadingTransactions(false);
+                        console.log("Dashboard: TRACER --- setIsLoadingTransactions(false) in fetchDataInternal catch block for UserID:", currentUserId);
                     }
                 }
             }
@@ -4392,7 +4388,10 @@ function DashboardPage() {
         const budgetDocRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["doc"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["db"], 'users', userId, 'budgets', budgetMonthKey);
         try {
             const docSnap = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["getDoc"])(budgetDocRef);
-            if (!effectMountedRef.current) return;
+            if (!effectMountedRef.current) {
+                if (isLoadingBudgets && effectMountedRef.current) setIsLoadingBudgets(false);
+                return;
+            }
             if (docSnap.exists()) {
                 const budgetData = docSnap.data();
                 console.log("Dashboard: TRACER --- Budget data found:", JSON.stringify(budgetData));
@@ -4402,15 +4401,18 @@ function DashboardPage() {
                         validBudgets[key] = budgetData[key];
                     }
                 }
-                setLoadedBudgetsForMonth(validBudgets);
+                if (effectMountedRef.current) setLoadedBudgetsForMonth(validBudgets);
             } else {
                 console.log("Dashboard: TRACER --- No budget document found for this month.");
-                setLoadedBudgetsForMonth({});
+                if (effectMountedRef.current) setLoadedBudgetsForMonth({});
             }
         } catch (error) {
-            if (!effectMountedRef.current) return;
+            if (!effectMountedRef.current) {
+                if (isLoadingBudgets && effectMountedRef.current) setIsLoadingBudgets(false);
+                return;
+            }
             console.error("Dashboard: TRACER --- LoadBudgets: Error loading budgets for month:", budgetMonthKey, error);
-            setLoadedBudgetsForMonth({});
+            if (effectMountedRef.current) setLoadedBudgetsForMonth({});
             toast({
                 title: translate({
                     en: "Error Loading Budgets",
@@ -4461,7 +4463,8 @@ function DashboardPage() {
             });
             return;
         }
-        console.log("Dashboard: TRACER --- onAddTransaction: Full newTransactionData received from form:", newTransactionData);
+        console.log("Dashboard: TRACER --- onAddTransaction: Received date from form:", newTransactionData.date);
+        console.log("Dashboard: TRACER --- onAddTransaction: Full newTransactionData from form:", JSON.stringify(newTransactionData));
         const effectiveMonthForNewTx = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$format$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$locals$3e$__["format"])((0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$parse$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$locals$3e$__["parse"])(newTransactionData.date, "yyyy-MM-dd", new Date(0)), "yyyy-MM");
         const fullPayload = {
             ...newTransactionData,
@@ -4470,10 +4473,9 @@ function DashboardPage() {
             effectiveMonth: effectiveMonthForNewTx
         };
         const dataToSave = Object.fromEntries(Object.entries(fullPayload).filter(([_, value])=>value !== undefined));
-        if (dataToSave.isRecurring === undefined && dataToSave.type === 'income') {
+        if (dataToSave.type === 'expense' && dataToSave.isRecurring === undefined && dataToSave.expenseType !== 'recurring' && dataToSave.expenseType !== 'installment') {
             dataToSave.isRecurring = false;
-        }
-        if (dataToSave.isRecurring === undefined && dataToSave.type === 'expense' && dataToSave.expenseType !== 'recurring' && dataToSave.expenseType !== 'installment') {
+        } else if (dataToSave.type === 'income' && dataToSave.isRecurring === undefined) {
             dataToSave.isRecurring = false;
         }
         console.log("Dashboard: TRACER --- onAddTransaction: Saving to Firestore with date:", newTransactionData.date, "effectiveMonth:", effectiveMonthForNewTx, "Full dataToSave:", dataToSave);
@@ -4510,45 +4512,41 @@ function DashboardPage() {
         translate
     ]);
     const transactionsForDisplayedPeriod = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useMemo"])(()=>{
-        console.log("Dashboard: TRACER --- transactionsForDisplayedPeriod: Recalculating for Year:", (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$getYear$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["getYear"])(displayedDate), "Month:", (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$getMonth$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["getMonth"])(displayedDate), "(0-indexed for", displayedMonthYearLabel, "), TargetEffMonth:", (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$format$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$locals$3e$__["format"])(displayedDate, "yyyy-MM"), "All transactions count:", transactions.length);
+        console.log("Dashboard: TRACER --- transactionsForDisplayedPeriod: Recalculating for Year:", (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$getYear$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["getYear"])(displayedDate), "Month:", (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$getMonth$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["getMonth"])(displayedDate), "(0-indexed for", displayedMonthYearLabel, "), All transactions count:", transactions.length);
         if (transactions.length === 0) {
             console.log("Dashboard: TRACER --- transactionsForDisplayedPeriod: No transactions in allTransactions, returning empty.");
             return [];
         }
         const targetYear = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$getYear$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["getYear"])(displayedDate);
         const targetMonth = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$getMonth$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["getMonth"])(displayedDate);
-        const firstDayOfTargetMonth = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$startOfMonth$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["startOfMonth"])(displayedDate);
         const targetEffectiveMonth = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$format$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$locals$3e$__["format"])(displayedDate, "yyyy-MM");
+        const firstDayOfTargetMonth = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$startOfMonth$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["startOfMonth"])(displayedDate);
         let filtered = [];
         transactions.forEach((t)=>{
             let includeTransaction = false;
             let reason = "";
-            if (!t.date || typeof t.date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(t.date)) {
-                console.warn(`Dashboard: TRACER --- Tx Filter: Skipping transaction with invalid date string: ID ${t.id}, Date: ${t.date}`);
-                return;
-            }
             const originalTransactionDate = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$parse$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$locals$3e$__["parse"])(t.date, "yyyy-MM-dd", new Date(0));
             if (t.type === 'expense' && t.expenseType === 'installment' && t.installments && t.installments > 0) {
-                const installmentSeriesStartDate = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$startOfMonth$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["startOfMonth"])(originalTransactionDate);
-                const monthDiff = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$differenceInCalendarMonths$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["differenceInCalendarMonths"])(firstDayOfTargetMonth, installmentSeriesStartDate);
-                const isInstallmentActiveThisMonth = monthDiff >= 0 && monthDiff < t.installments;
                 reason = "Installment Check";
-                if (isInstallmentActiveThisMonth) includeTransaction = true;
-            } else if (t.isRecurring === true && (t.expenseType !== 'installment' || !t.expenseType)) {
+                const installmentSeriesStartDate = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$startOfMonth$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["startOfMonth"])(originalTransactionDate);
+                // const installmentSeriesEndDate = endOfMonth(addMonths(installmentSeriesStartDate, t.installments - 1));
+                // includeTransaction = isWithinInterval(firstDayOfTargetMonth, { start: installmentSeriesStartDate, end: installmentSeriesEndDate });
+                const monthDiff = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$differenceInCalendarMonths$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["differenceInCalendarMonths"])(firstDayOfTargetMonth, installmentSeriesStartDate);
+                includeTransaction = monthDiff >= 0 && monthDiff < t.installments;
+                console.log(`Dashboard: TRACER --- Tx Filter (Installment Check): ID: ${t.id}, DateStr: ${t.date}, OrigDate: ${originalTransactionDate.toISOString()}, StartSeries: ${installmentSeriesStartDate.toISOString()}, TargetMonthStart: ${firstDayOfTargetMonth.toISOString()}, monthDiff: ${monthDiff}, installments: ${t.installments}, isActive: ${includeTransaction}, EffMonth: ${t.effectiveMonth}`);
+            } else if (t.isRecurring === true && t.expenseType !== 'installment') {
+                reason = "Recurring Check";
                 const originalTxYear = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$getYear$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["getYear"])(originalTransactionDate);
                 const originalTxMonth = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$getMonth$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["getMonth"])(originalTransactionDate);
-                reason = "Recurring Check";
                 if (originalTxYear < targetYear || originalTxYear === targetYear && originalTxMonth <= targetMonth) {
                     includeTransaction = true;
                 }
-            } else if ((!t.isRecurring || t.isRecurring === false) && (!t.expenseType || t.expenseType !== 'installment')) {
-                const transactionEffectiveMonthToUse = t.effectiveMonth || (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$format$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$locals$3e$__["format"])(originalTransactionDate, "yyyy-MM");
+                console.log(`Dashboard: TRACER --- Tx Filter (Recurring Check): ID: ${t.id}, DateStr: ${t.date}, OrigDate: ${originalTransactionDate.toISOString()}, OrigY: ${originalTxYear}, OrigM: ${originalTxMonth}, TargetY: ${targetYear}, TargetM: ${targetMonth}, isActive: ${includeTransaction}, EffMonth: ${t.effectiveMonth}`);
+            } else if ((!t.isRecurring || t.isRecurring === false) && t.expenseType !== 'installment') {
                 reason = "Non-Recurring Check";
-                if (transactionEffectiveMonthToUse === targetEffectiveMonth) {
-                    includeTransaction = true;
-                }
+                if (t.effectiveMonth === targetEffectiveMonth) includeTransaction = true;
+                console.log(`Dashboard: TRACER --- Tx Filter (Non-Recurring Check): ID: ${t.id}, DateStr: ${t.date}, EffMonth: ${t.effectiveMonth}, TargetEffMonth: ${targetEffectiveMonth}, Matches: ${includeTransaction}`);
             }
-            console.log(`Dashboard: TRACER --- Tx Filter: ID: ${t.id}, Date: ${t.date}, EffMonth: ${t.effectiveMonth}, Type: ${t.type}, ExpType: ${t.expenseType}, isRec: ${t.isRecurring}, Inst: ${t.installments}, Amount: ${t.amount}, Included: ${includeTransaction}, Reason: ${reason}, Target: ${targetEffectiveMonth}`);
             if (includeTransaction) {
                 filtered.push(t);
             }
@@ -4557,8 +4555,7 @@ function DashboardPage() {
         return filtered;
     }, [
         transactions,
-        displayedDate,
-        displayedMonthYearLabel
+        displayedDate
     ]);
     const totalIncomeForSummary = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useMemo"])(()=>{
         return transactionsForDisplayedPeriod.filter((t)=>t.type === "income").reduce((sum, t)=>sum + t.amount, 0);
@@ -4575,7 +4572,7 @@ function DashboardPage() {
         if (expensesThisPeriod.length === 0) return null;
         const expensesByCategory = {};
         for (const transaction of expensesThisPeriod){
-            const categoryName = typeof transaction.category === 'string' ? transaction.category : transaction.category.name; // Handle both cases
+            const categoryName = typeof transaction.category === 'string' ? transaction.category : transaction.category.name;
             expensesByCategory[categoryName] = (expensesByCategory[categoryName] || 0) + transaction.amount;
         }
         let maxAmount = 0;
@@ -4609,7 +4606,8 @@ function DashboardPage() {
         return null;
     }, [
         transactionsForDisplayedPeriod,
-        userCategories
+        userCategories,
+        language
     ]);
     const totalFixedExpensesForDisplayedPeriod = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useMemo"])(()=>{
         return transactionsForDisplayedPeriod.filter((t)=>t.type === 'expense' && t.expenseNature === 'fixed').reduce((sum, t)=>sum + t.amount, 0);
@@ -4753,7 +4751,7 @@ function DashboardPage() {
                             className: "h-10 w-1/3 mb-4"
                         }, void 0, false, {
                             fileName: "[project]/src/app/page.tsx",
-                            lineNumber: 738,
+                            lineNumber: 733,
                             columnNumber: 13
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -4764,12 +4762,12 @@ function DashboardPage() {
                                     className: "h-24 w-full"
                                 }, `summary-skel-${i}`, false, {
                                     fileName: "[project]/src/app/page.tsx",
-                                    lineNumber: 740,
+                                    lineNumber: 735,
                                     columnNumber: 44
                                 }, this))
                         }, void 0, false, {
                             fileName: "[project]/src/app/page.tsx",
-                            lineNumber: 739,
+                            lineNumber: 734,
                             columnNumber: 13
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Card"], {
@@ -4788,8 +4786,8 @@ function DashboardPage() {
                                                 })
                                             }, void 0, false, {
                                                 fileName: "[project]/src/app/page.tsx",
-                                                lineNumber: 745,
-                                                columnNumber: 20
+                                                lineNumber: 740,
+                                                columnNumber: 19
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["CardDescription"], {
                                                 className: "mt-1",
@@ -4803,61 +4801,184 @@ function DashboardPage() {
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/src/app/page.tsx",
-                                                lineNumber: 748,
+                                                lineNumber: 743,
                                                 columnNumber: 19
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/src/app/page.tsx",
-                                        lineNumber: 744,
-                                        columnNumber: 18
+                                        lineNumber: 739,
+                                        columnNumber: 17
                                     }, this)
                                 }, void 0, false, {
                                     fileName: "[project]/src/app/page.tsx",
-                                    lineNumber: 743,
+                                    lineNumber: 738,
                                     columnNumber: 15
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["CardContent"], {
                                     children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                                         className: "grid grid-cols-1 md:grid-cols-3 gap-4",
                                         children: [
-                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$skeleton$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Skeleton"], {
-                                                className: "h-28 w-full"
-                                            }, void 0, false, {
+                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                                className: "p-4 rounded-lg bg-background dark:bg-card flex flex-col items-center text-center shadow-md",
+                                                children: [
+                                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                                                        className: "text-sm font-medium text-foreground mb-1",
+                                                        children: [
+                                                            translate({
+                                                                en: "Largest Expense Category",
+                                                                pt: "Principal Categoria de Gasto"
+                                                            }),
+                                                            ":"
+                                                        ]
+                                                    }, void 0, true, {
+                                                        fileName: "[project]/src/app/page.tsx",
+                                                        lineNumber: 751,
+                                                        columnNumber: 21
+                                                    }, this),
+                                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$skeleton$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Skeleton"], {
+                                                        className: "h-7 w-7 mb-1 rounded-full"
+                                                    }, void 0, false, {
+                                                        fileName: "[project]/src/app/page.tsx",
+                                                        lineNumber: 752,
+                                                        columnNumber: 21
+                                                    }, this),
+                                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$skeleton$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Skeleton"], {
+                                                        className: "h-5 w-3/4 mb-1"
+                                                    }, void 0, false, {
+                                                        fileName: "[project]/src/app/page.tsx",
+                                                        lineNumber: 753,
+                                                        columnNumber: 21
+                                                    }, this),
+                                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$skeleton$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Skeleton"], {
+                                                        className: "h-7 w-1/3"
+                                                    }, void 0, false, {
+                                                        fileName: "[project]/src/app/page.tsx",
+                                                        lineNumber: 754,
+                                                        columnNumber: 21
+                                                    }, this)
+                                                ]
+                                            }, void 0, true, {
                                                 fileName: "[project]/src/app/page.tsx",
-                                                lineNumber: 755,
+                                                lineNumber: 750,
                                                 columnNumber: 19
                                             }, this),
-                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$skeleton$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Skeleton"], {
-                                                className: "h-28 w-full"
-                                            }, void 0, false, {
+                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                                className: "p-4 rounded-lg bg-background dark:bg-card flex flex-col items-center text-center shadow-md",
+                                                children: [
+                                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                                                        className: "text-sm font-medium text-foreground mb-1",
+                                                        children: translate({
+                                                            en: "Total Expenses",
+                                                            pt: "Total de Gastos"
+                                                        })
+                                                    }, void 0, false, {
+                                                        fileName: "[project]/src/app/page.tsx",
+                                                        lineNumber: 757,
+                                                        columnNumber: 21
+                                                    }, this),
+                                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                                        className: "flex items-center gap-2 mt-1",
+                                                        children: [
+                                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$skeleton$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Skeleton"], {
+                                                                className: "h-7 w-7 rounded-full"
+                                                            }, void 0, false, {
+                                                                fileName: "[project]/src/app/page.tsx",
+                                                                lineNumber: 759,
+                                                                columnNumber: 23
+                                                            }, this),
+                                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$skeleton$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Skeleton"], {
+                                                                className: "h-5 w-1/2"
+                                                            }, void 0, false, {
+                                                                fileName: "[project]/src/app/page.tsx",
+                                                                lineNumber: 760,
+                                                                columnNumber: 23
+                                                            }, this)
+                                                        ]
+                                                    }, void 0, true, {
+                                                        fileName: "[project]/src/app/page.tsx",
+                                                        lineNumber: 758,
+                                                        columnNumber: 21
+                                                    }, this),
+                                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$skeleton$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Skeleton"], {
+                                                        className: "h-7 w-1/3 mt-1"
+                                                    }, void 0, false, {
+                                                        fileName: "[project]/src/app/page.tsx",
+                                                        lineNumber: 762,
+                                                        columnNumber: 21
+                                                    }, this)
+                                                ]
+                                            }, void 0, true, {
                                                 fileName: "[project]/src/app/page.tsx",
                                                 lineNumber: 756,
                                                 columnNumber: 19
                                             }, this),
-                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$skeleton$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Skeleton"], {
-                                                className: "h-28 w-full"
-                                            }, void 0, false, {
+                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                                className: "p-4 rounded-lg bg-background dark:bg-card flex flex-col items-center text-center shadow-md",
+                                                children: [
+                                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                                                        className: "text-sm font-medium text-foreground mb-1",
+                                                        children: translate({
+                                                            en: "Total Expenses",
+                                                            pt: "Total de Gastos"
+                                                        })
+                                                    }, void 0, false, {
+                                                        fileName: "[project]/src/app/page.tsx",
+                                                        lineNumber: 765,
+                                                        columnNumber: 21
+                                                    }, this),
+                                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                                        className: "flex items-center gap-2 mt-1",
+                                                        children: [
+                                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$skeleton$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Skeleton"], {
+                                                                className: "h-7 w-7 rounded-full"
+                                                            }, void 0, false, {
+                                                                fileName: "[project]/src/app/page.tsx",
+                                                                lineNumber: 767,
+                                                                columnNumber: 23
+                                                            }, this),
+                                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$skeleton$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Skeleton"], {
+                                                                className: "h-5 w-1/2"
+                                                            }, void 0, false, {
+                                                                fileName: "[project]/src/app/page.tsx",
+                                                                lineNumber: 768,
+                                                                columnNumber: 23
+                                                            }, this)
+                                                        ]
+                                                    }, void 0, true, {
+                                                        fileName: "[project]/src/app/page.tsx",
+                                                        lineNumber: 766,
+                                                        columnNumber: 21
+                                                    }, this),
+                                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$skeleton$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Skeleton"], {
+                                                        className: "h-7 w-1/3 mt-1"
+                                                    }, void 0, false, {
+                                                        fileName: "[project]/src/app/page.tsx",
+                                                        lineNumber: 770,
+                                                        columnNumber: 21
+                                                    }, this)
+                                                ]
+                                            }, void 0, true, {
                                                 fileName: "[project]/src/app/page.tsx",
-                                                lineNumber: 757,
+                                                lineNumber: 764,
                                                 columnNumber: 19
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/src/app/page.tsx",
-                                        lineNumber: 754,
+                                        lineNumber: 749,
                                         columnNumber: 17
                                     }, this)
                                 }, void 0, false, {
                                     fileName: "[project]/src/app/page.tsx",
-                                    lineNumber: 753,
+                                    lineNumber: 748,
                                     columnNumber: 15
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/src/app/page.tsx",
-                            lineNumber: 742,
-                            columnNumber: 14
+                            lineNumber: 737,
+                            columnNumber: 13
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Card"], {
                             className: "shadow-md bg-muted/50",
@@ -4867,12 +4988,12 @@ function DashboardPage() {
                                         className: "h-6 w-1/4 mb-2"
                                     }, void 0, false, {
                                         fileName: "[project]/src/app/page.tsx",
-                                        lineNumber: 763,
+                                        lineNumber: 777,
                                         columnNumber: 17
                                     }, this)
                                 }, void 0, false, {
                                     fileName: "[project]/src/app/page.tsx",
-                                    lineNumber: 762,
+                                    lineNumber: 776,
                                     columnNumber: 15
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["CardContent"], {
@@ -4883,38 +5004,38 @@ function DashboardPage() {
                                                 className: "h-10 w-full"
                                             }, void 0, false, {
                                                 fileName: "[project]/src/app/page.tsx",
-                                                lineNumber: 767,
+                                                lineNumber: 781,
                                                 columnNumber: 19
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$skeleton$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Skeleton"], {
                                                 className: "h-10 w-full"
                                             }, void 0, false, {
                                                 fileName: "[project]/src/app/page.tsx",
-                                                lineNumber: 768,
+                                                lineNumber: 782,
                                                 columnNumber: 19
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$skeleton$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Skeleton"], {
                                                 className: "h-10 w-full"
                                             }, void 0, false, {
                                                 fileName: "[project]/src/app/page.tsx",
-                                                lineNumber: 769,
+                                                lineNumber: 783,
                                                 columnNumber: 19
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/src/app/page.tsx",
-                                        lineNumber: 766,
+                                        lineNumber: 780,
                                         columnNumber: 17
                                     }, this)
                                 }, void 0, false, {
                                     fileName: "[project]/src/app/page.tsx",
-                                    lineNumber: 765,
+                                    lineNumber: 779,
                                     columnNumber: 15
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/src/app/page.tsx",
-                            lineNumber: 761,
+                            lineNumber: 775,
                             columnNumber: 13
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -4924,36 +5045,36 @@ function DashboardPage() {
                                     className: "h-60 w-full"
                                 }, void 0, false, {
                                     fileName: "[project]/src/app/page.tsx",
-                                    lineNumber: 774,
+                                    lineNumber: 788,
                                     columnNumber: 15
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$skeleton$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Skeleton"], {
                                     className: "h-60 w-full"
                                 }, void 0, false, {
                                     fileName: "[project]/src/app/page.tsx",
-                                    lineNumber: 775,
+                                    lineNumber: 789,
                                     columnNumber: 15
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/src/app/page.tsx",
-                            lineNumber: 773,
+                            lineNumber: 787,
                             columnNumber: 13
                         }, this)
                     ]
                 }, void 0, true, {
                     fileName: "[project]/src/app/page.tsx",
-                    lineNumber: 737,
+                    lineNumber: 732,
                     columnNumber: 11
                 }, this)
             }, void 0, false, {
                 fileName: "[project]/src/app/page.tsx",
-                lineNumber: 736,
+                lineNumber: 731,
                 columnNumber: 9
             }, this)
         }, void 0, false, {
             fileName: "[project]/src/app/page.tsx",
-            lineNumber: 735,
+            lineNumber: 730,
             columnNumber: 7
         }, this);
     }
@@ -4968,7 +5089,7 @@ function DashboardPage() {
                     displayedMonthYearLabel: displayedMonthYearLabel
                 }, void 0, false, {
                     fileName: "[project]/src/app/page.tsx",
-                    lineNumber: 787,
+                    lineNumber: 801,
                     columnNumber: 9
                 }, this),
                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Card"], {
@@ -4987,7 +5108,7 @@ function DashboardPage() {
                                         })
                                     }, void 0, false, {
                                         fileName: "[project]/src/app/page.tsx",
-                                        lineNumber: 795,
+                                        lineNumber: 809,
                                         columnNumber: 15
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["CardDescription"], {
@@ -5002,18 +5123,18 @@ function DashboardPage() {
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/src/app/page.tsx",
-                                        lineNumber: 798,
+                                        lineNumber: 812,
                                         columnNumber: 15
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/src/app/page.tsx",
-                                lineNumber: 794,
+                                lineNumber: 808,
                                 columnNumber: 13
                             }, this)
                         }, void 0, false, {
                             fileName: "[project]/src/app/page.tsx",
-                            lineNumber: 793,
+                            lineNumber: 807,
                             columnNumber: 11
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["CardContent"], {
@@ -5034,8 +5155,8 @@ function DashboardPage() {
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/src/app/page.tsx",
-                                                lineNumber: 808,
-                                                columnNumber: 21
+                                                lineNumber: 821,
+                                                columnNumber: 19
                                             }, this),
                                             largestExpenseCategoryForDisplayedPeriod ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Fragment"], {
                                                 children: [
@@ -5047,30 +5168,30 @@ function DashboardPage() {
                                                                 className: "h-7 w-7 text-primary"
                                                             }, void 0, false, {
                                                                 fileName: "[project]/src/app/page.tsx",
-                                                                lineNumber: 814,
-                                                                columnNumber: 28
+                                                                lineNumber: 827,
+                                                                columnNumber: 25
                                                             }, this),
                                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
                                                                 className: "font-semibold text-lg text-foreground",
                                                                 children: (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["getCategoryDisplayLabel"])(largestExpenseCategoryForDisplayedPeriod, language)
                                                             }, void 0, false, {
                                                                 fileName: "[project]/src/app/page.tsx",
-                                                                lineNumber: 815,
-                                                                columnNumber: 28
+                                                                lineNumber: 828,
+                                                                columnNumber: 25
                                                             }, this)
                                                         ]
                                                     }, void 0, true, {
                                                         fileName: "[project]/src/app/page.tsx",
-                                                        lineNumber: 813,
-                                                        columnNumber: 25
+                                                        lineNumber: 826,
+                                                        columnNumber: 23
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
                                                         className: "text-xl font-bold text-primary mt-1",
                                                         children: (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$utils$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["formatCurrency"])(largestExpenseCategoryForDisplayedPeriod.amount)
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/app/page.tsx",
-                                                        lineNumber: 819,
-                                                        columnNumber: 25
+                                                        lineNumber: 832,
+                                                        columnNumber: 23
                                                     }, this)
                                                 ]
                                             }, void 0, true) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -5083,19 +5204,19 @@ function DashboardPage() {
                                                     })
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/app/page.tsx",
-                                                    lineNumber: 825,
-                                                    columnNumber: 26
+                                                    lineNumber: 838,
+                                                    columnNumber: 23
                                                 }, this)
                                             }, void 0, false, {
                                                 fileName: "[project]/src/app/page.tsx",
-                                                lineNumber: 824,
-                                                columnNumber: 24
+                                                lineNumber: 837,
+                                                columnNumber: 21
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/src/app/page.tsx",
-                                        lineNumber: 807,
-                                        columnNumber: 19
+                                        lineNumber: 820,
+                                        columnNumber: 17
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                                         className: "p-4 rounded-lg bg-background dark:bg-card flex flex-col items-center text-center shadow-md",
@@ -5103,13 +5224,13 @@ function DashboardPage() {
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
                                                 className: "text-sm font-medium text-foreground mb-1",
                                                 children: translate({
-                                                    en: "Total",
+                                                    en: "Total Expenses",
                                                     pt: "Total de Gastos"
                                                 })
                                             }, void 0, false, {
                                                 fileName: "[project]/src/app/page.tsx",
-                                                lineNumber: 833,
-                                                columnNumber: 21
+                                                lineNumber: 846,
+                                                columnNumber: 19
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                                                 className: "flex items-center gap-2 mt-1",
@@ -5118,8 +5239,8 @@ function DashboardPage() {
                                                         className: "h-7 w-7 text-primary"
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/app/page.tsx",
-                                                        lineNumber: 837,
-                                                        columnNumber: 23
+                                                        lineNumber: 850,
+                                                        columnNumber: 21
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
                                                         className: "font-semibold text-lg text-foreground",
@@ -5129,28 +5250,28 @@ function DashboardPage() {
                                                         })
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/app/page.tsx",
-                                                        lineNumber: 838,
-                                                        columnNumber: 24
+                                                        lineNumber: 851,
+                                                        columnNumber: 21
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/src/app/page.tsx",
-                                                lineNumber: 836,
-                                                columnNumber: 21
+                                                lineNumber: 849,
+                                                columnNumber: 19
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
                                                 className: "text-xl font-bold text-primary mt-1",
                                                 children: (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$utils$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["formatCurrency"])(totalFixedExpensesForDisplayedPeriod)
                                             }, void 0, false, {
                                                 fileName: "[project]/src/app/page.tsx",
-                                                lineNumber: 842,
-                                                columnNumber: 21
+                                                lineNumber: 855,
+                                                columnNumber: 19
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/src/app/page.tsx",
-                                        lineNumber: 832,
-                                        columnNumber: 20
+                                        lineNumber: 845,
+                                        columnNumber: 17
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                                         className: "p-4 rounded-lg bg-background dark:bg-card flex flex-col items-center text-center shadow-md",
@@ -5158,13 +5279,13 @@ function DashboardPage() {
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
                                                 className: "text-sm font-medium text-foreground mb-1",
                                                 children: translate({
-                                                    en: "Total",
+                                                    en: "Total Expenses",
                                                     pt: "Total de Gastos"
                                                 })
                                             }, void 0, false, {
                                                 fileName: "[project]/src/app/page.tsx",
-                                                lineNumber: 848,
-                                                columnNumber: 22
+                                                lineNumber: 861,
+                                                columnNumber: 19
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                                                 className: "flex items-center gap-2 mt-1",
@@ -5173,8 +5294,8 @@ function DashboardPage() {
                                                         className: "h-7 w-7 text-primary"
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/app/page.tsx",
-                                                        lineNumber: 852,
-                                                        columnNumber: 23
+                                                        lineNumber: 865,
+                                                        columnNumber: 21
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
                                                         className: "font-semibold text-lg text-foreground",
@@ -5184,34 +5305,34 @@ function DashboardPage() {
                                                         })
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/app/page.tsx",
-                                                        lineNumber: 853,
-                                                        columnNumber: 24
+                                                        lineNumber: 866,
+                                                        columnNumber: 21
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/src/app/page.tsx",
-                                                lineNumber: 851,
-                                                columnNumber: 21
+                                                lineNumber: 864,
+                                                columnNumber: 19
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
                                                 className: "text-xl font-bold text-primary mt-1",
                                                 children: (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$utils$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["formatCurrency"])(totalVariableExpensesForDisplayedPeriod)
                                             }, void 0, false, {
                                                 fileName: "[project]/src/app/page.tsx",
-                                                lineNumber: 857,
-                                                columnNumber: 21
+                                                lineNumber: 870,
+                                                columnNumber: 19
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/src/app/page.tsx",
-                                        lineNumber: 847,
-                                        columnNumber: 19
+                                        lineNumber: 860,
+                                        columnNumber: 17
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/src/app/page.tsx",
-                                lineNumber: 805,
-                                columnNumber: 16
+                                lineNumber: 819,
+                                columnNumber: 15
                             }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                                 className: "flex items-center justify-center h-[100px]",
                                 children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -5222,23 +5343,23 @@ function DashboardPage() {
                                     })
                                 }, void 0, false, {
                                     fileName: "[project]/src/app/page.tsx",
-                                    lineNumber: 864,
+                                    lineNumber: 877,
                                     columnNumber: 17
                                 }, this)
                             }, void 0, false, {
                                 fileName: "[project]/src/app/page.tsx",
-                                lineNumber: 863,
+                                lineNumber: 876,
                                 columnNumber: 15
                             }, this)
                         }, void 0, false, {
                             fileName: "[project]/src/app/page.tsx",
-                            lineNumber: 803,
+                            lineNumber: 817,
                             columnNumber: 11
                         }, this)
                     ]
                 }, void 0, true, {
                     fileName: "[project]/src/app/page.tsx",
-                    lineNumber: 792,
+                    lineNumber: 806,
                     columnNumber: 9
                 }, this),
                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$dashboard$2f$quick$2d$actions$2d$section$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["QuickActionsSection"], {
@@ -5248,7 +5369,7 @@ function DashboardPage() {
                     userPaymentMethods: userPaymentMethods
                 }, void 0, false, {
                     fileName: "[project]/src/app/page.tsx",
-                    lineNumber: 875,
+                    lineNumber: 888,
                     columnNumber: 9
                 }, this),
                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -5271,7 +5392,7 @@ function DashboardPage() {
                             totalItemsForMonth: fullRecentIncomeList.length
                         }, void 0, false, {
                             fileName: "[project]/src/app/page.tsx",
-                            lineNumber: 883,
+                            lineNumber: 896,
                             columnNumber: 11
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$dashboard$2f$recent$2d$transactions$2d$section$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["RecentTransactionsSection"], {
@@ -5291,24 +5412,24 @@ function DashboardPage() {
                             totalItemsForMonth: fullRecentExpensesList.length
                         }, void 0, false, {
                             fileName: "[project]/src/app/page.tsx",
-                            lineNumber: 893,
+                            lineNumber: 906,
                             columnNumber: 11
                         }, this)
                     ]
                 }, void 0, true, {
                     fileName: "[project]/src/app/page.tsx",
-                    lineNumber: 882,
+                    lineNumber: 895,
                     columnNumber: 9
                 }, this)
             ]
         }, void 0, true, {
             fileName: "[project]/src/app/page.tsx",
-            lineNumber: 786,
+            lineNumber: 800,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "[project]/src/app/page.tsx",
-        lineNumber: 785,
+        lineNumber: 799,
         columnNumber: 5
     }, this);
 }
