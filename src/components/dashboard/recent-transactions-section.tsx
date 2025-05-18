@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { CategoryIcon } from "@/components/icons";
 import { formatCurrency, cn } from "@/lib/utils";
 import { format as formatDateFns, parse as parseDateFns } from "date-fns"; 
+import { ptBR, enUS } from "date-fns/locale";
 import { useLanguage } from "@/context/language-context";
 import { getCategoryLabel } from "@/types"; 
 
@@ -30,8 +31,10 @@ export function RecentTransactionsSection({
 }: RecentTransactionsSectionProps) {
   const { translate, language } = useLanguage();
 
-  const showSeeMoreButton = onSeeMore && !isExpanded && transactions.length > 0 && transactions.length < totalItemsForMonth;
-  const showSeeLessButton = onSeeMore && isExpanded && totalItemsForMonth > 5; // Show "See Less" if expanded and more than 5 total
+  // Determine if the "See more" button should be shown
+  const showSeeMoreButton = onSeeMore && !isExpanded && transactions.length > 0 && transactions.length < totalItemsForMonth && totalItemsForMonth > 5;
+  // Determine if the "See less" button should be shown
+  const showSeeLessButton = onSeeMore && isExpanded && totalItemsForMonth > 5;
 
   return (
     <Card className="shadow-lg">
@@ -47,31 +50,38 @@ export function RecentTransactionsSection({
               translate({ en: "No expense transactions for this period.", pt: "Nenhuma transação de despesa para este período." })
             }
           </p>
-        ) : transactions.length === 0 && isExpanded === false ? ( // No items to show initially in collapsed view, but there are items if expanded
+        ) : transactions.length === 0 && !isExpanded && totalItemsForMonth > 0 ? ( 
           <p className="text-center text-muted-foreground py-8">
             {type === 'income' ?
-              translate({ en: "No recent income to display. Click 'See more'.", pt: "Nenhuma receita recente para exibir. Clique em 'Ver mais'." }) :
-              translate({ en: "No recent expenses to display. Click 'See more'.", pt: "Nenhuma despesa recente para exibir. Clique em 'Ver mais'." })
+              translate({ en: "No recent income to display. Click 'See more' to view all income for this month.", pt: "Nenhuma receita recente para exibir. Clique em 'Ver mais' para visualizar todas as receitas deste mês." }) :
+              translate({ en: "No recent expenses to display. Click 'See more' to view all expenses for this month.", pt: "Nenhuma despesa recente para exibir. Clique em 'Ver mais' para visualizar todas as despesas deste mês." })
             }
           </p>
+        ) : transactions.length === 0 && isExpanded ? ( // No items to show even when expanded
+            <p className="text-center text-muted-foreground py-8">
+                {type === 'income' ?
+                translate({ en: "No income transactions found for this period.", pt: "Nenhuma transação de receita encontrada para este período." }) :
+                translate({ en: "No expense transactions found for this period.", pt: "Nenhuma transação de despesa encontrada para este período." })
+                }
+            </p>
         ) : (
           <ul className="space-y-4">
             {transactions.map((transaction) => {
               let displayDate = transaction.date; 
               try {
                 const parsedDate = parseDateFns(transaction.date, "yyyy-MM-dd", new Date(0));
-                displayDate = formatDateFns(parsedDate, "MMM dd, yyyy");
+                displayDate = formatDateFns(parsedDate, language === 'pt' ? "dd 'de' MMMM, yyyy" : "MMMM dd, yyyy", { locale: language === 'pt' ? ptBR : enUS});
               } catch (e) {
-                console.warn(`Could not parse date string for display: ${transaction.date}`, e);
+                console.warn(`RecentTransactionsSection: Could not parse date string for display: ${transaction.date}`, e);
               }
               return (
                 <li key={transaction.id} className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <CategoryIcon categoryName={transaction.category} className="h-6 w-6 text-muted-foreground" />
+                    <CategoryIcon categoryName={transaction.category as CategoryName} className="h-6 w-6 text-muted-foreground" />
                     <div>
                       <p className="font-medium">{transaction.description}</p>
                       <p className="text-xs text-muted-foreground">
-                        {displayDate} - {getCategoryLabel(transaction.category, language)}
+                        {displayDate} - {getCategoryLabel(transaction.category as CategoryName, language)}
                       </p>
                     </div>
                   </div>
@@ -98,3 +108,4 @@ export function RecentTransactionsSection({
     </Card>
   );
 }
+
