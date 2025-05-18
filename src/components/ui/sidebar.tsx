@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -90,11 +91,14 @@ const SidebarProvider = React.forwardRef<
     )
 
     // Helper to toggle the sidebar.
+    // MODIFIED: Now only toggles for mobile. Does nothing for desktop.
     const toggleSidebar = React.useCallback(() => {
-      return isMobile
-        ? setOpenMobile((open) => !open)
-        : setOpen((open) => !open)
-    }, [isMobile, setOpen, setOpenMobile])
+      if (isMobile) {
+        setOpenMobile((currentOpenMobile) => !currentOpenMobile);
+      }
+      // For desktop, this function will now do nothing regarding the 'open' state.
+      // The sidebar will remain in its 'defaultOpen' state (true) on desktop.
+    }, [isMobile, setOpenMobile]) // Removed 'setOpen' from dependencies as it's not used for desktop toggle
 
     // Adds a keyboard shortcut to toggle the sidebar.
     React.useEffect(() => {
@@ -104,7 +108,7 @@ const SidebarProvider = React.forwardRef<
           (event.metaKey || event.ctrlKey)
         ) {
           event.preventDefault()
-          toggleSidebar()
+          toggleSidebar() // This will now only affect mobile
         }
       }
 
@@ -114,13 +118,14 @@ const SidebarProvider = React.forwardRef<
 
     // We add a state so that we can do data-state="expanded" or "collapsed".
     // This makes it easier to style the sidebar with Tailwind classes.
+    // For desktop, 'open' will always be true (from defaultOpen), so 'state' will be 'expanded'.
     const state = open ? "expanded" : "collapsed"
 
     const contextValue = React.useMemo<SidebarContext>(
       () => ({
         state,
         open,
-        setOpen,
+        setOpen, // Keep setOpen in context in case it's needed for programmatic control, though toggleSidebar won't use it on desktop
         isMobile,
         openMobile,
         setOpenMobile,
@@ -168,15 +173,17 @@ const Sidebar = React.forwardRef<
     {
       side = "left",
       variant = "sidebar",
-      collapsible = "offcanvas",
+      collapsible = "icon", // Keep this as "icon" or "offcanvas" if you want the spacer logic for desktop
       className,
       children,
       ...props
     },
     ref
   ) => {
-    const { isMobile, state, openMobile, setOpenMobile } = useSidebar()
+    const { isMobile, state, openMobile, setOpenMobile, open } = useSidebar() // 'open' is the desktop state
 
+    // If collapsible is explicitly "none", render a permanently open sidebar.
+    // This could be an alternative way if we changed the prop in app-layout.tsx
     if (collapsible === "none") {
       return (
         <div
@@ -212,12 +219,15 @@ const Sidebar = React.forwardRef<
       )
     }
 
+    // Desktop rendering.
+    // The 'state' will be 'expanded' on desktop because 'open' is true by default and toggleSidebar doesn't change it.
+    // Thus, data-collapsible will be empty, and icon-only styles won't apply.
     return (
       <div
         ref={ref}
         className="group peer hidden md:block text-sidebar-foreground"
-        data-state={state}
-        data-collapsible={state === "collapsed" ? collapsible : ""}
+        data-state={state} // Will be 'expanded' on desktop
+        data-collapsible={state === "collapsed" ? collapsible : ""} // Will be empty on desktop
         data-variant={variant}
         data-side={side}
       >
@@ -271,7 +281,7 @@ const SidebarTrigger = React.forwardRef<
       data-sidebar="trigger"
       variant="ghost"
       size="icon"
-      className={cn("h-7 w-7", className)}
+      className={cn("h-7 w-7", className)} // md:hidden is applied where this component is used in app-header-content
       onClick={(event) => {
         onClick?.(event)
         toggleSidebar()
@@ -289,7 +299,17 @@ const SidebarRail = React.forwardRef<
   HTMLButtonElement,
   React.ComponentProps<"button">
 >(({ className, ...props }, ref) => {
-  const { toggleSidebar } = useSidebar()
+  const { toggleSidebar, isMobile } = useSidebar() // isMobile added
+
+  // Conditionally disable or hide rail on desktop
+  if (!isMobile) {
+    // Option 1: Hide the rail entirely on desktop
+    // return null; 
+    // Option 2: Render it but make its click no-op (already handled by toggleSidebar modification)
+    // For visual consistency, we might still want it rendered but non-functional.
+    // The toggleSidebar modification already makes it non-functional for desktop state.
+  }
+
 
   return (
     <button
@@ -297,7 +317,7 @@ const SidebarRail = React.forwardRef<
       data-sidebar="rail"
       aria-label="Toggle Sidebar"
       tabIndex={-1}
-      onClick={toggleSidebar}
+      onClick={toggleSidebar} // This toggleSidebar now only affects mobile state due to our modification
       title="Toggle Sidebar"
       className={cn(
         "absolute inset-y-0 z-20 hidden w-4 -translate-x-1/2 transition-all ease-linear after:absolute after:inset-y-0 after:left-1/2 after:w-[2px] hover:after:bg-sidebar-border group-data-[side=left]:-right-4 group-data-[side=right]:left-0 sm:flex",
@@ -761,3 +781,6 @@ export {
   SidebarTrigger,
   useSidebar,
 }
+
+    
+    
