@@ -15,7 +15,7 @@ import { collection, query, orderBy, onSnapshot, doc, getDoc, addDoc, serverTime
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency, cn } from "@/lib/utils";
 import { CategoryIcon } from "@/components/icons"; 
-import { PiggyBank, Package, Wallet, TrendingUp, TrendingDown, DollarSign, ListChecks } from "lucide-react";
+import { PiggyBank, Package, Wallet, TrendingUp, TrendingDown, DollarSign, ListChecks, Terminal } from "lucide-react";
 import { useDateNavigation } from '@/context/date-navigation-context';
 import { useLanguage } from '@/context/language-context';
 import {
@@ -107,20 +107,26 @@ export default function DashboardPage() {
       }
       console.log("DashboardPage: TRACER --- Preferences snapshot received for UserID:", userId);
 
-      let finalCategories: DisplayCategory[] = [...CATEGORIES];
-      let finalPaymentMethods: DisplayPaymentMethod[] = [...PAYMENT_METHODS];
+      let finalCategories: DisplayCategory[] = [...CATEGORIES]; // Start with all predefined
+      let finalPaymentMethods: DisplayPaymentMethod[] = [...PAYMENT_METHODS]; // Start with all predefined
 
       if (docSnap.exists()) {
         const preferencesData = docSnap.data() as UserPreferences;
         console.log("DashboardPage: TRACER --- Preferences data found for UserID:", userId, JSON.stringify(preferencesData));
         
         const customCategoryDefs = preferencesData.userDefinedCategories || [];
+         // Ensure custom categories get the type and label structure
         const customCategoriesWithType: DisplayCategory[] = customCategoryDefs.map(c => ({ ...c, type: c.type || 'expense', label: c.label || {en: c.name, pt: c.name} }));
         
         const combinedCategoriesMap = new Map<string, DisplayCategory>();
+        // Add all predefined categories first
         CATEGORIES.forEach(cat => combinedCategoriesMap.set(cat.name.toLowerCase(), cat));
-        customCategoriesWithType.forEach(customCat => combinedCategoriesMap.set(customCat.name.toLowerCase(), customCat));
+        // Then add/overwrite with custom ones, ensuring type is preserved
+        customCategoriesWithType.forEach(customCat => {
+            combinedCategoriesMap.set(customCat.name.toLowerCase(), customCat);
+        });
         finalCategories = Array.from(combinedCategoriesMap.values());
+
 
         const customPaymentMethodDefs = preferencesData.userDefinedPaymentMethods || [];
         const customMethodsAsDisplay: DisplayPaymentMethod[] = customPaymentMethodDefs.map(customPm => ({ ...customPm, label: customPm.label || {en: customPm.name, pt: customPm.name}}));
@@ -138,11 +144,13 @@ export default function DashboardPage() {
             );
             finalPaymentMethods = effectivePMs.length > 0 ? effectivePMs : allAvailablePaymentMethods;
         } else {
+            // If no payment methods are "selected" in prefs, default to showing all available (predefined + custom)
             finalPaymentMethods = allAvailablePaymentMethods;
         }
 
       } else {
         console.log("DashboardPage: TRACER --- No preferences document found for UserID:", userId, ". Using all predefined categories and payment methods.");
+        // finalCategories and finalPaymentMethods already initialized with all predefined ones.
       }
       
       if (effectMountedRef.current) {
@@ -198,10 +206,12 @@ export default function DashboardPage() {
 
     if (!isClient) {
       console.log("Dashboard: TRACER --- Main useEffect: Not client yet, waiting.");
+      if (effectMountedRef.current && !isLoadingTransactions) setIsLoadingTransactions(true); // Ensure loading is true if not client yet
       return; 
     }
     if (authLoading) {
       console.log("Dashboard: TRACER --- Main useEffect: Auth is loading, waiting...");
+      if (effectMountedRef.current && !isLoadingTransactions) setIsLoadingTransactions(true); // Ensure loading is true if auth is loading
       return; 
     }
     if (!userId) {
@@ -368,7 +378,7 @@ export default function DashboardPage() {
       }
     }
     return fullCleanup;
-  }, [userId, authLoading, isClient]); // Removed router, toast, translate, language
+  }, [userId, authLoading, isClient, router, toast, translate]);
 
 
  const loadBudgets = useCallback(async () => {
@@ -381,7 +391,7 @@ export default function DashboardPage() {
     }
     if(effectMountedRef.current) setIsLoadingBudgets(true);
     const budgetMonthKey = formatDateFns(displayedDate, 'yyyy-MM');
-    console.log(`Dashboard: TRACER --- Loading budgets for user ${userId}, month: ${budgetMonthKey}`);
+    console.log("Dashboard: TRACER --- Loading budgets for user " + String(userId) + ", month: " + budgetMonthKey);
     const budgetDocRef = doc(db, 'users/' + userId + '/budgets/' + budgetMonthKey);
     try {
       const docSnap = await getDoc(budgetDocRef);
@@ -430,14 +440,12 @@ export default function DashboardPage() {
       createdAt: serverTimestamp(),
     };
     
-    const dataToSave = Object.fromEntries(
+     const dataToSave = Object.fromEntries(
         Object.entries(fullPayload).filter(([_, value]) => value !== undefined)
     ) as Partial<Transaction & { createdAt: any; userId: string }>;
 
-    if (dataToSave.isRecurring === undefined && newTransactionData.type === 'expense' && newTransactionData.expenseType !== 'recurring') {
+    if (dataToSave.isRecurring === undefined) {
         dataToSave.isRecurring = false;
-    } else if (dataToSave.isRecurring === undefined && newTransactionData.type === 'income'){
-        dataToSave.isRecurring = newTransactionData.isRecurring || false;
     }
     
     console.log("Dashboard: TRACER --- onAddTransaction: Saving to Firestore with date:", dataToSave.date, "Full dataToSave:", JSON.stringify(dataToSave));
@@ -461,22 +469,10 @@ export default function DashboardPage() {
 
     const filtered: Transaction[] = [];
     transactions.forEach(t => {
-      const dateParts = t.date.split('-');
-      if (dateParts.length !== 3) {
-        console.warn("Dashboard: TRACER --- Tx Filter: Invalid date format for transaction ID " + t.id + ": " + t.date);
-        return; 
-      }
-      const transactionYear = parseInt(dateParts[0], 10);
-      const transactionMonth = parseInt(dateParts[1], 10) - 1; 
-
-      if (isNaN(transactionYear) || isNaN(transactionMonth)) {
-        console.warn("Dashboard: TRACER --- Tx Filter: Could not parse year/month for transaction ID " + t.id + ": " + t.date);
-        return; 
-      }
+      const originalTransactionDate = parseDateFns(t.date, "yyyy-MM-dd", new Date(0));
 
       // Handle installments
       if (t.type === 'expense' && t.expenseType === 'installment' && t.installments && t.installments > 0) {
-        const originalTransactionDate = parseDateFns(t.date, "yyyy-MM-dd", new Date(0));
         const installmentSeriesStartDate = startOfMonth(originalTransactionDate);
         const installmentSeriesEndDate = endOfMonth(addMonths(installmentSeriesStartDate, t.installments - 1));
         const isInstallmentActiveThisMonth = isWithinInterval(firstDayOfTargetMonth, { start: installmentSeriesStartDate, end: installmentSeriesEndDate });
@@ -489,7 +485,6 @@ export default function DashboardPage() {
       }
       // Handle generic recurring (excluding installments already handled)
       else if (t.isRecurring === true && t.expenseType !== 'installment') { 
-        const originalTransactionDate = parseDateFns(t.date, "yyyy-MM-dd", new Date(0));
         const originalTransactionYear = getYearFns(originalTransactionDate);
         const originalTransactionMonth = getMonthFns(originalTransactionDate);
         const matchesRecurringCriteria = originalTransactionYear < targetYear || (originalTransactionYear === targetYear && originalTransactionMonth <= targetMonth);
@@ -502,16 +497,33 @@ export default function DashboardPage() {
       }
       // Handle non-recurring, non-installment transactions
       else if (!t.isRecurring && t.expenseType !== 'installment') { 
+        const transactionYear = getYearFns(originalTransactionDate);
+        const transactionMonth = getMonthFns(originalTransactionDate);
         const matchesNonRec = transactionYear === targetYear && transactionMonth === targetMonth;
          console.log(`Dashboard: TRACER --- Tx Filter (Non-Recurring Check): ID: ${t.id}, DateStr: ${t.date}, TxY: ${transactionYear}, TxM: ${transactionMonth}, TargetY: ${targetYear}, TargetM: ${targetMonth}, MatchesNonRec: ${matchesNonRec}, isRec: ${t.isRecurring}, expType: ${t.expenseType}, inst: ${t.installments}`);
         if (matchesNonRec) {
           filtered.push(t);
         }
+      } else if (t.type === 'income') { // Handle income (both recurring and non-recurring for the month)
+         const transactionYear = getYearFns(originalTransactionDate);
+         const transactionMonth = getMonthFns(originalTransactionDate);
+         if (t.isRecurring) { // If recurring income
+            // Include if original start date is on or before the current displayed month
+            if (startOfMonth(originalTransactionDate) <= firstDayOfTargetMonth) { 
+                console.log(`Dashboard: TRACER --- Tx Filter (Recurring Income): ID: ${t.id}, DateStr: ${t.date}, Matches for month summary.`);
+                filtered.push(t);
+            }
+         } else { // If non-recurring income
+            if (transactionYear === targetYear && transactionMonth === targetMonth) {
+                console.log(`Dashboard: TRACER --- Tx Filter (Non-Recurring Income): ID: ${t.id}, DateStr: ${t.date}, Matches for month summary.`);
+                filtered.push(t);
+            }
+         }
       }
     });
     console.log(`Dashboard: TRACER --- transactionsForDisplayedPeriod: Found ${filtered.length} transactions for the period.`);
     return filtered;
-  }, [transactions, displayedDate, displayedMonthYearLabel]); // displayedMonthYearLabel for log
+  }, [transactions, displayedDate, displayedMonthYearLabel]); 
 
 
   const fullRecentIncomeList = useMemo(() => {
@@ -530,6 +542,7 @@ export default function DashboardPage() {
         if (t.isRecurring) {
             if (startOfMonth(originalTransactionDate) <= targetMonthStart) {
                 let projectedDateForMonth = setDateFnsDate(targetMonthStart, originalTransactionDay);
+                // Adjust day if original day doesn't exist in target month (e.g. original 31st, target Feb)
                 if (getMonthFns(projectedDateForMonth) !== targetMonth) { 
                     projectedDateForMonth = lastDayOfMonth(targetMonthStart);
                 }
@@ -559,8 +572,8 @@ export default function DashboardPage() {
 
   const recentIncomeToDisplay = useMemo(() => {
     // return showAllRecentIncome ? fullRecentIncomeList : fullRecentIncomeList.slice(0,5);
-    return fullRecentIncomeList; // Temporarily show all to debug
-  }, [fullRecentIncomeList, showAllRecentIncome]);
+    return fullRecentIncomeList; 
+  }, [fullRecentIncomeList]);
 
 
   const fullRecentExpensesList = useMemo(() => {
@@ -579,11 +592,11 @@ export default function DashboardPage() {
         if (t.expenseType === 'installment' && t.installments && t.installments > 0) {
             const installmentSeriesStartDate = startOfMonth(originalTransactionDate);
             const monthDiff = differenceInCalendarMonths(targetMonthStart, installmentSeriesStartDate);
-            const currentInstallmentNum = monthDiff + 1;
             
-            console.log(`Dashboard: TRACER --- recentExpenses (Installment Check): ID: ${t.id}, OrigDate: ${t.date}, currentInstallmentNum: ${currentInstallmentNum}, totalInstallments: ${t.installments}, monthDiff: ${monthDiff}, expType: ${t.expenseType}`);
+            console.log(`Dashboard: TRACER --- recentExpenses (Installment Check): ID: ${t.id}, OrigDate: ${t.date}, monthDiff: ${monthDiff}, totalInstallments: ${t.installments}, expType: ${t.expenseType}`);
 
             if (monthDiff >= 0 && monthDiff < t.installments) { 
+                const currentInstallmentNum = monthDiff + 1;
                 let projectedDateForMonth = setDateFnsDate(targetMonthStart, originalTransactionDay);
                 if (getMonthFns(projectedDateForMonth) !== targetMonth) { 
                     projectedDateForMonth = lastDayOfMonth(targetMonthStart);
@@ -631,20 +644,22 @@ export default function DashboardPage() {
   }, [transactions, displayedDate, displayedMonthYearLabel, translate]); 
 
   const recentExpensesToDisplay = useMemo(() => {
-    // return showAllRecentExpenses ? fullRecentExpensesList : fullRecentExpensesList.slice(0,5);
-    return fullRecentExpensesList; // Temporarily show all to debug
-  },[fullRecentExpensesList, showAllRecentExpenses]); 
+    return fullRecentExpensesList; 
+  },[fullRecentExpensesList]); 
 
 
   const largestExpenseCategoryForDisplayedPeriod = useMemo(() => {
     const expensesThisPeriod = transactionsForDisplayedPeriod.filter(t => t.type === 'expense');
     if (expensesThisPeriod.length === 0) return null;
+
     const expensesByCategory: Record<string, number> = {};
     for (const transaction of expensesThisPeriod) {
       const categoryName = typeof transaction.category === 'string' ? transaction.category : transaction.category.name;
       expensesByCategory[categoryName] = (expensesByCategory[categoryName] || 0) + transaction.amount;
     }
-    let maxAmount = 0; let largestCategoryKey: string | null = null;
+
+    let maxAmount = 0; 
+    let largestCategoryKey: string | null = null;
     for (const categoryKey in expensesByCategory) {
       if (Object.prototype.hasOwnProperty.call(expensesByCategory, categoryKey)) {
         if (expensesByCategory[categoryKey] > maxAmount) {
@@ -653,8 +668,11 @@ export default function DashboardPage() {
         }
       }
     }
+
     if (largestCategoryKey) {
-      const categoryDetail = userCategories.find(cat => cat.name === largestCategoryKey) || CATEGORIES.find(cat => cat.name === largestCategoryKey);
+      const categoryDetail = userCategories.find(cat => cat.name === largestCategoryKey) || 
+                             CATEGORIES.find(cat => cat.name === largestCategoryKey) ||
+                             { name: largestCategoryKey, type: 'expense', icon: 'CircleHelp', label: { en: largestCategoryKey, pt: largestCategoryKey } };
       return { 
         name: largestCategoryKey, 
         amount: maxAmount, 
@@ -690,6 +708,7 @@ export default function DashboardPage() {
   const overallLoading = !isClient || authLoading || isLoadingTransactions || isLoadingPreferences || isLoadingBudgets;
   
   console.log("DashboardPage TRACER --- About to RENDER. displayedDate for QuickActionsSection:", displayedDate.toISOString());
+  console.log("Dashboard: TRACER --- RENDERING with: displayedMonth:", displayedMonthYearLabel, "transactionsInPeriod:", transactionsForDisplayedPeriod.length, "totalIncomeForSummary:", totalIncomeForSummary, "totalExpensesForSummary:", totalExpensesForSummary);
   if (overallLoading) {
     console.log("Dashboard: TRACER --- RENDERING LOADING SCREEN. isClient:", isClient, "authLoading:", authLoading, "isLoadingTransactions:", isLoadingTransactions, "isLoadingPreferences:", isLoadingPreferences, "isLoadingBudgets:", isLoadingBudgets);
     return (
@@ -723,7 +742,7 @@ export default function DashboardPage() {
       </AppLayout>
     );
   }
-  console.log("Dashboard: TRACER --- RENDERING with: displayedMonth:", displayedMonthYearLabel, "transactionsInPeriod:", transactionsForDisplayedPeriod.length, "totalIncomeForSummary:", totalIncomeForSummary, "totalExpensesForSummary:", totalExpensesForSummary);
+  console.log("Dashboard: TRACER --- RENDERING DASHBOARD CONTENT. Transactions:", transactions.length, "isLoadingTransactions:", isLoadingTransactions, "Displayed Period Transactions:", transactionsForDisplayedPeriod.length);
 
   return (
     <AppLayout>
@@ -734,24 +753,29 @@ export default function DashboardPage() {
           displayedMonthYearLabel={displayedMonthYearLabel}
         />
          <Card className="shadow-lg bg-muted/50">
-          <CardHeader>
-            <CardTitle>{translate({ en: "Spending Summary", pt: "Resumo de Gastos" })}</CardTitle>
-            <CardDescription>
-              {translate({ en: "Your spending breakdown for", pt: "Seu detalhamento de gastos em" })} {displayedMonthYearLabel}
-            </CardDescription>
+          <CardHeader className="flex flex-row items-start gap-4 space-y-0">
+            <Terminal className="h-8 w-8 text-primary flex-shrink-0 mt-1" />
+            <div className="flex-grow">
+              <div className="text-xl font-medium leading-none tracking-tight text-foreground">
+                {translate({ en: "Spending Summary", pt: "Resumo de Gastos" })}
+              </div>
+              <CardDescription className="mt-1">
+                {translate({ en: "Your spending breakdown for", pt: "Seu detalhamento de gastos em" })} {displayedMonthYearLabel}
+              </CardDescription>
+            </div>
           </CardHeader>
           <CardContent>
             {transactionsForDisplayedPeriod.filter(t => t.type === 'expense').length > 0 ? (
                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="p-4 rounded-lg bg-background/80 dark:bg-card">
-                  <div className="flex items-start gap-2">
-                    {largestExpenseCategoryForDisplayedPeriod ? (
-                      <>
+                <div className="p-4 rounded-lg bg-background dark:bg-card">
+                  {largestExpenseCategoryForDisplayedPeriod ? (
+                    <>
+                      <p className="text-sm font-medium text-foreground text-left mb-1">
+                        {translate({ en: "Largest Expense Category", pt: "Principal Categoria de Gasto" })}:
+                      </p>
+                      <div className="flex items-start gap-2">
                         <CategoryIcon iconName={largestExpenseCategoryForDisplayedPeriod.icon} className="h-7 w-7 text-primary flex-shrink-0 mt-1" />
                         <div>
-                          <p className="text-sm font-medium text-foreground text-left">
-                            {translate({ en: "Largest Expense Category", pt: "Principal Categoria de Gasto" })}:
-                          </p>
                           <span className="font-semibold text-lg block text-left text-foreground">
                             {getCategoryDisplayLabel(largestExpenseCategoryForDisplayedPeriod, language)}
                           </span>
@@ -759,21 +783,21 @@ export default function DashboardPage() {
                             {formatCurrency(largestExpenseCategoryForDisplayedPeriod.amount)}
                           </p>
                         </div>
-                      </>
-                    ) : (
-                      <div className="flex flex-col items-center text-center w-full">
-                         <p className="text-sm font-medium text-foreground mb-1">
-                          {translate({ en: "Largest Expense Category", pt: "Principal Categoria de Gasto" })}:
-                        </p>
-                        <p className="text-sm text-muted-foreground mt-2">
-                          {translate({ en: "N/A", pt: "N/D"})}
-                        </p>
                       </div>
-                    )}
-                  </div>
+                    </>
+                  ) : (
+                    <div className="flex flex-col items-center text-center w-full h-full justify-center">
+                       <p className="text-sm font-medium text-foreground mb-1">
+                        {translate({ en: "Largest Expense Category", pt: "Principal Categoria de Gasto" })}:
+                      </p>
+                      <p className="text-sm text-muted-foreground mt-2">
+                        {translate({ en: "N/A", pt: "N/D"})}
+                      </p>
+                    </div>
+                  )}
                 </div>
 
-                <div className="p-4 rounded-lg bg-background/80 dark:bg-card">
+                <div className="p-4 rounded-lg bg-background dark:bg-card">
                   <div className="flex items-start gap-2">
                     <Package className="h-7 w-7 text-primary flex-shrink-0 mt-1" />
                     <div>
@@ -787,7 +811,7 @@ export default function DashboardPage() {
                   </div>
                 </div>
 
-                <div className="p-4 rounded-lg bg-background/80 dark:bg-card">
+                <div className="p-4 rounded-lg bg-background dark:bg-card">
                    <div className="flex items-start gap-2">
                     <Wallet className="h-7 w-7 text-primary flex-shrink-0 mt-1" />
                     <div>
