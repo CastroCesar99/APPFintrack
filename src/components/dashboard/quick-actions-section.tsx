@@ -18,14 +18,14 @@ import { useLanguage } from "@/context/language-context";
 import Link from "next/link"; 
 
 interface QuickActionsSectionProps {
-  onAddTransaction: (transactionData: Omit<Transaction, "id" | "userId" | "createdAt">) => Promise<void>;
-  currentDisplayedDate: Date; // Renamed from defaultDate for clarity
+  onSave: (transactionData: Omit<Transaction, "id" | "userId" | "createdAt" | "updatedAt">, id?:string) => Promise<void>; // Renamed from onAddTransaction
+  currentDisplayedDate: Date;
   userCategories: DisplayCategory[];
   userPaymentMethods: DisplayPaymentMethod[];
 }
 
 export function QuickActionsSection({ 
-  onAddTransaction, 
+  onSave, // Renamed from onAddTransaction
   currentDisplayedDate,
   userCategories,
   userPaymentMethods 
@@ -35,31 +35,28 @@ export function QuickActionsSection({
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [formInitialType, setFormInitialType] = useState<TransactionType>("expense");
   
-  // State to hold the date for the form, initialized and updated based on currentDisplayedDate
   const [dateForForm, setDateForForm] = useState<Date>(currentDisplayedDate);
 
-  // Effect to sync dateForForm if currentDisplayedDate changes AND the dialog is NOT open
   useEffect(() => {
-    console.log("QuickActionsSection TRACER --- useEffect for currentDisplayedDate running. isFormOpen:", isFormOpen, "New currentDisplayedDate:", currentDisplayedDate.toISOString());
     if (!isFormOpen) {
+      console.log("QuickActionsSection TRACER --- Dialog closed or currentDisplayedDate changed while closed. Syncing dateForForm:", currentDisplayedDate.toISOString());
       setDateForForm(currentDisplayedDate);
     }
   }, [currentDisplayedDate, isFormOpen]);
 
   const handleOpenDialog = (type: TransactionType) => {
-    console.log("QuickActionsSection TRACER --- handleOpenDialog. Type:", type, "currentDisplayedDate prop from Dashboard:", currentDisplayedDate.toISOString());
+    console.log("QuickActionsSection TRACER --- handleOpenDialog. Type:", type, "currentDisplayedDate prop:", currentDisplayedDate.toISOString());
     setFormInitialType(type);
-    setDateForForm(currentDisplayedDate); // Capture the most recent date from dashboard when dialog is opened
+    setDateForForm(currentDisplayedDate); 
     setIsFormOpen(true);
   };
 
-  const handleFormSubmit = async (transactionData: Omit<Transaction, "id" | "userId" | "createdAt">) => {
+  const handleFormSubmit = async (transactionData: Omit<Transaction, "id" | "userId" | "createdAt" | "updatedAt">) => {
     try {
-      await onAddTransaction(transactionData);
+      await onSave(transactionData); // Using the onSave prop from parent
       setIsFormOpen(false); 
     } catch (error) {
       console.error("Error submitting transaction from QuickActionsSection:", error);
-      // Toast error handling is likely in the onAddTransaction prop from DashboardPage
     }
   };
   
@@ -70,14 +67,17 @@ export function QuickActionsSection({
   const newTransactionTitle = translate({ en: "New Transaction", pt: "Nova Transação" });
   const newTransactionDescription = translate({ en: "Fill in the details for your new transaction.", pt: "Preencha os detalhes da sua nova transação." });
 
-  console.log("QuickActionsSection TRACER --- Rendering TransactionForm with formInitialType:", formInitialType, "userCategories length:", userCategories?.length, "first category type:", userCategories?.[0]?.type);
+  // Forcing re-render of TransactionForm when dateForForm changes by using it in the key
+  const formKey = dateForForm.toISOString() + formInitialType;
+  console.log(`QuickActionsSection TRACER --- Rendering TransactionForm with formInitialType: '${formInitialType}', defaultDate: '${dateForForm.toISOString()}', userCategories length: ${userCategories?.length}, First category type if exists: ${userCategories?.[0]?.type}, Form key: ${formKey}`);
+  
   return (
     <Card className="shadow-md bg-muted/50">
       <CardHeader>
         <CardTitle className="text-base font-semibold">{quickActionsTitle}</CardTitle>
       </CardHeader>
       <CardContent>
-        <Dialog open={isFormOpen} onOpenChange={setIsFormOpen} modal={false}> {/* MODAL SET TO FALSE */}
+        <Dialog open={isFormOpen} onOpenChange={setIsFormOpen} modal={false}> 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <Button onClick={() => handleOpenDialog("expense")} variant="outline" className="w-full">
               <PlusCircle className="mr-2 h-4 w-4" /> {addExpenseLabel}
@@ -91,7 +91,7 @@ export function QuickActionsSection({
               </Button>
             </Link>
           </div>
-          <DialogContent className="sm:max-w-[425px]">
+          <DialogContent>
             <DialogHeader>
               <DialogTitle>{newTransactionTitle}</DialogTitle>
               <DialogDescription>
@@ -100,12 +100,13 @@ export function QuickActionsSection({
             </DialogHeader>
             {isFormOpen && (
               <TransactionForm
-                onAddTransaction={handleFormSubmit} 
+                onSave={handleFormSubmit} // Changed from onAddTransaction to onSave
                 initialType={formInitialType}
                 defaultDate={dateForForm} 
                 userCategories={userCategories} 
                 userPaymentMethods={userPaymentMethods} 
-                key={dateForForm.toISOString() + formInitialType} 
+                transactionToEdit={null} // Explicitly null for adding
+                key={formKey} 
               />
             )}
           </DialogContent>
