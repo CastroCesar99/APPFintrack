@@ -2,7 +2,7 @@
 "use client";
 
 import type React from 'react';
-import { useState, useEffect, useMemo, useCallback, useRef } from "react"; // Added useRef
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useRouter } from 'next/navigation';
 import { AppLayout } from "@/components/layout/app-layout";
 import { Button } from "@/components/ui/button";
@@ -68,8 +68,8 @@ export default function ExpensesPage() {
   // Listener for User Preferences
   useEffect(() => {
     if (!userId || !isClient || authLoading) {
-      setUserCategories([...CATEGORIES]);
-      setUserPaymentMethods([...PAYMENT_METHODS]);
+      setUserCategories([...CATEGORIES].sort((a,b) => getCategoryDisplayLabel(a, language).localeCompare(getCategoryDisplayLabel(b,language))));
+      setUserPaymentMethods([...PAYMENT_METHODS].sort((a,b) => getPaymentMethodDisplayLabel(a,language).localeCompare(getPaymentMethodDisplayLabel(b,language))));
       setIsLoadingPreferences(false);
       if (unsubscribePreferencesRef.current) {
         unsubscribePreferencesRef.current();
@@ -81,7 +81,6 @@ export default function ExpensesPage() {
     setIsLoadingPreferences(true);
     const preferencesDocRef = doc(db, `users/${userId}/preferences/userPreferences`);
 
-    // Clean up previous listener if it exists
     if (unsubscribePreferencesRef.current) {
       unsubscribePreferencesRef.current();
     }
@@ -94,8 +93,9 @@ export default function ExpensesPage() {
         const preferencesData = docSnap.data() as UserPreferences;
         
         const customCategoryDefs = preferencesData.userDefinedCategories || [];
-        const allPredefinedCategories = [...CATEGORIES];
-        const customCategoriesWithType: DisplayCategory[] = customCategoryDefs.map(c => ({ ...c, type: c.type || 'expense' })); 
+        const allPredefinedCategories = [...CATEGORIES]; 
+        const customCategoriesWithType: DisplayCategory[] = customCategoryDefs.map(c => ({ ...c, type: c.type || 'expense', label: c.label || {en: c.name, pt: c.name} })); 
+        
         const combinedCategories = [...allPredefinedCategories, ...customCategoriesWithType];
         const uniqueCategoriesMap = new Map<string, DisplayCategory>();
         combinedCategories.forEach(cat => uniqueCategoriesMap.set(cat.name.toLowerCase(), cat));
@@ -104,7 +104,9 @@ export default function ExpensesPage() {
         const customPaymentMethodDefs = preferencesData.userDefinedPaymentMethods || [];
         const basePaymentMethodsMap = new Map<string, DisplayPaymentMethod>();
         PAYMENT_METHODS.forEach(pm => basePaymentMethodsMap.set(pm.name.toLowerCase(), pm));
-        customPaymentMethodDefs.forEach(customPm => basePaymentMethodsMap.set(customPm.name.toLowerCase(), customPm));
+        customPaymentMethodDefs.forEach(customPm => {
+            basePaymentMethodsMap.set(customPm.name.toLowerCase(), { ...customPm, label: customPm.label || {en: customPm.name, pt: customPm.name} }); 
+        });
         
         const selectedPaymentMethodNames = preferencesData.selectedPaymentMethods || [];
         if (selectedPaymentMethodNames.length > 0) {
@@ -126,8 +128,8 @@ export default function ExpensesPage() {
         description: translate({ en: "Could not load your preferences.", pt: "Não foi possível carregar suas preferências." }),
         variant: "destructive",
       });
-      setUserCategories([...CATEGORIES]); 
-      setUserPaymentMethods([...PAYMENT_METHODS]); 
+      setUserCategories([...CATEGORIES].sort((a,b) => getCategoryDisplayLabel(a, language).localeCompare(getCategoryDisplayLabel(b,language)))); 
+      setUserPaymentMethods([...PAYMENT_METHODS].sort((a,b) => getPaymentMethodDisplayLabel(a,language).localeCompare(getPaymentMethodDisplayLabel(b,language)))); 
       setIsLoadingPreferences(false);
     });
 
@@ -136,7 +138,7 @@ export default function ExpensesPage() {
         unsubscribePreferencesRef.current();
       }
     };
-  }, [userId, isClient, authLoading, language, toast, translate]); // Added language, toast, translate as they are used in callbacks or error handling
+  }, [userId, isClient, authLoading, language, toast, translate]); 
 
   // Fetch all transactions
   useEffect(() => {
@@ -174,7 +176,7 @@ export default function ExpensesPage() {
           expenseType: data.expenseType,
           installments: data.installments,
           paymentMethod: data.paymentMethod,
-          isRecurring: data.isRecurring,
+          isRecurring: data.isRecurring === true, // Ensure boolean
           expenseNature: data.expenseNature 
         } as Transaction;
       });
@@ -343,8 +345,8 @@ export default function ExpensesPage() {
   return (
     <AppLayout>
       <div className="space-y-6"> 
-        <div className="flex flex-col items-stretch gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">
+        <div className="sm:flex sm:items-center sm:justify-between">
+          <h1 className="text-3xl font-bold tracking-tight text-foreground mb-4 sm:mb-0">
             {pageTitle} - {displayedMonthYearLabel}
           </h1>
           <Dialog open={isAddFormOpen} onOpenChange={setIsAddFormOpen}>
@@ -420,11 +422,11 @@ export default function ExpensesPage() {
           </CardHeader>
           <CardContent>
             {isLoadingPage ? (
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {[...Array(8)].map((_, i) => <Skeleton key={i} className="h-40 w-full rounded-lg" />)}
+              <div className="grid grid-cols-1 gap-4">
+                {[...Array(6)].map((_, i) => <Skeleton key={i} className="h-36 w-full rounded-lg" />)}
               </div>
             ) : expensesForDisplayedPeriod.length > 0 ? (
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              <div className="grid grid-cols-1 gap-4">
                 {expensesForDisplayedPeriod.map(tx => (
                   <TransactionItemCard 
                     key={tx.id} 
@@ -465,7 +467,5 @@ export default function ExpensesPage() {
     </AppLayout>
   );
 }
-    
-    
 
     
