@@ -1,6 +1,6 @@
 
 "use client";
-import type { Transaction, TransactionType, CategoryName } from "@/types";
+import type { Transaction, TransactionType, CategoryName, DisplayCategory } from "@/types";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CategoryIcon } from "@/components/icons";
@@ -8,12 +8,13 @@ import { formatCurrency, cn } from "@/lib/utils";
 import { format as formatDateFns, parse as parseDateFns } from "date-fns"; 
 import { ptBR, enUS } from 'date-fns/locale';
 import { useLanguage } from "@/context/language-context";
-import { getCategoryLabel } from "@/types"; 
+import { getCategoryDisplayLabel } from "@/types"; 
 
 interface RecentTransactionsSectionProps {
   title: string;
   description: string;
   transactions: Transaction[];
+  allUserCategories: DisplayCategory[]; 
   type: TransactionType;
   onSeeMore?: () => void;
   isExpanded?: boolean;
@@ -23,7 +24,8 @@ interface RecentTransactionsSectionProps {
 export function RecentTransactionsSection({ 
   title, 
   description, 
-  transactions, 
+  transactions,
+  allUserCategories, 
   type,
   onSeeMore,
   isExpanded,
@@ -31,8 +33,11 @@ export function RecentTransactionsSection({
 }: RecentTransactionsSectionProps) {
   const { translate, language } = useLanguage();
 
-  const showSeeMoreButton = onSeeMore && !isExpanded && transactions.length > 0 && transactions.length < totalItemsForMonth && totalItemsForMonth > 5;
+  const showSeeMoreButton = onSeeMore && !isExpanded && totalItemsForMonth > 5 && transactions.length < totalItemsForMonth;
   const showSeeLessButton = onSeeMore && isExpanded && totalItemsForMonth > 5;
+  
+  // console.log(`RecentTransactionsSection (${type}): Total for month: ${totalItemsForMonth}, Displaying: ${transactions.length}, isExpanded: ${isExpanded}, ShowMore: ${showSeeMoreButton}, ShowLess: ${showSeeLessButton}, AllUserCategories received:`, allUserCategories);
+
 
   return (
     <Card className="shadow-lg flex flex-col h-full">
@@ -41,7 +46,7 @@ export function RecentTransactionsSection({
         <CardDescription>{description}</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col flex-grow">
-        <div className="flex-grow"> {/* This div will contain the list or "no items" message and expand */}
+        <div className="flex-grow"> 
           {totalItemsForMonth === 0 ? (
             <p className="text-center text-muted-foreground py-8">
               {type === 'income' ?
@@ -52,8 +57,8 @@ export function RecentTransactionsSection({
           ) : transactions.length === 0 && !isExpanded && totalItemsForMonth > 0 ? ( 
             <p className="text-center text-muted-foreground py-8">
               {type === 'income' ?
-                translate({ en: "No recent income to display. Click 'See more' to view all income for this month.", pt: "Nenhuma receita recente para exibir. Clique em 'Ver mais' para visualizar todas as receitas deste mês." }) :
-                translate({ en: "No recent expenses to display. Click 'See more' to view all expenses for this month.", pt: "Nenhuma despesa recente para exibir. Clique em 'Ver mais' para visualizar todas as despesas deste mês." })
+                translate({ en: "No recent income to display.", pt: "Nenhuma receita recente para exibir." }) : 
+                translate({ en: "No recent expenses to display.", pt: "Nenhuma despesa recente para exibir." }) 
               }
             </p>
           ) : transactions.length === 0 && isExpanded ? ( 
@@ -73,14 +78,24 @@ export function RecentTransactionsSection({
                 } catch (e) {
                   console.warn(`RecentTransactionsSection: Could not parse date string for display: ${transaction.date}`, e);
                 }
+
+                // Find category details from allUserCategories passed from parent
+                const categoryDetails = allUserCategories.find(cat => cat.name === transaction.category);
+                
+                const categoryDisplayName = categoryDetails 
+                  ? getCategoryDisplayLabel(categoryDetails, language) 
+                  : transaction.category as string; // Fallback to raw name if not found (should be rare)
+                
+                const categoryIconName = categoryDetails?.icon || 'CircleHelp'; // Fallback icon
+
                 return (
                   <li key={transaction.id} className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <CategoryIcon categoryName={transaction.category as CategoryName} className="h-6 w-6 text-muted-foreground" />
+                      <CategoryIcon iconName={categoryIconName} className="h-6 w-6 text-muted-foreground" />
                       <div>
                         <p className="font-medium">{transaction.description}</p>
                         <p className="text-xs text-muted-foreground">
-                          {displayDate} - {getCategoryLabel(transaction.category as CategoryName, language)}
+                          {displayDate} - {categoryDisplayName}
                         </p>
                       </div>
                     </div>
@@ -98,7 +113,7 @@ export function RecentTransactionsSection({
           )}
         </div>
         {(showSeeMoreButton || showSeeLessButton) && (
-          <div className="mt-auto pt-4 flex justify-center"> {/* mt-auto pushes to bottom, pt-4 for spacing */}
+          <div className="mt-auto pt-4 flex justify-center"> 
             <Button onClick={onSeeMore} variant="link" className="text-sm">
               {showSeeMoreButton ? translate({ en: "See more", pt: "Ver mais" }) : translate({ en: "See less", pt: "Ver menos"})}
             </Button>

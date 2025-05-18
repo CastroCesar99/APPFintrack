@@ -8,7 +8,6 @@ var { g: global, __dirname } = __turbopack_context__;
 __turbopack_context__.s({
     "CATEGORIES": (()=>CATEGORIES),
     "PAYMENT_METHODS": (()=>PAYMENT_METHODS),
-    "getCategoriesByType": (()=>getCategoriesByType),
     "getCategoryDisplayLabel": (()=>getCategoryDisplayLabel),
     "getCategoryLabel": (()=>getCategoryLabel),
     "getPaymentMethodDisplayLabel": (()=>getPaymentMethodDisplayLabel)
@@ -195,15 +194,11 @@ const CATEGORIES = [
         }
     }
 ];
-const getCategoriesByType = (type, allCategories)=>{
-    return allCategories.filter((cat)=>cat.type === type);
-};
 const getCategoryDisplayLabel = (category, currentLanguage)=>{
     if (!category) return '';
     if (category.label && typeof category.label === 'object' && category.label[currentLanguage]) {
         return category.label[currentLanguage];
     }
-    // Fallback for older custom categories that might only have category.name
     return category.name;
 };
 const getCategoryLabel = (categoryName, currentLanguage)=>{
@@ -212,6 +207,9 @@ const getCategoryLabel = (categoryName, currentLanguage)=>{
     if (predefinedCategory && predefinedCategory.label && predefinedCategory.label[currentLanguage]) {
         return predefinedCategory.label[currentLanguage];
     }
+    // For custom categories, their 'name' field usually holds the display name, or it's already a DisplayCategory object
+    // This part might need refinement if custom categories are only stored by a non-display 'name' and need label lookup.
+    // However, getCategoryDisplayLabel is preferred if you have the DisplayCategory object.
     return categoryName;
 };
 const PAYMENT_METHODS = [
@@ -242,24 +240,22 @@ const PAYMENT_METHODS = [
 ];
 const getPaymentMethodDisplayLabel = (methodInput, currentLanguage)=>{
     if (!methodInput) return '';
-    let methodNameString;
     let methodObject;
     if (typeof methodInput === 'string') {
-        methodNameString = methodInput;
-        // Try to find in predefined
-        methodObject = PAYMENT_METHODS.find((pm)=>pm.name.toLowerCase() === methodNameString.toLowerCase());
+        const lowerMethodInput = methodInput.toLowerCase();
+        methodObject = PAYMENT_METHODS.find((pm)=>pm.name.toLowerCase() === lowerMethodInput);
         if (methodObject && methodObject.label && methodObject.label[currentLanguage]) {
             return methodObject.label[currentLanguage];
         }
-        // If not in predefined, it's a custom method name, return it as is
-        return methodNameString;
+        // If not predefined, return the input string itself (assuming it's a custom method name)
+        return methodInput;
     } else {
         // It's already an object (DisplayPaymentMethod)
         methodObject = methodInput;
         if (methodObject.label && methodObject.label[currentLanguage]) {
             return methodObject.label[currentLanguage];
         }
-        return methodObject.name; // Fallback to name if label structure is odd
+        return methodObject.name; // Fallback to name
     }
 };
 }}),
@@ -1992,7 +1988,7 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$i
 var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/components/ui/select.tsx [app-ssr] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$icons$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$module__evaluation$3e$__ = __turbopack_context__.i("[project]/src/components/icons.tsx [app-ssr] (ecmascript) <module evaluation>");
 var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$icons$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$locals$3e$__ = __turbopack_context__.i("[project]/src/components/icons.tsx [app-ssr] (ecmascript) <locals>");
-var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$square$2d$pen$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Edit$3e$__ = __turbopack_context__.i("[project]/node_modules/lucide-react/dist/esm/icons/square-pen.js [app-ssr] (ecmascript) <export default as Edit>"); // Added CircleHelp from lucide-react
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$square$2d$pen$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Edit$3e$__ = __turbopack_context__.i("[project]/node_modules/lucide-react/dist/esm/icons/square-pen.js [app-ssr] (ecmascript) <export default as Edit>");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$trash$2d$2$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Trash2$3e$__ = __turbopack_context__.i("[project]/node_modules/lucide-react/dist/esm/icons/trash-2.js [app-ssr] (ecmascript) <export default as Trash2>");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$circle$2d$plus$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__PlusCircle$3e$__ = __turbopack_context__.i("[project]/node_modules/lucide-react/dist/esm/icons/circle-plus.js [app-ssr] (ecmascript) <export default as PlusCircle>");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$circle$2d$help$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__CircleHelp$3e$__ = __turbopack_context__.i("[project]/node_modules/lucide-react/dist/esm/icons/circle-help.js [app-ssr] (ecmascript) <export default as CircleHelp>");
@@ -2034,11 +2030,11 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$f
 ;
 ;
 const selectableIcons = (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$icons$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$locals$3e$__["getSelectableIcons"])();
-const addMethodFormSchema = __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$lib$2f$index$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["z"].object({
-    newMethodName: __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$lib$2f$index$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["z"].string().min(1, {
+const paymentMethodFormSchema = __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$lib$2f$index$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["z"].object({
+    methodName: __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$lib$2f$index$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["z"].string().min(1, {
         message: "Nome do método é obrigatório."
     }),
-    selectedNewMethodIcon: __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$lib$2f$index$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["z"].string().min(1, {
+    selectedIcon: __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$lib$2f$index$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["z"].string().min(1, {
         message: "Ícone é obrigatório."
     })
 });
@@ -2049,21 +2045,33 @@ function ManagePaymentMethodsPage() {
     const [displayPaymentMethods, setDisplayPaymentMethods] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])([]);
     const [isLoading, setIsLoading] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])(true);
     const [isAddDialogOpen, setIsAddDialogOpen] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])(false);
-    const [isSavingMethod, setIsSavingMethod] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])(false);
+    const [isEditDialogOpen, setIsEditDialogOpen] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])(false);
+    const [methodToEdit, setMethodToEdit] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])(null);
+    const [originalMethodName, setOriginalMethodName] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])(null);
+    const [isSaving, setIsSaving] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])(false);
     const [methodToDelete, setMethodToDelete] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])(null);
     const addMethodForm = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$react$2d$hook$2d$form$2f$dist$2f$index$2e$esm$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useForm"])({
-        resolver: (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$hookform$2f$resolvers$2f$zod$2f$dist$2f$zod$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["zodResolver"])(addMethodFormSchema),
+        resolver: (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$hookform$2f$resolvers$2f$zod$2f$dist$2f$zod$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["zodResolver"])(paymentMethodFormSchema),
         defaultValues: {
-            newMethodName: "",
-            selectedNewMethodIcon: selectableIcons.find((icon)=>icon.value === 'Wallet')?.value || selectableIcons[0]?.value || ''
+            methodName: "",
+            selectedIcon: selectableIcons.find((icon)=>icon.value === 'Wallet')?.value || selectableIcons[0]?.value || ''
         }
     });
+    const editMethodForm = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$react$2d$hook$2d$form$2f$dist$2f$index$2e$esm$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useForm"])({
+        resolver: (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$hookform$2f$resolvers$2f$zod$2f$dist$2f$zod$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["zodResolver"])(paymentMethodFormSchema),
+        defaultValues: {
+            methodName: "",
+            selectedIcon: ""
+        }
+    });
+    const isTrulyPredefinedMethod = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useCallback"])((methodName)=>{
+        return __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["PAYMENT_METHODS"].some((pm)=>pm.name.toLowerCase() === methodName.toLowerCase());
+    }, []);
     const fetchUserPaymentMethods = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useCallback"])(async ()=>{
         if (!user) {
-            const sortedPredefined = [
+            setDisplayPaymentMethods([
                 ...__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["PAYMENT_METHODS"]
-            ].sort((a, b)=>(0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["getPaymentMethodDisplayLabel"])(a, language).localeCompare((0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["getPaymentMethodDisplayLabel"])(b, language)));
-            setDisplayPaymentMethods(sortedPredefined);
+            ].sort((a, b)=>(0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["getPaymentMethodDisplayLabel"])(a, language).localeCompare((0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["getPaymentMethodDisplayLabel"])(b, language))));
             setIsLoading(false);
             return;
         }
@@ -2071,27 +2079,28 @@ function ManagePaymentMethodsPage() {
         try {
             const preferencesDocRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["doc"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["db"], `users/${user.uid}/preferences/userPreferences`);
             const preferencesDocSnap = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["getDoc"])(preferencesDocRef);
-            let effectiveMethods = [
-                ...__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["PAYMENT_METHODS"]
-            ];
+            let effectiveMethods = [];
+            const deselectedPredefinedNames = [];
             if (preferencesDocSnap.exists()) {
-                const preferencesData = preferencesDocSnap.data();
-                const customMethods = preferencesData.userDefinedPaymentMethods || [];
-                const allCustomMethods = customMethods.map((cm)=>({
-                        name: cm.name,
-                        icon: cm.icon,
-                        label: cm.label || {
-                            en: cm.name,
-                            pt: cm.name
-                        }
-                    }));
-                const methodNames = new Set(effectiveMethods.map((m)=>m.name.toLowerCase()));
-                allCustomMethods.forEach((customMethod)=>{
-                    if (!methodNames.has(customMethod.name.toLowerCase())) {
-                        effectiveMethods.push(customMethod);
-                        methodNames.add(customMethod.name.toLowerCase());
+                const prefsData = preferencesDocSnap.data();
+                (prefsData.deselectedPredefinedPaymentMethods || []).forEach((name)=>deselectedPredefinedNames.push(name.toLowerCase()));
+                effectiveMethods = __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["PAYMENT_METHODS"].filter((predefMethod)=>!deselectedPredefinedNames.includes(predefMethod.name.toLowerCase()));
+                const customMethods = prefsData.userDefinedPaymentMethods || [];
+                const customMethodsMap = new Map();
+                customMethods.forEach((cm)=>customMethodsMap.set(cm.name.toLowerCase(), cm));
+                effectiveMethods = effectiveMethods.map((meth)=>{
+                    const customOverride = customMethodsMap.get(meth.name.toLowerCase());
+                    if (customOverride) {
+                        customMethodsMap.delete(meth.name.toLowerCase());
+                        return customOverride;
                     }
+                    return meth;
                 });
+                customMethodsMap.forEach((customMeth)=>effectiveMethods.push(customMeth));
+            } else {
+                effectiveMethods = [
+                    ...__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["PAYMENT_METHODS"]
+                ];
             }
             setDisplayPaymentMethods(effectiveMethods.sort((a, b)=>(0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["getPaymentMethodDisplayLabel"])(a, language).localeCompare((0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["getPaymentMethodDisplayLabel"])(b, language))));
         } catch (error) {
@@ -2107,10 +2116,9 @@ function ManagePaymentMethodsPage() {
                 }),
                 variant: "destructive"
             });
-            const sortedPredefinedOnError = [
+            setDisplayPaymentMethods([
                 ...__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["PAYMENT_METHODS"]
-            ].sort((a, b)=>(0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["getPaymentMethodDisplayLabel"])(a, language).localeCompare((0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["getPaymentMethodDisplayLabel"])(b, language)));
-            setDisplayPaymentMethods(sortedPredefinedOnError);
+            ].sort((a, b)=>(0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["getPaymentMethodDisplayLabel"])(a, language).localeCompare((0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["getPaymentMethodDisplayLabel"])(b, language))));
         } finally{
             setIsLoading(false);
         }
@@ -2129,7 +2137,7 @@ function ManagePaymentMethodsPage() {
         authLoading,
         fetchUserPaymentMethods
     ]);
-    const handleAddPaymentMethod = async (data)=>{
+    const handleAddMethodSubmit = async (data)=>{
         if (!user) {
             toast({
                 title: translate({
@@ -2137,16 +2145,16 @@ function ManagePaymentMethodsPage() {
                     pt: "Erro de Autenticação"
                 }),
                 description: translate({
-                    en: "You must be logged in to add payment methods.",
-                    pt: "Você precisa estar logado para adicionar métodos de pagamento."
+                    en: "You must be logged in.",
+                    pt: "Você precisa estar logado."
                 }),
                 variant: "destructive"
             });
             return;
         }
-        setIsSavingMethod(true);
-        const newMethodName = data.newMethodName.trim();
-        const newMethodIcon = data.selectedNewMethodIcon;
+        setIsSaving(true);
+        const newMethodName = data.methodName.trim();
+        const newMethodIcon = data.selectedIcon;
         const isDuplicate = displayPaymentMethods.some((pm)=>(0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["getPaymentMethodDisplayLabel"])(pm, language).toLowerCase() === newMethodName.toLowerCase() || pm.name.toLowerCase() === newMethodName.toLowerCase());
         if (isDuplicate) {
             toast({
@@ -2155,12 +2163,12 @@ function ManagePaymentMethodsPage() {
                     pt: "Método Duplicado"
                 }),
                 description: translate({
-                    en: "This payment method already exists.",
-                    pt: "Este método de pagamento já existe."
+                    en: "This payment method name already exists.",
+                    pt: "Este nome de método de pagamento já existe."
                 }),
                 variant: "destructive"
             });
-            setIsSavingMethod(false);
+            setIsSaving(false);
             return;
         }
         const newCustomMethod = {
@@ -2174,10 +2182,13 @@ function ManagePaymentMethodsPage() {
         try {
             const preferencesDocRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["doc"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["db"], `users/${user.uid}/preferences/userPreferences`);
             const prefsSnap = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["getDoc"])(preferencesDocRef);
+            let currentDeselectedPredefined = prefsSnap.exists() ? prefsSnap.data().deselectedPredefinedPaymentMethods || [] : [];
+            currentDeselectedPredefined = currentDeselectedPredefined.filter((dn)=>dn.toLowerCase() !== newCustomMethod.name.toLowerCase());
             if (prefsSnap.exists()) {
                 await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["updateDoc"])(preferencesDocRef, {
                     userDefinedPaymentMethods: (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["arrayUnion"])(newCustomMethod),
                     selectedPaymentMethods: (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["arrayUnion"])(newCustomMethod.name),
+                    deselectedPredefinedPaymentMethods: currentDeselectedPredefined,
                     updatedAt: (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["serverTimestamp"])()
                 });
             } else {
@@ -2188,7 +2199,8 @@ function ManagePaymentMethodsPage() {
                     selectedPaymentMethods: [
                         newCustomMethod.name
                     ],
-                    selectedCategories: __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["CATEGORIES"].map((c)=>c.name),
+                    deselectedPredefinedPaymentMethods: [],
+                    selectedCategories: CATEGORIES.map((c)=>c.name),
                     userDefinedCategories: [],
                     language: language,
                     updatedAt: (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["serverTimestamp"])()
@@ -2200,14 +2212,14 @@ function ManagePaymentMethodsPage() {
                     en: "Method Added",
                     pt: "Método Adicionado"
                 }),
-                description: `${newMethodName} ${translate({
+                description: `${(0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["getPaymentMethodDisplayLabel"])(newCustomMethod, language)} ${translate({
                     en: "has been added.",
                     pt: "foi adicionado."
                 })}`
             });
             addMethodForm.reset({
-                newMethodName: "",
-                selectedNewMethodIcon: selectableIcons.find((icon)=>icon.value === 'Wallet')?.value || selectableIcons[0]?.value || ''
+                methodName: "",
+                selectedIcon: selectableIcons.find((icon)=>icon.value === 'Wallet')?.value || selectableIcons[0]?.value || ''
             });
             setIsAddDialogOpen(false);
         } catch (error) {
@@ -2224,102 +2236,509 @@ function ManagePaymentMethodsPage() {
                 variant: "destructive"
             });
         } finally{
-            setIsSavingMethod(false);
+            setIsSaving(false);
         }
     };
-    const isPredefinedMethod = (methodName)=>{
-        return __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["PAYMENT_METHODS"].some((pm)=>pm.name === methodName);
+    const handleOpenEditDialog = (method)=>{
+        setMethodToEdit(method);
+        setOriginalMethodName(method.name);
+        editMethodForm.reset({
+            methodName: (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["getPaymentMethodDisplayLabel"])(method, language),
+            selectedIcon: method.icon
+        });
+        setIsEditDialogOpen(true);
     };
-    const openDeleteConfirmation = (method)=>{
-        if (isPredefinedMethod(method.name)) {
-            toast({
-                title: translate({
-                    en: "Cannot Delete",
-                    pt: "Não Pode Excluir"
-                }),
-                description: translate({
-                    en: "Predefined payment methods cannot be deleted.",
-                    pt: "Métodos de pagamento pré-definidos não podem ser excluídos."
-                }),
-                variant: "destructive"
-            });
-            return;
-        }
-        setMethodToDelete(method);
-    };
-    const handleDeleteMethod = async ()=>{
-        if (!user || !methodToDelete || isPredefinedMethod(methodToDelete.name)) {
+    const handleEditMethodSubmit = async (data)=>{
+        if (!user || !methodToEdit || !originalMethodName) {
             toast({
                 title: translate({
                     en: "Error",
                     pt: "Erro"
                 }),
                 description: translate({
-                    en: "Method not found, user not authenticated, or trying to delete a predefined method.",
-                    pt: "Método não encontrado, usuário não autenticado, ou tentativa de excluir método pré-definido."
+                    en: "Method to edit not found.",
+                    pt: "Método para editar não encontrado."
+                }),
+                variant: "destructive"
+            });
+            return;
+        }
+        setIsSaving(true);
+        const updatedMethodDisplayName = data.methodName.trim();
+        const updatedIcon = data.selectedIcon;
+        let newInternalName = originalMethodName;
+        if ((0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["getPaymentMethodDisplayLabel"])(methodToEdit, language).toLowerCase() !== updatedMethodDisplayName.toLowerCase()) {
+            newInternalName = updatedMethodDisplayName;
+        }
+        const isDuplicate = displayPaymentMethods.some((meth)=>meth.name.toLowerCase() === newInternalName.toLowerCase() && meth.name.toLowerCase() !== originalMethodName.toLowerCase());
+        if (isDuplicate) {
+            toast({
+                title: translate({
+                    en: "Duplicate Method",
+                    pt: "Método Duplicado"
+                }),
+                description: translate({
+                    en: "Another method with this name already exists.",
+                    pt: "Outro método com este nome já existe."
+                }),
+                variant: "destructive"
+            });
+            setIsSaving(false);
+            return;
+        }
+        const updatedMethodData = {
+            name: newInternalName,
+            icon: updatedIcon,
+            label: {
+                en: updatedMethodDisplayName,
+                pt: updatedMethodDisplayName
+            }
+        };
+        try {
+            const preferencesDocRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["doc"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["db"], `users/${user.uid}/preferences/userPreferences`);
+            const prefsSnap = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["getDoc"])(preferencesDocRef);
+            if (prefsSnap.exists()) {
+                const preferencesData = prefsSnap.data();
+                let currentCustomMethods = preferencesData.userDefinedPaymentMethods || [];
+                let currentSelectedMethods = preferencesData.selectedPaymentMethods || [];
+                let currentDeselectedPredefined = preferencesData.deselectedPredefinedPaymentMethods || [];
+                currentCustomMethods = currentCustomMethods.filter((meth)=>meth.name.toLowerCase() !== originalMethodName.toLowerCase());
+                currentCustomMethods.push(updatedMethodData);
+                if (originalMethodName.toLowerCase() !== newInternalName.toLowerCase()) {
+                    currentSelectedMethods = currentSelectedMethods.filter((name)=>name.toLowerCase() !== originalMethodName.toLowerCase());
+                    if (!currentSelectedMethods.map((n)=>n.toLowerCase()).includes(newInternalName.toLowerCase())) {
+                        currentSelectedMethods.push(newInternalName);
+                    }
+                } else if (!currentSelectedMethods.map((n)=>n.toLowerCase()).includes(newInternalName.toLowerCase())) {
+                    currentSelectedMethods.push(newInternalName);
+                }
+                currentSelectedMethods = Array.from(new Set(currentSelectedMethods));
+                currentDeselectedPredefined = currentDeselectedPredefined.filter((dn)=>dn.toLowerCase() !== originalMethodName.toLowerCase() && dn.toLowerCase() !== newInternalName.toLowerCase());
+                await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["updateDoc"])(preferencesDocRef, {
+                    userDefinedPaymentMethods: currentCustomMethods,
+                    selectedPaymentMethods: currentSelectedMethods,
+                    deselectedPredefinedPaymentMethods: currentDeselectedPredefined,
+                    updatedAt: (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["serverTimestamp"])()
+                });
+                await fetchUserPaymentMethods();
+                toast({
+                    title: translate({
+                        en: "Method Updated",
+                        pt: "Método Atualizado"
+                    }),
+                    description: `${(0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["getPaymentMethodDisplayLabel"])(updatedMethodData, language)} ${translate({
+                        en: "has been updated.",
+                        pt: "foi atualizado."
+                    })}`
+                });
+                setIsEditDialogOpen(false);
+                setMethodToEdit(null);
+                setOriginalMethodName(null);
+            } else {
+                // This case should ideally not happen if user has any preferences
+                await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["setDoc"])(preferencesDocRef, {
+                    userDefinedPaymentMethods: [
+                        updatedMethodData
+                    ],
+                    selectedPaymentMethods: [
+                        updatedMethodData.name
+                    ],
+                    deselectedPredefinedPaymentMethods: [],
+                    selectedCategories: CATEGORIES.map((c)=>c.name),
+                    userDefinedCategories: [],
+                    language: language,
+                    updatedAt: (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["serverTimestamp"])()
+                });
+                console.warn("ManagePaymentMethodsPage: Preferences doc didn't exist during edit, created it.");
+                await fetchUserPaymentMethods();
+                toast({
+                    title: translate({
+                        en: "Method Updated",
+                        pt: "Método Atualizado"
+                    })
+                });
+                setIsEditDialogOpen(false);
+            }
+        } catch (error) {
+            console.error("Error updating payment method:", error);
+            toast({
+                title: translate({
+                    en: "Error",
+                    pt: "Erro"
+                }),
+                description: translate({
+                    en: "Could not update payment method.",
+                    pt: "Não foi possível atualizar o método de pagamento."
+                }),
+                variant: "destructive"
+            });
+        } finally{
+            setIsSaving(false);
+        }
+    };
+    const openDeleteConfirmation = (method)=>{
+        setMethodToDelete(method);
+    };
+    const handleDeleteMethod = async ()=>{
+        if (!user || !methodToDelete) {
+            toast({
+                title: translate({
+                    en: "Error",
+                    pt: "Erro"
+                }),
+                description: translate({
+                    en: "Method not found or user not authenticated.",
+                    pt: "Método não encontrado ou usuário não autenticado."
                 }),
                 variant: "destructive"
             });
             setMethodToDelete(null);
             return;
         }
-        setIsSavingMethod(true);
+        setIsSaving(true);
         try {
             const preferencesDocRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["doc"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["db"], `users/${user.uid}/preferences/userPreferences`);
             const prefsSnap = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["getDoc"])(preferencesDocRef);
             if (prefsSnap.exists()) {
                 const currentPrefs = prefsSnap.data();
-                const updatedUserDefinedMethods = (currentPrefs.userDefinedPaymentMethods || []).filter((pm)=>pm.name !== methodToDelete.name);
-                const updatedSelectedMethods = (currentPrefs.selectedPaymentMethods || []).filter((name)=>name !== methodToDelete.name);
+                let updatedUserDefined = currentPrefs.userDefinedPaymentMethods || [];
+                let updatedSelected = currentPrefs.selectedPaymentMethods || [];
+                let updatedDeselectedPredefined = currentPrefs.deselectedPredefinedPaymentMethods || [];
+                const methodInternalName = methodToDelete.name;
+                const wasOriginallyPredefined = isTrulyPredefinedMethod(methodInternalName);
+                const isAlsoInCustom = updatedUserDefined.some((meth)=>meth.name.toLowerCase() === methodInternalName.toLowerCase());
+                if (isAlsoInCustom) {
+                    updatedUserDefined = updatedUserDefined.filter((meth)=>meth.name.toLowerCase() !== methodInternalName.toLowerCase());
+                } else if (wasOriginallyPredefined) {
+                    if (!updatedDeselectedPredefined.map((n)=>n.toLowerCase()).includes(methodInternalName.toLowerCase())) {
+                        updatedDeselectedPredefined.push(methodInternalName);
+                    }
+                }
+                updatedSelected = updatedSelected.filter((name)=>name.toLowerCase() !== methodInternalName.toLowerCase());
                 await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["updateDoc"])(preferencesDocRef, {
-                    userDefinedPaymentMethods: updatedUserDefinedMethods,
-                    selectedPaymentMethods: updatedSelectedMethods,
+                    userDefinedPaymentMethods: updatedUserDefined,
+                    selectedPaymentMethods: updatedSelected,
+                    deselectedPredefinedPaymentMethods: updatedDeselectedPredefined,
                     updatedAt: (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["serverTimestamp"])()
                 });
             }
             await fetchUserPaymentMethods();
             toast({
                 title: translate({
-                    en: "Method Deleted",
-                    pt: "Método Excluído"
+                    en: "Method Action Complete",
+                    pt: "Ação do Método Concluída"
                 }),
                 description: `${(0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["getPaymentMethodDisplayLabel"])(methodToDelete, language)} ${translate({
-                    en: "has been deleted.",
-                    pt: "foi excluído."
+                    en: "has been processed.",
+                    pt: "foi processado."
                 })}`
             });
         } catch (error) {
-            console.error("Error deleting payment method:", error);
+            console.error("Error processing payment method action:", error);
             toast({
                 title: translate({
-                    en: "Error Deleting Method",
-                    pt: "Erro ao Excluir Método"
+                    en: "Error Processing Action",
+                    pt: "Erro ao Processar Ação"
                 }),
                 description: translate({
-                    en: "Could not delete the payment method.",
-                    pt: "Não foi possível excluir o método de pagamento."
+                    en: "Could not complete the action for the method.",
+                    pt: "Não foi possível concluir a ação para o método."
                 }),
                 variant: "destructive"
             });
         } finally{
-            setIsSavingMethod(false);
+            setIsSaving(false);
             setMethodToDelete(null);
         }
     };
-    const handleEditPlaceholder = (method)=>{
-        toast({
-            title: translate({
-                en: "Feature In Development",
-                pt: "Funcionalidade em Desenvolvimento"
-            }),
-            description: `${translate({
-                en: "Editing",
-                pt: "Editar"
-            })} ${(0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["getPaymentMethodDisplayLabel"])(method, language)} ${translate({
-                en: "is coming soon.",
-                pt: "está chegando em breve."
-            })}`
+    const renderMethodForm = (formInstance, onSubmitHandler, dialogType)=>{
+        const dialogTitle = dialogType === "add" ? translate({
+            en: "Add New Payment Method",
+            pt: "Adicionar Novo Método de Pagamento"
+        }) : translate({
+            en: "Edit Payment Method",
+            pt: "Editar Método de Pagamento"
         });
+        const dialogDescription = dialogType === "add" ? translate({
+            en: "Enter the name and choose an icon for your new payment method.",
+            pt: "Digite o nome e escolha um ícone para o seu novo método de pagamento."
+        }) : translate({
+            en: "Update the name or icon of the payment method.",
+            pt: "Atualize o nome ou ícone do método de pagamento."
+        });
+        const submitButtonText = dialogType === "add" ? isSaving ? translate({
+            en: "Adding...",
+            pt: "Adicionando..."
+        }) : translate({
+            en: "Add Method",
+            pt: "Adicionar Método"
+        }) : isSaving ? translate({
+            en: "Saving...",
+            pt: "Salvando..."
+        }) : translate({
+            en: "Save Changes",
+            pt: "Salvar Alterações"
+        });
+        return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$dialog$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["DialogContent"], {
+            className: "sm:max-w-[425px]",
+            children: [
+                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$dialog$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["DialogHeader"], {
+                    children: [
+                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$dialog$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["DialogTitle"], {
+                            children: dialogTitle
+                        }, void 0, false, {
+                            fileName: "[project]/src/app/settings/payment-methods/page.tsx",
+                            lineNumber: 407,
+                            columnNumber: 17
+                        }, this),
+                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$dialog$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["DialogDescription"], {
+                            children: dialogDescription
+                        }, void 0, false, {
+                            fileName: "[project]/src/app/settings/payment-methods/page.tsx",
+                            lineNumber: 408,
+                            columnNumber: 17
+                        }, this)
+                    ]
+                }, void 0, true, {
+                    fileName: "[project]/src/app/settings/payment-methods/page.tsx",
+                    lineNumber: 406,
+                    columnNumber: 13
+                }, this),
+                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Form"], {
+                    ...formInstance,
+                    children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("form", {
+                        onSubmit: formInstance.handleSubmit(onSubmitHandler),
+                        className: "space-y-4 py-4",
+                        children: [
+                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["FormField"], {
+                                control: formInstance.control,
+                                name: "methodName",
+                                render: ({ field })=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["FormItem"], {
+                                        children: [
+                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["FormLabel"], {
+                                                children: translate({
+                                                    en: "Method Name",
+                                                    pt: "Nome do Método"
+                                                })
+                                            }, void 0, false, {
+                                                fileName: "[project]/src/app/settings/payment-methods/page.tsx",
+                                                lineNumber: 417,
+                                                columnNumber: 25
+                                            }, void 0),
+                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["FormControl"], {
+                                                children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$input$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Input"], {
+                                                    placeholder: translate({
+                                                        en: "e.g., My Bank Card",
+                                                        pt: "ex: Cartão Meu Banco"
+                                                    }),
+                                                    ...field
+                                                }, void 0, false, {
+                                                    fileName: "[project]/src/app/settings/payment-methods/page.tsx",
+                                                    lineNumber: 421,
+                                                    columnNumber: 25
+                                                }, void 0)
+                                            }, void 0, false, {
+                                                fileName: "[project]/src/app/settings/payment-methods/page.tsx",
+                                                lineNumber: 420,
+                                                columnNumber: 25
+                                            }, void 0),
+                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["FormMessage"], {}, void 0, false, {
+                                                fileName: "[project]/src/app/settings/payment-methods/page.tsx",
+                                                lineNumber: 426,
+                                                columnNumber: 25
+                                            }, void 0)
+                                        ]
+                                    }, void 0, true, {
+                                        fileName: "[project]/src/app/settings/payment-methods/page.tsx",
+                                        lineNumber: 416,
+                                        columnNumber: 21
+                                    }, void 0)
+                            }, void 0, false, {
+                                fileName: "[project]/src/app/settings/payment-methods/page.tsx",
+                                lineNumber: 412,
+                                columnNumber: 17
+                            }, this),
+                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["FormField"], {
+                                control: formInstance.control,
+                                name: "selectedIcon",
+                                render: ({ field })=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["FormItem"], {
+                                        children: [
+                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["FormLabel"], {
+                                                children: translate({
+                                                    en: "Icon",
+                                                    pt: "Ícone"
+                                                })
+                                            }, void 0, false, {
+                                                fileName: "[project]/src/app/settings/payment-methods/page.tsx",
+                                                lineNumber: 435,
+                                                columnNumber: 25
+                                            }, void 0),
+                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Select"], {
+                                                onValueChange: field.onChange,
+                                                value: field.value,
+                                                children: [
+                                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["FormControl"], {
+                                                        children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["SelectTrigger"], {
+                                                            className: "w-full",
+                                                            children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["SelectValue"], {
+                                                                children: field.value ? (()=>{
+                                                                    const foundIconOption = selectableIcons.find((i)=>i.value === field.value);
+                                                                    const IconComp = foundIconOption ? foundIconOption.iconComponent : __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$circle$2d$help$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__CircleHelp$3e$__["CircleHelp"];
+                                                                    const labelText = foundIconOption ? translate(foundIconOption.label) : field.value;
+                                                                    return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                                                        className: "flex items-center gap-2",
+                                                                        children: [
+                                                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(IconComp, {
+                                                                                className: "h-4 w-4 text-muted-foreground"
+                                                                            }, void 0, false, {
+                                                                                fileName: "[project]/src/app/settings/payment-methods/page.tsx",
+                                                                                lineNumber: 449,
+                                                                                columnNumber: 41
+                                                                            }, void 0),
+                                                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
+                                                                                children: labelText
+                                                                            }, void 0, false, {
+                                                                                fileName: "[project]/src/app/settings/payment-methods/page.tsx",
+                                                                                lineNumber: 450,
+                                                                                columnNumber: 41
+                                                                            }, void 0)
+                                                                        ]
+                                                                    }, void 0, true, {
+                                                                        fileName: "[project]/src/app/settings/payment-methods/page.tsx",
+                                                                        lineNumber: 448,
+                                                                        columnNumber: 39
+                                                                    }, void 0);
+                                                                })() : translate({
+                                                                    en: "Select an icon",
+                                                                    pt: "Selecione um ícone"
+                                                                })
+                                                            }, void 0, false, {
+                                                                fileName: "[project]/src/app/settings/payment-methods/page.tsx",
+                                                                lineNumber: 441,
+                                                                columnNumber: 30
+                                                            }, void 0)
+                                                        }, void 0, false, {
+                                                            fileName: "[project]/src/app/settings/payment-methods/page.tsx",
+                                                            lineNumber: 440,
+                                                            columnNumber: 29
+                                                        }, void 0)
+                                                    }, void 0, false, {
+                                                        fileName: "[project]/src/app/settings/payment-methods/page.tsx",
+                                                        lineNumber: 439,
+                                                        columnNumber: 27
+                                                    }, void 0),
+                                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["SelectContent"], {
+                                                        children: selectableIcons.map((iconOption)=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["SelectItem"], {
+                                                                value: iconOption.value,
+                                                                children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                                                    className: "flex items-center gap-2",
+                                                                    children: [
+                                                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(iconOption.iconComponent, {
+                                                                            className: "h-4 w-4 text-muted-foreground"
+                                                                        }, void 0, false, {
+                                                                            fileName: "[project]/src/app/settings/payment-methods/page.tsx",
+                                                                            lineNumber: 464,
+                                                                            columnNumber: 35
+                                                                        }, void 0),
+                                                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
+                                                                            children: translate(iconOption.label)
+                                                                        }, void 0, false, {
+                                                                            fileName: "[project]/src/app/settings/payment-methods/page.tsx",
+                                                                            lineNumber: 465,
+                                                                            columnNumber: 35
+                                                                        }, void 0)
+                                                                    ]
+                                                                }, void 0, true, {
+                                                                    fileName: "[project]/src/app/settings/payment-methods/page.tsx",
+                                                                    lineNumber: 463,
+                                                                    columnNumber: 33
+                                                                }, void 0)
+                                                            }, iconOption.value, false, {
+                                                                fileName: "[project]/src/app/settings/payment-methods/page.tsx",
+                                                                lineNumber: 462,
+                                                                columnNumber: 31
+                                                            }, void 0))
+                                                    }, void 0, false, {
+                                                        fileName: "[project]/src/app/settings/payment-methods/page.tsx",
+                                                        lineNumber: 460,
+                                                        columnNumber: 27
+                                                    }, void 0)
+                                                ]
+                                            }, void 0, true, {
+                                                fileName: "[project]/src/app/settings/payment-methods/page.tsx",
+                                                lineNumber: 438,
+                                                columnNumber: 25
+                                            }, void 0),
+                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["FormMessage"], {}, void 0, false, {
+                                                fileName: "[project]/src/app/settings/payment-methods/page.tsx",
+                                                lineNumber: 471,
+                                                columnNumber: 25
+                                            }, void 0)
+                                        ]
+                                    }, void 0, true, {
+                                        fileName: "[project]/src/app/settings/payment-methods/page.tsx",
+                                        lineNumber: 434,
+                                        columnNumber: 21
+                                    }, void 0)
+                            }, void 0, false, {
+                                fileName: "[project]/src/app/settings/payment-methods/page.tsx",
+                                lineNumber: 430,
+                                columnNumber: 17
+                            }, this),
+                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$dialog$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["DialogFooter"], {
+                                children: [
+                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$dialog$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["DialogClose"], {
+                                        asChild: true,
+                                        children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$button$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Button"], {
+                                            type: "button",
+                                            variant: "outline",
+                                            disabled: isSaving,
+                                            children: translate({
+                                                en: "Cancel",
+                                                pt: "Cancelar"
+                                            })
+                                        }, void 0, false, {
+                                            fileName: "[project]/src/app/settings/payment-methods/page.tsx",
+                                            lineNumber: 477,
+                                            columnNumber: 21
+                                        }, this)
+                                    }, void 0, false, {
+                                        fileName: "[project]/src/app/settings/payment-methods/page.tsx",
+                                        lineNumber: 476,
+                                        columnNumber: 21
+                                    }, this),
+                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$button$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Button"], {
+                                        type: "submit",
+                                        disabled: isSaving,
+                                        children: submitButtonText
+                                    }, void 0, false, {
+                                        fileName: "[project]/src/app/settings/payment-methods/page.tsx",
+                                        lineNumber: 481,
+                                        columnNumber: 21
+                                    }, this)
+                                ]
+                            }, void 0, true, {
+                                fileName: "[project]/src/app/settings/payment-methods/page.tsx",
+                                lineNumber: 475,
+                                columnNumber: 17
+                            }, this)
+                        ]
+                    }, void 0, true, {
+                        fileName: "[project]/src/app/settings/payment-methods/page.tsx",
+                        lineNumber: 411,
+                        columnNumber: 17
+                    }, this)
+                }, void 0, false, {
+                    fileName: "[project]/src/app/settings/payment-methods/page.tsx",
+                    lineNumber: 410,
+                    columnNumber: 13
+                }, this)
+            ]
+        }, void 0, true, {
+            fileName: "[project]/src/app/settings/payment-methods/page.tsx",
+            lineNumber: 405,
+            columnNumber: 9
+        }, this);
     };
     return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$layout$2f$app$2d$layout$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["AppLayout"], {
         children: [
@@ -2337,7 +2756,7 @@ function ManagePaymentMethodsPage() {
                                 })
                             }, void 0, false, {
                                 fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                lineNumber: 277,
+                                lineNumber: 496,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$dialog$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Dialog"], {
@@ -2354,7 +2773,7 @@ function ManagePaymentMethodsPage() {
                                                     className: "mr-2 h-4 w-4"
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                                    lineNumber: 283,
+                                                    lineNumber: 502,
                                                     columnNumber: 17
                                                 }, this),
                                                 translate({
@@ -2364,296 +2783,40 @@ function ManagePaymentMethodsPage() {
                                             ]
                                         }, void 0, true, {
                                             fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                            lineNumber: 282,
+                                            lineNumber: 501,
                                             columnNumber: 15
                                         }, this)
                                     }, void 0, false, {
                                         fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                        lineNumber: 281,
+                                        lineNumber: 500,
                                         columnNumber: 13
                                     }, this),
-                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$dialog$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["DialogContent"], {
-                                        className: "sm:max-w-[425px]",
-                                        children: [
-                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$dialog$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["DialogHeader"], {
-                                                children: [
-                                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$dialog$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["DialogTitle"], {
-                                                        children: translate({
-                                                            en: "Add New Payment Method",
-                                                            pt: "Adicionar Novo Método de Pagamento"
-                                                        })
-                                                    }, void 0, false, {
-                                                        fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                                        lineNumber: 289,
-                                                        columnNumber: 17
-                                                    }, this),
-                                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$dialog$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["DialogDescription"], {
-                                                        children: translate({
-                                                            en: "Enter the name and choose an icon for your new payment method.",
-                                                            pt: "Digite o nome e escolha um ícone para o seu novo método de pagamento."
-                                                        })
-                                                    }, void 0, false, {
-                                                        fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                                        lineNumber: 290,
-                                                        columnNumber: 17
-                                                    }, this)
-                                                ]
-                                            }, void 0, true, {
-                                                fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                                lineNumber: 288,
-                                                columnNumber: 15
-                                            }, this),
-                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Form"], {
-                                                ...addMethodForm,
-                                                children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("form", {
-                                                    onSubmit: addMethodForm.handleSubmit(handleAddPaymentMethod),
-                                                    className: "space-y-4 py-4",
-                                                    children: [
-                                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["FormField"], {
-                                                            control: addMethodForm.control,
-                                                            name: "newMethodName",
-                                                            render: ({ field })=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["FormItem"], {
-                                                                    children: [
-                                                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["FormLabel"], {
-                                                                            children: translate({
-                                                                                en: "Method Name",
-                                                                                pt: "Nome do Método"
-                                                                            })
-                                                                        }, void 0, false, {
-                                                                            fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                                                            lineNumber: 301,
-                                                                            columnNumber: 25
-                                                                        }, void 0),
-                                                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["FormControl"], {
-                                                                            children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$input$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Input"], {
-                                                                                placeholder: translate({
-                                                                                    en: "e.g., My Bank Card",
-                                                                                    pt: "ex: Cartão Meu Banco"
-                                                                                }),
-                                                                                ...field
-                                                                            }, void 0, false, {
-                                                                                fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                                                                lineNumber: 305,
-                                                                                columnNumber: 27
-                                                                            }, void 0)
-                                                                        }, void 0, false, {
-                                                                            fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                                                            lineNumber: 304,
-                                                                            columnNumber: 25
-                                                                        }, void 0),
-                                                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["FormMessage"], {}, void 0, false, {
-                                                                            fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                                                            lineNumber: 310,
-                                                                            columnNumber: 25
-                                                                        }, void 0)
-                                                                    ]
-                                                                }, void 0, true, {
-                                                                    fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                                                    lineNumber: 300,
-                                                                    columnNumber: 23
-                                                                }, void 0)
-                                                        }, void 0, false, {
-                                                            fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                                            lineNumber: 296,
-                                                            columnNumber: 19
-                                                        }, this),
-                                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["FormField"], {
-                                                            control: addMethodForm.control,
-                                                            name: "selectedNewMethodIcon",
-                                                            render: ({ field })=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["FormItem"], {
-                                                                    children: [
-                                                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["FormLabel"], {
-                                                                            children: translate({
-                                                                                en: "Icon",
-                                                                                pt: "Ícone"
-                                                                            })
-                                                                        }, void 0, false, {
-                                                                            fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                                                            lineNumber: 319,
-                                                                            columnNumber: 25
-                                                                        }, void 0),
-                                                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Select"], {
-                                                                            onValueChange: field.onChange,
-                                                                            value: field.value,
-                                                                            children: [
-                                                                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["FormControl"], {
-                                                                                    children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["SelectTrigger"], {
-                                                                                        className: "w-full",
-                                                                                        children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["SelectValue"], {
-                                                                                            children: field.value ? (()=>{
-                                                                                                const foundIconOption = selectableIcons.find((i)=>i.value === field.value);
-                                                                                                const IconComp = foundIconOption ? foundIconOption.iconComponent : __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$circle$2d$help$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__CircleHelp$3e$__["CircleHelp"];
-                                                                                                const labelText = foundIconOption ? translate(foundIconOption.label) : field.value;
-                                                                                                return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                                                                                                    className: "flex items-center gap-2",
-                                                                                                    children: [
-                                                                                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(IconComp, {
-                                                                                                            className: "h-4 w-4 text-muted-foreground"
-                                                                                                        }, void 0, false, {
-                                                                                                            fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                                                                                            lineNumber: 333,
-                                                                                                            columnNumber: 41
-                                                                                                        }, void 0),
-                                                                                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
-                                                                                                            children: labelText
-                                                                                                        }, void 0, false, {
-                                                                                                            fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                                                                                            lineNumber: 334,
-                                                                                                            columnNumber: 41
-                                                                                                        }, void 0)
-                                                                                                    ]
-                                                                                                }, void 0, true, {
-                                                                                                    fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                                                                                    lineNumber: 332,
-                                                                                                    columnNumber: 39
-                                                                                                }, void 0);
-                                                                                            })() : translate({
-                                                                                                en: "Select an icon",
-                                                                                                pt: "Selecione um ícone"
-                                                                                            })
-                                                                                        }, void 0, false, {
-                                                                                            fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                                                                            lineNumber: 325,
-                                                                                            columnNumber: 30
-                                                                                        }, void 0)
-                                                                                    }, void 0, false, {
-                                                                                        fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                                                                        lineNumber: 324,
-                                                                                        columnNumber: 29
-                                                                                    }, void 0)
-                                                                                }, void 0, false, {
-                                                                                    fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                                                                    lineNumber: 323,
-                                                                                    columnNumber: 27
-                                                                                }, void 0),
-                                                                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["SelectContent"], {
-                                                                                    children: selectableIcons.map((iconOption)=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["SelectItem"], {
-                                                                                            value: iconOption.value,
-                                                                                            children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                                                                                                className: "flex items-center gap-2",
-                                                                                                children: [
-                                                                                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(iconOption.iconComponent, {
-                                                                                                        className: "h-4 w-4 text-muted-foreground"
-                                                                                                    }, void 0, false, {
-                                                                                                        fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                                                                                        lineNumber: 348,
-                                                                                                        columnNumber: 35
-                                                                                                    }, void 0),
-                                                                                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
-                                                                                                        children: translate(iconOption.label)
-                                                                                                    }, void 0, false, {
-                                                                                                        fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                                                                                        lineNumber: 349,
-                                                                                                        columnNumber: 35
-                                                                                                    }, void 0)
-                                                                                                ]
-                                                                                            }, void 0, true, {
-                                                                                                fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                                                                                lineNumber: 347,
-                                                                                                columnNumber: 33
-                                                                                            }, void 0)
-                                                                                        }, iconOption.value, false, {
-                                                                                            fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                                                                            lineNumber: 346,
-                                                                                            columnNumber: 31
-                                                                                        }, void 0))
-                                                                                }, void 0, false, {
-                                                                                    fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                                                                    lineNumber: 344,
-                                                                                    columnNumber: 27
-                                                                                }, void 0)
-                                                                            ]
-                                                                        }, void 0, true, {
-                                                                            fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                                                            lineNumber: 322,
-                                                                            columnNumber: 25
-                                                                        }, void 0),
-                                                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["FormMessage"], {}, void 0, false, {
-                                                                            fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                                                            lineNumber: 355,
-                                                                            columnNumber: 25
-                                                                        }, void 0)
-                                                                    ]
-                                                                }, void 0, true, {
-                                                                    fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                                                    lineNumber: 318,
-                                                                    columnNumber: 23
-                                                                }, void 0)
-                                                        }, void 0, false, {
-                                                            fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                                            lineNumber: 314,
-                                                            columnNumber: 19
-                                                        }, this),
-                                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$dialog$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["DialogFooter"], {
-                                                            children: [
-                                                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$dialog$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["DialogClose"], {
-                                                                    asChild: true,
-                                                                    children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$button$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Button"], {
-                                                                        type: "button",
-                                                                        variant: "outline",
-                                                                        disabled: isSavingMethod,
-                                                                        children: translate({
-                                                                            en: "Cancel",
-                                                                            pt: "Cancelar"
-                                                                        })
-                                                                    }, void 0, false, {
-                                                                        fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                                                        lineNumber: 361,
-                                                                        columnNumber: 23
-                                                                    }, this)
-                                                                }, void 0, false, {
-                                                                    fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                                                    lineNumber: 360,
-                                                                    columnNumber: 21
-                                                                }, this),
-                                                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$button$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Button"], {
-                                                                    type: "submit",
-                                                                    disabled: isSavingMethod,
-                                                                    children: isSavingMethod ? translate({
-                                                                        en: "Adding...",
-                                                                        pt: "Adicionando..."
-                                                                    }) : translate({
-                                                                        en: "Add Method",
-                                                                        pt: "Adicionar Método"
-                                                                    })
-                                                                }, void 0, false, {
-                                                                    fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                                                    lineNumber: 365,
-                                                                    columnNumber: 21
-                                                                }, this)
-                                                            ]
-                                                        }, void 0, true, {
-                                                            fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                                            lineNumber: 359,
-                                                            columnNumber: 19
-                                                        }, this)
-                                                    ]
-                                                }, void 0, true, {
-                                                    fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                                    lineNumber: 295,
-                                                    columnNumber: 17
-                                                }, this)
-                                            }, void 0, false, {
-                                                fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                                lineNumber: 294,
-                                                columnNumber: 15
-                                            }, this)
-                                        ]
-                                    }, void 0, true, {
-                                        fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                        lineNumber: 287,
-                                        columnNumber: 13
-                                    }, this)
+                                    renderMethodForm(addMethodForm, handleAddMethodSubmit, "add")
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                lineNumber: 280,
+                                lineNumber: 499,
                                 columnNumber: 11
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                        lineNumber: 276,
+                        lineNumber: 495,
+                        columnNumber: 9
+                    }, this),
+                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$dialog$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Dialog"], {
+                        open: isEditDialogOpen,
+                        onOpenChange: (isOpen)=>{
+                            setIsEditDialogOpen(isOpen);
+                            if (!isOpen) {
+                                setMethodToEdit(null);
+                                setOriginalMethodName(null);
+                            }
+                        },
+                        children: methodToEdit && renderMethodForm(editMethodForm, handleEditMethodSubmit, "edit")
+                    }, void 0, false, {
+                        fileName: "[project]/src/app/settings/payment-methods/page.tsx",
+                        lineNumber: 510,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Card"], {
@@ -2668,23 +2831,23 @@ function ManagePaymentMethodsPage() {
                                         })
                                     }, void 0, false, {
                                         fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                        lineNumber: 377,
+                                        lineNumber: 522,
                                         columnNumber: 13
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["CardDescription"], {
                                         children: translate({
-                                            en: "A list of all your configured payment methods.",
-                                            pt: "Uma lista de todos os seus métodos de pagamento configurados."
+                                            en: "A list of all your payment methods.",
+                                            pt: "Uma lista de todos os seus métodos de pagamento."
                                         })
                                     }, void 0, false, {
                                         fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                        lineNumber: 378,
+                                        lineNumber: 523,
                                         columnNumber: 13
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                lineNumber: 376,
+                                lineNumber: 521,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["CardContent"], {
@@ -2704,20 +2867,20 @@ function ManagePaymentMethodsPage() {
                                                                     className: "h-6 w-6 rounded"
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                                                    lineNumber: 389,
+                                                                    lineNumber: 534,
                                                                     columnNumber: 25
                                                                 }, this),
                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$skeleton$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Skeleton"], {
                                                                     className: "h-5 w-32"
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                                                    lineNumber: 390,
+                                                                    lineNumber: 535,
                                                                     columnNumber: 25
                                                                 }, this)
                                                             ]
                                                         }, void 0, true, {
                                                             fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                                            lineNumber: 388,
+                                                            lineNumber: 533,
                                                             columnNumber: 23
                                                         }, this),
                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -2727,49 +2890,49 @@ function ManagePaymentMethodsPage() {
                                                                     className: "h-8 w-8"
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                                                    lineNumber: 393,
+                                                                    lineNumber: 538,
                                                                     columnNumber: 25
                                                                 }, this),
                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$skeleton$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Skeleton"], {
                                                                     className: "h-8 w-8"
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                                                    lineNumber: 394,
+                                                                    lineNumber: 539,
                                                                     columnNumber: 25
                                                                 }, this)
                                                             ]
                                                         }, void 0, true, {
                                                             fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                                            lineNumber: 392,
+                                                            lineNumber: 537,
                                                             columnNumber: 23
                                                         }, this)
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                                    lineNumber: 387,
+                                                    lineNumber: 532,
                                                     columnNumber: 21
                                                 }, this),
                                                 i < 2 && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$separator$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Separator"], {}, void 0, false, {
                                                     fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                                    lineNumber: 397,
+                                                    lineNumber: 542,
                                                     columnNumber: 31
                                                 }, this)
                                             ]
                                         }, `skeleton-pm-${i}`, true, {
                                             fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                            lineNumber: 386,
+                                            lineNumber: 531,
                                             columnNumber: 19
                                         }, this))
                                 }, void 0, false, {
                                     fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                    lineNumber: 384,
+                                    lineNumber: 529,
                                     columnNumber: 15
                                 }, this) : displayPaymentMethods.length > 0 ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                                    className: "space-y-4",
+                                    className: "space-y-1",
                                     children: displayPaymentMethods.map((method, index)=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["default"].Fragment, {
                                             children: [
                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                                                    className: "flex items-center justify-between py-3",
+                                                    className: "flex items-center justify-between py-3 hover:bg-muted/50 rounded-md px-2 -mx-2",
                                                     children: [
                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                                                             className: "flex items-center gap-3",
@@ -2779,7 +2942,7 @@ function ManagePaymentMethodsPage() {
                                                                     className: "h-6 w-6 text-muted-foreground"
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                                                    lineNumber: 407,
+                                                                    lineNumber: 552,
                                                                     columnNumber: 25
                                                                 }, this),
                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -2787,36 +2950,37 @@ function ManagePaymentMethodsPage() {
                                                                     children: (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["getPaymentMethodDisplayLabel"])(method, language)
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                                                    lineNumber: 408,
+                                                                    lineNumber: 553,
                                                                     columnNumber: 25
                                                                 }, this)
                                                             ]
                                                         }, void 0, true, {
                                                             fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                                            lineNumber: 406,
+                                                            lineNumber: 551,
                                                             columnNumber: 23
                                                         }, this),
                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                                                            className: "flex items-center gap-2",
+                                                            className: "flex items-center gap-1",
                                                             children: [
                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$button$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Button"], {
                                                                     variant: "ghost",
                                                                     size: "icon",
-                                                                    onClick: ()=>handleEditPlaceholder(method),
+                                                                    onClick: ()=>handleOpenEditDialog(method),
                                                                     "aria-label": translate({
                                                                         en: "Edit",
                                                                         pt: "Editar"
                                                                     }) + " " + (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["getPaymentMethodDisplayLabel"])(method, language),
+                                                                    disabled: isSaving,
                                                                     children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$square$2d$pen$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Edit$3e$__["Edit"], {
                                                                         className: "h-4 w-4"
                                                                     }, void 0, false, {
                                                                         fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                                                        lineNumber: 419,
+                                                                        lineNumber: 565,
                                                                         columnNumber: 27
                                                                     }, this)
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                                                    lineNumber: 413,
+                                                                    lineNumber: 558,
                                                                     columnNumber: 25
                                                                 }, this),
                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$button$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Button"], {
@@ -2828,72 +2992,72 @@ function ManagePaymentMethodsPage() {
                                                                         en: "Delete",
                                                                         pt: "Excluir"
                                                                     }) + " " + (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["getPaymentMethodDisplayLabel"])(method, language),
-                                                                    disabled: isPredefinedMethod(method.name),
+                                                                    disabled: isSaving,
                                                                     children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$trash$2d$2$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Trash2$3e$__["Trash2"], {
                                                                         className: "h-4 w-4"
                                                                     }, void 0, false, {
                                                                         fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                                                        lineNumber: 429,
+                                                                        lineNumber: 575,
                                                                         columnNumber: 27
                                                                     }, this)
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                                                    lineNumber: 421,
+                                                                    lineNumber: 567,
                                                                     columnNumber: 25
                                                                 }, this)
                                                             ]
                                                         }, void 0, true, {
                                                             fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                                            lineNumber: 412,
+                                                            lineNumber: 557,
                                                             columnNumber: 23
                                                         }, this)
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                                    lineNumber: 405,
+                                                    lineNumber: 550,
                                                     columnNumber: 21
                                                 }, this),
                                                 index < displayPaymentMethods.length - 1 && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$separator$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Separator"], {}, void 0, false, {
                                                     fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                                    lineNumber: 433,
+                                                    lineNumber: 579,
                                                     columnNumber: 66
                                                 }, this)
                                             ]
                                         }, method.name, true, {
                                             fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                            lineNumber: 404,
+                                            lineNumber: 549,
                                             columnNumber: 19
                                         }, this))
                                 }, void 0, false, {
                                     fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                    lineNumber: 402,
+                                    lineNumber: 547,
                                     columnNumber: 15
                                 }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
                                     className: "text-center text-muted-foreground py-8",
                                     children: translate({
-                                        en: "No payment methods configured yet.",
-                                        pt: "Nenhum método de pagamento configurado ainda."
+                                        en: "No payment methods configured yet. Add some using the button above!",
+                                        pt: "Nenhum método de pagamento configurado ainda. Adicione alguns usando o botão acima!"
                                     })
                                 }, void 0, false, {
                                     fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                    lineNumber: 438,
+                                    lineNumber: 584,
                                     columnNumber: 15
                                 }, this)
                             }, void 0, false, {
                                 fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                lineNumber: 382,
+                                lineNumber: 527,
                                 columnNumber: 11
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                        lineNumber: 375,
+                        lineNumber: 520,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                lineNumber: 275,
+                lineNumber: 494,
                 columnNumber: 7
             }, this),
             methodToDelete && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$alert$2d$dialog$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["AlertDialog"], {
@@ -2905,97 +3069,100 @@ function ManagePaymentMethodsPage() {
                             children: [
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$alert$2d$dialog$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["AlertDialogTitle"], {
                                     children: translate({
-                                        en: "Confirm Deletion",
-                                        pt: "Confirmar Exclusão"
+                                        en: "Confirm Action",
+                                        pt: "Confirmar Ação"
                                     })
                                 }, void 0, false, {
                                     fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                    lineNumber: 449,
+                                    lineNumber: 595,
                                     columnNumber: 15
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$alert$2d$dialog$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["AlertDialogDescription"], {
                                     children: [
                                         translate({
-                                            en: "Are you sure you want to delete the payment method:",
-                                            pt: "Tem certeza que deseja excluir o método de pagamento:"
+                                            en: "Are you sure you want to process this action for method:",
+                                            pt: "Tem certeza que deseja processar esta ação para o método:"
                                         }),
                                         " ",
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("strong", {
                                             children: (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["getPaymentMethodDisplayLabel"])(methodToDelete, language)
                                         }, void 0, false, {
                                             fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                            lineNumber: 452,
+                                            lineNumber: 598,
                                             columnNumber: 17
                                         }, this),
                                         "?",
                                         " ",
-                                        translate({
-                                            en: "This action cannot be undone.",
-                                            pt: "Esta ação não pode ser desfeita."
+                                        isTrulyPredefinedMethod(methodToDelete.name) && !displayPaymentMethods.find((m)=>m.name === methodToDelete.name && !__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["PAYMENT_METHODS"].includes(m)) ? translate({
+                                            en: "This is a predefined method. Deleting it will hide it from selection. Editing it will create a custom version.",
+                                            pt: "Este é um método pré-definido. Excluí-lo irá ocultá-lo da seleção. Editá-lo criará uma versão personalizada."
+                                        }) : translate({
+                                            en: "This action might affect existing transactions if the name changes.",
+                                            pt: "Esta ação pode afetar transações existentes se o nome mudar."
                                         })
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                    lineNumber: 450,
+                                    lineNumber: 596,
                                     columnNumber: 15
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                            lineNumber: 448,
+                            lineNumber: 594,
                             columnNumber: 13
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$alert$2d$dialog$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["AlertDialogFooter"], {
                             children: [
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$alert$2d$dialog$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["AlertDialogCancel"], {
                                     onClick: ()=>setMethodToDelete(null),
-                                    disabled: isSavingMethod,
+                                    disabled: isSaving,
                                     children: translate({
                                         en: "Cancel",
                                         pt: "Cancelar"
                                     })
                                 }, void 0, false, {
                                     fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                    lineNumber: 457,
+                                    lineNumber: 606,
                                     columnNumber: 15
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$alert$2d$dialog$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["AlertDialogAction"], {
                                     onClick: handleDeleteMethod,
-                                    disabled: isSavingMethod,
+                                    disabled: isSaving,
                                     className: "bg-destructive text-destructive-foreground hover:bg-destructive/90",
-                                    children: isSavingMethod ? translate({
-                                        en: "Deleting...",
-                                        pt: "Excluindo..."
+                                    children: isSaving ? translate({
+                                        en: "Processing...",
+                                        pt: "Processando..."
                                     }) : translate({
-                                        en: "Delete",
-                                        pt: "Excluir"
+                                        en: "Confirm",
+                                        pt: "Confirmar"
                                     })
                                 }, void 0, false, {
                                     fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                                    lineNumber: 460,
+                                    lineNumber: 609,
                                     columnNumber: 15
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                            lineNumber: 456,
+                            lineNumber: 605,
                             columnNumber: 13
                         }, this)
                     ]
                 }, void 0, true, {
                     fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                    lineNumber: 447,
+                    lineNumber: 593,
                     columnNumber: 11
                 }, this)
             }, void 0, false, {
                 fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-                lineNumber: 446,
+                lineNumber: 592,
                 columnNumber: 9
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/src/app/settings/payment-methods/page.tsx",
-        lineNumber: 274,
+        lineNumber: 493,
         columnNumber: 5
     }, this);
 }

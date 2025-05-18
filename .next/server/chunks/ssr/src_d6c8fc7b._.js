@@ -8,7 +8,6 @@ var { g: global, __dirname } = __turbopack_context__;
 __turbopack_context__.s({
     "CATEGORIES": (()=>CATEGORIES),
     "PAYMENT_METHODS": (()=>PAYMENT_METHODS),
-    "getCategoriesByType": (()=>getCategoriesByType),
     "getCategoryDisplayLabel": (()=>getCategoryDisplayLabel),
     "getCategoryLabel": (()=>getCategoryLabel),
     "getPaymentMethodDisplayLabel": (()=>getPaymentMethodDisplayLabel)
@@ -195,15 +194,11 @@ const CATEGORIES = [
         }
     }
 ];
-const getCategoriesByType = (type, allCategories)=>{
-    return allCategories.filter((cat)=>cat.type === type);
-};
 const getCategoryDisplayLabel = (category, currentLanguage)=>{
     if (!category) return '';
     if (category.label && typeof category.label === 'object' && category.label[currentLanguage]) {
         return category.label[currentLanguage];
     }
-    // Fallback for older custom categories that might only have category.name
     return category.name;
 };
 const getCategoryLabel = (categoryName, currentLanguage)=>{
@@ -212,6 +207,9 @@ const getCategoryLabel = (categoryName, currentLanguage)=>{
     if (predefinedCategory && predefinedCategory.label && predefinedCategory.label[currentLanguage]) {
         return predefinedCategory.label[currentLanguage];
     }
+    // For custom categories, their 'name' field usually holds the display name, or it's already a DisplayCategory object
+    // This part might need refinement if custom categories are only stored by a non-display 'name' and need label lookup.
+    // However, getCategoryDisplayLabel is preferred if you have the DisplayCategory object.
     return categoryName;
 };
 const PAYMENT_METHODS = [
@@ -242,24 +240,22 @@ const PAYMENT_METHODS = [
 ];
 const getPaymentMethodDisplayLabel = (methodInput, currentLanguage)=>{
     if (!methodInput) return '';
-    let methodNameString;
     let methodObject;
     if (typeof methodInput === 'string') {
-        methodNameString = methodInput;
-        // Try to find in predefined
-        methodObject = PAYMENT_METHODS.find((pm)=>pm.name.toLowerCase() === methodNameString.toLowerCase());
+        const lowerMethodInput = methodInput.toLowerCase();
+        methodObject = PAYMENT_METHODS.find((pm)=>pm.name.toLowerCase() === lowerMethodInput);
         if (methodObject && methodObject.label && methodObject.label[currentLanguage]) {
             return methodObject.label[currentLanguage];
         }
-        // If not in predefined, it's a custom method name, return it as is
-        return methodNameString;
+        // If not predefined, return the input string itself (assuming it's a custom method name)
+        return methodInput;
     } else {
         // It's already an object (DisplayPaymentMethod)
         methodObject = methodInput;
         if (methodObject.label && methodObject.label[currentLanguage]) {
             return methodObject.label[currentLanguage];
         }
-        return methodObject.name; // Fallback to name if label structure is odd
+        return methodObject.name; // Fallback to name
     }
 };
 }}),
