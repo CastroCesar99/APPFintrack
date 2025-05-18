@@ -14,8 +14,8 @@ import { BudgetCategoryItem } from '@/components/budgets/budget-category-item';
 import { Separator } from '@/components/ui/separator';
 import { Card, CardHeader, CardContent, CardTitle, CardDescription } from "@/components/ui/card";
 import { db } from '@/lib/firebase';
-import { doc, setDoc, getDoc, serverTimestamp, collection, query, orderBy, onSnapshot } from "firebase/firestore";
-import { format as formatDateFns, addMonths, getYear as getYearFns, getMonth as getMonthFns, parse as parseDateFns, Timestamp } from 'date-fns';
+import { doc, setDoc, getDoc, serverTimestamp, collection, query, orderBy, onSnapshot, Timestamp } from "firebase/firestore";
+import { format as formatDateFns, addMonths, getYear as getYearFns, getMonth as getMonthFns, parse as parseDateFns } from 'date-fns';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatCurrency } from '@/lib/utils';
 import { DollarSign, TrendingUp } from 'lucide-react';
@@ -94,9 +94,9 @@ export default function BudgetsPage() {
           effectiveCategories = candidateCategories.filter(cat => selectedCategoryNames.has(cat.name.toLowerCase()));
         } else if (selectedCategoryNames.size === 0 && candidateCategories.length > 0) {
           effectiveCategories = candidateCategories; 
-        } else if (candidateCategories.length > 0) { // Fallback if selected is stale but candidates exist
+        } else if (candidateCategories.length > 0) { 
             effectiveCategories = candidateCategories;
-        } else { // Ultimate fallback: only predefined, non-deselected
+        } else { 
             effectiveCategories = predefinedExpenseCategoriesOnly.filter(pCat => !deselectedPredefinedNames.has(pCat.name.toLowerCase()));
         }
 
@@ -152,12 +152,11 @@ export default function BudgetsPage() {
   }, [user, authLoading, fetchPreferencesAndBudgets, currentMonthYearKey, language]);
 
 
-  // Fetch all transactions for income calculation
   useEffect(() => {
     if (!user || authLoading) {
       setIsLoadingTransactions(false);
       setAllTransactions([]);
-      return () => {}; // Ensure a cleanup function is always returned
+      return () => {}; 
     }
     console.log("BudgetsPage: Setting up transaction listener for user:", user.uid);
     setIsLoadingTransactions(true);
@@ -168,7 +167,7 @@ export default function BudgetsPage() {
       console.log("BudgetsPage: Transaction listener fired. Docs count:", querySnapshot.docs.length);
       const fetchedTransactions = querySnapshot.docs.map(docSnap => {
         const data = docSnap.data();
-        let dateString = data.date; // Should be YYYY-MM-DD
+        let dateString = data.date; 
         if (data.date && typeof data.date === 'object' && data.date instanceof Timestamp) {
           dateString = formatDateFns(data.date.toDate(), "yyyy-MM-dd");
         } else if (typeof data.date === 'string' && data.date.includes('T')) { 
@@ -182,7 +181,7 @@ export default function BudgetsPage() {
                 dateString = formatDateFns(new Date(data.date), "yyyy-MM-dd"); 
               } catch (e3) {
                 console.warn("BudgetsPage: Failed to parse date string to yyyy-MM-dd (attempt 3):", data.date, e3);
-                dateString = formatDateFns(new Date(), "yyyy-MM-dd"); // Fallback
+                dateString = formatDateFns(new Date(), "yyyy-MM-dd"); 
               }
             }
           }
@@ -191,13 +190,13 @@ export default function BudgetsPage() {
            dateString = formatDateFns(new Date(), "yyyy-MM-dd"); 
         }
 
-        let effectiveMonthString = data.effectiveMonth; // Should be YYYY-MM
+        let effectiveMonthString = data.effectiveMonth; 
         if (!effectiveMonthString && dateString) {
             try {
                 effectiveMonthString = formatDateFns(parseDateFns(dateString, "yyyy-MM-dd", new Date(0)), "yyyy-MM");
             } catch (e) {
                 console.warn(`BudgetsPage: Could not parse date ${dateString} to derive effectiveMonth for tx ${docSnap.id}:`, e);
-                effectiveMonthString = formatDateFns(new Date(), "yyyy-MM"); // Fallback
+                effectiveMonthString = formatDateFns(new Date(), "yyyy-MM"); 
             }
         }
         return { ...data, id: docSnap.id, date: dateString, effectiveMonth: effectiveMonthString } as Transaction;
@@ -215,7 +214,7 @@ export default function BudgetsPage() {
       console.log("BudgetsPage: Unsubscribing transaction listener for user:", user.uid);
       unsubscribe();
     };
-  }, [user, authLoading]); // Removed toast and translate as they are stable from context
+  }, [user, authLoading, toast, translate]); 
 
   const totalIncomeForDisplayedMonth = useMemo(() => {
     console.log(`BudgetsPage: Recalculating totalIncomeForDisplayedMonth. Displayed Date: ${displayedDate.toISOString()}, All Transactions Count: ${allTransactions.length}`);
@@ -225,7 +224,7 @@ export default function BudgetsPage() {
     }
     
     const targetYear = getYearFns(displayedDate);
-    const targetMonth = getMonthFns(displayedDate); // 0-indexed
+    const targetMonth = getMonthFns(displayedDate); 
 
     console.log(`BudgetsPage: Target for income: Year=${targetYear}, Month=${targetMonth} (0-indexed)`);
     console.log("BudgetsPage: Sample of allTransactions for income calculation:", JSON.stringify(allTransactions.slice(0, 5).map(t => ({id: t.id, type:t.type, amount:t.amount, date:t.date, effectiveMonth:t.effectiveMonth})), null, 2));
@@ -238,17 +237,16 @@ export default function BudgetsPage() {
         let derivedTransactionYear = -1, derivedTransactionMonth = -1;
         let sourceField = "";
 
-        // Prioritize effectiveMonth if available and valid
         if (t.effectiveMonth && /^\d{4}-\d{2}$/.test(t.effectiveMonth)) {
             const [yearStr, monthStr] = t.effectiveMonth.split('-');
             derivedTransactionYear = parseInt(yearStr, 10);
-            derivedTransactionMonth = parseInt(monthStr, 10) - 1; // 0-indexed month
+            derivedTransactionMonth = parseInt(monthStr, 10) - 1; 
             transactionMatchesMonth = (derivedTransactionYear === targetYear && derivedTransactionMonth === targetMonth);
             sourceField = "effectiveMonth";
-        } else if (t.date && /^\d{4}-\d{2}-\d{2}$/.test(t.date)) { // Fallback to transaction.date
-            const dateParts = t.date.split('-'); // YYYY-MM-DD
+        } else if (t.date && /^\d{4}-\d{2}-\d{2}$/.test(t.date)) { 
+            const dateParts = t.date.split('-'); 
             derivedTransactionYear = parseInt(dateParts[0], 10);
-            derivedTransactionMonth = parseInt(dateParts[1], 10) - 1; // 0-indexed month
+            derivedTransactionMonth = parseInt(dateParts[1], 10) - 1; 
             transactionMatchesMonth = (derivedTransactionYear === targetYear && derivedTransactionMonth === targetMonth);
             sourceField = "date";
         } else {
@@ -434,5 +432,3 @@ export default function BudgetsPage() {
     </AppLayout>
   );
 }
-
-    
