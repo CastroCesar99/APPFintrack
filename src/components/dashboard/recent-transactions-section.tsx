@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { CategoryIcon } from "@/components/icons";
 import { formatCurrency, cn } from "@/lib/utils";
 import { format as formatDateFns, parse as parseDateFns } from "date-fns"; 
-import { ptBR, enUS } from "date-fns/locale";
+import { ptBR, enUS } from 'date-fns/locale';
 import { useLanguage } from "@/context/language-context";
 import { getCategoryLabel } from "@/types"; 
 
@@ -57,7 +57,7 @@ export function RecentTransactionsSection({
               translate({ en: "No recent expenses to display. Click 'See more' to view all expenses for this month.", pt: "Nenhuma despesa recente para exibir. Clique em 'Ver mais' para visualizar todas as despesas deste mês." })
             }
           </p>
-        ) : transactions.length === 0 && isExpanded ? ( // No items to show even when expanded
+        ) : transactions.length === 0 && isExpanded ? ( 
             <p className="text-center text-muted-foreground py-8">
                 {type === 'income' ?
                 translate({ en: "No income transactions found for this period.", pt: "Nenhuma transação de receita encontrada para este período." }) :
@@ -108,4 +108,3 @@ export function RecentTransactionsSection({
     </Card>
   );
 }
-
