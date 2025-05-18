@@ -4047,12 +4047,10 @@ var _s = __turbopack_context__.k.signature();
 function RecentTransactionsSection({ title, description, transactions, type, onSeeMore, isExpanded, totalItemsForMonth }) {
     _s();
     const { translate, language } = (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$context$2f$language$2d$context$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useLanguage"])();
-    // Determine if the "See more" button should be shown
     const showSeeMoreButton = onSeeMore && !isExpanded && transactions.length > 0 && transactions.length < totalItemsForMonth && totalItemsForMonth > 5;
-    // Determine if the "See less" button should be shown
     const showSeeLessButton = onSeeMore && isExpanded && totalItemsForMonth > 5;
     return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Card"], {
-        className: "shadow-lg",
+        className: "shadow-lg flex flex-col h-full",
         children: [
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["CardHeader"], {
                 children: [
@@ -4060,165 +4058,179 @@ function RecentTransactionsSection({ title, description, transactions, type, onS
                         children: title
                     }, void 0, false, {
                         fileName: "[project]/src/components/dashboard/recent-transactions-section.tsx",
-                        lineNumber: 42,
+                        lineNumber: 40,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["CardDescription"], {
                         children: description
                     }, void 0, false, {
                         fileName: "[project]/src/components/dashboard/recent-transactions-section.tsx",
-                        lineNumber: 43,
+                        lineNumber: 41,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/src/components/dashboard/recent-transactions-section.tsx",
-                lineNumber: 41,
+                lineNumber: 39,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["CardContent"], {
+                className: "flex flex-col flex-grow",
                 children: [
-                    totalItemsForMonth === 0 ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
-                        className: "text-center text-muted-foreground py-8",
-                        children: type === 'income' ? translate({
-                            en: "No income transactions for this period.",
-                            pt: "Nenhuma transação de receita para este período."
-                        }) : translate({
-                            en: "No expense transactions for this period.",
-                            pt: "Nenhuma transação de despesa para este período."
-                        })
-                    }, void 0, false, {
-                        fileName: "[project]/src/components/dashboard/recent-transactions-section.tsx",
-                        lineNumber: 47,
-                        columnNumber: 12
-                    }, this) : transactions.length === 0 && !isExpanded && totalItemsForMonth > 0 ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
-                        className: "text-center text-muted-foreground py-8",
-                        children: type === 'income' ? translate({
-                            en: "No recent income to display. Click 'See more' to view all income for this month.",
-                            pt: "Nenhuma receita recente para exibir. Clique em 'Ver mais' para visualizar todas as receitas deste mês."
-                        }) : translate({
-                            en: "No recent expenses to display. Click 'See more' to view all expenses for this month.",
-                            pt: "Nenhuma despesa recente para exibir. Clique em 'Ver mais' para visualizar todas as despesas deste mês."
-                        })
-                    }, void 0, false, {
-                        fileName: "[project]/src/components/dashboard/recent-transactions-section.tsx",
-                        lineNumber: 54,
-                        columnNumber: 11
-                    }, this) : transactions.length === 0 && isExpanded ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
-                        className: "text-center text-muted-foreground py-8",
-                        children: type === 'income' ? translate({
-                            en: "No income transactions found for this period.",
-                            pt: "Nenhuma transação de receita encontrada para este período."
-                        }) : translate({
-                            en: "No expense transactions found for this period.",
-                            pt: "Nenhuma transação de despesa encontrada para este período."
-                        })
-                    }, void 0, false, {
-                        fileName: "[project]/src/components/dashboard/recent-transactions-section.tsx",
-                        lineNumber: 61,
-                        columnNumber: 13
-                    }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("ul", {
-                        className: "space-y-4",
-                        children: transactions.map((transaction)=>{
-                            let displayDate = transaction.date;
-                            try {
-                                const parsedDate = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$parse$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$locals$3e$__["parse"])(transaction.date, "yyyy-MM-dd", new Date(0));
-                                displayDate = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$format$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$locals$3e$__["format"])(parsedDate, language === 'pt' ? "dd 'de' MMMM, yyyy" : "MMMM dd, yyyy", {
-                                    locale: language === 'pt' ? __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$locale$2f$pt$2d$BR$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__["ptBR"] : __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$locale$2f$en$2d$US$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__["enUS"]
-                                });
-                            } catch (e) {
-                                console.warn(`RecentTransactionsSection: Could not parse date string for display: ${transaction.date}`, e);
-                            }
-                            return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("li", {
-                                className: "flex items-center justify-between",
-                                children: [
-                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                                        className: "flex items-center gap-3",
+                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                        className: "flex-grow",
+                        children: [
+                            " ",
+                            totalItemsForMonth === 0 ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                                className: "text-center text-muted-foreground py-8",
+                                children: type === 'income' ? translate({
+                                    en: "No income transactions for this period.",
+                                    pt: "Nenhuma transação de receita para este período."
+                                }) : translate({
+                                    en: "No expense transactions for this period.",
+                                    pt: "Nenhuma transação de despesa para este período."
+                                })
+                            }, void 0, false, {
+                                fileName: "[project]/src/components/dashboard/recent-transactions-section.tsx",
+                                lineNumber: 46,
+                                columnNumber: 13
+                            }, this) : transactions.length === 0 && !isExpanded && totalItemsForMonth > 0 ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                                className: "text-center text-muted-foreground py-8",
+                                children: type === 'income' ? translate({
+                                    en: "No recent income to display. Click 'See more' to view all income for this month.",
+                                    pt: "Nenhuma receita recente para exibir. Clique em 'Ver mais' para visualizar todas as receitas deste mês."
+                                }) : translate({
+                                    en: "No recent expenses to display. Click 'See more' to view all expenses for this month.",
+                                    pt: "Nenhuma despesa recente para exibir. Clique em 'Ver mais' para visualizar todas as despesas deste mês."
+                                })
+                            }, void 0, false, {
+                                fileName: "[project]/src/components/dashboard/recent-transactions-section.tsx",
+                                lineNumber: 53,
+                                columnNumber: 13
+                            }, this) : transactions.length === 0 && isExpanded ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                                className: "text-center text-muted-foreground py-8",
+                                children: type === 'income' ? translate({
+                                    en: "No income transactions found for this period.",
+                                    pt: "Nenhuma transação de receita encontrada para este período."
+                                }) : translate({
+                                    en: "No expense transactions found for this period.",
+                                    pt: "Nenhuma transação de despesa encontrada para este período."
+                                })
+                            }, void 0, false, {
+                                fileName: "[project]/src/components/dashboard/recent-transactions-section.tsx",
+                                lineNumber: 60,
+                                columnNumber: 15
+                            }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("ul", {
+                                className: "space-y-4",
+                                children: transactions.map((transaction)=>{
+                                    let displayDate = transaction.date;
+                                    try {
+                                        const parsedDate = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$parse$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$locals$3e$__["parse"])(transaction.date, "yyyy-MM-dd", new Date(0));
+                                        displayDate = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$format$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$locals$3e$__["format"])(parsedDate, language === 'pt' ? "dd 'de' MMMM, yyyy" : "MMMM dd, yyyy", {
+                                            locale: language === 'pt' ? __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$locale$2f$pt$2d$BR$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__["ptBR"] : __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$locale$2f$en$2d$US$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__["enUS"]
+                                        });
+                                    } catch (e) {
+                                        console.warn(`RecentTransactionsSection: Could not parse date string for display: ${transaction.date}`, e);
+                                    }
+                                    return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("li", {
+                                        className: "flex items-center justify-between",
                                         children: [
-                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$icons$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$locals$3e$__["CategoryIcon"], {
-                                                categoryName: transaction.category,
-                                                className: "h-6 w-6 text-muted-foreground"
-                                            }, void 0, false, {
-                                                fileName: "[project]/src/components/dashboard/recent-transactions-section.tsx",
-                                                lineNumber: 80,
-                                                columnNumber: 21
-                                            }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                                className: "flex items-center gap-3",
                                                 children: [
-                                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
-                                                        className: "font-medium",
-                                                        children: transaction.description
+                                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$icons$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$locals$3e$__["CategoryIcon"], {
+                                                        categoryName: transaction.category,
+                                                        className: "h-6 w-6 text-muted-foreground"
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/components/dashboard/recent-transactions-section.tsx",
-                                                        lineNumber: 82,
+                                                        lineNumber: 79,
                                                         columnNumber: 23
                                                     }, this),
-                                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
-                                                        className: "text-xs text-muted-foreground",
+                                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                                                         children: [
-                                                            displayDate,
-                                                            " - ",
-                                                            (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["getCategoryLabel"])(transaction.category, language)
+                                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                                                                className: "font-medium",
+                                                                children: transaction.description
+                                                            }, void 0, false, {
+                                                                fileName: "[project]/src/components/dashboard/recent-transactions-section.tsx",
+                                                                lineNumber: 81,
+                                                                columnNumber: 25
+                                                            }, this),
+                                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                                                                className: "text-xs text-muted-foreground",
+                                                                children: [
+                                                                    displayDate,
+                                                                    " - ",
+                                                                    (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["getCategoryLabel"])(transaction.category, language)
+                                                                ]
+                                                            }, void 0, true, {
+                                                                fileName: "[project]/src/components/dashboard/recent-transactions-section.tsx",
+                                                                lineNumber: 82,
+                                                                columnNumber: 25
+                                                            }, this)
                                                         ]
                                                     }, void 0, true, {
                                                         fileName: "[project]/src/components/dashboard/recent-transactions-section.tsx",
-                                                        lineNumber: 83,
+                                                        lineNumber: 80,
                                                         columnNumber: 23
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/src/components/dashboard/recent-transactions-section.tsx",
-                                                lineNumber: 81,
+                                                lineNumber: 78,
+                                                columnNumber: 21
+                                            }, this),
+                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
+                                                className: (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$utils$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["cn"])("font-semibold", transaction.type === "income" ? "text-green-500" : "text-red-500"),
+                                                children: [
+                                                    transaction.type === "income" ? "+" : "-",
+                                                    (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$utils$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["formatCurrency"])(transaction.amount)
+                                                ]
+                                            }, void 0, true, {
+                                                fileName: "[project]/src/components/dashboard/recent-transactions-section.tsx",
+                                                lineNumber: 87,
                                                 columnNumber: 21
                                             }, this)
                                         ]
-                                    }, void 0, true, {
+                                    }, transaction.id, true, {
                                         fileName: "[project]/src/components/dashboard/recent-transactions-section.tsx",
-                                        lineNumber: 79,
+                                        lineNumber: 77,
                                         columnNumber: 19
-                                    }, this),
-                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
-                                        className: (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$utils$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["cn"])("font-semibold", transaction.type === "income" ? "text-green-500" : "text-red-500"),
-                                        children: [
-                                            transaction.type === "income" ? "+" : "-",
-                                            (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$utils$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["formatCurrency"])(transaction.amount)
-                                        ]
-                                    }, void 0, true, {
-                                        fileName: "[project]/src/components/dashboard/recent-transactions-section.tsx",
-                                        lineNumber: 88,
-                                        columnNumber: 19
-                                    }, this)
-                                ]
-                            }, transaction.id, true, {
+                                    }, this);
+                                })
+                            }, void 0, false, {
                                 fileName: "[project]/src/components/dashboard/recent-transactions-section.tsx",
-                                lineNumber: 78,
-                                columnNumber: 17
-                            }, this);
-                        })
-                    }, void 0, false, {
+                                lineNumber: 67,
+                                columnNumber: 13
+                            }, this)
+                        ]
+                    }, void 0, true, {
                         fileName: "[project]/src/components/dashboard/recent-transactions-section.tsx",
-                        lineNumber: 68,
-                        columnNumber: 11
+                        lineNumber: 44,
+                        columnNumber: 9
                     }, this),
                     (showSeeMoreButton || showSeeLessButton) && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                        className: "mt-4 flex justify-center",
-                        children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$button$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Button"], {
-                            onClick: onSeeMore,
-                            variant: "link",
-                            className: "text-sm",
-                            children: showSeeMoreButton ? translate({
-                                en: "See more",
-                                pt: "Ver mais"
-                            }) : translate({
-                                en: "See less",
-                                pt: "Ver menos"
-                            })
-                        }, void 0, false, {
-                            fileName: "[project]/src/components/dashboard/recent-transactions-section.tsx",
-                            lineNumber: 102,
-                            columnNumber: 13
-                        }, this)
-                    }, void 0, false, {
+                        className: "mt-auto pt-4 flex justify-center",
+                        children: [
+                            " ",
+                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$button$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Button"], {
+                                onClick: onSeeMore,
+                                variant: "link",
+                                className: "text-sm",
+                                children: showSeeMoreButton ? translate({
+                                    en: "See more",
+                                    pt: "Ver mais"
+                                }) : translate({
+                                    en: "See less",
+                                    pt: "Ver menos"
+                                })
+                            }, void 0, false, {
+                                fileName: "[project]/src/components/dashboard/recent-transactions-section.tsx",
+                                lineNumber: 102,
+                                columnNumber: 13
+                            }, this)
+                        ]
+                    }, void 0, true, {
                         fileName: "[project]/src/components/dashboard/recent-transactions-section.tsx",
                         lineNumber: 101,
                         columnNumber: 11
@@ -4226,13 +4238,13 @@ function RecentTransactionsSection({ title, description, transactions, type, onS
                 ]
             }, void 0, true, {
                 fileName: "[project]/src/components/dashboard/recent-transactions-section.tsx",
-                lineNumber: 45,
+                lineNumber: 43,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/src/components/dashboard/recent-transactions-section.tsx",
-        lineNumber: 40,
+        lineNumber: 38,
         columnNumber: 5
     }, this);
 }
