@@ -1,6 +1,6 @@
 gitignore
-    .next/
-    out/
-    tsconfig.tsbuildinfo
-    node_modules/
-node_modules
+.next/
+out/
+tsconfig.tsbuildinfo
+node_modules/
+backup/
