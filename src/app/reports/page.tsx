@@ -1,4 +1,3 @@
-
 "use client";
 
 import type React from 'react';
@@ -7,9 +6,9 @@ import { useRouter } from 'next/navigation';
 import { AppLayout } from "@/components/layout/app-layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Terminal, Info, Lightbulb, CheckCircle, TrendingDown, TrendingUp, MinusCircle, Package, Target, Wallet } from "lucide-react"; 
+import { Terminal, Info, Lightbulb, CheckCircle, TrendingDown, TrendingUp, MinusCircle, Package, Target, Wallet, FileText } from "lucide-react"; 
 import type { Transaction, DisplayCategory, UserPreferences, CustomCategoryData } from "@/types";
-import { CATEGORIES, getCategoryDisplayLabel } from "@/types";
+import { CATEGORIES, getCategoryDisplayLabel, PAYMENT_METHODS } from "@/types";
 import { useAuth } from '@/context/auth-context';
 import { useLanguage } from '@/context/language-context';
 import { useDateNavigation } from '@/context/date-navigation-context';
@@ -77,12 +76,11 @@ export default function ReportsPage() {
       return;
     }
     setIsLoadingPreferences(true);
-    const preferencesDocRef = doc(db, `users/${user.uid}/preferences/userPreferences`);
+    const preferencesDocRef = doc(db, "users/" + user.uid + "/preferences/userPreferences");
     
     const unsubscribe = onSnapshot(preferencesDocRef, (docSnap) => {
         let finalCategories: DisplayCategory[] = [];
-        const predefinedCategoryMap = new Map(CATEGORIES.map(cat => [cat.name.toLowerCase(), cat]));
-
+        
         if (docSnap.exists()) {
             const prefsData = docSnap.data() as UserPreferences;
             const customCategoriesFromDb: CustomCategoryData[] = prefsData.userDefinedCategories || [];
@@ -91,12 +89,11 @@ export default function ReportsPage() {
             const customCategoriesMap = new Map<string, CustomCategoryData>();
             customCategoriesFromDb.forEach(cc => customCategoriesMap.set(cc.name.toLowerCase(), cc));
 
-            // Start with predefined categories that are not deselected
             CATEGORIES.forEach(pCat => {
                 if (!deselectedPredefinedNames.has(pCat.name.toLowerCase())) {
                     const customOverride = customCategoriesMap.get(pCat.name.toLowerCase());
                     if (customOverride) {
-                        finalCategories.push({ ...pCat, ...customOverride, name: pCat.name }); // Keep original name as key
+                        finalCategories.push({ ...pCat, label: customOverride.label, icon: customOverride.icon, type: customOverride.type || pCat.type });
                         customCategoriesMap.delete(pCat.name.toLowerCase());
                     } else {
                         finalCategories.push(pCat);
@@ -104,17 +101,16 @@ export default function ReportsPage() {
                 }
             });
             
-            // Add any remaining (purely new) custom categories
             customCategoriesMap.forEach(customCat => {
                  if (!finalCategories.some(c => c.name.toLowerCase() === customCat.name.toLowerCase())) {
                     finalCategories.push(customCat);
                  }
             });
-        } else { // No preferences, use all predefined
+        } else { 
             finalCategories = [...CATEGORIES];
         }
         
-        if (finalCategories.length === 0 && CATEGORIES.length > 0) { // Fallback if selection resulted in empty
+        if (finalCategories.length === 0 && CATEGORIES.length > 0) {
             finalCategories = [...CATEGORIES];
         }
         
@@ -225,7 +221,7 @@ export default function ReportsPage() {
     }
     setIsLoadingBudgets(true);
     const budgetMonthKey = formatDateFns(displayedDate, 'yyyy-MM');
-    const budgetDocRef = doc(db, `users/${user.uid}/budgets/${budgetMonthKey}`);
+    const budgetDocRef = doc(db, "users/" + user.uid + "/budgets/" + budgetMonthKey);
     
     const fetchBudgets = async () => {
       try {
@@ -254,7 +250,7 @@ export default function ReportsPage() {
         setIsLoadingBudgets(false);
       }
     };
-    if(user) fetchBudgets();
+    fetchBudgets(); // Removed user dependency check as it's already covered above
   }, [user, authLoading, isClient, displayedDate, toast, translate]);
 
 
@@ -262,7 +258,6 @@ export default function ReportsPage() {
     const targetYear = getYearFns(displayedDate);
     const targetMonth = getMonthFns(displayedDate); // 0-indexed
     const firstDayOfTargetMonth = startOfMonth(displayedDate);
-    const targetEffectiveMonthString = formatDateFns(displayedDate, "yyyy-MM");
     let filtered: Transaction[] = [];
 
     allTransactions.forEach(t => {
@@ -271,7 +266,7 @@ export default function ReportsPage() {
       try {
         originalTransactionDate = parseDateFns(t.date, "yyyy-MM-dd", new Date(0));
       } catch (e) {
-        console.warn(`ReportsPage: Invalid original date format for transaction ID ${t.id}: ${t.date}`);
+        console.warn("ReportsPage: Invalid original date format for transaction ID " + t.id + ": " + t.date);
         return; 
       }
 
@@ -281,28 +276,16 @@ export default function ReportsPage() {
         if (monthDiff >= 0 && monthDiff < t.installments) {
           includeTransaction = true;
         }
-      } else if (t.isRecurring === true && t.expenseType !== 'installment') {
+      } else if (t.isRecurring === true && (t.expenseType !== 'installment' || !t.expenseType)) {
         const originalTransactionYear = getYearFns(originalTransactionDate);
         const originalTransactionMonth = getMonthFns(originalTransactionDate);
         if (originalTransactionYear < targetYear || (originalTransactionYear === targetYear && originalTransactionMonth <= targetMonth)) {
           includeTransaction = true;
         }
-      } else if (!t.isRecurring && t.expenseType !== 'installment') {
-        if (t.effectiveMonth === targetEffectiveMonthString) {
+      } else if (!t.isRecurring && (t.expenseType !== 'installment' || !t.expenseType) ) {
+        if (t.effectiveMonth === formatDateFns(displayedDate, "yyyy-MM")) {
           includeTransaction = true;
         }
-      } else if (t.type === 'income') { 
-         if (t.isRecurring === true) {
-            const originalTransactionYear = getYearFns(originalTransactionDate);
-            const originalTransactionMonth = getMonthFns(originalTransactionDate);
-            if (originalTransactionYear < targetYear || (originalTransactionYear === targetYear && originalTransactionMonth <= targetMonth)) {
-                includeTransaction = true;
-            }
-         } else { 
-            if (t.effectiveMonth === targetEffectiveMonthString) {
-                includeTransaction = true;
-            }
-         }
       }
       
       if (includeTransaction) {
@@ -369,10 +352,10 @@ export default function ReportsPage() {
       const actual = actualSpending[internalName] || 0;
       const difference = budgeted - actual;
       let percentage = 0;
-      if (budgeted > 0) {
+       if (budgeted > 0) {
         percentage = (actual / budgeted) * 100;
-      } else if (actual > 0) {
-        percentage = 1000; // Indicates spending with no budget, can be >100 for visual cue
+      } else if (actual > 0) { // Spent with no budget
+        percentage = 1000; // Visually indicate overspending significantly
       }
       
       return {
@@ -421,10 +404,10 @@ export default function ReportsPage() {
             <Skeleton className="h-9 w-32" />
           </div>
           <div className="grid gap-4 md:grid-cols-3">
-            {[...Array(3)].map((_, i) => <Skeleton key={`summary-skel-${i}`} className="h-24 w-full" />)}
+            {[...Array(3)].map((_, i) => <Skeleton key={"summary-skel-" + i} className="h-24 w-full" />)}
           </div>
            <div className="grid gap-4 md:grid-cols-2">
-            {[...Array(2)].map((_, i) => <Skeleton key={`fixed-var-skel-${i}`} className="h-24 w-full" />)}
+            {[...Array(2)].map((_, i) => <Skeleton key={"fixed-var-skel-" + i} className="h-24 w-full" />)}
           </div>
           <Card className="shadow-lg bg-muted/50">
             <CardHeader>
@@ -440,7 +423,7 @@ export default function ReportsPage() {
             </CardHeader>
             <CardContent>
                 <div className="space-y-4 py-4">
-                    {[...Array(3)].map((_, i) => <Skeleton key={`budget-skeleton-${i}`} className="h-20 w-full rounded-md" />)}
+                    {[...Array(3)].map((_, i) => <Skeleton key={"budget-skeleton-" + i} className="h-20 w-full rounded-md" />)}
                 </div>
             </CardContent>
           </Card>
@@ -488,10 +471,10 @@ export default function ReportsPage() {
           <Card className="shadow-lg">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">{translate({en: "Net Cash Flow", pt: "Fluxo de Caixa Líquido"})}</CardTitle>
-              <MinusCircle className={`h-4 w-4 ${netFlowForPeriod >= 0 ? 'text-green-500' : 'text-red-500'}`} />
+              <MinusCircle className={"h-4 w-4 " + (netFlowForPeriod >= 0 ? 'text-green-500' : 'text-red-500')} />
             </CardHeader>
             <CardContent>
-              <div className={`text-2xl font-bold ${netFlowForPeriod >= 0 ? 'text-green-500' : 'text-red-500'}`}>{formatCurrency(netFlowForPeriod)}</div>
+              <div className={"text-2xl font-bold " + (netFlowForPeriod >= 0 ? 'text-green-500' : 'text-red-500')}>{formatCurrency(netFlowForPeriod)}</div>
             </CardContent>
           </Card>
         </div>
@@ -546,7 +529,7 @@ export default function ReportsPage() {
           <CardContent>
             {isLoadingBudgets || isLoadingTransactions || isLoadingPreferences ? (
               <div className="space-y-4 py-4">
-                {[...Array(3)].map((_, i) => <Skeleton key={`budget-skeleton-${i}`} className="h-20 w-full rounded-md" />)}
+                {[...Array(3)].map((_, i) => <Skeleton key={"budget-skeleton-" + i} className="h-20 w-full rounded-md" />)}
               </div>
             ) : budgetVsActualData.length > 0 ? (
               <div className="space-y-3">
@@ -557,27 +540,27 @@ export default function ReportsPage() {
                         <CategoryIcon iconName={item.icon} className="h-5 w-5 text-muted-foreground" />
                         <span className="font-medium text-sm">{item.categoryName}</span>
                       </div>
-                      {item.budgeted > 0 && (
+                       {item.budgeted > 0 && (
                         <span className={cn(
                           "text-xs font-semibold px-2 py-0.5 rounded-full",
                           item.difference >= 0 ? 'bg-green-100 text-green-700 dark:bg-green-900/70 dark:text-green-300' : 'bg-red-100 text-red-700 dark:bg-red-900/70 dark:text-red-300'
                         )}>
                           {item.difference >= 0 
-                            ? `${formatCurrency(item.difference)} ${translate({en: "under", pt: "abaixo"})}`
-                            : `${formatCurrency(Math.abs(item.difference))} ${translate({en: "over", pt: "acima"})}`
+                            ? translate({en: "under", pt: "abaixo"}) + " " + formatCurrency(item.difference)
+                            : translate({en: "over", pt: "acima"}) + " " + formatCurrency(Math.abs(item.difference))
                           }
                         </span>
-                      )}
+                       )}
                     </div>
-                    <Progress 
-                      value={item.budgeted > 0 ? Math.min(item.percentage, 100) : 0 } // If budget is 0, progress is 0
+                     <Progress 
+                      value={item.budgeted > 0 ? Math.min(item.percentage, 100) : 0}
                       className="h-2 mb-1" 
-                       indicatorClassName={
+                      indicatorClassName={
                         item.budgeted > 0 ? (
                           item.percentage > 100 ? "bg-destructive" 
                           : item.percentage > 80 ? "bg-yellow-500" 
                           : "bg-primary"
-                        ) : "bg-secondary" // Neutral color if budget is 0
+                        ) : "bg-secondary" 
                       }
                     />
                     <div className="flex justify-between text-xs text-muted-foreground">
