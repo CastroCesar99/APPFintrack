@@ -1,13 +1,11 @@
-
 "use client";
-import type { Transaction, CategoryName, DisplayCategory } from "@/types"; // Added DisplayCategory
+import type { Transaction, DisplayCategory } from "@/types";
 import {
   BarChart,
   Bar,
   XAxis,
   YAxis,
   Tooltip,
-  Legend,
   ResponsiveContainer,
   CartesianGrid,
   Cell
@@ -19,12 +17,12 @@ import {
 } from "@/components/ui/chart";
 import { useMemo } from "react";
 import { useLanguage } from "@/context/language-context";
-import { getCategoryDisplayLabel } from "@/types"; // Changed to getCategoryDisplayLabel
+import { getCategoryDisplayLabel } from "@/types";
 import { formatCurrency } from "@/lib/utils";
-import { CATEGORIES } from "@/types"; // Import CATEGORIES to find details
 
 interface ExpenseCategoryBarChartProps {
   transactions: Transaction[];
+  userCategories: DisplayCategory[]; // Added to get correct display names
 }
 
 const chartColors = [
@@ -35,34 +33,31 @@ const chartColors = [
   "hsl(var(--chart-5))",
   "hsl(var(--primary))",
   "hsl(var(--accent))",
-  // Removed: "hsl(var(--destructive))",
-  // Removed: "hsl(var(--secondary))", 
 ];
 
-export function ExpenseCategoryBarChart({ transactions }: ExpenseCategoryBarChartProps) {
+export function ExpenseCategoryBarChart({ transactions, userCategories }: ExpenseCategoryBarChartProps) {
   const { language, translate } = useLanguage();
 
   const expenseData = useMemo(() => {
     const expensesByCategory = transactions
       .filter((t) => t.type === "expense")
       .reduce((acc, t) => {
-        const categoryKey = t.category as string; // Treat category as string key
-        acc[categoryKey] = (acc[categoryKey] || 0) + t.amount;
+        const categoryInternalName = t.category as string; 
+        acc[categoryInternalName] = (acc[categoryInternalName] || 0) + t.amount;
         return acc;
       }, {} as Record<string, number>);
 
-    // Find category details for display name and icon
      return Object.entries(expensesByCategory)
-      .map(([name, value]) => {
-        const categoryDetail = CATEGORIES.find(cat => cat.name === name) as DisplayCategory | undefined;
+      .map(([internalName, value]) => {
+        const categoryDetail = userCategories.find(cat => cat.name === internalName);
         return {
-          name: name, // Keep original name for keying in chartConfig
+          name: internalName, // Keep original name for keying in chartConfig
           value,
-          displayName: categoryDetail ? getCategoryDisplayLabel(categoryDetail, language) : name,
+          displayName: categoryDetail ? getCategoryDisplayLabel(categoryDetail, language) : internalName,
         };
       })
       .sort((a, b) => b.value - a.value); 
-  }, [transactions, language]);
+  }, [transactions, userCategories, language]);
 
   const chartConfig = useMemo(() => {
     const config: ChartConfig = {};
@@ -88,7 +83,7 @@ export function ExpenseCategoryBarChart({ transactions }: ExpenseCategoryBarChar
 
   return (
     <ChartContainer config={chartConfig} className="min-h-[300px] w-full">
-      <ResponsiveContainer width="100%" height={Math.max(300, expenseData.length * 40)}> {/* Dynamic height */}
+      <ResponsiveContainer width="100%" height={Math.max(300, expenseData.length * 40)}>
         <BarChart
           data={expenseData}
           layout="vertical"
@@ -97,7 +92,7 @@ export function ExpenseCategoryBarChart({ transactions }: ExpenseCategoryBarChar
           <CartesianGrid horizontal={false} strokeDasharray="3 3" />
           <XAxis type="number" tickFormatter={(value) => formatCurrency(value).replace(/\.\d{2}$/, '')}  fontSize={12} />
           <YAxis
-            dataKey="displayName" // Use displayName for Y-axis ticks
+            dataKey="displayName"
             type="category"
             tickLine={false}
             axisLine={false}
@@ -112,7 +107,6 @@ export function ExpenseCategoryBarChart({ transactions }: ExpenseCategoryBarChar
             content={
               <ChartTooltipContent
                 formatter={(value, name, item) => {
-                    // item.payload.name is the original key
                     const configEntry = chartConfig[item.payload.name as string];
                     return `${configEntry?.label || item.payload.name}: ${formatCurrency(value as number)}`;
                 }}

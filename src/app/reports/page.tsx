@@ -18,7 +18,7 @@ import { db } from '@/lib/firebase';
 import { collection, query, orderBy, onSnapshot, Timestamp, doc, getDoc } from "firebase/firestore";
 import { format as formatDateFns, parseISO as parseISODateFns, getYear as getYearFns, getMonth as getMonthFns, parse as parseDateFns, startOfMonth, endOfMonth, addMonths, setDate as setDateFnsDate, differenceInCalendarMonths, isWithinInterval, lastDayOfMonth } from 'date-fns';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ExpenseCategoryBarChart } from '@/components/dashboard/charts/expense-category-bar-chart'; // Changed import
+import { ExpenseCategoryBarChart } from '@/components/dashboard/charts/expense-category-bar-chart';
 import { formatCurrency, cn } from '@/lib/utils';
 import { ExportData } from '@/components/dashboard/export-data';
 import { Progress } from "@/components/ui/progress";
@@ -55,10 +55,9 @@ export default function ReportsPage() {
     setIsClient(true);
   }, []);
 
-  // Fetch User Preferences
+  // Fetch User Preferences (for category display names and icons)
   useEffect(() => {
     if (!user || authLoading || !isClient) {
-      if (!authLoading && !user && isClient) router.push('/login');
       setIsLoadingPreferences(false); 
       setUserDisplayCategories([...CATEGORIES]); 
       return;
@@ -68,23 +67,47 @@ export default function ReportsPage() {
       try {
         const preferencesDocRef = doc(db, "users/" + user.uid + "/preferences/userPreferences");
         const preferencesDocSnap = await getDoc(preferencesDocRef);
+        
+        let effectiveCategories: DisplayCategory[] = [];
+        const predefinedExpenseCategoriesOnly = CATEGORIES.filter(cat => cat.type === 'expense');
+
         if (preferencesDocSnap.exists()) {
           const prefsData = preferencesDocSnap.data() as UserPreferences;
-          const customDefs = prefsData.userDefinedCategories || [];
+          const customCategoriesFromDb = prefsData.userDefinedCategories || [];
+          const deselectedPredefinedNames = new Set((prefsData.deselectedPredefinedCategories || []).map(name => name.toLowerCase()));
           
-          let effectiveCategories: DisplayCategory[] = [...CATEGORIES];
-          const seenNames = new Set(CATEGORIES.map(c => c.name.toLowerCase()));
+          const customCategoriesMap = new Map<string, CustomCategoryData>();
+          customCategoriesFromDb.forEach(cc => {
+            customCategoriesMap.set(cc.name.toLowerCase(), cc);
+          });
 
-          customDefs.forEach(customCat => {
-            if (!seenNames.has(customCat.name.toLowerCase())) {
+          effectiveCategories = CATEGORIES // Start with ALL predefined categories
+            .map(pCat => {
+              const customOverride = customCategoriesMap.get(pCat.name.toLowerCase());
+              if (customOverride) {
+                customCategoriesMap.delete(pCat.name.toLowerCase()); 
+                return customOverride; 
+              }
+              return pCat;
+            })
+            .filter(pCat => !deselectedPredefinedNames.has(pCat.name.toLowerCase()));
+          
+          customCategoriesMap.forEach(customCat => {
+            if (!effectiveCategories.some(c => c.name.toLowerCase() === customCat.name.toLowerCase())) {
               effectiveCategories.push(customCat);
-              seenNames.add(customCat.name.toLowerCase());
             }
           });
-          setUserDisplayCategories(effectiveCategories);
+
         } else {
-          setUserDisplayCategories([...CATEGORIES]); 
+          effectiveCategories = [...CATEGORIES];
         }
+        
+        if (effectiveCategories.length === 0) {
+            effectiveCategories = [...CATEGORIES];
+        }
+        
+        setUserDisplayCategories(effectiveCategories.sort((a, b) => getCategoryDisplayLabel(a, language).localeCompare(getCategoryDisplayLabel(b, language))));
+
       } catch (error) {
         console.error("ReportsPage: Error fetching user preferences:", error);
         toast({
@@ -92,13 +115,13 @@ export default function ReportsPage() {
           description: translate({ en: "Could not load category details.", pt: "Não foi possível carregar detalhes das categorias." }),
           variant: "destructive",
         });
-        setUserDisplayCategories([...CATEGORIES]); 
+        setUserDisplayCategories([...CATEGORIES].sort((a, b) => getCategoryDisplayLabel(a, language).localeCompare(getCategoryDisplayLabel(b, language))));
       } finally {
         setIsLoadingPreferences(false);
       }
     };
     if (user) fetchPrefs();
-  }, [user, authLoading, isClient, router, toast, translate]);
+  }, [user, authLoading, isClient, language, toast, translate]);
 
 
   // Fetch Transactions
@@ -118,23 +141,38 @@ export default function ReportsPage() {
       const fetchedTransactions = querySnapshot.docs.map(docSnap => {
         const data = docSnap.data();
         let dateString = data.date;
+        let effectiveMonthString = data.effectiveMonth;
+
         if (data.date && typeof data.date === 'object' && data.date instanceof Timestamp) {
           dateString = formatDateFns(data.date.toDate(), "yyyy-MM-dd");
-        } else if (typeof data.date === 'string' && data.date.includes('T')) {
-          try {
-            dateString = formatDateFns(parseISODateFns(data.date), "yyyy-MM-dd");
-          } catch (e) {
-            console.warn("ReportsPage: Failed to parse ISO date string: " + String(data.date), e);
-            dateString = formatDateFns(new Date(), "yyyy-MM-dd");
-          }
-        } else if (typeof data.date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(data.date)) {
-           console.warn("ReportsPage: Transaction has unexpected date format. Fallback to current date. Date was:", data.date);
+        } else if (typeof data.date === 'string') {
+           if (/^\d{4}-\d{2}-\d{2}$/.test(data.date)) {
+              // Already in YYYY-MM-DD
+            } else if (data.date.includes('T')) {
+              try { dateString = formatDateFns(parseISODateFns(data.date), "yyyy-MM-dd"); }
+              catch (e) { console.warn("ReportsPage (TX Date Parse ISO): Failed for tx " + docSnap.id + ": " + String(data.date), e); dateString = formatDateFns(new Date(), "yyyy-MM-dd");}
+            } else {
+               try { dateString = formatDateFns(new Date(data.date), "yyyy-MM-dd"); } // General fallback for other string dates
+               catch (e) { console.warn("ReportsPage (TX Date Parse General): Failed for tx " + docSnap.id + ": " + String(data.date), e); dateString = formatDateFns(new Date(), "yyyy-MM-dd");}
+            }
+        } else {
+           console.warn("ReportsPage (TX Date Parse Missing/Invalid): Invalid date for tx " + docSnap.id + ":", data.date);
            dateString = formatDateFns(new Date(), "yyyy-MM-dd");
+        }
+
+        if (!effectiveMonthString && dateString) {
+            try {
+                effectiveMonthString = formatDateFns(parseDateFns(dateString, "yyyy-MM-dd", new Date(0)), "yyyy-MM");
+            } catch (e) {
+                console.warn("ReportsPage: Could not parse date " + String(dateString) + " to derive effectiveMonth for tx " + String(docSnap.id));
+                effectiveMonthString = formatDateFns(new Date(), "yyyy-MM"); 
+            }
         }
         return {
             ...data,
             id: docSnap.id,
             date: dateString,
+            effectiveMonth: effectiveMonthString,
             paymentMethod: data.paymentMethod,
             installments: data.installments,
             isRecurring: data.isRecurring,
@@ -201,51 +239,8 @@ export default function ReportsPage() {
 
 
   const transactionsForDisplayedPeriod = useMemo(() => {
-    const targetYear = getYearFns(displayedDate);
-    const targetMonth = getMonthFns(displayedDate);
-    const firstDayOfTargetMonth = startOfMonth(displayedDate);
-
-    const filtered: Transaction[] = [];
-    allTransactions.forEach(t => {
-      const originalTransactionDate = parseDateFns(t.date, "yyyy-MM-dd", new Date(0));
-
-      if (t.type === 'expense' && t.expenseType === 'installment' && t.installments && t.installments > 0) {
-        const installmentSeriesStartDate = startOfMonth(originalTransactionDate);
-        const installmentSeriesEndDate = endOfMonth(addMonths(installmentSeriesStartDate, t.installments - 1));
-        const isInstallmentActiveThisMonth = isWithinInterval(firstDayOfTargetMonth, { start: installmentSeriesStartDate, end: installmentSeriesEndDate });
-        if (isInstallmentActiveThisMonth) {
-           filtered.push(t);
-        }
-      }
-      else if (t.isRecurring === true && t.expenseType !== 'installment') { 
-        const originalTransactionYear = getYearFns(originalTransactionDate);
-        const originalTransactionMonth = getMonthFns(originalTransactionDate);
-        const matchesRecurringCriteria = originalTransactionYear < targetYear || (originalTransactionYear === targetYear && originalTransactionMonth <= targetMonth);
-        if (matchesRecurringCriteria) {
-           filtered.push(t);
-        }
-      }
-      else if (!t.isRecurring && t.expenseType !== 'installment') { 
-        const transactionYear = getYearFns(originalTransactionDate);
-        const transactionMonth = getMonthFns(originalTransactionDate);
-        if (transactionYear === targetYear && transactionMonth === targetMonth) {
-          filtered.push(t);
-        }
-      } else if (t.type === 'income') { 
-         const transactionYear = getYearFns(originalTransactionDate);
-         const transactionMonth = getMonthFns(originalTransactionDate);
-         if (t.isRecurring) {
-            if (startOfMonth(originalTransactionDate) <= firstDayOfTargetMonth) { 
-                filtered.push(t);
-            }
-         } else { 
-            if (transactionYear === targetYear && transactionMonth === targetMonth) {
-                filtered.push(t);
-            }
-         }
-      }
-    });
-    return filtered;
+    const targetEffectiveMonth = formatDateFns(displayedDate, "yyyy-MM");
+    return allTransactions.filter(t => t.effectiveMonth === targetEffectiveMonth);
   }, [allTransactions, displayedDate]);
 
   const totalIncomeForPeriod = useMemo(() =>
@@ -283,29 +278,32 @@ export default function ReportsPage() {
     transactionsForDisplayedPeriod
       .filter(t => t.type === 'expense')
       .forEach(t => {
-        const categoryKey = t.category as string;
+        const categoryKey = t.category as string; // internal name
         actualSpending[categoryKey] = (actualSpending[categoryKey] || 0) + t.amount;
       });
 
     const budgetKeys = Object.keys(loadedBudgets || {}).filter(key => key !== 'lastUpdated');
     const spendingKeys = Object.keys(actualSpending);
-    const allRelevantCategoryNames = new Set<string>([...budgetKeys, ...spendingKeys].filter(key => key !== 'lastUpdated'));
+    const allRelevantCategoryInternalNames = new Set<string>([...budgetKeys, ...spendingKeys]);
     
-    if (allRelevantCategoryNames.size === 0 && budgetKeys.every(key => (loadedBudgets[key] || 0) === 0)) {
+    if (allRelevantCategoryInternalNames.size === 0 && budgetKeys.every(key => (loadedBudgets[key] || 0) === 0)) {
         return []; 
     }
 
-    return Array.from(allRelevantCategoryNames).map(categoryName => {
-      const categoryInfo = userDisplayCategories.find(cat => cat.name === categoryName);
-      const displayName = categoryInfo ? getCategoryDisplayLabel(categoryInfo, language) : categoryName;
-      const budgeted = loadedBudgets[categoryName] || 0;
-      const actual = actualSpending[categoryName] || 0;
+    return Array.from(allRelevantCategoryInternalNames).map(internalName => {
+      // Find the full DisplayCategory object to get its icon and translated label
+      const categoryInfo = userDisplayCategories.find(cat => cat.name === internalName);
+      const displayName = categoryInfo ? getCategoryDisplayLabel(categoryInfo, language) : internalName;
+      const icon = categoryInfo?.icon || 'CircleHelp'; // Fallback icon
+      
+      const budgeted = loadedBudgets[internalName] || 0;
+      const actual = actualSpending[internalName] || 0;
       const difference = budgeted - actual;
-      const percentageRaw = budgeted > 0 ? (actual / budgeted) * 100 : (actual > 0 ? 1000 : 0); 
+      const percentageRaw = budgeted > 0 ? (actual / budgeted) * 100 : (actual > 0 ? 1000 : 0); // 1000 to ensure it triggers "overspent" color if actual > 0 and budget = 0
       
       return {
-        categoryName: displayName,
-        icon: categoryInfo?.icon || 'CircleHelp',
+        categoryName: displayName, // Use translated name for display
+        icon: icon,
         budgeted,
         actual,
         difference,
@@ -315,9 +313,29 @@ export default function ReportsPage() {
       .sort((a,b) => (b.budgeted + b.actual) - (a.budgeted + a.actual));
   }, [loadedBudgets, transactionsForDisplayedPeriod, userDisplayCategories, language, isLoadingPreferences]);
 
+  const expenseDataForChart = useMemo(() => {
+    const expensesByCategory = transactionsForDisplayedPeriod
+      .filter((t) => t.type === "expense")
+      .reduce((acc, t) => {
+        const categoryKey = t.category as string;
+        acc[categoryKey] = (acc[categoryKey] || 0) + t.amount;
+        return acc;
+      }, {} as Record<string, number>);
+
+     return Object.entries(expensesByCategory)
+      .map(([internalName, value]) => {
+        const categoryDetail = userDisplayCategories.find(cat => cat.name === internalName);
+        return {
+          name: internalName,
+          value,
+          displayName: categoryDetail ? getCategoryDisplayLabel(categoryDetail, language) : internalName,
+        };
+      })
+      .sort((a, b) => b.value - a.value); 
+  }, [transactionsForDisplayedPeriod, userDisplayCategories, language]);
+
 
   const pageTitle = translate({ en: "Reports", pt: "Relatórios" });
-
   const overallLoading = !isClient || authLoading || isLoadingTransactions || isLoadingPreferences || isLoadingBudgets;
 
   if (overallLoading) {
@@ -325,9 +343,7 @@ export default function ReportsPage() {
       <AppLayout>
         <div className="space-y-6">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <h1 className="text-3xl font-bold tracking-tight text-foreground">
-              {pageTitle} - {displayedMonthYearLabel}
-            </h1>
+            <Skeleton className="h-9 w-1/3" />
             <Skeleton className="h-9 w-32" />
           </div>
           <div className="grid gap-4 md:grid-cols-3">
@@ -465,7 +481,7 @@ export default function ReportsPage() {
                           item.percentage > 100 ? "bg-destructive" 
                           : item.percentage > 80 ? "bg-yellow-500" 
                           : "bg-primary"
-                        ) : "bg-primary" 
+                        ) : (item.actual > 0 ? "bg-primary" : "bg-secondary") // If budget is 0, use primary if spent, else secondary
                       }
                     />
                     <div className="flex justify-between text-xs text-muted-foreground">
@@ -504,7 +520,7 @@ export default function ReportsPage() {
           </CardHeader>
           <CardContent>
             {transactionsForDisplayedPeriod.filter(t => t.type === 'expense').length > 0 ? (
-               <ExpenseCategoryBarChart transactions={transactionsForDisplayedPeriod} />
+               <ExpenseCategoryBarChart transactions={transactionsForDisplayedPeriod} userCategories={userDisplayCategories} />
             ) : (
               <p className="text-center text-muted-foreground py-8">
                 {translate({ en: "No expense data to display chart.", pt: "Sem dados de despesa para exibir o gráfico."})}
@@ -514,5 +530,140 @@ export default function ReportsPage() {
         </Card>
       </div>
     </AppLayout>
+  );
+}
+
+  </change>
+  <change>
+    <file>/home/user/studio/src/components/dashboard/charts/expense-category-bar-chart.tsx</file>
+    <content><![CDATA[
+"use client";
+import type { Transaction, DisplayCategory } from "@/types";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  CartesianGrid,
+  Cell
+} from "recharts";
+import {
+  ChartConfig,
+  ChartContainer,
+  ChartTooltipContent,
+} from "@/components/ui/chart";
+import { useMemo } from "react";
+import { useLanguage } from "@/context/language-context";
+import { getCategoryDisplayLabel } from "@/types";
+import { formatCurrency } from "@/lib/utils";
+
+interface ExpenseCategoryBarChartProps {
+  transactions: Transaction[];
+  userCategories: DisplayCategory[]; // Added to get correct display names
+}
+
+const chartColors = [
+  "hsl(var(--chart-1))",
+  "hsl(var(--chart-2))",
+  "hsl(var(--chart-3))",
+  "hsl(var(--chart-4))",
+  "hsl(var(--chart-5))",
+  "hsl(var(--primary))",
+  "hsl(var(--accent))",
+];
+
+export function ExpenseCategoryBarChart({ transactions, userCategories }: ExpenseCategoryBarChartProps) {
+  const { language, translate } = useLanguage();
+
+  const expenseData = useMemo(() => {
+    const expensesByCategory = transactions
+      .filter((t) => t.type === "expense")
+      .reduce((acc, t) => {
+        const categoryInternalName = t.category as string; 
+        acc[categoryInternalName] = (acc[categoryInternalName] || 0) + t.amount;
+        return acc;
+      }, {} as Record<string, number>);
+
+     return Object.entries(expensesByCategory)
+      .map(([internalName, value]) => {
+        const categoryDetail = userCategories.find(cat => cat.name === internalName);
+        return {
+          name: internalName, // Keep original name for keying in chartConfig
+          value,
+          displayName: categoryDetail ? getCategoryDisplayLabel(categoryDetail, language) : internalName,
+        };
+      })
+      .sort((a, b) => b.value - a.value); 
+  }, [transactions, userCategories, language]);
+
+  const chartConfig = useMemo(() => {
+    const config: ChartConfig = {};
+    expenseData.forEach((item, index) => {
+      config[item.name] = { 
+        label: item.displayName, 
+        color: chartColors[index % chartColors.length],
+      };
+    });
+    return config;
+  }, [expenseData]);
+
+  if (expenseData.length === 0) {
+    return (
+      <p className="text-center text-muted-foreground py-8">
+        {translate({
+          en: "No expense data to display.",
+          pt: "Sem dados de despesa para exibir.",
+        })}
+      </p>
+    );
+  }
+
+  return (
+    <ChartContainer config={chartConfig} className="min-h-[300px] w-full">
+      <ResponsiveContainer width="100%" height={Math.max(300, expenseData.length * 40)}>
+        <BarChart
+          data={expenseData}
+          layout="vertical"
+          margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+        >
+          <CartesianGrid horizontal={false} strokeDasharray="3 3" />
+          <XAxis type="number" tickFormatter={(value) => formatCurrency(value).replace(/\.\d{2}$/, '')}  fontSize={12} />
+          <YAxis
+            dataKey="displayName"
+            type="category"
+            tickLine={false}
+            axisLine={false}
+            stroke="hsl(var(--foreground))"
+            fontSize={12}
+            tickMargin={8}
+            width={120} 
+            interval={0} 
+          />
+          <Tooltip
+            cursor={{ fill: "hsl(var(--muted))" }}
+            content={
+              <ChartTooltipContent
+                formatter={(value, name, item) => {
+                    const configEntry = chartConfig[item.payload.name as string];
+                    return `${configEntry?.label || item.payload.name}: ${formatCurrency(value as number)}`;
+                }}
+                labelClassName="text-sm font-semibold"
+                indicator="dot"
+              />
+            }
+          />
+          <Bar dataKey="value" layout="vertical" radius={[0, 4, 4, 0]}>
+            {expenseData.map((entry, index) => (
+              <Cell
+                key={`cell-${index}`}
+                fill={chartConfig[entry.name as string]?.color || chartColors[index % chartColors.length]}
+              />
+            ))}
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+    </ChartContainer>
   );
 }
