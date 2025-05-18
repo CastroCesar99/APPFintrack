@@ -48,25 +48,21 @@ export type CategoryName = typeof CATEGORIES[number]['name'];
 export type Category = typeof CATEGORIES[number];
 
 export interface CustomCategoryData {
-  name: string; // This is the unique ID/key
+  name: string; 
   type: TransactionType;
   icon: string;
-  label: { en: string; pt: string }; // For display purposes
+  label: { en: string; pt: string }; 
 }
 
 export type DisplayCategory = Category | CustomCategoryData;
 
-export const getCategoriesByType = (type: TransactionType, allCategories: DisplayCategory[]): DisplayCategory[] => {
-  return allCategories.filter(cat => cat.type === type);
-};
 
 export const getCategoryDisplayLabel = (category: DisplayCategory | undefined, currentLanguage: 'en' | 'pt'): string => {
   if (!category) return '';
   if (category.label && typeof category.label === 'object' && category.label[currentLanguage]) {
     return category.label[currentLanguage];
   }
-  // Fallback for older custom categories that might only have category.name
-  return category.name;
+  return category.name; 
 };
 
 export const getCategoryLabel = (categoryName: CategoryName | string | undefined, currentLanguage: 'en' | 'pt'): string => {
@@ -75,7 +71,10 @@ export const getCategoryLabel = (categoryName: CategoryName | string | undefined
   if (predefinedCategory && predefinedCategory.label && predefinedCategory.label[currentLanguage]) {
     return predefinedCategory.label[currentLanguage];
   }
-  return categoryName as string;
+  // For custom categories, their 'name' field usually holds the display name, or it's already a DisplayCategory object
+  // This part might need refinement if custom categories are only stored by a non-display 'name' and need label lookup.
+  // However, getCategoryDisplayLabel is preferred if you have the DisplayCategory object.
+  return categoryName as string; 
 };
 
 
@@ -89,7 +88,7 @@ export type PaymentMethodName = typeof PAYMENT_METHODS[number]['name'];
 export type PaymentMethod = typeof PAYMENT_METHODS[number];
 
 export interface CustomPaymentMethodData {
-  name: string;
+  name: string; 
   icon: string;
   label: { en: string; pt: string };
 }
@@ -100,35 +99,36 @@ export type DisplayPaymentMethod = PaymentMethod | CustomPaymentMethodData;
 export const getPaymentMethodDisplayLabel = (methodInput: DisplayPaymentMethod | string | undefined, currentLanguage: 'en' | 'pt'): string => {
   if (!methodInput) return '';
 
-  let methodNameString: string;
   let methodObject: DisplayPaymentMethod | undefined;
 
   if (typeof methodInput === 'string') {
-    methodNameString = methodInput;
-    // Try to find in predefined
-    methodObject = PAYMENT_METHODS.find(pm => pm.name.toLowerCase() === methodNameString.toLowerCase());
+    const lowerMethodInput = methodInput.toLowerCase();
+    methodObject = PAYMENT_METHODS.find(pm => pm.name.toLowerCase() === lowerMethodInput);
     if (methodObject && methodObject.label && methodObject.label[currentLanguage]) {
       return methodObject.label[currentLanguage];
     }
-    // If not in predefined, it's a custom method name, return it as is
-    return methodNameString;
+    // If not predefined, return the input string itself (assuming it's a custom method name)
+    return methodInput;
   } else {
     // It's already an object (DisplayPaymentMethod)
     methodObject = methodInput;
     if (methodObject.label && methodObject.label[currentLanguage]) {
       return methodObject.label[currentLanguage];
     }
-    return methodObject.name; // Fallback to name if label structure is odd
+    return methodObject.name; // Fallback to name
   }
 };
 
 
 export interface UserPreferences {
   language: 'en' | 'pt';
-  selectedCategories: string[]; // Names of categories user wants to actively use/see in forms by default
-  userDefinedCategories: CustomCategoryData[]; // Custom categories created by user
-  deselectedPredefinedCategories?: string[]; // Names of predefined categories user wants to hide/not use
+  selectedCategories: string[]; 
+  userDefinedCategories: CustomCategoryData[];
+  deselectedPredefinedCategories?: string[];
   selectedPaymentMethods: string[];
   userDefinedPaymentMethods: CustomPaymentMethodData[];
+  deselectedPredefinedPaymentMethods?: string[];
   updatedAt?: any;
 }
+
+    

@@ -2186,6 +2186,9 @@ function ManageCategoriesPage() {
             categoryType: 'expense'
         }
     });
+    const isPredefinedCategory = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useCallback"])((categoryName)=>{
+        return __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["CATEGORIES"].some((cat)=>cat.name.toLowerCase() === categoryName.toLowerCase());
+    }, []);
     const fetchUserCategories = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useCallback"])(async ()=>{
         if (!user) {
             const sortedPredefined = [
@@ -2200,33 +2203,27 @@ function ManageCategoriesPage() {
             const preferencesDocRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["doc"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["db"], `users/${user.uid}/preferences/userPreferences`);
             const preferencesDocSnap = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["getDoc"])(preferencesDocRef);
             let effectiveCategories = [];
-            const deselectedPredefined = [];
+            const deselectedPredefinedNames = [];
             if (preferencesDocSnap.exists()) {
                 const prefsData = preferencesDocSnap.data();
-                (prefsData.deselectedPredefinedCategories || []).forEach((name)=>deselectedPredefined.push(name.toLowerCase()));
-                // Add predefined categories not deselected by the user
-                __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["CATEGORIES"].forEach((predefCat)=>{
-                    if (!deselectedPredefined.includes(predefCat.name.toLowerCase())) {
-                        effectiveCategories.push(predefCat);
-                    }
-                });
+                (prefsData.deselectedPredefinedCategories || []).forEach((name)=>deselectedPredefinedNames.push(name.toLowerCase()));
+                // Start with predefined categories that are not in the user's deselected list
+                effectiveCategories = __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["CATEGORIES"].filter((predefCat)=>!deselectedPredefinedNames.includes(predefCat.name.toLowerCase()));
                 const customCategories = prefsData.userDefinedCategories || [];
                 const customCategoriesMap = new Map();
                 customCategories.forEach((cc)=>customCategoriesMap.set(cc.name.toLowerCase(), cc));
                 // Override/add custom categories
-                // If a custom category has the same name as a predefined one, it replaces it
+                // If a custom category has the same name as a (non-deselected) predefined one, it replaces it
                 effectiveCategories = effectiveCategories.map((cat)=>{
                     const customOverride = customCategoriesMap.get(cat.name.toLowerCase());
                     if (customOverride) {
-                        customCategoriesMap.delete(cat.name.toLowerCase()); // Remove from map as it's used
+                        customCategoriesMap.delete(cat.name.toLowerCase());
                         return customOverride;
                     }
                     return cat;
                 });
-                // Add remaining custom categories that didn't override any predefined
                 customCategoriesMap.forEach((customCat)=>effectiveCategories.push(customCat));
             } else {
-                // No preferences, show all predefined
                 effectiveCategories = [
                     ...__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["CATEGORIES"]
                 ];
@@ -2272,10 +2269,6 @@ function ManageCategoriesPage() {
         authLoading,
         fetchUserCategories
     ]);
-    // Check if a category name is part of the original predefined set
-    const isGloballyPredefined = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useCallback"])((categoryName)=>{
-        return __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["CATEGORIES"].some((cat)=>cat.name.toLowerCase() === categoryName.toLowerCase());
-    }, []);
     const handleAddCategorySubmit = async (data)=>{
         if (!user) {
             toast({
@@ -2295,7 +2288,6 @@ function ManageCategoriesPage() {
         const newCategoryName = data.categoryName.trim();
         const newCategoryIcon = data.selectedIcon;
         const newCategoryType = data.categoryType;
-        // Check for duplicates against current displayCategories (which includes predefined and existing custom)
         const isDuplicate = displayCategories.some((cat)=>(0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["getCategoryDisplayLabel"])(cat, language).toLowerCase() === newCategoryName.toLowerCase() || cat.name.toLowerCase() === newCategoryName.toLowerCase());
         if (isDuplicate) {
             toast({
@@ -2324,9 +2316,7 @@ function ManageCategoriesPage() {
         try {
             const preferencesDocRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["doc"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["db"], `users/${user.uid}/preferences/userPreferences`);
             const prefsSnap = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["getDoc"])(preferencesDocRef);
-            let currentSelected = prefsSnap.exists() ? prefsSnap.data().selectedCategories || [] : [];
             let currentDeselectedPredefined = prefsSnap.exists() ? prefsSnap.data().deselectedPredefinedCategories || [] : [];
-            // If this new custom category has the same name as a (previously) deselected predefined one, remove it from deselected list
             currentDeselectedPredefined = currentDeselectedPredefined.filter((dn)=>dn.toLowerCase() !== newCustomCategory.name.toLowerCase());
             if (prefsSnap.exists()) {
                 await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["updateDoc"])(preferencesDocRef, {
@@ -2388,7 +2378,7 @@ function ManageCategoriesPage() {
         setCategoryToEdit(category);
         setOriginalCategoryName(category.name);
         editCategoryForm.reset({
-            categoryName: category.name,
+            categoryName: (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["getCategoryDisplayLabel"])(category, language),
             selectedIcon: category.icon,
             categoryType: category.type
         });
@@ -2410,11 +2400,19 @@ function ManageCategoriesPage() {
             return;
         }
         setIsSaving(true);
-        const updatedCategoryName = data.categoryName.trim();
+        const updatedCategoryDisplayName = data.categoryName.trim(); // This is what user sees and types
         const updatedIcon = data.selectedIcon;
         const updatedType = data.categoryType;
-        // Check for duplicates, excluding the original name of the category being edited
-        const isDuplicate = displayCategories.some((cat)=>((0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["getCategoryDisplayLabel"])(cat, language).toLowerCase() === updatedCategoryName.toLowerCase() || cat.name.toLowerCase() === updatedCategoryName.toLowerCase()) && cat.name.toLowerCase() !== originalCategoryName.toLowerCase());
+        // Determine if the category being edited was originally predefined
+        const wasOriginallyPredefined = isPredefinedCategory(originalCategoryName);
+        // The new internal name should be the updated display name if it changed, 
+        // or the original internal name if the display name didn't change (or if it was predefined and only icon/type changed)
+        let newInternalName = originalCategoryName;
+        if ((0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["getCategoryDisplayLabel"])(categoryToEdit, language).toLowerCase() !== updatedCategoryDisplayName.toLowerCase()) {
+            newInternalName = updatedCategoryDisplayName; // User actively changed the name
+        }
+        // Check for duplicates, excluding the original internal name of the category being edited
+        const isDuplicate = displayCategories.some((cat)=>cat.name.toLowerCase() === newInternalName.toLowerCase() && cat.name.toLowerCase() !== originalCategoryName.toLowerCase());
         if (isDuplicate) {
             toast({
                 title: translate({
@@ -2430,13 +2428,13 @@ function ManageCategoriesPage() {
             setIsSaving(false);
             return;
         }
-        const updatedCustomCategory = {
-            name: updatedCategoryName,
+        const updatedCategoryData = {
+            name: newInternalName,
             icon: updatedIcon,
             type: updatedType,
             label: {
-                en: updatedCategoryName,
-                pt: updatedCategoryName
+                en: updatedCategoryDisplayName,
+                pt: updatedCategoryDisplayName
             }
         };
         try {
@@ -2447,24 +2445,30 @@ function ManageCategoriesPage() {
                 let currentCustomCategories = preferencesData.userDefinedCategories || [];
                 let currentSelectedCategories = preferencesData.selectedCategories || [];
                 let currentDeselectedPredefined = preferencesData.deselectedPredefinedCategories || [];
-                // Remove the old version from userDefinedCategories if it exists
+                // Remove the old version if it was custom or if its name is changing
                 currentCustomCategories = currentCustomCategories.filter((cat)=>cat.name.toLowerCase() !== originalCategoryName.toLowerCase());
-                // Add the new/updated version
-                currentCustomCategories.push(updatedCustomCategory);
-                // Update selectedCategories if name changed
-                if (originalCategoryName.toLowerCase() !== updatedCategoryName.toLowerCase()) {
-                    currentSelectedCategories = currentSelectedCategories.map((name)=>name.toLowerCase() === originalCategoryName.toLowerCase() ? updatedCategoryName : name);
-                }
-                // Ensure the new name is selected if the original was
-                if (currentSelectedCategories.map((n)=>n.toLowerCase()).includes(updatedCategoryName.toLowerCase()) || (preferencesData.selectedCategories || []).map((n)=>n.toLowerCase()).includes(originalCategoryName.toLowerCase())) {
-                    if (!currentSelectedCategories.map((n)=>n.toLowerCase()).includes(updatedCategoryName.toLowerCase())) {
-                        currentSelectedCategories.push(updatedCategoryName);
+                // Add the new/updated version (which will always be a custom category now)
+                currentCustomCategories.push(updatedCategoryData);
+                // Update selectedCategories if internal name changed
+                if (originalCategoryName.toLowerCase() !== newInternalName.toLowerCase()) {
+                    currentSelectedCategories = currentSelectedCategories.filter((name)=>name.toLowerCase() !== originalCategoryName.toLowerCase());
+                    if (!currentSelectedCategories.map((n)=>n.toLowerCase()).includes(newInternalName.toLowerCase())) {
+                        currentSelectedCategories.push(newInternalName);
                     }
+                } else if (!currentSelectedCategories.map((n)=>n.toLowerCase()).includes(newInternalName.toLowerCase())) {
+                    // If name didn't change, but it was somehow deselected, re-select it.
+                    // This also handles if the original was predefined and now customized, it should be considered "selected".
+                    currentSelectedCategories.push(newInternalName);
                 }
                 currentSelectedCategories = Array.from(new Set(currentSelectedCategories));
-                // If original was predefined and now edited, it's essentially custom. 
-                // Ensure it's NOT in deselectedPredefinedCategories.
-                currentDeselectedPredefined = currentDeselectedPredefined.filter((dn)=>dn.toLowerCase() !== originalCategoryName.toLowerCase() && dn.toLowerCase() !== updatedCategoryName.toLowerCase());
+                // If original was predefined, it's now "customized". Ensure it's NOT in deselectedPredefined.
+                // If its name changed from a predefined name, the original predefined is NOT deselected.
+                currentDeselectedPredefined = currentDeselectedPredefined.filter((dn)=>dn.toLowerCase() !== originalCategoryName.toLowerCase() && dn.toLowerCase() !== newInternalName.toLowerCase());
+                // If the user edited a predefined category and *didn't change its name*, it's now a userDefinedCategory
+                // and should not be in deselectedPredefined.
+                if (wasOriginallyPredefined && originalCategoryName.toLowerCase() === newInternalName.toLowerCase()) {
+                    currentDeselectedPredefined = currentDeselectedPredefined.filter((dn)=>dn.toLowerCase() !== originalCategoryName.toLowerCase());
+                }
                 await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["updateDoc"])(preferencesDocRef, {
                     userDefinedCategories: currentCustomCategories,
                     selectedCategories: currentSelectedCategories,
@@ -2477,7 +2481,7 @@ function ManageCategoriesPage() {
                         en: "Category Updated",
                         pt: "Categoria Atualizada"
                     }),
-                    description: `${(0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["getCategoryDisplayLabel"])(updatedCustomCategory, language)} ${translate({
+                    description: `${(0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["getCategoryDisplayLabel"])(updatedCategoryData, language)} ${translate({
                         en: "has been updated.",
                         pt: "foi atualizada."
                     })}`
@@ -2486,7 +2490,30 @@ function ManageCategoriesPage() {
                 setCategoryToEdit(null);
                 setOriginalCategoryName(null);
             } else {
-                throw new Error("User preferences document not found.");
+                // This case should ideally not happen if user has any preferences
+                // But if it does, we can treat it as adding a new custom category
+                await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["setDoc"])(preferencesDocRef, {
+                    userDefinedCategories: [
+                        updatedCategoryData
+                    ],
+                    selectedCategories: [
+                        updatedCategoryData.name
+                    ],
+                    deselectedPredefinedCategories: [],
+                    selectedPaymentMethods: __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["PAYMENT_METHODS"].map((pm)=>pm.name),
+                    userDefinedPaymentMethods: [],
+                    language: language,
+                    updatedAt: (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["serverTimestamp"])()
+                });
+                console.warn("ManageCategoriesPage: Preferences doc didn't exist during edit, created it.");
+                await fetchUserCategories();
+                toast({
+                    title: translate({
+                        en: "Category Updated",
+                        pt: "Categoria Atualizada"
+                    })
+                });
+                setIsEditDialogOpen(false);
             }
         } catch (error) {
             console.error("Error updating category:", error);
@@ -2533,17 +2560,17 @@ function ManageCategoriesPage() {
                 let updatedUserDefined = currentPrefs.userDefinedCategories || [];
                 let updatedSelected = currentPrefs.selectedCategories || [];
                 let updatedDeselectedPredefined = currentPrefs.deselectedPredefinedCategories || [];
-                const isCustom = updatedUserDefined.some((cat)=>cat.name.toLowerCase() === categoryToDelete.name.toLowerCase());
-                if (isCustom) {
-                    updatedUserDefined = updatedUserDefined.filter((cat)=>cat.name.toLowerCase() !== categoryToDelete.name.toLowerCase());
-                } else if (isGloballyPredefined(categoryToDelete.name)) {
-                    // It's a predefined category, add to deselected list if not already there
-                    if (!updatedDeselectedPredefined.map((n)=>n.toLowerCase()).includes(categoryToDelete.name.toLowerCase())) {
-                        updatedDeselectedPredefined.push(categoryToDelete.name);
+                const categoryInternalName = categoryToDelete.name;
+                const isActuallyPredefined = isPredefinedCategory(categoryInternalName);
+                const isAlsoInCustom = updatedUserDefined.some((cat)=>cat.name.toLowerCase() === categoryInternalName.toLowerCase());
+                if (isAlsoInCustom) {
+                    updatedUserDefined = updatedUserDefined.filter((cat)=>cat.name.toLowerCase() !== categoryInternalName.toLowerCase());
+                } else if (isActuallyPredefined) {
+                    if (!updatedDeselectedPredefined.map((n)=>n.toLowerCase()).includes(categoryInternalName.toLowerCase())) {
+                        updatedDeselectedPredefined.push(categoryInternalName);
                     }
                 }
-                // Always remove from selected list
-                updatedSelected = updatedSelected.filter((name)=>name.toLowerCase() !== categoryToDelete.name.toLowerCase());
+                updatedSelected = updatedSelected.filter((name)=>name.toLowerCase() !== categoryInternalName.toLowerCase());
                 await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["updateDoc"])(preferencesDocRef, {
                     userDefinedCategories: updatedUserDefined,
                     selectedCategories: updatedSelected,
@@ -2554,24 +2581,24 @@ function ManageCategoriesPage() {
             await fetchUserCategories();
             toast({
                 title: translate({
-                    en: "Category Deleted",
-                    pt: "Categoria Excluída"
+                    en: "Category Action Complete",
+                    pt: "Ação da Categoria Concluída"
                 }),
                 description: `${(0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["getCategoryDisplayLabel"])(categoryToDelete, language)} ${translate({
-                    en: "has been deleted.",
-                    pt: "foi excluída."
+                    en: "has been processed.",
+                    pt: "foi processada."
                 })}`
             });
         } catch (error) {
-            console.error("Error deleting category:", error);
+            console.error("Error processing category action:", error);
             toast({
                 title: translate({
-                    en: "Error Deleting Category",
-                    pt: "Erro ao Excluir Categoria"
+                    en: "Error Processing Action",
+                    pt: "Erro ao Processar Ação"
                 }),
                 description: translate({
-                    en: "Could not delete the category.",
-                    pt: "Não foi possível excluir a categoria."
+                    en: "Could not complete the action for the category.",
+                    pt: "Não foi possível concluir a ação para a categoria."
                 }),
                 variant: "destructive"
             });
@@ -2629,20 +2656,20 @@ function ManageCategoriesPage() {
                             children: dialogTitle
                         }, void 0, false, {
                             fileName: "[project]/src/app/settings/categories/page.tsx",
-                            lineNumber: 443,
+                            lineNumber: 462,
                             columnNumber: 17
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$dialog$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["DialogDescription"], {
                             children: dialogDescription
                         }, void 0, false, {
                             fileName: "[project]/src/app/settings/categories/page.tsx",
-                            lineNumber: 444,
+                            lineNumber: 463,
                             columnNumber: 17
                         }, this)
                     ]
                 }, void 0, true, {
                     fileName: "[project]/src/app/settings/categories/page.tsx",
-                    lineNumber: 442,
+                    lineNumber: 461,
                     columnNumber: 13
                 }, this),
                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Form"], {
@@ -2663,7 +2690,7 @@ function ManageCategoriesPage() {
                                                 })
                                             }, void 0, false, {
                                                 fileName: "[project]/src/app/settings/categories/page.tsx",
-                                                lineNumber: 453,
+                                                lineNumber: 472,
                                                 columnNumber: 25
                                             }, void 0),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["FormControl"], {
@@ -2675,28 +2702,28 @@ function ManageCategoriesPage() {
                                                     ...field
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/app/settings/categories/page.tsx",
-                                                    lineNumber: 457,
+                                                    lineNumber: 476,
                                                     columnNumber: 25
                                                 }, void 0)
                                             }, void 0, false, {
                                                 fileName: "[project]/src/app/settings/categories/page.tsx",
-                                                lineNumber: 456,
+                                                lineNumber: 475,
                                                 columnNumber: 25
                                             }, void 0),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["FormMessage"], {}, void 0, false, {
                                                 fileName: "[project]/src/app/settings/categories/page.tsx",
-                                                lineNumber: 462,
+                                                lineNumber: 481,
                                                 columnNumber: 25
                                             }, void 0)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/src/app/settings/categories/page.tsx",
-                                        lineNumber: 452,
+                                        lineNumber: 471,
                                         columnNumber: 21
                                     }, void 0)
                             }, void 0, false, {
                                 fileName: "[project]/src/app/settings/categories/page.tsx",
-                                lineNumber: 448,
+                                lineNumber: 467,
                                 columnNumber: 17
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["FormField"], {
@@ -2711,7 +2738,7 @@ function ManageCategoriesPage() {
                                                 })
                                             }, void 0, false, {
                                                 fileName: "[project]/src/app/settings/categories/page.tsx",
-                                                lineNumber: 471,
+                                                lineNumber: 490,
                                                 columnNumber: 25
                                             }, void 0),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Select"], {
@@ -2722,10 +2749,6 @@ function ManageCategoriesPage() {
                                                         children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["SelectTrigger"], {
                                                             className: "w-full",
                                                             children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["SelectValue"], {
-                                                                placeholder: translate({
-                                                                    en: "Select an icon",
-                                                                    pt: "Selecione um ícone"
-                                                                }),
                                                                 children: field.value ? (()=>{
                                                                     const foundIconOption = selectableIcons.find((i)=>i.value === field.value);
                                                                     const IconComp = foundIconOption ? foundIconOption.iconComponent : __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$circle$2d$help$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__CircleHelp$3e$__["CircleHelp"];
@@ -2737,21 +2760,21 @@ function ManageCategoriesPage() {
                                                                                 className: "h-4 w-4 text-muted-foreground"
                                                                             }, void 0, false, {
                                                                                 fileName: "[project]/src/app/settings/categories/page.tsx",
-                                                                                lineNumber: 485,
+                                                                                lineNumber: 504,
                                                                                 columnNumber: 41
                                                                             }, void 0),
                                                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
                                                                                 children: labelText
                                                                             }, void 0, false, {
                                                                                 fileName: "[project]/src/app/settings/categories/page.tsx",
-                                                                                lineNumber: 486,
+                                                                                lineNumber: 505,
                                                                                 columnNumber: 41
                                                                             }, void 0)
                                                                         ]
                                                                     }, void 0, true, {
                                                                         fileName: "[project]/src/app/settings/categories/page.tsx",
-                                                                        lineNumber: 484,
-                                                                        columnNumber: 37
+                                                                        lineNumber: 503,
+                                                                        columnNumber: 39
                                                                     }, void 0);
                                                                 })() : translate({
                                                                     en: "Select an icon",
@@ -2759,17 +2782,17 @@ function ManageCategoriesPage() {
                                                                 })
                                                             }, void 0, false, {
                                                                 fileName: "[project]/src/app/settings/categories/page.tsx",
-                                                                lineNumber: 477,
-                                                                columnNumber: 29
+                                                                lineNumber: 496,
+                                                                columnNumber: 30
                                                             }, void 0)
                                                         }, void 0, false, {
                                                             fileName: "[project]/src/app/settings/categories/page.tsx",
-                                                            lineNumber: 476,
+                                                            lineNumber: 495,
                                                             columnNumber: 29
                                                         }, void 0)
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/app/settings/categories/page.tsx",
-                                                        lineNumber: 475,
+                                                        lineNumber: 494,
                                                         columnNumber: 25
                                                     }, void 0),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["SelectContent"], {
@@ -2782,52 +2805,52 @@ function ManageCategoriesPage() {
                                                                             className: "h-4 w-4 text-muted-foreground"
                                                                         }, void 0, false, {
                                                                             fileName: "[project]/src/app/settings/categories/page.tsx",
-                                                                            lineNumber: 500,
+                                                                            lineNumber: 519,
                                                                             columnNumber: 33
                                                                         }, void 0),
                                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
                                                                             children: translate(iconOption.label)
                                                                         }, void 0, false, {
                                                                             fileName: "[project]/src/app/settings/categories/page.tsx",
-                                                                            lineNumber: 501,
+                                                                            lineNumber: 520,
                                                                             columnNumber: 33
                                                                         }, void 0)
                                                                     ]
                                                                 }, void 0, true, {
                                                                     fileName: "[project]/src/app/settings/categories/page.tsx",
-                                                                    lineNumber: 499,
+                                                                    lineNumber: 518,
                                                                     columnNumber: 33
                                                                 }, void 0)
                                                             }, iconOption.value, false, {
                                                                 fileName: "[project]/src/app/settings/categories/page.tsx",
-                                                                lineNumber: 498,
+                                                                lineNumber: 517,
                                                                 columnNumber: 29
                                                             }, void 0))
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/app/settings/categories/page.tsx",
-                                                        lineNumber: 496,
+                                                        lineNumber: 515,
                                                         columnNumber: 25
                                                     }, void 0)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/src/app/settings/categories/page.tsx",
-                                                lineNumber: 474,
+                                                lineNumber: 493,
                                                 columnNumber: 25
                                             }, void 0),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["FormMessage"], {}, void 0, false, {
                                                 fileName: "[project]/src/app/settings/categories/page.tsx",
-                                                lineNumber: 507,
+                                                lineNumber: 526,
                                                 columnNumber: 25
                                             }, void 0)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/src/app/settings/categories/page.tsx",
-                                        lineNumber: 470,
+                                        lineNumber: 489,
                                         columnNumber: 21
                                     }, void 0)
                             }, void 0, false, {
                                 fileName: "[project]/src/app/settings/categories/page.tsx",
-                                lineNumber: 466,
+                                lineNumber: 485,
                                 columnNumber: 17
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["FormField"], {
@@ -2843,7 +2866,7 @@ function ManageCategoriesPage() {
                                                 })
                                             }, void 0, false, {
                                                 fileName: "[project]/src/app/settings/categories/page.tsx",
-                                                lineNumber: 516,
+                                                lineNumber: 535,
                                                 columnNumber: 25
                                             }, void 0),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["FormControl"], {
@@ -2861,12 +2884,12 @@ function ManageCategoriesPage() {
                                                                         id: `type-income-${dialogType}-cat-dialog`
                                                                     }, void 0, false, {
                                                                         fileName: "[project]/src/app/settings/categories/page.tsx",
-                                                                        lineNumber: 525,
+                                                                        lineNumber: 544,
                                                                         columnNumber: 37
                                                                     }, void 0)
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/app/settings/categories/page.tsx",
-                                                                    lineNumber: 524,
+                                                                    lineNumber: 543,
                                                                     columnNumber: 33
                                                                 }, void 0),
                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$label$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Label"], {
@@ -2878,13 +2901,13 @@ function ManageCategoriesPage() {
                                                                     })
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/app/settings/categories/page.tsx",
-                                                                    lineNumber: 527,
+                                                                    lineNumber: 546,
                                                                     columnNumber: 33
                                                                 }, void 0)
                                                             ]
                                                         }, void 0, true, {
                                                             fileName: "[project]/src/app/settings/categories/page.tsx",
-                                                            lineNumber: 523,
+                                                            lineNumber: 542,
                                                             columnNumber: 29
                                                         }, void 0),
                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["FormItem"], {
@@ -2896,12 +2919,12 @@ function ManageCategoriesPage() {
                                                                         id: `type-expense-${dialogType}-cat-dialog`
                                                                     }, void 0, false, {
                                                                         fileName: "[project]/src/app/settings/categories/page.tsx",
-                                                                        lineNumber: 531,
+                                                                        lineNumber: 550,
                                                                         columnNumber: 37
                                                                     }, void 0)
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/app/settings/categories/page.tsx",
-                                                                    lineNumber: 530,
+                                                                    lineNumber: 549,
                                                                     columnNumber: 33
                                                                 }, void 0),
                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$label$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Label"], {
@@ -2913,40 +2936,40 @@ function ManageCategoriesPage() {
                                                                     })
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/app/settings/categories/page.tsx",
-                                                                    lineNumber: 533,
+                                                                    lineNumber: 552,
                                                                     columnNumber: 33
                                                                 }, void 0)
                                                             ]
                                                         }, void 0, true, {
                                                             fileName: "[project]/src/app/settings/categories/page.tsx",
-                                                            lineNumber: 529,
+                                                            lineNumber: 548,
                                                             columnNumber: 29
                                                         }, void 0)
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "[project]/src/app/settings/categories/page.tsx",
-                                                    lineNumber: 518,
+                                                    lineNumber: 537,
                                                     columnNumber: 25
                                                 }, void 0)
                                             }, void 0, false, {
                                                 fileName: "[project]/src/app/settings/categories/page.tsx",
-                                                lineNumber: 517,
+                                                lineNumber: 536,
                                                 columnNumber: 25
                                             }, void 0),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["FormMessage"], {}, void 0, false, {
                                                 fileName: "[project]/src/app/settings/categories/page.tsx",
-                                                lineNumber: 537,
+                                                lineNumber: 556,
                                                 columnNumber: 25
                                             }, void 0)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/src/app/settings/categories/page.tsx",
-                                        lineNumber: 515,
+                                        lineNumber: 534,
                                         columnNumber: 21
                                     }, void 0)
                             }, void 0, false, {
                                 fileName: "[project]/src/app/settings/categories/page.tsx",
-                                lineNumber: 511,
+                                lineNumber: 530,
                                 columnNumber: 17
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$dialog$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["DialogFooter"], {
@@ -2963,12 +2986,12 @@ function ManageCategoriesPage() {
                                             })
                                         }, void 0, false, {
                                             fileName: "[project]/src/app/settings/categories/page.tsx",
-                                            lineNumber: 543,
+                                            lineNumber: 562,
                                             columnNumber: 21
                                         }, this)
                                     }, void 0, false, {
                                         fileName: "[project]/src/app/settings/categories/page.tsx",
-                                        lineNumber: 542,
+                                        lineNumber: 561,
                                         columnNumber: 21
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$button$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Button"], {
@@ -2977,30 +3000,30 @@ function ManageCategoriesPage() {
                                         children: submitButtonText
                                     }, void 0, false, {
                                         fileName: "[project]/src/app/settings/categories/page.tsx",
-                                        lineNumber: 547,
+                                        lineNumber: 566,
                                         columnNumber: 21
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/src/app/settings/categories/page.tsx",
-                                lineNumber: 541,
+                                lineNumber: 560,
                                 columnNumber: 17
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/src/app/settings/categories/page.tsx",
-                        lineNumber: 447,
+                        lineNumber: 466,
                         columnNumber: 17
                     }, this)
                 }, void 0, false, {
                     fileName: "[project]/src/app/settings/categories/page.tsx",
-                    lineNumber: 446,
+                    lineNumber: 465,
                     columnNumber: 13
                 }, this)
             ]
         }, void 0, true, {
             fileName: "[project]/src/app/settings/categories/page.tsx",
-            lineNumber: 441,
+            lineNumber: 460,
             columnNumber: 9
         }, this);
     };
@@ -3020,7 +3043,7 @@ function ManageCategoriesPage() {
                                 })
                             }, void 0, false, {
                                 fileName: "[project]/src/app/settings/categories/page.tsx",
-                                lineNumber: 562,
+                                lineNumber: 581,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$dialog$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Dialog"], {
@@ -3037,7 +3060,7 @@ function ManageCategoriesPage() {
                                                     className: "mr-2 h-4 w-4"
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/app/settings/categories/page.tsx",
-                                                    lineNumber: 568,
+                                                    lineNumber: 587,
                                                     columnNumber: 17
                                                 }, this),
                                                 translate({
@@ -3047,25 +3070,25 @@ function ManageCategoriesPage() {
                                             ]
                                         }, void 0, true, {
                                             fileName: "[project]/src/app/settings/categories/page.tsx",
-                                            lineNumber: 567,
+                                            lineNumber: 586,
                                             columnNumber: 15
                                         }, this)
                                     }, void 0, false, {
                                         fileName: "[project]/src/app/settings/categories/page.tsx",
-                                        lineNumber: 566,
+                                        lineNumber: 585,
                                         columnNumber: 13
                                     }, this),
                                     renderCategoryForm(addCategoryForm, handleAddCategorySubmit, "add")
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/src/app/settings/categories/page.tsx",
-                                lineNumber: 565,
+                                lineNumber: 584,
                                 columnNumber: 11
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/src/app/settings/categories/page.tsx",
-                        lineNumber: 561,
+                        lineNumber: 580,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$dialog$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Dialog"], {
@@ -3080,7 +3103,7 @@ function ManageCategoriesPage() {
                         children: categoryToEdit && renderCategoryForm(editCategoryForm, handleEditCategorySubmit, "edit")
                     }, void 0, false, {
                         fileName: "[project]/src/app/settings/categories/page.tsx",
-                        lineNumber: 576,
+                        lineNumber: 595,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Card"], {
@@ -3095,7 +3118,7 @@ function ManageCategoriesPage() {
                                         })
                                     }, void 0, false, {
                                         fileName: "[project]/src/app/settings/categories/page.tsx",
-                                        lineNumber: 589,
+                                        lineNumber: 608,
                                         columnNumber: 13
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["CardDescription"], {
@@ -3105,13 +3128,13 @@ function ManageCategoriesPage() {
                                         })
                                     }, void 0, false, {
                                         fileName: "[project]/src/app/settings/categories/page.tsx",
-                                        lineNumber: 590,
+                                        lineNumber: 609,
                                         columnNumber: 13
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/src/app/settings/categories/page.tsx",
-                                lineNumber: 588,
+                                lineNumber: 607,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["CardContent"], {
@@ -3131,20 +3154,20 @@ function ManageCategoriesPage() {
                                                                     className: "h-6 w-6 rounded"
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/app/settings/categories/page.tsx",
-                                                                    lineNumber: 601,
+                                                                    lineNumber: 620,
                                                                     columnNumber: 25
                                                                 }, this),
                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$skeleton$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Skeleton"], {
                                                                     className: "h-5 w-32"
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/app/settings/categories/page.tsx",
-                                                                    lineNumber: 602,
+                                                                    lineNumber: 621,
                                                                     columnNumber: 25
                                                                 }, this)
                                                             ]
                                                         }, void 0, true, {
                                                             fileName: "[project]/src/app/settings/categories/page.tsx",
-                                                            lineNumber: 600,
+                                                            lineNumber: 619,
                                                             columnNumber: 23
                                                         }, this),
                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -3154,47 +3177,48 @@ function ManageCategoriesPage() {
                                                                     className: "h-8 w-8"
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/app/settings/categories/page.tsx",
-                                                                    lineNumber: 605,
+                                                                    lineNumber: 624,
                                                                     columnNumber: 25
                                                                 }, this),
                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$skeleton$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Skeleton"], {
                                                                     className: "h-8 w-8"
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/app/settings/categories/page.tsx",
-                                                                    lineNumber: 606,
+                                                                    lineNumber: 625,
                                                                     columnNumber: 25
                                                                 }, this)
                                                             ]
                                                         }, void 0, true, {
                                                             fileName: "[project]/src/app/settings/categories/page.tsx",
-                                                            lineNumber: 604,
+                                                            lineNumber: 623,
                                                             columnNumber: 23
                                                         }, this)
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "[project]/src/app/settings/categories/page.tsx",
-                                                    lineNumber: 599,
+                                                    lineNumber: 618,
                                                     columnNumber: 21
                                                 }, this),
                                                 i < 4 && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$separator$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Separator"], {}, void 0, false, {
                                                     fileName: "[project]/src/app/settings/categories/page.tsx",
-                                                    lineNumber: 609,
+                                                    lineNumber: 628,
                                                     columnNumber: 31
                                                 }, this)
                                             ]
                                         }, `skeleton-cat-${i}`, true, {
                                             fileName: "[project]/src/app/settings/categories/page.tsx",
-                                            lineNumber: 598,
+                                            lineNumber: 617,
                                             columnNumber: 19
                                         }, this))
                                 }, void 0, false, {
                                     fileName: "[project]/src/app/settings/categories/page.tsx",
-                                    lineNumber: 596,
+                                    lineNumber: 615,
                                     columnNumber: 15
                                 }, this) : displayCategories.length > 0 ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                                     className: "space-y-1",
                                     children: displayCategories.map((category, index)=>{
-                                        console.log(`ManageCategoriesPage TRACER --- Rendering category: ${(0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["getCategoryDisplayLabel"])(category, language)}, Original Name: ${category.name}`);
+                                        const isPredefined = isPredefinedCategory(category.name);
+                                        console.log(`ManageCategoriesPage TRACER --- Rendering category: ${(0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["getCategoryDisplayLabel"])(category, language)}, Original Name: ${category.name}, Is Predefined: ${isPredefined}`);
                                         return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["default"].Fragment, {
                                             children: [
                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -3208,7 +3232,7 @@ function ManageCategoriesPage() {
                                                                     className: "h-6 w-6 text-muted-foreground"
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/app/settings/categories/page.tsx",
-                                                                    lineNumber: 621,
+                                                                    lineNumber: 641,
                                                                     columnNumber: 27
                                                                 }, this),
                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -3219,7 +3243,7 @@ function ManageCategoriesPage() {
                                                                             children: (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["getCategoryDisplayLabel"])(category, language)
                                                                         }, void 0, false, {
                                                                             fileName: "[project]/src/app/settings/categories/page.tsx",
-                                                                            lineNumber: 623,
+                                                                            lineNumber: 643,
                                                                             columnNumber: 29
                                                                         }, this),
                                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$badge$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Badge"], {
@@ -3230,32 +3254,32 @@ function ManageCategoriesPage() {
                                                                                     className: "mr-1 h-3 w-3"
                                                                                 }, void 0, false, {
                                                                                     fileName: "[project]/src/app/settings/categories/page.tsx",
-                                                                                    lineNumber: 630,
+                                                                                    lineNumber: 650,
                                                                                     columnNumber: 61
                                                                                 }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$trending$2d$down$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__TrendingDown$3e$__["TrendingDown"], {
                                                                                     className: "mr-1 h-3 w-3"
                                                                                 }, void 0, false, {
                                                                                     fileName: "[project]/src/app/settings/categories/page.tsx",
-                                                                                    lineNumber: 630,
+                                                                                    lineNumber: 650,
                                                                                     columnNumber: 103
                                                                                 }, this),
                                                                                 getCategoryTypeLabel(category.type)
                                                                             ]
                                                                         }, void 0, true, {
                                                                             fileName: "[project]/src/app/settings/categories/page.tsx",
-                                                                            lineNumber: 626,
+                                                                            lineNumber: 646,
                                                                             columnNumber: 29
                                                                         }, this)
                                                                     ]
                                                                 }, void 0, true, {
                                                                     fileName: "[project]/src/app/settings/categories/page.tsx",
-                                                                    lineNumber: 622,
+                                                                    lineNumber: 642,
                                                                     columnNumber: 27
                                                                 }, this)
                                                             ]
                                                         }, void 0, true, {
                                                             fileName: "[project]/src/app/settings/categories/page.tsx",
-                                                            lineNumber: 620,
+                                                            lineNumber: 640,
                                                             columnNumber: 25
                                                         }, this),
                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -3274,12 +3298,12 @@ function ManageCategoriesPage() {
                                                                         className: "h-4 w-4"
                                                                     }, void 0, false, {
                                                                         fileName: "[project]/src/app/settings/categories/page.tsx",
-                                                                        lineNumber: 643,
+                                                                        lineNumber: 663,
                                                                         columnNumber: 29
                                                                     }, this)
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/app/settings/categories/page.tsx",
-                                                                    lineNumber: 636,
+                                                                    lineNumber: 656,
                                                                     columnNumber: 27
                                                                 }, this),
                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$button$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Button"], {
@@ -3296,41 +3320,41 @@ function ManageCategoriesPage() {
                                                                         className: "h-4 w-4"
                                                                     }, void 0, false, {
                                                                         fileName: "[project]/src/app/settings/categories/page.tsx",
-                                                                        lineNumber: 653,
+                                                                        lineNumber: 673,
                                                                         columnNumber: 29
                                                                     }, this)
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/app/settings/categories/page.tsx",
-                                                                    lineNumber: 645,
+                                                                    lineNumber: 665,
                                                                     columnNumber: 27
                                                                 }, this)
                                                             ]
                                                         }, void 0, true, {
                                                             fileName: "[project]/src/app/settings/categories/page.tsx",
-                                                            lineNumber: 635,
+                                                            lineNumber: 655,
                                                             columnNumber: 25
                                                         }, this)
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "[project]/src/app/settings/categories/page.tsx",
-                                                    lineNumber: 619,
+                                                    lineNumber: 639,
                                                     columnNumber: 23
                                                 }, this),
                                                 index < displayCategories.length - 1 && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$separator$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Separator"], {}, void 0, false, {
                                                     fileName: "[project]/src/app/settings/categories/page.tsx",
-                                                    lineNumber: 657,
+                                                    lineNumber: 677,
                                                     columnNumber: 64
                                                 }, this)
                                             ]
                                         }, category.name, true, {
                                             fileName: "[project]/src/app/settings/categories/page.tsx",
-                                            lineNumber: 618,
+                                            lineNumber: 638,
                                             columnNumber: 21
                                         }, this);
                                     })
                                 }, void 0, false, {
                                     fileName: "[project]/src/app/settings/categories/page.tsx",
-                                    lineNumber: 614,
+                                    lineNumber: 633,
                                     columnNumber: 15
                                 }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
                                     className: "text-center text-muted-foreground py-8",
@@ -3340,24 +3364,24 @@ function ManageCategoriesPage() {
                                     })
                                 }, void 0, false, {
                                     fileName: "[project]/src/app/settings/categories/page.tsx",
-                                    lineNumber: 663,
+                                    lineNumber: 683,
                                     columnNumber: 15
                                 }, this)
                             }, void 0, false, {
                                 fileName: "[project]/src/app/settings/categories/page.tsx",
-                                lineNumber: 594,
+                                lineNumber: 613,
                                 columnNumber: 11
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/src/app/settings/categories/page.tsx",
-                        lineNumber: 587,
+                        lineNumber: 606,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/src/app/settings/categories/page.tsx",
-                lineNumber: 560,
+                lineNumber: 579,
                 columnNumber: 7
             }, this),
             categoryToDelete && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$alert$2d$dialog$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["AlertDialog"], {
@@ -3369,53 +3393,47 @@ function ManageCategoriesPage() {
                             children: [
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$alert$2d$dialog$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["AlertDialogTitle"], {
                                     children: translate({
-                                        en: "Confirm Deletion",
-                                        pt: "Confirmar Exclusão"
+                                        en: "Confirm Action",
+                                        pt: "Confirmar Ação"
                                     })
                                 }, void 0, false, {
                                     fileName: "[project]/src/app/settings/categories/page.tsx",
-                                    lineNumber: 674,
+                                    lineNumber: 694,
                                     columnNumber: 15
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$alert$2d$dialog$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["AlertDialogDescription"], {
                                     children: [
                                         translate({
-                                            en: "Are you sure you want to delete the category:",
-                                            pt: "Tem certeza que deseja excluir a categoria:"
+                                            en: "Are you sure you want to process this action for category:",
+                                            pt: "Tem certeza que deseja processar esta ação para a categoria:"
                                         }),
                                         " ",
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("strong", {
                                             children: (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["getCategoryDisplayLabel"])(categoryToDelete, language)
                                         }, void 0, false, {
                                             fileName: "[project]/src/app/settings/categories/page.tsx",
-                                            lineNumber: 677,
+                                            lineNumber: 697,
                                             columnNumber: 17
                                         }, this),
                                         "?",
                                         " ",
-                                        translate({
-                                            en: "This action cannot be undone.",
-                                            pt: "Esta ação não pode ser desfeita."
-                                        }),
-                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("br", {}, void 0, false, {
-                                            fileName: "[project]/src/app/settings/categories/page.tsx",
-                                            lineNumber: 679,
-                                            columnNumber: 17
-                                        }, this),
-                                        translate({
-                                            en: "Transactions using this category will not be affected but will no longer be grouped under this category.",
-                                            pt: "Transações usando esta categoria não serão afetadas, mas não serão mais agrupadas sob esta categoria."
+                                        isPredefinedCategory(categoryToDelete.name) && !displayCategories.find((c)=>c.name === categoryToDelete.name && !isPredefinedCategory(c.name)) ? translate({
+                                            en: "This is a predefined category. Deleting it will hide it from selection. Editing it will create a custom version.",
+                                            pt: "Esta é uma categoria pré-definida. Excluí-la irá ocultá-la da seleção. Editá-la criará uma versão personalizada."
+                                        }) : translate({
+                                            en: "This action might affect existing transactions linked to this category if its name changes.",
+                                            pt: "Esta ação pode afetar transações existentes vinculadas a esta categoria se o nome dela mudar."
                                         })
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/src/app/settings/categories/page.tsx",
-                                    lineNumber: 675,
+                                    lineNumber: 695,
                                     columnNumber: 15
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/src/app/settings/categories/page.tsx",
-                            lineNumber: 673,
+                            lineNumber: 693,
                             columnNumber: 13
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$alert$2d$dialog$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["AlertDialogFooter"], {
@@ -3429,7 +3447,7 @@ function ManageCategoriesPage() {
                                     })
                                 }, void 0, false, {
                                     fileName: "[project]/src/app/settings/categories/page.tsx",
-                                    lineNumber: 684,
+                                    lineNumber: 705,
                                     columnNumber: 15
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$alert$2d$dialog$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["AlertDialogAction"], {
@@ -3437,38 +3455,38 @@ function ManageCategoriesPage() {
                                     disabled: isSaving,
                                     className: "bg-destructive text-destructive-foreground hover:bg-destructive/90",
                                     children: isSaving ? translate({
-                                        en: "Deleting...",
-                                        pt: "Excluindo..."
+                                        en: "Processing...",
+                                        pt: "Processando..."
                                     }) : translate({
-                                        en: "Delete",
-                                        pt: "Excluir"
+                                        en: "Confirm",
+                                        pt: "Confirmar"
                                     })
                                 }, void 0, false, {
                                     fileName: "[project]/src/app/settings/categories/page.tsx",
-                                    lineNumber: 687,
+                                    lineNumber: 708,
                                     columnNumber: 15
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/src/app/settings/categories/page.tsx",
-                            lineNumber: 683,
+                            lineNumber: 704,
                             columnNumber: 13
                         }, this)
                     ]
                 }, void 0, true, {
                     fileName: "[project]/src/app/settings/categories/page.tsx",
-                    lineNumber: 672,
+                    lineNumber: 692,
                     columnNumber: 11
                 }, this)
             }, void 0, false, {
                 fileName: "[project]/src/app/settings/categories/page.tsx",
-                lineNumber: 671,
+                lineNumber: 691,
                 columnNumber: 9
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/src/app/settings/categories/page.tsx",
-        lineNumber: 559,
+        lineNumber: 578,
         columnNumber: 5
     }, this);
 }
