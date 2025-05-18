@@ -177,6 +177,15 @@ const CATEGORIES = [
         }
     },
     {
+        name: 'Pets',
+        icon: 'PawPrint',
+        type: 'expense',
+        label: {
+            en: 'Pets',
+            pt: 'Animais de Estimação'
+        }
+    },
+    {
         name: 'Other Expense',
         icon: 'CircleHelp',
         type: 'expense',
@@ -190,20 +199,19 @@ const getCategoriesByType = (type, allCategories)=>{
     return allCategories.filter((cat)=>cat.type === type);
 };
 const getCategoryDisplayLabel = (category, currentLanguage)=>{
+    if (!category) return '';
     if (category.label && typeof category.label === 'object' && category.label[currentLanguage]) {
         return category.label[currentLanguage];
     }
-    if (typeof category.label === 'string') {
-        return category.label;
-    }
+    // Fallback for older custom categories that might only have category.name
     return category.name;
 };
 const getCategoryLabel = (categoryName, currentLanguage)=>{
+    if (!categoryName) return '';
     const predefinedCategory = CATEGORIES.find((cat)=>cat.name.toLowerCase() === categoryName.toLowerCase());
     if (predefinedCategory && predefinedCategory.label && predefinedCategory.label[currentLanguage]) {
         return predefinedCategory.label[currentLanguage];
     }
-    // For custom categories, their name is their label from user input
     return categoryName;
 };
 const PAYMENT_METHODS = [
@@ -238,20 +246,21 @@ const getPaymentMethodDisplayLabel = (methodInput, currentLanguage)=>{
     let methodObject;
     if (typeof methodInput === 'string') {
         methodNameString = methodInput;
+        // Try to find in predefined
         methodObject = PAYMENT_METHODS.find((pm)=>pm.name.toLowerCase() === methodNameString.toLowerCase());
-        if (!methodObject) {
-            // If not predefined, it might be a custom method name string.
-            // We don't have its translated label directly here unless it's passed as an object.
-            return methodNameString;
+        if (methodObject && methodObject.label && methodObject.label[currentLanguage]) {
+            return methodObject.label[currentLanguage];
         }
+        // If not in predefined, it's a custom method name, return it as is
+        return methodNameString;
     } else {
-        methodNameString = methodInput.name;
+        // It's already an object (DisplayPaymentMethod)
         methodObject = methodInput;
+        if (methodObject.label && methodObject.label[currentLanguage]) {
+            return methodObject.label[currentLanguage];
+        }
+        return methodObject.name; // Fallback to name if label structure is odd
     }
-    if (methodObject && methodObject.label && typeof methodObject.label === 'object' && methodObject.label[currentLanguage]) {
-        return methodObject.label[currentLanguage];
-    }
-    return methodNameString;
 };
 if (typeof globalThis.$RefreshHelpers$ === 'object' && globalThis.$RefreshHelpers !== null) {
     __turbopack_context__.k.registerExports(module, globalThis.$RefreshHelpers$);
