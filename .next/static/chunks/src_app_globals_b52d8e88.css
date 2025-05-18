@@ -541,6 +541,11 @@ body {
   margin-bottom: .25rem;
 }
 
+.-mx-2 {
+  margin-left: -.5rem;
+  margin-right: -.5rem;
+}
+
 .mb-1 {
   margin-bottom: .25rem;
 }
@@ -1021,6 +1026,10 @@ body {
   cursor: pointer;
 }
 
+.cursor-not-allowed {
+  cursor: not-allowed;
+}
+
 .touch-none {
   touch-action: none;
 }
@@ -1309,6 +1318,16 @@ body {
 
 .border-transparent {
   border-color: #0000;
+}
+
+.border-green-200 {
+  --tw-border-opacity: 1;
+  border-color: rgb(187 247 208 / var(--tw-border-opacity, 1));
+}
+
+.border-red-200 {
+  --tw-border-opacity: 1;
+  border-color: rgb(254 202 202 / var(--tw-border-opacity, 1));
 }
 
 .border-l-transparent {
@@ -1737,6 +1756,10 @@ body {
 
 .text-sidebar-foreground\/70 {
   color: hsl(var(--sidebar-foreground) / .7);
+}
+
+.text-muted-foreground\/50 {
+  color: hsl(var(--muted-foreground) / .5);
 }
 
 .underline-offset-4 {
@@ -2732,6 +2755,14 @@ body {
 .dark\:border-red-700:is(.dark *) {
   --tw-border-opacity: 1;
   border-color: rgb(185 28 28 / var(--tw-border-opacity, 1));
+}
+
+.dark\:border-green-700\/50:is(.dark *) {
+  border-color: #15803d80;
+}
+
+.dark\:border-red-700\/50:is(.dark *) {
+  border-color: #b91c1c80;
 }
 
 .dark\:bg-card:is(.dark *) {

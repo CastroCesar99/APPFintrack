@@ -2,5 +2,6 @@
   "/expenses/page": "app/expenses/page.js",
   "/page": "app/page.js",
   "/settings/categories/page": "app/settings/categories/page.js",
-  "/settings/page": "app/settings/page.js"
+  "/settings/page": "app/settings/page.js",
+  "/settings/payment-methods/page": "app/settings/payment-methods/page.js"
 }

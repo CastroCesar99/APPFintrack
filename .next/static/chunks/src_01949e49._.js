@@ -196,13 +196,14 @@ const getCategoryDisplayLabel = (category, currentLanguage)=>{
     if (typeof category.label === 'string') {
         return category.label;
     }
-    return category.name; // Final fallback is the name identifier
+    return category.name;
 };
 const getCategoryLabel = (categoryName, currentLanguage)=>{
     const predefinedCategory = CATEGORIES.find((cat)=>cat.name.toLowerCase() === categoryName.toLowerCase());
     if (predefinedCategory && predefinedCategory.label && predefinedCategory.label[currentLanguage]) {
         return predefinedCategory.label[currentLanguage];
     }
+    // For custom categories, their name is their label from user input
     return categoryName;
 };
 const PAYMENT_METHODS = [
@@ -232,15 +233,16 @@ const PAYMENT_METHODS = [
     }
 ];
 const getPaymentMethodDisplayLabel = (methodInput, currentLanguage)=>{
+    if (!methodInput) return '';
     let methodNameString;
     let methodObject;
     if (typeof methodInput === 'string') {
         methodNameString = methodInput;
-        // Try to find in predefined methods first
         methodObject = PAYMENT_METHODS.find((pm)=>pm.name.toLowerCase() === methodNameString.toLowerCase());
-        // If not found in predefined, it might be a custom one (or just the name if details not available)
         if (!methodObject) {
-            return methodNameString; // Return the name itself if no predefined match
+            // If not predefined, it might be a custom method name string.
+            // We don't have its translated label directly here unless it's passed as an object.
+            return methodNameString;
         }
     } else {
         methodNameString = methodInput.name;
@@ -249,7 +251,6 @@ const getPaymentMethodDisplayLabel = (methodInput, currentLanguage)=>{
     if (methodObject && methodObject.label && typeof methodObject.label === 'object' && methodObject.label[currentLanguage]) {
         return methodObject.label[currentLanguage];
     }
-    // Fallback if label structure isn't as expected or if it's a custom method name string without full object
     return methodNameString;
 };
 if (typeof globalThis.$RefreshHelpers$ === 'object' && globalThis.$RefreshHelpers !== null) {
