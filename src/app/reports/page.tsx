@@ -6,8 +6,8 @@ import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { AppLayout } from "@/components/layout/app-layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Terminal, Package, Wallet, FileText, DollarSign, Target } from "lucide-react";
-import type { Transaction, DisplayCategory, UserPreferences, CustomCategoryData, CategoryName, Category } from "@/types";
+import { Terminal, Package, Wallet, FileText, DollarSign, Target, TrendingUp, TrendingDown } from "lucide-react";
+import type { Transaction, DisplayCategory, UserPreferences, CustomCategoryData, Category, CategoryName } from "@/types";
 import { CATEGORIES, getCategoryDisplayLabel, PAYMENT_METHODS, getPaymentMethodDisplayLabel } from "@/types";
 import { useAuth } from '@/context/auth-context';
 import { useLanguage } from '@/context/language-context';
@@ -39,8 +39,8 @@ import { Progress } from "@/components/ui/progress";
 import { CategoryIcon } from "@/components/icons";
 
 interface BudgetComparisonItem {
-  categoryName: string;
   categoryInternalName: string;
+  categoryName: string;
   icon: string;
   budgeted: number;
   actual: number;
@@ -75,18 +75,19 @@ export default function ReportsPage() {
     effectMountedRef.current = true;
     return () => {
       effectMountedRef.current = false;
+      // console.log("ReportsPage: Component unmounting, effectMountedRef set to false. Cleaning up listeners.");
       if (unsubscribeTransactionsRef.current) {
-        console.log("ReportsPage: Unsubscribing transaction listener on unmount for UserID:", userId);
+        // console.log("ReportsPage: Unsubscribing transaction listener on unmount for UserID:", userId);
         unsubscribeTransactionsRef.current();
         unsubscribeTransactionsRef.current = null;
       }
       if (unsubscribePreferencesRef.current) {
-        console.log("ReportsPage: Unsubscribing preferences listener on unmount for UserID:", userId);
+        // console.log("ReportsPage: Unsubscribing preferences listener on unmount for UserID:", userId);
         unsubscribePreferencesRef.current();
         unsubscribePreferencesRef.current = null;
       }
     };
-  }, [userId]);
+  }, []);
 
   // Fetch All Transactions
   useEffect(() => {
@@ -102,23 +103,24 @@ export default function ReportsPage() {
       return;
     }
 
+    if (unsubscribeTransactionsRef.current) {
+      // console.log("ReportsPage (TX Effect): Cleaning up stale transaction listener before new setup for UserID:", userId);
+      unsubscribeTransactionsRef.current();
+      unsubscribeTransactionsRef.current = null;
+    }
+    
     if (effectMountedRef.current) setIsLoadingTransactions(true);
-    console.log("ReportsPage (TX Effect): Setting up transaction listener for UserID:", userId);
+    // console.log("ReportsPage (TX Effect): Setting up transaction listener for UserID:", userId);
     const transactionsColRef = collection(db, 'users/' + userId + '/transactions');
     const q_transactions = query(transactionsColRef, orderBy("date", "desc"));
 
-    if (unsubscribeTransactionsRef.current) {
-        console.log("ReportsPage (TX Effect): Cleaning up stale transaction listener before new setup for UserID:", userId);
-        unsubscribeTransactionsRef.current();
-        unsubscribeTransactionsRef.current = null;
-    }
 
     unsubscribeTransactionsRef.current = onSnapshot(q_transactions, (querySnapshot) => {
       if (!effectMountedRef.current) {
-        console.log("ReportsPage (TX Snapshot): Component unmounted, skipping state update for UserID:", userId);
+        // console.log("ReportsPage (TX Snapshot): Component unmounted, skipping state update for UserID:", userId);
         return;
       }
-      console.log("ReportsPage (TX Snapshot): Transaction listener fired. Docs count:", querySnapshot.docs.length, "for UserID:", userId);
+      // console.log("ReportsPage (TX Snapshot): Transaction listener fired. Docs count:", querySnapshot.docs.length, "for UserID:", userId);
       const fetchedTransactions = querySnapshot.docs.map(docSnap => {
         const data = docSnap.data();
         let dateString = "1970-01-01"; 
@@ -132,23 +134,23 @@ export default function ReportsPage() {
               dateString = data.date;
             } else if (data.date.includes('T')) {
               try {
-                 dateString = formatDateFns(parseISODateFns(data.date), "yyyy-MM-dd");
+                dateString = formatDateFns(parseISODateFns(data.date), "yyyy-MM-dd");
               } catch (e1) {
                 try {
-                   dateString = formatDateFns(new Date(data.date), "yyyy-MM-dd");
+                  dateString = formatDateFns(new Date(data.date), "yyyy-MM-dd");
                 } catch (e2) {
-                   console.warn("ReportsPage TX Date Parse (string T general): Failed for tx " + String(docSnap.id) + ": " + String(data.date) + ". Error: " + String(e2) + ". Fallback to current date.");
-                   dateString = formatDateFns(new Date(), "yyyy-MM-dd");
+                  console.warn("ReportsPage TX Date Parse (string T general): Failed for tx " + String(docSnap.id) + ": " + String(data.date) + ". Error: " + String(e2) + ". Fallback to current date.");
+                  dateString = formatDateFns(new Date(), "yyyy-MM-dd");
                 }
               }
             } else {
-              console.warn("ReportsPage TX Date Parse (string other): Unhandled format for tx " + String(docSnap.id) + ": " + String(data.date) + ". Attempting general parse.");
-              try {
-                 dateString = formatDateFns(new Date(data.date), "yyyy-MM-dd");
-              } catch (e) {
-                console.warn("ReportsPage TX Date Parse (string other general): Failed for tx " + String(docSnap.id) + ": " + String(data.date) + ". Error: " + String(e) + ". Fallback to current date.");
-                dateString = formatDateFns(new Date(), "yyyy-MM-dd");
-              }
+                 console.warn("ReportsPage TX Date Parse (string other): Unhandled format for tx " + String(docSnap.id) + ": " + String(data.date) + ". Attempting general parse.");
+                 try {
+                    dateString = formatDateFns(new Date(data.date), "yyyy-MM-dd");
+                 } catch (e) {
+                    console.warn("ReportsPage TX Date Parse (string other general): Failed for tx " + String(docSnap.id) + ": " + String(data.date) + ". Error: " + String(e) + ". Fallback to current date.");
+                    dateString = formatDateFns(new Date(), "yyyy-MM-dd");
+                 }
             }
           } else {
             console.warn("ReportsPage TX Date Parse (missing/invalid): Missing or invalid date for tx " + String(docSnap.id) + ": " + String(data.date) + ". Fallback to current date.");
@@ -157,14 +159,14 @@ export default function ReportsPage() {
         }
 
         if (!effectiveMonthString || !/^\d{4}-\d{2}$/.test(effectiveMonthString)) {
-          if (dateString !== "1970-01-01") { 
+          if (dateString !== "1970-01-01") {
             try {
               effectiveMonthString = formatDateFns(parseDateFns(dateString, "yyyy-MM-dd", new Date(0)), "yyyy-MM");
             } catch (e) {
               console.warn('ReportsPage: Could not derive effectiveMonth from date ' + dateString + ' for tx ' + docSnap.id + '. Defaulting to current month. Error:' + String(e));
               effectiveMonthString = formatDateFns(new Date(), "yyyy-MM");
             }
-          } else { 
+          } else {
             effectiveMonthString = formatDateFns(new Date(), "yyyy-MM");
           }
         }
@@ -199,13 +201,12 @@ export default function ReportsPage() {
 
     return () => {
       if (unsubscribeTransactionsRef.current) {
-        console.log("ReportsPage (TX Effect Cleanup): Unsubscribing transaction listener for UserID:", userId);
+        // console.log("ReportsPage (TX Effect Cleanup): Unsubscribing transaction listener for UserID:", userId);
         unsubscribeTransactionsRef.current();
         unsubscribeTransactionsRef.current = null;
       }
     };
   }, [userId, authLoading, isClient, toast, translate]);
-
 
   // Fetch User Preferences for Categories
   useEffect(() => {
@@ -221,22 +222,23 @@ export default function ReportsPage() {
       return;
     }
 
-    if (effectMountedRef.current) setIsLoadingPreferences(true);
-    console.log("ReportsPage (Prefs Effect): Setting up preferences listener for UserID:", userId);
+    if (unsubscribePreferencesRef.current) {
+      // console.log("ReportsPage (Prefs Effect): Cleaning up stale preferences listener before new setup for UserID:", userId);
+      unsubscribePreferencesRef.current();
+      unsubscribePreferencesRef.current = null;
+    }
+    
+    if(effectMountedRef.current) setIsLoadingPreferences(true);
+    // console.log("ReportsPage (Prefs Effect): Setting up preferences listener for UserID:", userId);
     const preferencesDocRef = doc(db, "users/" + userId + "/preferences/userPreferences");
 
-    if (unsubscribePreferencesRef.current) {
-        console.log("ReportsPage (Prefs Effect): Cleaning up stale preferences listener before new setup for UserID:", userId);
-        unsubscribePreferencesRef.current();
-        unsubscribePreferencesRef.current = null;
-    }
 
     unsubscribePreferencesRef.current = onSnapshot(preferencesDocRef, (docSnap) => {
       if (!effectMountedRef.current) {
-        console.log("ReportsPage (Prefs Snapshot): Component unmounted, skipping state update for UserID:", userId);
+        // console.log("ReportsPage (Prefs Snapshot): Component unmounted, skipping state update for UserID:", userId);
         return;
       }
-      console.log("ReportsPage (Prefs Snapshot): Preferences snapshot received for UserID:", userId, "Exists:", docSnap.exists());
+      // console.log("ReportsPage (Prefs Snapshot): Preferences snapshot received for UserID:", userId, "Exists:", docSnap.exists());
       let finalCategories: DisplayCategory[] = [];
       if (docSnap.exists()) {
         const prefsData = docSnap.data() as UserPreferences;
@@ -258,19 +260,19 @@ export default function ReportsPage() {
           });
         
         customCategoriesMap.forEach(customCat => { 
-            if (!finalCategories.some(fc => fc.name.toLowerCase() === customCat.name.toLowerCase())) {
-                 finalCategories.push(customCat);
-            }
+          if (!finalCategories.some(fc => fc.name.toLowerCase() === customCat.name.toLowerCase())) {
+            finalCategories.push(customCat);
+          }
         });
       } else {
-        console.log("ReportsPage (Prefs Snapshot): No preferences document found for UserID:", userId, ". Using default categories.");
+        // console.log("ReportsPage (Prefs Snapshot): No preferences document found for UserID:", userId, ". Using default categories.");
         finalCategories = [...CATEGORIES];
       }
 
       if (effectMountedRef.current) {
         setUserDisplayCategories(finalCategories.sort((a, b) => getCategoryDisplayLabel(a, language).localeCompare(getCategoryDisplayLabel(b, language))));
         setIsLoadingPreferences(false);
-        console.log("ReportsPage (Prefs Snapshot): UserDisplayCategories set. Count:", finalCategories.length);
+        // console.log("ReportsPage (Prefs Snapshot): UserDisplayCategories set. Count:", finalCategories.length);
       }
     }, (error) => {
       if (!effectMountedRef.current) return;
@@ -287,7 +289,7 @@ export default function ReportsPage() {
     });
     return () => {
       if (unsubscribePreferencesRef.current) {
-        console.log("ReportsPage (Prefs Effect Cleanup): Unsubscribing preferences listener for UserID:", userId);
+        // console.log("ReportsPage (Prefs Effect Cleanup): Unsubscribing preferences listener for UserID:", userId);
         unsubscribePreferencesRef.current();
         unsubscribePreferencesRef.current = null;
       }
@@ -295,20 +297,23 @@ export default function ReportsPage() {
   }, [userId, isClient, authLoading, language, toast, translate]);
 
   const fetchBudgetsInternal = useCallback(async () => {
-    if (!userId || !isClient || authLoading || !effectMountedRef.current) {
-      if (effectMountedRef.current) setIsLoadingBudgets(false);
+    if (!effectMountedRef.current) return; // Moved check to the top
+    if (!userId || !isClient || authLoading ) {
+      if(effectMountedRef.current) { // Check again before setting state
+        setLoadedBudgets(null);
+        setIsLoadingBudgets(false);
+      }
       return;
     }
     
-    if (effectMountedRef.current) setIsLoadingBudgets(true);
+    if(effectMountedRef.current) setIsLoadingBudgets(true); // Set loading true only if proceeding
     const budgetMonthKey = formatDateFns(displayedDate, 'yyyy-MM');
-    console.log('ReportsPage: Fetching budgets for month:', budgetMonthKey, "for UserID:", userId);
+    // console.log('ReportsPage: Fetching budgets for month:', budgetMonthKey, "for UserID:", userId);
     const budgetDocRef = doc(db, 'users/' + userId + '/budgets/' + budgetMonthKey);
 
     try {
       const docSnap = await getDoc(budgetDocRef);
       if (!effectMountedRef.current) { 
-        if (effectMountedRef.current) setIsLoadingBudgets(false);
         return; 
       }
       if (docSnap.exists()) {
@@ -319,10 +324,10 @@ export default function ReportsPage() {
             validBudgets[key] = budgetData[key];
           }
         }
-        console.log('ReportsPage: Budgets data loaded for', budgetMonthKey + ':', validBudgets);
+        // console.log('ReportsPage: Budgets data loaded for', budgetMonthKey + ':', validBudgets);
         if (effectMountedRef.current) setLoadedBudgets(validBudgets);
       } else {
-        console.log('ReportsPage: No budget document found for', budgetMonthKey + '. Setting empty budgets.');
+        // console.log('ReportsPage: No budget document found for', budgetMonthKey + '. Setting empty budgets.');
         if (effectMountedRef.current) setLoadedBudgets({}); 
       }
     } catch (error) {
@@ -339,26 +344,28 @@ export default function ReportsPage() {
         setIsLoadingBudgets(false);
       }
     }
-  }, [userId, isClient, authLoading, displayedDate, toast, translate]); 
+  }, [userId, isClient, authLoading, displayedDate, toast, translate]); // Removed state setters from deps
 
   useEffect(() => {
-    if (userId && isClient && !authLoading) {
+    if (userId && isClient && !authLoading) { // Conditions for fetching
       fetchBudgetsInternal();
-    } else if (effectMountedRef.current) {
+    } else if (effectMountedRef.current) { // If conditions not met, ensure loading is false
+      setLoadedBudgets(null);
       setIsLoadingBudgets(false); 
     }
   }, [userId, isClient, authLoading, displayedDate, fetchBudgetsInternal]);
 
+
   const transactionsForDisplayedPeriod = useMemo(() => {
     const targetYear = getYearFns(displayedDate);
-    const targetMonth = getMonthFns(displayedDate); // 0-indexed
+    const targetMonth = getMonthFns(displayedDate); 
     const targetEffectiveMonth = formatDateFns(displayedDate, "yyyy-MM");
     const firstDayOfTargetMonth = startOfMonth(displayedDate);
 
-    console.log(`ReportsPage: TRACER --- transactionsForDisplayedPeriod: Recalculating for Year: ${targetYear} Month: ${targetMonth} (0-indexed for ${displayedMonthYearLabel} ), TargetEffMonth: ${targetEffectiveMonth} All transactions count: ${allTransactions.length}`);
+    // console.log("ReportsPage: TRACER --- transactionsForDisplayedPeriod: Recalculating for Year: " + targetYear + " Month: " + targetMonth + " (0-indexed for " + displayedMonthYearLabel + " ), TargetEffMonth: " + targetEffectiveMonth + " All transactions count: " + allTransactions.length);
 
     if (allTransactions.length === 0) {
-      console.log("ReportsPage: TRACER --- transactionsForDisplayedPeriod: No transactions in allTransactions, returning empty.");
+      // console.log("ReportsPage: TRACER --- transactionsForDisplayedPeriod: No transactions in allTransactions, returning empty.");
       return [];
     }
 
@@ -371,7 +378,7 @@ export default function ReportsPage() {
       try {
         originalTransactionDate = parseDateFns(t.date, "yyyy-MM-dd", new Date(0));
       } catch (e) {
-        console.warn(`ReportsPage TX Filter: Could not parse t.date '${t.date}' for tx ID ${t.id}. Error:`, e);
+        // console.warn("ReportsPage TX Filter: Could not parse t.date '" + t.date + "' for tx ID " + t.id + ". Error:", e);
         return; 
       }
       
@@ -381,7 +388,8 @@ export default function ReportsPage() {
       if (t.type === 'expense' && t.expenseType === 'installment' && t.installments && t.installments > 0) {
         reason = "Installment Check";
         const installmentSeriesStartDate = startOfMonth(originalTransactionDate);
-        const isInstallmentActiveThisMonth = isWithinInterval(firstDayOfTargetMonth, { start: installmentSeriesStartDate, end: endOfMonth(addMonths(installmentSeriesStartDate, t.installments - 1)) });
+        const monthDiff = differenceInCalendarMonths(firstDayOfTargetMonth, installmentSeriesStartDate);
+        const isInstallmentActiveThisMonth = monthDiff >= 0 && monthDiff < t.installments;
         if (isInstallmentActiveThisMonth) includeTransaction = true;
       } else if (t.isRecurring === true && (!t.expenseType || t.expenseType !== 'installment')) { 
         reason = "Recurring Check";
@@ -393,12 +401,12 @@ export default function ReportsPage() {
           includeTransaction = true;
         }
       }
-      console.log(`ReportsPage TX Filter: ID: ${t.id} Date: ${t.date} EffMonth: ${t.effectiveMonth} Type: ${t.type} ExpType: ${t.expenseType} isRec: ${t.isRecurring} Inst: ${t.installments} Amount: ${t.amount} Included: ${includeTransaction} Reason: ${reason} Target: ${targetEffectiveMonth}`);
+      // console.log("ReportsPage TX Filter: ID: " + t.id + " Date: " + t.date + " EffMonth: " + t.effectiveMonth + " Type: " + t.type + " ExpType: " + t.expenseType + " isRec: " + t.isRecurring + " Inst: " + t.installments + " Amount: " + t.amount + " Included: " + includeTransaction + " Reason: " + reason + " Target: " + targetEffectiveMonth);
       if (includeTransaction) {
         filtered.push(t);
       }
     });
-    console.log(`ReportsPage: TRACER --- transactionsForDisplayedPeriod: Found ${filtered.length} transactions for the period.`);
+    // console.log("ReportsPage: TRACER --- transactionsForDisplayedPeriod: Found " + filtered.length + " transactions for the period.");
     return filtered;
   }, [allTransactions, displayedDate, displayedMonthYearLabel]);
 
@@ -429,9 +437,9 @@ export default function ReportsPage() {
   [transactionsForDisplayedPeriod]);
 
   const budgetVsActualData = useMemo<BudgetComparisonItem[]>(() => {
-    console.log(`ReportsPage: budgetVsActualData - Recalculating. LoadedBudgets: ${!!loadedBudgets}, isLoadingPrefs: ${isLoadingPreferences}, userDisplayCategories empty: ${userDisplayCategories.length === 0}, isLoadingBudgets: ${isLoadingBudgets}`);
+    // console.log("ReportsPage: budgetVsActualData - Recalculating. LoadedBudgets:", !!loadedBudgets, "isLoadingPrefs:", isLoadingPreferences, "userDisplayCategories empty:", userDisplayCategories.length === 0, "isLoadingBudgets:", isLoadingBudgets);
     if (!loadedBudgets || isLoadingPreferences || userDisplayCategories.length === 0 || isLoadingBudgets) {
-      console.log("ReportsPage: budgetVsActualData - Skipping calculation due to loading state or missing data.", {loadedBudgets:!!loadedBudgets, isLoadingPrefs, userDisplayCategoriesEmpty: userDisplayCategories.length === 0, isLoadingBudgets });
+      // console.log("ReportsPage: budgetVsActualData - Skipping calculation due to loading state or missing data.", {loadedBudgets:!!loadedBudgets, isLoadingPrefs, userDisplayCategoriesEmpty: userDisplayCategories.length === 0, isLoadingBudgets });
       return [];
     }
 
@@ -444,10 +452,8 @@ export default function ReportsPage() {
       });
 
     const allRelevantCategoryNames = new Set<string>();
-    Object.keys(loadedBudgets).forEach(name => name !== 'lastUpdated' && allRelevantCategoryNames.add(name));
-    userDisplayCategories.forEach(cat => {
-      if (cat.type === 'expense') allRelevantCategoryNames.add(cat.name); 
-    });
+    Object.keys(loadedBudgets).filter(key => key !== 'lastUpdated').forEach(name => allRelevantCategoryNames.add(name));
+    Object.keys(actualSpending).forEach(name => allRelevantCategoryNames.add(name));
     
     const comparisonData = Array.from(allRelevantCategoryNames).map(internalName => {
       const categoryInfo = userDisplayCategories.find(cat => cat.name.toLowerCase() === internalName.toLowerCase() && cat.type === 'expense');
@@ -461,19 +467,19 @@ export default function ReportsPage() {
       let percentage = 0;
       if (budgeted > 0) {
         percentage = Math.min(Math.round((actual / budgeted) * 100), 1000); 
-      } else if (actual > 0) {
+      } else if (actual > 0) { 
         percentage = 1000; 
       }
-      return { categoryName: displayName, categoryInternalName: internalName, icon: icon, budgeted, actual, difference, percentage };
+      return { categoryInternalName: internalName, categoryName: displayName, icon: icon, budgeted, actual, difference, percentage };
     }).filter(item => item.budgeted > 0 || item.actual > 0) 
       .sort((a,b) => (b.budgeted + b.actual) - (a.budgeted + a.actual)); 
     
-    console.log("ReportsPage: budgetVsActualData - Calculated data:", comparisonData);
+    // console.log("ReportsPage: budgetVsActualData - Calculated data:", comparisonData);
     return comparisonData;
   }, [loadedBudgets, transactionsForDisplayedPeriod, userDisplayCategories, language, isLoadingPreferences, isLoadingBudgets]);
 
   const expenseDataForChart = useMemo(() => {
-    console.log(`ReportsPage: Calculating expenseDataForChart. userDisplayCategories count: ${userDisplayCategories.length}`);
+    // console.log("ReportsPage: Calculating expenseDataForChart. userDisplayCategories count:", userDisplayCategories.length);
     if (isLoadingPreferences || userDisplayCategories.length === 0 || isLoadingTransactions || transactionsForDisplayedPeriod.length === 0) {
       return [];
     }
@@ -496,14 +502,14 @@ export default function ReportsPage() {
         };
       })
       .sort((a, b) => b.value - a.value); 
-    console.log("ReportsPage: Expense data for chart calculated:", chartData);
+    // console.log("ReportsPage: Expense data for chart calculated:", chartData);
     return chartData;
   }, [transactionsForDisplayedPeriod, userDisplayCategories, language, isLoadingPreferences, isLoadingTransactions]);
 
   const pageTitle = translate({ en: "Reports", pt: "Relatórios" });
   const overallLoading = !isClient || authLoading || isLoadingTransactions || isLoadingPreferences || isLoadingBudgets;
 
-  console.log(`ReportsPage: Rendering ${overallLoading ? 'loading state' : 'main content'}. isClient: ${isClient} authLoading: ${authLoading} isLoadingTransactions: ${isLoadingTransactions} isLoadingPreferences: ${isLoadingPreferences} isLoadingBudgets: ${isLoadingBudgets}`);
+  // console.log("ReportsPage: Rendering " + (overallLoading ? 'loading state' : 'main content') + ". isClient: " + isClient + " authLoading: " + authLoading + " isLoadingTransactions: " + isLoadingTransactions + " isLoadingPreferences: " + isLoadingPreferences + " isLoadingBudgets: " + isLoadingBudgets);
 
   if (overallLoading) {
     return (
@@ -514,10 +520,13 @@ export default function ReportsPage() {
             <Skeleton className="h-9 w-full sm:w-32" />
           </div>
           <div className="grid gap-4 md:grid-cols-3">
-            {[...Array(3)].map((_, i) => <Skeleton key={"summary-skel-" + i} className="h-24 w-full" />)}
+            <Skeleton className="h-24 w-full" />
+            <Skeleton className="h-24 w-full" />
+            <Skeleton className="h-24 w-full" />
           </div>
           <div className="grid gap-4 md:grid-cols-2">
-            {[...Array(2)].map((_, i) => <Skeleton key={"fixed-var-skel-" + i} className="h-24 w-full" />)}
+            <Skeleton className="h-24 w-full" />
+            <Skeleton className="h-24 w-full" />
           </div>
           <Card className="shadow-lg bg-muted/50 border-dashed">
             <CardHeader className="flex flex-row items-start gap-4 space-y-0">
@@ -552,8 +561,6 @@ export default function ReportsPage() {
     );
   }
 
-  console.log("ReportsPage: Rendering main content. Transactions for period:", transactionsForDisplayedPeriod.length);
-
   return (
     <AppLayout>
       <div className="space-y-6">
@@ -568,7 +575,7 @@ export default function ReportsPage() {
           <Card className="shadow-lg">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">{translate({ en: "Total Income", pt: "Receita Total" })}</CardTitle>
-              <DollarSign className="h-4 w-4 text-green-500" />
+              <TrendingUp className="h-4 w-4 text-green-500" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{formatCurrency(totalIncomeForPeriod)}</div>
@@ -577,7 +584,7 @@ export default function ReportsPage() {
           <Card className="shadow-lg">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">{translate({ en: "Total Expenses", pt: "Despesa Total" })}</CardTitle>
-              <DollarSign className="h-4 w-4 text-red-500" />
+              <TrendingDown className="h-4 w-4 text-red-500" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{formatCurrency(totalExpensesForPeriod)}</div>
@@ -614,7 +621,7 @@ export default function ReportsPage() {
             </CardContent>
           </Card>
         </div>
-
+        
         <Card className="shadow-lg bg-muted/50 border-dashed">
           <CardHeader className="flex flex-row items-start gap-4 space-y-0">
             <Terminal className="h-8 w-8 text-primary flex-shrink-0 mt-1" />
@@ -630,7 +637,7 @@ export default function ReportsPage() {
                 {translate({ en: "AI insights are coming soon!", pt: "Insights da IA em breve!" })}
               </p>
             </CardContent>
-          </Card>
+          </CardHeader>
         </Card>
 
         <Card className="shadow-lg bg-background dark:bg-card">
@@ -641,7 +648,7 @@ export default function ReportsPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {budgetVsActualData.length > 0 ? (
+            {loadedBudgets && Object.keys(loadedBudgets).length > 0 && transactionsForDisplayedPeriod.filter(t=> t.type === 'expense').length > 0 && budgetVsActualData.length > 0 ? (
               <div className="space-y-3">
                 {budgetVsActualData.map((item) => (
                   <div key={item.categoryInternalName} className="p-3 rounded-md border bg-card hover:bg-accent/10 transition-colors">
@@ -664,13 +671,13 @@ export default function ReportsPage() {
                       )}
                     </div>
                     <Progress
-                      value={item.budgeted > 0 ? Math.min(Math.round(item.percentage), 100) : 0} 
+                      value={item.budgeted > 0 ? Math.min(Math.round(item.percentage), 100) : (item.actual > 0 ? 100 : 0) }
                       className="h-2 mb-1"
                       indicatorClassName={cn(
-                        item.budgeted === 0 && item.actual > 0 ? "bg-muted-foreground" 
-                        : item.budgeted > 0 && item.actual > 0 && item.percentage > 100 ? "bg-destructive"
-                        : item.budgeted > 0 && item.actual > 0 && item.percentage > 80 ? "bg-yellow-500 dark:bg-yellow-600"
-                        : "bg-primary"
+                         item.budgeted === 0 && item.actual > 0 ? "bg-muted-foreground" 
+                        : item.budgeted > 0 && item.actual > 0 && item.percentage > 100 ? "bg-destructive" 
+                        : item.budgeted > 0 && item.actual > 0 && item.percentage > 80 ? "bg-yellow-500 dark:bg-yellow-600" 
+                        : "bg-primary" 
                       )}
                     />
                     <div className="flex justify-between text-xs text-muted-foreground">
@@ -721,5 +728,3 @@ export default function ReportsPage() {
     </AppLayout>
   );
 }
-
-    
