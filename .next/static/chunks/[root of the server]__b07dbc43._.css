@@ -1331,6 +1331,10 @@ body {
   white-space: nowrap;
 }
 
+.text-wrap {
+  text-wrap: wrap;
+}
+
 .break-words {
   overflow-wrap: break-word;
 }
@@ -2057,6 +2061,11 @@ body {
 
 body {
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+}
+
+.text-wrap {
+  word-break: break-word;
+  overflow-wrap: break-word;
 }
 
 .file\:border-0::file-selector-button {

@@ -23,7 +23,7 @@ var { g: global, __dirname, m: module, e: exports } = __turbopack_context__;
 {
 const e = new Error(`Could not parse module '[project]/src/app/reports/page.tsx'
 
-Expected unicode escape`);
+Unexpected token `AppLayout`. Expected jsx identifier`);
 e.code = 'MODULE_UNPARSEABLE';
 throw e;}}),
 "[project]/src/app/reports/page.tsx [app-rsc] (ecmascript, Next.js server component)": ((__turbopack_context__) => {
