@@ -60,8 +60,8 @@ export default function IncomePage() {
   const [isClient, setIsClient] = useState(false);
   const [transactionToDelete, setTransactionToDelete] = useState<Transaction | null>(null);
 
-  const [userCategories, setUserCategories] = useState<DisplayCategory[]>([]);
-  const [userPaymentMethods, setUserPaymentMethods] = useState<DisplayPaymentMethod[]>([]);
+  const [userCategories, setUserCategories] = useState<DisplayCategory[]>(() => [...CATEGORIES]);
+  const [userPaymentMethods, setUserPaymentMethods] = useState<DisplayPaymentMethod[]>(() => [...PAYMENT_METHODS]);
   const [isLoadingPreferences, setIsLoadingPreferences] = useState(true);
   const unsubscribePreferencesRef = useRef<(() => void) | null>(null);
 
@@ -77,8 +77,10 @@ export default function IncomePage() {
   // Listener for User Preferences
   useEffect(() => {
     if (!userId || !isClient || authLoading) {
-      setUserCategories([...CATEGORIES].sort((a,b) => getCategoryDisplayLabel(a, language).localeCompare(getCategoryDisplayLabel(b,language))));
-      setUserPaymentMethods([...PAYMENT_METHODS].sort((a,b) => getPaymentMethodDisplayLabel(a,language).localeCompare(getPaymentMethodDisplayLabel(b,language))));
+      const defaultCats = [...CATEGORIES].sort((a,b) => getCategoryDisplayLabel(a, language).localeCompare(getCategoryDisplayLabel(b,language)));
+      const defaultPms = [...PAYMENT_METHODS].sort((a,b) => getPaymentMethodDisplayLabel(a,language).localeCompare(getPaymentMethodDisplayLabel(b,language)));
+      setUserCategories(defaultCats);
+      setUserPaymentMethods(defaultPms);
       setIsLoadingPreferences(false);
       if (unsubscribePreferencesRef.current) {
         unsubscribePreferencesRef.current();
@@ -88,38 +90,53 @@ export default function IncomePage() {
     }
 
     setIsLoadingPreferences(true);
-    const preferencesDocRef = doc(db, 'users/' + userId + '/preferences/userPreferences');
+    const preferencesDocRef = doc(db, 'users', userId, 'preferences/userPreferences');
 
     if (unsubscribePreferencesRef.current) {
         unsubscribePreferencesRef.current();
     }
 
     unsubscribePreferencesRef.current = onSnapshot(preferencesDocRef, (docSnap) => {
-      let finalCategories: DisplayCategory[] = [...CATEGORIES];
-      let finalPaymentMethods: DisplayPaymentMethod[] = [...PAYMENT_METHODS];
+      let finalCategories: DisplayCategory[] = [];
+      let finalPaymentMethods: DisplayPaymentMethod[] = [];
+
+      const predefinedCategoriesMap = new Map(CATEGORIES.map(cat => [cat.name.toLowerCase(), { ...cat }]));
+      const predefinedPaymentMethodsMap = new Map(PAYMENT_METHODS.map(pm => [pm.name.toLowerCase(), { ...pm }]));
       
       if (docSnap.exists()) {
         const prefsData = docSnap.data() as UserPreferences;
         const userDefinedCategoriesFromPrefs = prefsData.userDefinedCategories || [];
         const deselectedPredefinedCatNames = new Set((prefsData.deselectedPredefinedCategories || []).map(name => name.toLowerCase()));
-        
-        finalCategories = CATEGORIES.filter(pCat => !deselectedPredefinedCatNames.has(pCat.name.toLowerCase()));
-        const finalCategoriesMap = new Map<string, DisplayCategory>();
-        finalCategories.forEach(cat => finalCategoriesMap.set(cat.name.toLowerCase(), cat));
-        userDefinedCategoriesFromPrefs.forEach(customCat => {
-            finalCategoriesMap.set(customCat.name.toLowerCase(), customCat);
+
+        predefinedCategoriesMap.forEach((pCat, pCatNameLower) => {
+          if (!deselectedPredefinedCatNames.has(pCatNameLower)) {
+            const customOverride = userDefinedCategoriesFromPrefs.find(udc => udc.name.toLowerCase() === pCatNameLower);
+            finalCategories.push(customOverride ? { ...pCat, ...customOverride } : { ...pCat });
+          }
         });
-        finalCategories = Array.from(finalCategoriesMap.values());
+        userDefinedCategoriesFromPrefs.forEach(customCat => {
+          if (!finalCategories.some(fc => fc.name.toLowerCase() === customCat.name.toLowerCase())) {
+            finalCategories.push(customCat);
+          }
+        });
 
         const userDefinedPaymentMethodsFromPrefs = prefsData.userDefinedPaymentMethods || [];
         const deselectedPredefinedPmNames = new Set((prefsData.deselectedPredefinedPaymentMethods || []).map(name => name.toLowerCase()));
-        finalPaymentMethods = PAYMENT_METHODS.filter(pPm => !deselectedPredefinedPmNames.has(pPm.name.toLowerCase()));
-        const finalPaymentMethodsMap = new Map<string, DisplayPaymentMethod>();
-        finalPaymentMethods.forEach(pm => finalPaymentMethodsMap.set(pm.name.toLowerCase(), pm));
-        userDefinedPaymentMethodsFromPrefs.forEach(customPm => {
-            finalPaymentMethodsMap.set(customPm.name.toLowerCase(), customPm);
+        
+        predefinedPaymentMethodsMap.forEach((pPm, pPmNameLower) => {
+          if (!deselectedPredefinedPmNames.has(pPmNameLower)) {
+            const customOverride = userDefinedPaymentMethodsFromPrefs.find(udpm => udpm.name.toLowerCase() === pPmNameLower);
+            finalPaymentMethods.push(customOverride ? { ...pPm, ...customOverride } : { ...pPm });
+          }
         });
-        finalPaymentMethods = Array.from(finalPaymentMethodsMap.values());
+        userDefinedPaymentMethodsFromPrefs.forEach(customPm => {
+          if (!finalPaymentMethods.some(fpm => fpm.name.toLowerCase() === customPm.name.toLowerCase())) {
+            finalPaymentMethods.push(customPm);
+          }
+        });
+      } else {
+        finalCategories = [...CATEGORIES];
+        finalPaymentMethods = [...PAYMENT_METHODS];
       }
       
       setUserCategories(finalCategories.sort((a,b) => getCategoryDisplayLabel(a, language).localeCompare(getCategoryDisplayLabel(b,language))));
@@ -154,7 +171,7 @@ export default function IncomePage() {
     }
 
     setIsLoadingTransactions(true);
-    const transactionsColRef = collection(db, "users/" + userId + "/transactions");
+    const transactionsColRef = collection(db, "users", userId, "transactions");
     const q_transactions = query(transactionsColRef, orderBy("date", "desc"));
 
     const unsubscribe = onSnapshot(q_transactions, (querySnapshot) => {
@@ -200,7 +217,16 @@ export default function IncomePage() {
             console.warn('IncomePage: Could not parse date ' + dateString + ' to derive effectiveMonth for tx ' + docSnap.id);
             effectiveMonthString = formatDateFns(new Date(), "yyyy-MM");
           }
+        } else if (effectiveMonthString && !/^\d{4}-\d{2}$/.test(effectiveMonthString)) {
+            console.warn("IncomePage: Transaction has invalid effectiveMonth format. Attempting to derive. Was:", effectiveMonthString, "ID:", docSnap.id);
+            try {
+                effectiveMonthString = formatDateFns(parseDateFns(dateString, "yyyy-MM-dd", new Date(0)), "yyyy-MM");
+            } catch (e) {
+                console.warn('IncomePage: Could not derive effectiveMonth from date ' + dateString + ' for tx ' + docSnap.id);
+                effectiveMonthString = formatDateFns(new Date(), "yyyy-MM");
+            }
         }
+
 
         return {
           ...data,
@@ -233,8 +259,6 @@ export default function IncomePage() {
   const incomeForDisplayedPeriod = useMemo(() => {
     const targetEffectiveMonth = formatDateFns(displayedDate, "yyyy-MM");
     const firstDayOfDisplayedMonth = startOfMonth(displayedDate);
-    const targetYear = getYearFns(displayedDate);
-    const targetMonth = getMonthFns(displayedDate);
     
     const monthlyDisplayTransactions: Transaction[] = [];
 
@@ -246,16 +270,13 @@ export default function IncomePage() {
 
       if (t.isRecurring) {
         const originalTransactionDate = parseDateFns(t.date, "yyyy-MM-dd", new Date(0));
-        const originalTxYear = getYearFns(originalTransactionDate);
-        const originalTxMonth = getMonthFns(originalTransactionDate);
-
-        if (originalTxYear < targetYear || (originalTxYear === targetYear && originalTxMonth <= targetMonth)) {
+        if (startOfMonth(originalTransactionDate) <= firstDayOfDisplayedMonth) {
           includeTransaction = true;
           const projectedDateDay = getDateFns(originalTransactionDate);
           let projectedDate = setDateFnsDate(firstDayOfDisplayedMonth, projectedDateDay);
-          const lastDayOfDisplayedMonth = lastDayOfMonth(displayedDate);
+          const lastDayOfCurrentMonth = lastDayOfMonth(displayedDate);
           if (getDateFns(projectedDate) !== projectedDateDay || getMonthFns(projectedDate) !== getMonthFns(displayedDate)) {
-               projectedDate = setDateFnsDate(firstDayOfDisplayedMonth, Math.min(projectedDateDay, getDateFns(lastDayOfDisplayedMonth)));
+               projectedDate = setDateFnsDate(firstDayOfDisplayedMonth, Math.min(projectedDateDay, getDateFns(lastDayOfCurrentMonth)));
           }
           projectedDateForDisplayString = formatDateFns(projectedDate, "yyyy-MM-dd");
         }
@@ -267,7 +288,7 @@ export default function IncomePage() {
         monthlyDisplayTransactions.push({
           ...t,
           date: projectedDateForDisplayString,
-          id: t.isRecurring ? `${t.id}_proj_${targetEffectiveMonth}` : t.id // Unique ID for projected item
+          id: t.isRecurring ? `${t.id}_proj_${targetEffectiveMonth}` : t.id 
         });
       }
     });
@@ -318,7 +339,7 @@ export default function IncomePage() {
       return;
     }
     
-    const effectiveMonth = formatDateFns(parseDateFns(formData.date, "yyyy-MM-dd", new Date(0)), "yyyy-MM");
+    const effectiveMonth = formatDateFns(displayedDate, "yyyy-MM");
     const fullPayload = { ...formData, type: 'income' as 'income', effectiveMonth, userId };
     
     const dataToSave = Object.fromEntries(
@@ -329,7 +350,7 @@ export default function IncomePage() {
 
 
     if (id) { 
-      const transactionDocRef = doc(db, "users/" + userId + "/transactions", id);
+      const transactionDocRef = doc(db, "users", userId, "transactions", id);
       dataToSave.updatedAt = serverTimestamp();
       try {
         await updateDoc(transactionDocRef, dataToSave);
@@ -343,7 +364,7 @@ export default function IncomePage() {
     } else { 
       dataToSave.createdAt = serverTimestamp();
       try {
-        const transactionsColRef = collection(db, "users/" + userId + "/transactions");
+        const transactionsColRef = collection(db, "users", userId, "transactions");
         await addDoc(transactionsColRef, dataToSave);
         toast({ title: translate({ en: "Income Added", pt: "Receita Adicionada" }), description: formData.description + " " + translate({ en: "has been successfully added.", pt: "foi adicionada com sucesso." }) });
         setIsAddFormOpen(false);
@@ -376,7 +397,7 @@ export default function IncomePage() {
     }
 
     try {
-      const docRef = doc(db, "users/" + userId + "/transactions", transactionToDelete.id); 
+      const docRef = doc(db, "users", userId, "transactions", transactionToDelete.id); 
       await deleteDoc(docRef);
       toast({
         title: translate({ en: "Income Deleted", pt: "Receita Excluída" }),
@@ -409,7 +430,7 @@ export default function IncomePage() {
   return (
     <AppLayout>
       <div className="space-y-6">
-        <div className="sm:flex sm:items-center sm:justify-between">
+        <div className="flex flex-col items-stretch gap-4 sm:flex-row sm:items-center sm:justify-between">
           <h1 className="text-3xl font-bold tracking-tight text-foreground mb-4 sm:mb-0">
             {pageTitle} - {displayedMonthYearLabel}
           </h1>
@@ -453,6 +474,7 @@ export default function IncomePage() {
                 onSave={handleSaveTransaction}
                 initialType="income"
                 transactionToEdit={transactionToEdit}
+                defaultDate={displayedDate} // Ensure displayedDate is used for context
                 userCategories={userCategories}
                 userPaymentMethods={userPaymentMethods}
                 key={"edit-income-" + transactionToEdit.id + "-" + displayedDate.toISOString()}
@@ -493,8 +515,9 @@ export default function IncomePage() {
               <div className="grid grid-cols-1 gap-4">
                 {incomeForDisplayedPeriod.map(tx => (
                   <TransactionItemCard
-                    key={tx.id}
+                    key={tx.id} // Use projected ID if available
                     transaction={tx}
+                    allUserCategories={userCategories}
                     onEdit={() => handleOpenEditDialog(tx.id)}
                     onDelete={() => openDeleteConfirmation(tx.id)}
                   />
@@ -534,3 +557,4 @@ export default function IncomePage() {
     
 
     
+

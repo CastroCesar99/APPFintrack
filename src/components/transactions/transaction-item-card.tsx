@@ -5,7 +5,7 @@ import type React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Edit, Trash2 } from 'lucide-react';
-import type { Transaction } from '@/types';
+import type { Transaction, DisplayCategory } from '@/types'; // Added DisplayCategory
 import { getCategoryDisplayLabel, getPaymentMethodDisplayLabel, CATEGORIES } from '@/types'; 
 import { CategoryIcon } from '@/components/icons';
 import { formatCurrency, cn } from '@/lib/utils';
@@ -17,16 +17,17 @@ interface TransactionItemCardProps {
   transaction: Transaction;
   onEdit: (transactionId: string) => void;
   onDelete: (transactionId: string) => void;
+  allUserCategories: DisplayCategory[]; // Added this prop
 }
 
-export function TransactionItemCard({ transaction, onEdit, onDelete }: TransactionItemCardProps) {
+export function TransactionItemCard({ transaction, onEdit, onDelete, allUserCategories }: TransactionItemCardProps) {
   const { language, translate } = useLanguage();
 
   let displayDate = transaction.date;
   try {
     if (transaction.date && transaction.date.match(/^\d{4}-\d{2}-\d{2}$/)) {
       const parsedDate = parseDateFns(transaction.date, "yyyy-MM-dd", new Date(0));
-      displayDate = formatDateFns(parsedDate, language === 'pt' ? "dd 'de' MMMM yyyy" : "MMMM dd, yyyy", { locale: language === 'pt' ? ptBR : enUS });
+      displayDate = formatDateFns(parsedDate, language === 'pt' ? "dd 'de' MMMM, yyyy" : "MMMM dd, yyyy", { locale: language === 'pt' ? ptBR : enUS });
     } else {
       console.warn("TransactionItemCard: Unexpected date format for transaction ID " + transaction.id + ": " + transaction.date);
     }
@@ -34,18 +35,27 @@ export function TransactionItemCard({ transaction, onEdit, onDelete }: Transacti
     console.warn("TransactionItemCard: Could not parse date string for display: " + transaction.date, e);
   }
   
-  const categoryDetails = CATEGORIES.find(c => c.name === transaction.category) || 
-                          { name: transaction.category, type: transaction.type, icon: 'CircleHelp', label: { en: transaction.category as string, pt: transaction.category as string }};
-  
-  const categoryDisplayName = getCategoryDisplayLabel(categoryDetails, language);
+  // Find category details from allUserCategories passed from parent
+  const categoryDetailsFromUserList = allUserCategories.find(
+    (cat) => cat.name.toLowerCase() === (transaction.category as string).toLowerCase()
+  );
 
-  // Corrected logic for payment method display name
+  const finalCategoryDetails: DisplayCategory = categoryDetailsFromUserList || 
+                            CATEGORIES.find(c => c.name.toLowerCase() === (transaction.category as string).toLowerCase()) || 
+                            { 
+                              name: transaction.category as string, 
+                              type: transaction.type, 
+                              icon: 'CircleHelp', 
+                              label: { en: transaction.category as string, pt: transaction.category as string }
+                            };
+  
+  const categoryDisplayName = getCategoryDisplayLabel(finalCategoryDetails, language);
+  const categoryIconName = finalCategoryDetails.icon;
+
   const paymentMethodDisplayName = transaction.paymentMethod
     ? getPaymentMethodDisplayLabel(transaction.paymentMethod, language)
     : '';
   
-  console.log(`TransactionItemCard: For paymentMethod='${transaction.paymentMethod}', language='${language}', got display='${paymentMethodDisplayName}'`);
-
   const expenseNatureDisplay = transaction.expenseNature
     ? translate({
         en: transaction.expenseNature.charAt(0).toUpperCase() + transaction.expenseNature.slice(1), 
@@ -58,7 +68,7 @@ export function TransactionItemCard({ transaction, onEdit, onDelete }: Transacti
       <CardHeader className="pb-3 pt-4 px-4">
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-start gap-2 min-w-0 flex-1">
-            <CategoryIcon iconName={categoryDetails.icon} className="h-5 w-5 text-muted-foreground flex-shrink-0 mt-1" />
+            <CategoryIcon iconName={categoryIconName} className="h-5 w-5 text-muted-foreground flex-shrink-0 mt-1" />
             <CardTitle className="text-base font-semibold leading-tight flex-1 break-words" title={transaction.description}>
               {transaction.description}
             </CardTitle>
@@ -88,7 +98,7 @@ export function TransactionItemCard({ transaction, onEdit, onDelete }: Transacti
         )}
         {transaction.type === 'expense' && transaction.expenseType === 'installment' && transaction.installments && (
           <p>
-            {translate({ en: "Installments:", pt: "Parcelas:" })} {transaction.installments}
+            {/* Description already includes installment info from projection logic */}
           </p>
         )}
          {transaction.type === 'expense' && expenseNatureDisplay && (
@@ -122,5 +132,3 @@ export function TransactionItemCard({ transaction, onEdit, onDelete }: Transacti
     </Card>
   );
 }
-
-    
