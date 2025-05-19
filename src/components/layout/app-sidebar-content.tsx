@@ -2,7 +2,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import React from "react"; // Removed useState
+import React from "react";
 import {
   SidebarHeader,
   SidebarContent,
@@ -16,13 +16,24 @@ import { AppLogoIcon, DashboardIcon, SettingsIcon } from "@/components/icons";
 import { useLanguage } from "@/context/language-context";
 import { useAuth } from "@/context/auth-context";
 import { LogOut, CreditCard, TrendingUp, ListChecks, FileText } from "lucide-react";
-// Dialog imports removed
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogClose,
+} from "@/components/ui/dialog";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
+
 
 export function AppSidebarContent() {
   const pathname = usePathname();
-  const { language, setLanguage, translate } = useLanguage(); // setLanguage might be unused here now
+  const { language, setLanguage, translate } = useLanguage();
   const { user, logOut, loading: authLoading } = useAuth();
-  // Removed isSettingsDialogOpen state
 
   const appTitle = "FinTrack";
 
@@ -63,7 +74,6 @@ export function AppSidebarContent() {
     en: "Settings",
     pt: "Configurações",
   });
-  // Removed dialog specific translations as dialog is removed
 
   const logoutLabel = translate({
     en: "Logout",
@@ -99,8 +109,7 @@ export function AppSidebarContent() {
           ))}
         </SidebarMenu>
       </SidebarContent>
-      <SidebarFooter className="p-4 border-t space-y-2">
-        {/* Settings button now navigates to /settings page */}
+      <SidebarFooter className="p-2 border-t space-y-1"> {/* MODIFIED HERE */}
         <Link href="/settings" passHref legacyBehavior>
           <SidebarMenuButton
             asChild
