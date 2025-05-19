@@ -13,8 +13,8 @@ import { CATEGORIES, getCategoryDisplayLabel, PAYMENT_METHODS, getPaymentMethodD
 import { collection, query, orderBy, onSnapshot, doc, getDoc, addDoc, serverTimestamp, Timestamp, writeBatch } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency, cn } from "@/lib/utils";
-import { CategoryIcon } from "@/components/icons"; // Corrected import for CategoryIcon
-import { Package, Wallet } from "lucide-react"; // Package and Wallet are from lucide-react
+import { CategoryIcon } from "@/components/icons";
+import { Package, Wallet, TrendingUp, TrendingDown, DollarSign, ListChecks } from "lucide-react";
 import { useDateNavigation } from '@/context/date-navigation-context';
 import { useLanguage } from '@/context/language-context';
 import { 
@@ -44,7 +44,7 @@ export default function DashboardPage() {
   const { toast } = useToast();
   const { displayedDate, displayedMonthYearLabel } = useDateNavigation();
 
-  const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isLoadingTransactions, setIsLoadingTransactions] = useState(true);
   
   const [isClient, setIsClient] = useState(false);
@@ -69,10 +69,10 @@ export default function DashboardPage() {
   useEffect(() => {
     console.log("DashboardPage: TRACER --- isClient useEffect running");
     setIsClient(true);
-    effectMountedRef.current = true;
+    effectMountedRef.current = true; // Set to true when component mounts
     return () => {
       console.log("DashboardPage: TRACER --- isClient useEffect UNMOUNTING");
-      effectMountedRef.current = false;
+      effectMountedRef.current = false; // Set to false when component unmounts
     };
   }, []);
 
@@ -81,6 +81,8 @@ export default function DashboardPage() {
       console.log(`DashboardPage: TRACER --- cleanupListener: Unsubscribing ${type} for UserID:`, currentUserIdForCleanup || "N/A");
       listenerRef.current();
       listenerRef.current = null;
+    } else {
+      console.log(`DashboardPage: TRACER --- cleanupListener: No listener to unsubscribe or ref is not a function for ${type}, UserID:`, currentUserIdForCleanup || "N/A");
     }
   }, []);
 
@@ -89,7 +91,6 @@ export default function DashboardPage() {
     console.log(`DashboardPage: TRACER --- Preferences useEffect START. UserID: ${userId}, AuthLoading: ${authLoading}, isClient: ${isClient}`);
     if (!isClient || authLoading || !userId) {
       if (effectMountedRef.current) {
-        // Fallback to all predefined if no user or still loading
         const allPredefinedCategories: DisplayCategory[] = [...CATEGORIES];
         const allPredefinedPaymentMethods: DisplayPaymentMethod[] = [...PAYMENT_METHODS];
         
@@ -119,28 +120,36 @@ export default function DashboardPage() {
 
       if (docSnap.exists()) {
         const prefsData = docSnap.data() as UserPreferences;
-        const customCategoriesFromDb = prefsData.userDefinedCategories || [];
+        // Combine predefined categories with user-defined ones (overrides)
+        const customCategoriesMap = new Map((prefsData.userDefinedCategories || []).map(cc => [cc.name.toLowerCase(), cc]));
         const deselectedPredefinedCatNames = new Set((prefsData.deselectedPredefinedCategories || []).map(name => name.toLowerCase()));
-        
-        finalCategories = CATEGORIES.map(pCat => {
-            const customOverride = customCategoriesFromDb.find(cc => cc.name.toLowerCase() === pCat.name.toLowerCase());
-            return customOverride ? { ...pCat, ...customOverride } : pCat;
-        }).filter(pCat => !deselectedPredefinedCatNames.has(pCat.name.toLowerCase()));
 
-        customCategoriesFromDb.forEach(customCat => {
+        finalCategories = CATEGORIES
+            .filter(pCat => !deselectedPredefinedCatNames.has(pCat.name.toLowerCase()))
+            .map(pCat => {
+                const customOverride = customCategoriesMap.get(pCat.name.toLowerCase());
+                return customOverride ? { ...pCat, ...customOverride } : pCat;
+            });
+        
+        // Add any purely custom categories (not overrides of predefined)
+        (prefsData.userDefinedCategories || []).forEach(customCat => {
             if (!finalCategories.some(fc => fc.name.toLowerCase() === customCat.name.toLowerCase())) {
                 finalCategories.push(customCat);
             }
         });
         
-        const customPaymentMethodsFromDb = prefsData.userDefinedPaymentMethods || [];
+        // Combine predefined payment methods with user-defined ones
+        const customPaymentMethodsMap = new Map((prefsData.userDefinedPaymentMethods || []).map(cpm => [cpm.name.toLowerCase(), cpm]));
         const deselectedPredefinedPmNames = new Set((prefsData.deselectedPredefinedPaymentMethods || []).map(name => name.toLowerCase()));
-        finalPaymentMethods = PAYMENT_METHODS.map(pPm => {
-            const customOverride = customPaymentMethodsFromDb.find(cpm => cpm.name.toLowerCase() === pPm.name.toLowerCase());
-            return customOverride ? { ...pPm, ...customOverride } : pPm;
-        }).filter(pPm => !deselectedPredefinedPmNames.has(pPm.name.toLowerCase()));
         
-        customPaymentMethodsFromDb.forEach(customPm => {
+        finalPaymentMethods = PAYMENT_METHODS
+            .filter(pPm => !deselectedPredefinedPmNames.has(pPm.name.toLowerCase()))
+            .map(pPm => {
+                const customOverride = customPaymentMethodsMap.get(pPm.name.toLowerCase());
+                return customOverride ? { ...pPm, ...customOverride } : pPm;
+            });
+        
+        (prefsData.userDefinedPaymentMethods || []).forEach(customPm => {
             if (!finalPaymentMethods.some(fpm => fpm.name.toLowerCase() === customPm.name.toLowerCase())) {
                 finalPaymentMethods.push(customPm);
             }
@@ -173,15 +182,16 @@ export default function DashboardPage() {
 
   // Effect for Transactions
   useEffect(() => {
-    console.log(`DashboardPage: TRACER --- Main data fetching useEffect START. UserID: ${userId}, AuthLoading: ${authLoading}, isClient: ${isClient}, InitiatedFor: ${mainFetchInitiatedForUser.current}, isLoadingTransactions: ${isLoadingTransactions}`);
+    console.log(`DashboardPage: TRACER --- Main data fetching useEffect START. UserID: ${userId}, AuthLoading: ${authLoading}, isClient: ${isClient}, InitiatedFor: ${mainFetchInitiatedForUser.current}`);
     
     if (!isClient) {
       console.log("DashboardPage: TRACER --- Main useEffect: Not client yet, waiting.");
+      // Do not set isLoadingTransactions to false here, let overallLoading handle it
       return;
     }
     if (authLoading) {
       console.log("DashboardPage: TRACER --- Main useEffect: Auth is loading, waiting...");
-      // setIsLoadingTransactions(true); // Keep loading if auth is pending
+      // Do not set isLoadingTransactions to false here
       return;
     }
     if (!userId) {
@@ -189,7 +199,7 @@ export default function DashboardPage() {
       cleanupListener(unsubscribeTransactionsRef, "transactions (no userId)", userId);
       mainFetchInitiatedForUser.current = null;
       if (effectMountedRef.current) {
-        setAllTransactions([]);
+        setTransactions([]);
         setIsLoadingTransactions(false);
       }
       router.push('/login');
@@ -199,8 +209,8 @@ export default function DashboardPage() {
     // Only proceed if this user's data hasn't been fetched yet OR if listener was lost
     if (mainFetchInitiatedForUser.current !== userId || !unsubscribeTransactionsRef.current) {
       console.log(`DashboardPage: TRACER --- Main useEffect: Initiating NEW fetch/listener for UserID: ${userId}. PrevInitiatedFor: ${mainFetchInitiatedForUser.current}. ListenerExisted: ${!!unsubscribeTransactionsRef.current}`);
-      cleanupListener(unsubscribeTransactionsRef, "transactions stale before new", userId); // Clean up any old listener
-      mainFetchInitiatedForUser.current = userId; // Mark that we are initiating for this user
+      cleanupListener(unsubscribeTransactionsRef, "transactions stale before new", userId); 
+      mainFetchInitiatedForUser.current = userId; 
 
       const fetchDataInternal = async (currentUserId: string) => {
         if (!effectMountedRef.current) {
@@ -225,8 +235,8 @@ export default function DashboardPage() {
           if (!userDocSnap.exists()) {
             if (effectMountedRef.current) {
               setIsLoadingTransactions(false);
-              console.log("DashboardPage: TRACER --- fetchDataInternal: User document not found for UserID:", currentUserId, ". Redirecting to signup (should ideally not happen if auth exists).");
-              router.push('/signup'); 
+              console.log("DashboardPage: TRACER --- fetchDataInternal: User document not found for UserID:", currentUserId, ". Redirecting to onboarding (was signup).");
+              router.push('/onboarding'); 
             }
             return;
           }
@@ -243,6 +253,12 @@ export default function DashboardPage() {
           const transactionsColRef = collection(db, 'users', currentUserId, 'transactions');
           const q_transactions = query(transactionsColRef, orderBy("date", "desc"));
           
+          if (unsubscribeTransactionsRef.current) {
+            console.log("DashboardPage: TRACER --- fetchDataInternal: Stale snapshot ref found before new onSnapshot. Cleaning up again.");
+            unsubscribeTransactionsRef.current();
+            unsubscribeTransactionsRef.current = null;
+          }
+
           unsubscribeTransactionsRef.current = onSnapshot(q_transactions, (querySnapshot) => {
             if (!effectMountedRef.current) {
               console.log("DashboardPage: TRACER --- onSnapshot: Effect unmounted for UserID:", currentUserId);
@@ -260,30 +276,30 @@ export default function DashboardPage() {
                   if (/^\d{4}-\d{2}-\d{2}$/.test(data.date)) { /* OK */ } 
                   else if (data.date.includes('T')) { 
                       try { dateString = formatDateFns(parseISODateFns(data.date), "yyyy-MM-dd"); } 
-                      catch { 
-                          try { dateString = formatDateFns(new Date(data.date), "yyyy-MM-dd"); } 
-                          catch(e) { 
-                              console.warn("DashboardPage TX Date Parse (string T): Failed for tx " + docSnap.id + ":", data.date, e);
-                              dateString = formatDateFns(new Date(), "yyyy-MM-dd"); 
-                          }
+                      catch (e1){ 
+                        try { dateString = formatDateFns(new Date(data.date), "yyyy-MM-dd"); }
+                        catch(e2) { 
+                            console.warn("DashboardPage TX Date Parse (string T): Failed for tx " + docSnap.id + ":", data.date, e2);
+                            dateString = formatDateFns(new Date(), "yyyy-MM-dd"); 
+                        }
                       }
                   } else { 
-                      console.warn("DashboardPage TX Date Parse (string other): Unhandled format for tx " + docSnap.id + ":", data.date);
+                      console.warn("DashboardPage TX Date Parse (string other): Unhandled format for tx " + docSnap.id + ":", data.date, "Attempting general parse.");
                       try { dateString = formatDateFns(new Date(data.date), "yyyy-MM-dd");}
                       catch(e) {
-                          console.warn("DashboardPage TX Date Parse (string other general): Failed for tx " + docSnap.id + ":", data.date, e);
+                          console.warn("DashboardPage TX Date Parse (string other general): Failed for tx " + docSnap.id + ":", data.date, e, "Fallback to current date.");
                           dateString = formatDateFns(new Date(), "yyyy-MM-dd"); 
                       }
                   }
               } else { 
-                 console.warn("DashboardPage TX Date Parse (missing/invalid): Missing or invalid date for tx " + docSnap.id + ":", data.date);
+                 console.warn("DashboardPage TX Date Parse (missing/invalid): Missing or invalid date for tx " + docSnap.id + ":", data.date, "Fallback to current date.");
                  dateString = formatDateFns(new Date(), "yyyy-MM-dd"); 
               }
 
               if (dateString && (!effectiveMonthString || !/^\d{4}-\d{2}$/.test(effectiveMonthString)) ) { 
                   try { effectiveMonthString = formatDateFns(parseDateFns(dateString, "yyyy-MM-dd", new Date(0)), "yyyy-MM"); } 
                   catch (e){ 
-                      console.warn('DashboardPage TX effectiveMonth Derivation: Failed for tx ' + docSnap.id + ' from date ' + dateString, e);
+                      console.warn('DashboardPage TX effectiveMonth Derivation: Failed for tx ' + docSnap.id + ' from date ' + dateString, e, "Fallback to current month.");
                       effectiveMonthString = formatDateFns(new Date(), "yyyy-MM"); 
                   }
               }
@@ -299,7 +315,7 @@ export default function DashboardPage() {
             });
             if (effectMountedRef.current) {
               console.log("DashboardPage: TRACER --- onSnapshot: Setting", fetchedTransactions.length, "transactions for UserID:", currentUserId);
-              setAllTransactions(fetchedTransactions);
+              setTransactions(fetchedTransactions);
               console.log("DashboardPage: TRACER --- setIsLoadingTransactions(false) after processing snapshot data for UserID:", currentUserId);
               setIsLoadingTransactions(false);
             }
@@ -308,7 +324,7 @@ export default function DashboardPage() {
             console.error("DashboardPage: TRACER --- Transaction onSnapshot: Error listening for UserID:", currentUserId, error);
             toast({ title: translate({ en: "Transaction Error", pt: "Erro nas Transações" }), description: translate({en: "Could not load transactions.", pt: "Não foi possível carregar as transações."}), variant: "destructive" });
             if (effectMountedRef.current) {
-              setAllTransactions([]);
+              setTransactions([]);
               setIsLoadingTransactions(false);
               console.log("DashboardPage: TRACER --- Transactions snapshot ERROR: isLoadingTransactions set to false.");
             }
@@ -318,7 +334,7 @@ export default function DashboardPage() {
           console.error("DashboardPage: TRACER --- fetchDataInternal: Error for UserID:", currentUserId, error);
           toast({ title: translate({ en: "Error", pt: "Erro" }), description: translate({en: "An error occurred loading data.", pt: "Ocorreu um erro ao carregar os dados."}), variant: "destructive" });
           if (effectMountedRef.current) {
-            setAllTransactions([]);
+            setTransactions([]);
             setIsLoadingTransactions(false); 
             console.log("DashboardPage: TRACER --- fetchDataInternal CATCH: isLoadingTransactions set to false.");
           }
@@ -328,15 +344,21 @@ export default function DashboardPage() {
       fetchDataInternal(userId);
     } else {
       console.log(`DashboardPage: TRACER --- Main useEffect: Data already initiated or listener exists for UserID: ${userId}. PrevInitiatedFor: ${mainFetchInitiatedForUser.current}. ListenerExisted: ${!!unsubscribeTransactionsRef.current}`);
-      // Ensure loading is false if we are not re-fetching but all other conditions are met.
-      if (effectMountedRef.current && !authLoading && userId) {
+      if (effectMountedRef.current && !authLoading && userId && !unsubscribeTransactionsRef.current) { // If listener somehow got lost, re-initiate
+          console.warn("DashboardPage: TRACER --- Listener was lost, re-initiating fetch.");
+          mainFetchInitiatedForUser.current = null; // Force re-initiation in next effect run if needed or call fetchDataInternal directly
+          // This case might need a direct call to fetchDataInternal(userId) or a mechanism to re-trigger the if block.
+          // For now, simply logging and ensuring loading is false if no refetch is triggered.
+          setIsLoadingTransactions(false);
+      } else if (effectMountedRef.current && !authLoading && userId) {
          setIsLoadingTransactions(false); 
       }
     }
     return () => {
-      console.log("DashboardPage: TRACER --- Main data fetching useEffect FULL CLEANUP for UserID:", mainFetchInitiatedForUser.current);
-      cleanupListener(unsubscribeTransactionsRef, "transactions on cleanup", mainFetchInitiatedForUser.current);
-      // Do not reset mainFetchInitiatedForUser.current here, only on logout or user change which will trigger full unmount or new userId.
+      const currentInitiatedUser = mainFetchInitiatedForUser.current; // Capture for log
+      console.log("DashboardPage: TRACER --- Main data fetching useEffect FULL CLEANUP for UserID:", currentInitiatedUser);
+      cleanupListener(unsubscribeTransactionsRef, "transactions on cleanup", currentInitiatedUser);
+      // Do not reset mainFetchInitiatedForUser.current here; it's reset on logout or user change.
     };
   }, [userId, authLoading, isClient, router, toast, translate, cleanupListener]);
 
@@ -405,9 +427,11 @@ export default function DashboardPage() {
       return;
     }
     
-    // Effective month is based on the month being viewed (displayedDate)
+    const transactionDateObject = parseDateFns(newTransactionData.date, "yyyy-MM-dd", new Date());
     const effectiveMonthForNewTx = formatDateFns(displayedDate, "yyyy-MM");
-    console.log("Dashboard: TRACER --- onAddTransaction: Received date from form:", newTransactionData.date, "Using effectiveMonth:", effectiveMonthForNewTx);
+    
+    console.log("Dashboard: TRACER --- onAddTransaction: Received date from form:", newTransactionData.date);
+    console.log("Dashboard: TRACER --- onAddTransaction: Using effectiveMonth from displayedDate:", effectiveMonthForNewTx);
     console.log("Dashboard: TRACER --- onAddTransaction: Full newTransactionData:", newTransactionData);
 
 
@@ -416,6 +440,7 @@ export default function DashboardPage() {
       userId: userId,
       createdAt: serverTimestamp(),
       effectiveMonth: effectiveMonthForNewTx, 
+      date: newTransactionData.date, // Keep original date from form as "YYYY-MM-DD"
     };
 
     const dataToSave = Object.fromEntries(
@@ -446,23 +471,24 @@ export default function DashboardPage() {
     const targetYear = getYearFns(displayedDate);
     const targetMonth = getMonthFns(displayedDate); 
 
-    console.log(`Dashboard: TRACER --- transactionsForDisplayedPeriod: Recalculating for Year: ${targetYear} Month: ${targetMonth} (0-indexed for ${displayedMonthYearLabel}), TargetEffMonth: ${targetEffectiveMonth} All transactions count: ${allTransactions.length}`);
+    console.log(`Dashboard: TRACER --- transactionsForDisplayedPeriod: Recalculating for Year: ${targetYear} Month: ${targetMonth} (0-indexed for ${displayedMonthYearLabel}), TargetEffMonth: ${targetEffectiveMonth} All transactions count: ${transactions.length}`);
     
-    if (!allTransactions || allTransactions.length === 0) {
+    if (!transactions || transactions.length === 0) {
       console.log("Dashboard: TRACER --- transactionsForDisplayedPeriod: No transactions in allTransactions, returning empty.");
       return [];
     }
     
     let filtered: Transaction[] = [];
-    allTransactions.forEach(t => {
+    transactions.forEach(t => {
       let includeTransaction = false;
       let reason = "";
       let originalTransactionDate: Date | null = null;
+
       try {
         originalTransactionDate = parseDateFns(t.date, "yyyy-MM-dd", new Date(0));
       } catch (e) {
-        console.warn(`Dashboard TX Filter: Could not parse t.date '${t.date}' for tx ID ${t.id}. Skipping this transaction for period summary.`);
-        return; // Skip this transaction if its date is unparsable
+        console.warn(`Dashboard TX Filter: Could not parse t.date '${t.date}' for tx ID ${t.id}. Skipping. Error: ${e}`);
+        return; 
       }
 
       if (t.type === 'expense' && t.expenseType === 'installment' && t.installments && t.installments > 0) {
@@ -471,29 +497,30 @@ export default function DashboardPage() {
         const isInstallmentActiveThisMonth = monthDiff >= 0 && monthDiff < t.installments;
         reason = "Installment Check";
         if (isInstallmentActiveThisMonth) includeTransaction = true;
+        console.log(`Dashboard: TRACER --- Tx Filter (Installment Check): ID: ${t.id}, DateStr: ${t.date}, OrigDate: ${originalTransactionDate.toISOString()}, StartSeries: ${installmentSeriesStartDate.toISOString()}, TargetMonthStart: ${firstDayOfTargetMonth.toISOString()}, monthDiff: ${monthDiff}, installments: ${t.installments}, isActive: ${isInstallmentActiveThisMonth}, isRec: ${t.isRecurring}, expType: ${t.expenseType}`);
       } else if (t.isRecurring === true && (t.expenseType !== 'installment')) { 
         const originalTxYear = getYearFns(originalTransactionDate);
         const originalTxMonth = getMonthFns(originalTransactionDate);
+        const isRecurringActiveThisMonth = originalTxYear < targetYear || (originalTxYear === targetYear && originalTxMonth <= targetMonth);
         reason = "Recurring Check";
-        if (originalTxYear < targetYear || (originalTxYear === targetYear && originalTxMonth <= targetMonth)) {
-          includeTransaction = true;
-        }
-      } else if (!t.isRecurring && t.expenseType !== 'installment') { 
+        if (isRecurringActiveThisMonth) includeTransaction = true;
+        console.log(`Dashboard: TRACER --- Tx Filter (Recurring Check): ID: ${t.id}, DateStr: ${t.date}, OrigDate: ${originalTransactionDate.toISOString()}, OrigY: ${originalTxYear}, OrigM: ${originalTxMonth}, TargetY: ${targetYear}, TargetM: ${targetMonth}, isActive: ${isRecurringActiveThisMonth}, isRec: ${t.isRecurring}, expType: ${t.expenseType}`);
+      } else if ((!t.isRecurring || t.isRecurring === false) && (!t.expenseType || t.expenseType !== 'installment')) { 
+        const transactionEffectiveMonthToUse = t.effectiveMonth || formatDateFns(originalTransactionDate, "yyyy-MM");
         reason = "Non-Recurring Check";
-        if (t.effectiveMonth === targetEffectiveMonth) {
+        if (transactionEffectiveMonthToUse === targetEffectiveMonth) {
           includeTransaction = true;
         }
+        console.log(`Dashboard: TRACER --- Tx Filter (Non-Recurring Check): ID: ${t.id}, DateStr: ${t.date}, OrigDate: ${originalTransactionDate.toISOString()}, EffMonth: ${transactionEffectiveMonthToUse}, TargetEffMonth: ${targetEffectiveMonth}, MatchesNonRec: ${includeTransaction}, isRec: ${t.isRecurring}, expType: ${t.expenseType}, inst: ${t.installments}`);
       }
       
-      console.log(`Dashboard: TRACER --- Tx Filter: ID: ${t.id}, Date: ${t.date}, EffMonth: ${t.effectiveMonth}, Type: ${t.type}, ExpType: ${t.expenseType}, isRec: ${t.isRecurring}, Inst: ${t.installments}, Amount: ${t.amount}, Included: ${includeTransaction}, Reason: ${reason}, Target: ${targetEffectiveMonth}`);
-
       if (includeTransaction) {
         filtered.push(t);
       }
     });
     console.log(`Dashboard: TRACER --- transactionsForDisplayedPeriod: Found ${filtered.length} transactions for the period.`);
     return filtered;
-  }, [allTransactions, displayedDate, displayedMonthYearLabel]);
+  }, [transactions, displayedDate, displayedMonthYearLabel]); // displayedMonthYearLabel for logging only
 
 
   const totalIncomeForSummary = useMemo(() => {
@@ -537,12 +564,12 @@ export default function DashboardPage() {
 
 
   const fullRecentIncomeList = useMemo(() => {
-    console.log(`Dashboard: TRACER --- recentIncome: Calculating for ${displayedMonthYearLabel}. Total transactions: ${allTransactions.length}`);
+    console.log(`Dashboard: TRACER --- recentIncome: Recalculating for ${displayedMonthYearLabel}. Total transactions in 'transactions' state: ${transactions.length}`);
     const targetEffectiveMonth = formatDateFns(displayedDate, "yyyy-MM");
     const firstDayOfDisplayedMonth = startOfMonth(displayedDate);
     const monthlyDisplayTransactions: Transaction[] = [];
 
-    allTransactions.forEach(t => {
+    transactions.forEach(t => {
       if (t.type === 'income') {
         if (t.isRecurring) {
           const originalTransactionDate = parseDateFns(t.date, "yyyy-MM-dd", new Date(0));
@@ -554,14 +581,17 @@ export default function DashboardPage() {
                  projectedDate = setDateFnsDate(firstDayOfDisplayedMonth, Math.min(projectedDateDay, getDateFns(lastDayOfCurrentMonth)));
             }
             monthlyDisplayTransactions.push({ ...t, date: formatDateFns(projectedDate, "yyyy-MM-dd"), effectiveMonth: targetEffectiveMonth, id: `${t.id}_proj_${targetEffectiveMonth}` });
+            console.log(`Dashboard: TRACER --- recentIncome: Added projected recurring: ${t.description}, Orig Date: ${t.date}, Projected Date: ${formatDateFns(projectedDate, "yyyy-MM-dd")}`);
           }
         } else if (t.effectiveMonth === targetEffectiveMonth) { 
           monthlyDisplayTransactions.push(t);
+          console.log(`Dashboard: TRACER --- recentIncome: Added non-recurring: ${t.description}, Date: ${t.date}`);
         }
       }
     });
+    console.log(`Dashboard: TRACER --- recentIncome: Found ${monthlyDisplayTransactions.length} items for display.`);
     return monthlyDisplayTransactions.sort((a, b) => parseDateFns(b.date, "yyyy-MM-dd", new Date(0)).getTime() - parseDateFns(a.date, "yyyy-MM-dd", new Date(0)).getTime());
-  }, [allTransactions, displayedDate, displayedMonthYearLabel]); 
+  }, [transactions, displayedDate, displayedMonthYearLabel]); 
 
   const recentIncomeToDisplay = useMemo(() => {
     return showAllRecentIncome ? fullRecentIncomeList : fullRecentIncomeList.slice(0,5);
@@ -569,17 +599,18 @@ export default function DashboardPage() {
 
 
   const fullRecentExpensesList = useMemo(() => {
-    console.log(`Dashboard: TRACER --- recentExpenses: Calculating for ${displayedMonthYearLabel}. Total transactions: ${allTransactions.length}`);
+    console.log(`Dashboard: TRACER --- recentExpenses: Recalculating for ${displayedMonthYearLabel}. Total transactions in 'transactions' state: ${transactions.length}`);
     const targetEffectiveMonth = formatDateFns(displayedDate, "yyyy-MM");
     const firstDayOfDisplayedMonth = startOfMonth(displayedDate);
     const monthlyDisplayTransactions: Transaction[] = [];
 
-    allTransactions.forEach(t => {
+    transactions.forEach(t => {
       if (t.type === 'expense') {
         if (t.expenseType === 'installment' && t.installments && t.installments > 0) {
           const originalInstallmentStartDate = parseDateFns(t.date, "yyyy-MM-dd", new Date(0));
           const monthDiff = differenceInCalendarMonths(firstDayOfDisplayedMonth, startOfMonth(originalInstallmentStartDate));
           const currentInstallmentNum = monthDiff + 1;
+
           if (currentInstallmentNum >= 1 && currentInstallmentNum <= t.installments) {
             const projectedDateDay = getDateFns(originalInstallmentStartDate);
             let projectedDate = setDateFnsDate(firstDayOfDisplayedMonth, projectedDateDay);
@@ -587,7 +618,9 @@ export default function DashboardPage() {
              if (getDateFns(projectedDate) !== projectedDateDay || getMonthFns(projectedDate) !== getMonthFns(displayedDate)) {
                  projectedDate = setDateFnsDate(firstDayOfDisplayedMonth, Math.min(projectedDateDay, getDateFns(lastDayOfCurrentMonth)));
             }
-            monthlyDisplayTransactions.push({ ...t, date: formatDateFns(projectedDate, "yyyy-MM-dd"), effectiveMonth: targetEffectiveMonth, description: `${t.description} (${translate({en: "Installment", pt: "Parcela"})}) ${currentInstallmentNum}/${t.installments}`, id: `${t.id}_inst_${currentInstallmentNum}_${targetEffectiveMonth}` });
+            const installmentDescription = `${t.description} (${translate({en: "Installment", pt: "Parcela"})}) ${currentInstallmentNum}/${t.installments}`;
+            monthlyDisplayTransactions.push({ ...t, date: formatDateFns(projectedDate, "yyyy-MM-dd"), effectiveMonth: targetEffectiveMonth, description: installmentDescription, id: `${t.id}_inst_${currentInstallmentNum}_${targetEffectiveMonth}` });
+            console.log(`Dashboard: TRACER --- recentExpenses: Added projected installment: ${installmentDescription}, Orig Date: ${t.date}, Projected Date: ${formatDateFns(projectedDate, "yyyy-MM-dd")}`);
           }
         } else if (t.isRecurring && t.expenseType !== 'installment') { 
           const originalTransactionDate = parseDateFns(t.date, "yyyy-MM-dd", new Date(0));
@@ -599,16 +632,19 @@ export default function DashboardPage() {
                  projectedDate = setDateFnsDate(firstDayOfDisplayedMonth, Math.min(projectedDateDay, getDateFns(lastDayOfCurrentMonth)));
             }
             monthlyDisplayTransactions.push({ ...t, date: formatDateFns(projectedDate, "yyyy-MM-dd"), effectiveMonth: targetEffectiveMonth, id: `${t.id}_proj_${targetEffectiveMonth}` });
+            console.log(`Dashboard: TRACER --- recentExpenses: Added projected recurring: ${t.description}, Orig Date: ${t.date}, Projected Date: ${formatDateFns(projectedDate, "yyyy-MM-dd")}`);
           }
         } else if ((!t.isRecurring || t.isRecurring === false) && (!t.expenseType || t.expenseType !== 'installment')) { 
           if (t.effectiveMonth === targetEffectiveMonth) {
             monthlyDisplayTransactions.push(t);
+            console.log(`Dashboard: TRACER --- recentExpenses: Added non-recurring: ${t.description}, Date: ${t.date}`);
           }
         }
       }
     });
+    console.log(`Dashboard: TRACER --- recentExpenses: Found ${monthlyDisplayTransactions.length} items for display.`);
     return monthlyDisplayTransactions.sort((a, b) => parseDateFns(b.date, "yyyy-MM-dd", new Date(0)).getTime() - parseDateFns(a.date, "yyyy-MM-dd", new Date(0)).getTime());
-  }, [allTransactions, displayedDate, translate, displayedMonthYearLabel]); 
+  }, [transactions, displayedDate, translate, displayedMonthYearLabel]); 
 
   const recentExpensesToDisplay = useMemo(() => {
     return showAllRecentExpenses ? fullRecentExpensesList : fullRecentExpensesList.slice(0,5);
@@ -638,9 +674,9 @@ export default function DashboardPage() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   {[...Array(3)].map((_, i) => (
                     <div key={`spending-sum-skel-${i}`} className="p-4 rounded-lg bg-background dark:bg-card flex flex-col items-center text-center shadow-md border">
-                      <p className="text-sm font-medium text-muted-foreground mb-1">
+                      <div className="text-sm font-medium text-muted-foreground mb-1">
                          <Skeleton className="h-5 w-3/5 mb-2"/>
-                      </p>
+                      </div>
                       <div className="flex items-center gap-2 mt-1">
                         <Skeleton className="h-7 w-7 mb-1 rounded-full"/>
                         <Skeleton className="h-5 w-4/5 mb-1"/>
@@ -664,7 +700,7 @@ export default function DashboardPage() {
       </AppLayout>
     );
   }
-  console.log(`Dashboard: TRACER --- RENDERING DASHBOARD CONTENT. Transactions: ${allTransactions.length} isLoadingTransactions: ${isLoadingTransactions} Displayed Period Transactions: ${transactionsForDisplayedPeriod.length}`);
+  console.log(`Dashboard: TRACER --- RENDERING DASHBOARD CONTENT. Transactions: ${transactions.length} isLoadingTransactions: ${isLoadingTransactions} Displayed Period Transactions: ${transactionsForDisplayedPeriod.length}`);
   console.log(`DashboardPage TRACER --- RENDERING with: displayedMonth: ${displayedMonthYearLabel} transactionsInPeriod: ${transactionsForDisplayedPeriod.length} totalIncomeForSummary: ${totalIncomeForSummary} totalExpensesForSummary: ${totalExpensesForSummary}`);
 
   return (
@@ -689,6 +725,7 @@ export default function DashboardPage() {
           <CardContent>
             {transactionsForDisplayedPeriod.filter(t => t.type === 'expense').length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                
                 <div className="p-4 rounded-lg bg-background dark:bg-card flex flex-col items-center text-center shadow-md border">
                   <p className="text-sm font-medium text-foreground mb-1">
                     {translate({ en: "Largest Expense Category", pt: "Principal Categoria de Gasto" })}:
@@ -711,7 +748,7 @@ export default function DashboardPage() {
                 </div>
 
                 <div className="p-4 rounded-lg bg-background dark:bg-card flex flex-col items-center text-center shadow-md border">
-                  <p className="text-sm font-medium text-foreground mb-1">{translate({en: "Total Expenses", pt: "Total de Gastos"})}</p>
+                  <p className="text-sm font-medium text-foreground mb-1">{translate({en: "Total Fixed", pt: "Total de Gastos"})}</p>
                   <div className="flex items-center gap-2 mt-1">
                     <Package className="h-7 w-7 text-primary" />
                     <span className="font-semibold text-lg text-foreground">
@@ -724,7 +761,7 @@ export default function DashboardPage() {
                 </div>
 
                 <div className="p-4 rounded-lg bg-background dark:bg-card flex flex-col items-center text-center shadow-md border">
-                  <p className="text-sm font-medium text-foreground mb-1">{translate({en: "Total Expenses", pt: "Total de Gastos"})}</p>
+                  <p className="text-sm font-medium text-foreground mb-1">{translate({en: "Total Variable", pt: "Total de Gastos"})}</p>
                   <div className="flex items-center gap-2 mt-1">
                     <Wallet className="h-7 w-7 text-primary" />
                     <span className="font-semibold text-lg text-foreground">
@@ -785,3 +822,4 @@ export default function DashboardPage() {
     
       
     
+
