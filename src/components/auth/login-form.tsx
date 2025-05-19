@@ -144,7 +144,7 @@ export function LoginForm() {
               </FormItem>
             )}
           />
-          <div className="flex justify-end">
+          <div className="flex justify-center">
             <Button
               type="button"
               variant="link"
