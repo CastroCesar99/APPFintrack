@@ -4,6 +4,8 @@
   "/favicon.ico/route": "app/favicon.ico/route.js",
   "/income/page": "app/income/page.js",
   "/login/page": "app/login/page.js",
+  "/onboarding/page": "app/onboarding/page.js",
   "/page": "app/page.js",
-  "/reports/page": "app/reports/page.js"
+  "/reports/page": "app/reports/page.js",
+  "/signup/page": "app/signup/page.js"
 }

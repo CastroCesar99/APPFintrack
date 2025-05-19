@@ -358,11 +358,9 @@ var { g: global, __dirname } = __turbopack_context__;
 __turbopack_context__.s({
     "CATEGORIES": (()=>CATEGORIES),
     "PAYMENT_METHODS": (()=>PAYMENT_METHODS),
-    "getCategoriesByType": (()=>getCategoriesByType),
     "getCategoryDisplayLabel": (()=>getCategoryDisplayLabel),
     "getCategoryLabel": (()=>getCategoryLabel),
-    "getPaymentMethodDisplayLabel": (()=>getPaymentMethodDisplayLabel),
-    "getPaymentMethodLabel": (()=>getPaymentMethodLabel)
+    "getPaymentMethodDisplayLabel": (()=>getPaymentMethodDisplayLabel)
 });
 const CATEGORIES = [
     {
@@ -528,6 +526,15 @@ const CATEGORIES = [
         }
     },
     {
+        name: 'Pets',
+        icon: 'PawPrint',
+        type: 'expense',
+        label: {
+            en: 'Pets',
+            pt: 'Animais de Estimação'
+        }
+    },
+    {
         name: 'Other Expense',
         icon: 'CircleHelp',
         type: 'expense',
@@ -537,34 +544,28 @@ const CATEGORIES = [
         }
     }
 ];
-const getCategoriesByType = (type)=>{
-    return CATEGORIES.filter((cat)=>cat.type === type);
-};
 const getCategoryDisplayLabel = (category, currentLanguage)=>{
+    if (!category) return '';
     if (category.label && typeof category.label === 'object' && category.label[currentLanguage]) {
         return category.label[currentLanguage];
     }
-    // Fallback for custom categories where label might just be the name
-    if (typeof category.label === 'string') {
-        return category.label;
-    }
-    return category.name; // Final fallback
+    return category.name;
 };
 const getCategoryLabel = (categoryName, currentLanguage)=>{
-    const predefinedCategory = CATEGORIES.find((cat)=>cat.name === categoryName);
+    if (!categoryName) return '';
+    const predefinedCategory = CATEGORIES.find((cat)=>cat.name.toLowerCase() === categoryName.toLowerCase());
     if (predefinedCategory && predefinedCategory.label && predefinedCategory.label[currentLanguage]) {
         return predefinedCategory.label[currentLanguage];
     }
-    // If it's not a predefined category (i.e., it's a custom category name string),
-    // or if the predefined category somehow doesn't have a label for the current language,
-    // return the categoryName string itself.
+    // For custom categories, their 'name' field usually holds the display name, or it's already a DisplayCategory object
+    // This part might need refinement if custom categories are only stored by a non-display 'name' and need label lookup.
+    // However, getCategoryDisplayLabel is preferred if you have the DisplayCategory object.
     return categoryName;
 };
 const PAYMENT_METHODS = [
     {
         name: 'Cash',
         icon: 'Wallet',
-        isDefault: false,
         label: {
             en: 'Cash',
             pt: 'Dinheiro'
@@ -573,7 +574,6 @@ const PAYMENT_METHODS = [
     {
         name: 'Debit Card',
         icon: 'CreditCard',
-        isDefault: false,
         label: {
             en: 'Debit Card',
             pt: 'Cartão de Débito'
@@ -582,28 +582,31 @@ const PAYMENT_METHODS = [
     {
         name: 'Credit Card',
         icon: 'CreditCard',
-        isDefault: true,
         label: {
             en: 'Credit Card',
             pt: 'Cartão de Crédito'
         }
     }
 ];
-const getPaymentMethodDisplayLabel = (method, currentLanguage)=>{
-    if (method.label && typeof method.label === 'object' && method.label[currentLanguage]) {
-        return method.label[currentLanguage];
+const getPaymentMethodDisplayLabel = (methodInput, currentLanguage)=>{
+    if (!methodInput) return '';
+    let methodObject;
+    if (typeof methodInput === 'string') {
+        const lowerMethodInput = methodInput.toLowerCase();
+        methodObject = PAYMENT_METHODS.find((pm)=>pm.name.toLowerCase() === lowerMethodInput);
+        if (methodObject && methodObject.label && methodObject.label[currentLanguage]) {
+            return methodObject.label[currentLanguage];
+        }
+        // If not predefined, return the input string itself (assuming it's a custom method name)
+        return methodInput;
+    } else {
+        // It's already an object (DisplayPaymentMethod)
+        methodObject = methodInput;
+        if (methodObject.label && methodObject.label[currentLanguage]) {
+            return methodObject.label[currentLanguage];
+        }
+        return methodObject.name; // Fallback to name
     }
-    if (typeof method.label === 'string') {
-        return method.label;
-    }
-    return method.name;
-};
-const getPaymentMethodLabel = (methodName, currentLanguage)=>{
-    const predefinedMethod = PAYMENT_METHODS.find((pm)=>pm.name === methodName);
-    if (predefinedMethod && predefinedMethod.label && predefinedMethod.label[currentLanguage]) {
-        return predefinedMethod.label[currentLanguage];
-    }
-    return methodName;
 };
 }}),
 "[project]/src/components/icons.tsx [app-ssr] (ecmascript) <locals>": ((__turbopack_context__) => {
@@ -672,8 +675,25 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$re
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$user$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__User$3e$__ = __turbopack_context__.i("[project]/node_modules/lucide-react/dist/esm/icons/user.js [app-ssr] (ecmascript) <export default as User>");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$wrench$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Wrench$3e$__ = __turbopack_context__.i("[project]/node_modules/lucide-react/dist/esm/icons/wrench.js [app-ssr] (ecmascript) <export default as Wrench>");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$languages$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Languages$3e$__ = __turbopack_context__.i("[project]/node_modules/lucide-react/dist/esm/icons/languages.js [app-ssr] (ecmascript) <export default as Languages>");
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$paw$2d$print$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__PawPrint$3e$__ = __turbopack_context__.i("[project]/node_modules/lucide-react/dist/esm/icons/paw-print.js [app-ssr] (ecmascript) <export default as PawPrint>");
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$dumbbell$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Dumbbell$3e$__ = __turbopack_context__.i("[project]/node_modules/lucide-react/dist/esm/icons/dumbbell.js [app-ssr] (ecmascript) <export default as Dumbbell>");
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$pizza$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Pizza$3e$__ = __turbopack_context__.i("[project]/node_modules/lucide-react/dist/esm/icons/pizza.js [app-ssr] (ecmascript) <export default as Pizza>");
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$shirt$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Shirt$3e$__ = __turbopack_context__.i("[project]/node_modules/lucide-react/dist/esm/icons/shirt.js [app-ssr] (ecmascript) <export default as Shirt>");
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$bus$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Bus$3e$__ = __turbopack_context__.i("[project]/node_modules/lucide-react/dist/esm/icons/bus.js [app-ssr] (ecmascript) <export default as Bus>");
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$graduation$2d$cap$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__GraduationCap$3e$__ = __turbopack_context__.i("[project]/node_modules/lucide-react/dist/esm/icons/graduation-cap.js [app-ssr] (ecmascript) <export default as GraduationCap>");
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$ticket$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Ticket$3e$__ = __turbopack_context__.i("[project]/node_modules/lucide-react/dist/esm/icons/ticket.js [app-ssr] (ecmascript) <export default as Ticket>");
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$palette$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Palette$3e$__ = __turbopack_context__.i("[project]/node_modules/lucide-react/dist/esm/icons/palette.js [app-ssr] (ecmascript) <export default as Palette>");
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$clapperboard$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Clapperboard$3e$__ = __turbopack_context__.i("[project]/node_modules/lucide-react/dist/esm/icons/clapperboard.js [app-ssr] (ecmascript) <export default as Clapperboard>");
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$gamepad$2d$2$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Gamepad2$3e$__ = __turbopack_context__.i("[project]/node_modules/lucide-react/dist/esm/icons/gamepad-2.js [app-ssr] (ecmascript) <export default as Gamepad2>");
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$headphones$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Headphones$3e$__ = __turbopack_context__.i("[project]/node_modules/lucide-react/dist/esm/icons/headphones.js [app-ssr] (ecmascript) <export default as Headphones>");
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$music$2d$2$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Music2$3e$__ = __turbopack_context__.i("[project]/node_modules/lucide-react/dist/esm/icons/music-2.js [app-ssr] (ecmascript) <export default as Music2>");
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$tv$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Tv$3e$__ = __turbopack_context__.i("[project]/node_modules/lucide-react/dist/esm/icons/tv.js [app-ssr] (ecmascript) <export default as Tv>");
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$tram$2d$front$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Train$3e$__ = __turbopack_context__.i("[project]/node_modules/lucide-react/dist/esm/icons/tram-front.js [app-ssr] (ecmascript) <export default as Train>");
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$tram$2d$front$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__TramFront$3e$__ = __turbopack_context__.i("[project]/node_modules/lucide-react/dist/esm/icons/tram-front.js [app-ssr] (ecmascript) <export default as TramFront>");
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$sailboat$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Sailboat$3e$__ = __turbopack_context__.i("[project]/node_modules/lucide-react/dist/esm/icons/sailboat.js [app-ssr] (ecmascript) <export default as Sailboat>");
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$utensils$2d$crossed$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__UtensilsCrossed$3e$__ = __turbopack_context__.i("[project]/node_modules/lucide-react/dist/esm/icons/utensils-crossed.js [app-ssr] (ecmascript) <export default as UtensilsCrossed>");
 var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/types/index.ts [app-ssr] (ecmascript)");
-var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$context$2f$theme$2d$context$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/context/theme-context.tsx [app-ssr] (ecmascript)"); // Import useTheme
+var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$context$2f$theme$2d$context$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/context/theme-context.tsx [app-ssr] (ecmascript)");
 "use client";
 ;
 ;
@@ -728,7 +748,24 @@ const iconNameToComponentMap = {
     Trash: __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$trash$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Trash$3e$__["Trash"],
     User: __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$user$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__User$3e$__["User"],
     Wrench: __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$wrench$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Wrench$3e$__["Wrench"],
-    Languages: __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$languages$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Languages$3e$__["Languages"]
+    Languages: __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$languages$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Languages$3e$__["Languages"],
+    PawPrint: __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$paw$2d$print$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__PawPrint$3e$__["PawPrint"],
+    Dumbbell: __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$dumbbell$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Dumbbell$3e$__["Dumbbell"],
+    Pizza: __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$pizza$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Pizza$3e$__["Pizza"],
+    Shirt: __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$shirt$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Shirt$3e$__["Shirt"],
+    Bus: __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$bus$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Bus$3e$__["Bus"],
+    GraduationCap: __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$graduation$2d$cap$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__GraduationCap$3e$__["GraduationCap"],
+    Ticket: __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$ticket$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Ticket$3e$__["Ticket"],
+    Palette: __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$palette$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Palette$3e$__["Palette"],
+    Clapperboard: __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$clapperboard$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Clapperboard$3e$__["Clapperboard"],
+    Gamepad2: __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$gamepad$2d$2$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Gamepad2$3e$__["Gamepad2"],
+    Headphones: __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$headphones$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Headphones$3e$__["Headphones"],
+    Music2: __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$music$2d$2$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Music2$3e$__["Music2"],
+    Tv: __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$tv$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Tv$3e$__["Tv"],
+    Train: __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$tram$2d$front$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Train$3e$__["Train"],
+    TramFront: __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$tram$2d$front$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__TramFront$3e$__["TramFront"],
+    Sailboat: __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$sailboat$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Sailboat$3e$__["Sailboat"],
+    UtensilsCrossed: __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$utensils$2d$crossed$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__UtensilsCrossed$3e$__["UtensilsCrossed"]
 };
 const DynamicIcon = ({ iconName, ...props })=>{
     const IconComponent = iconNameToComponentMap[iconName] || __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$circle$2d$help$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__CircleHelp$3e$__["CircleHelp"];
@@ -736,7 +773,7 @@ const DynamicIcon = ({ iconName, ...props })=>{
         ...props
     }, void 0, false, {
         fileName: "[project]/src/components/icons.tsx",
-        lineNumber: 37,
+        lineNumber: 35,
         columnNumber: 10
     }, this);
 };
@@ -746,6 +783,10 @@ const CategoryIcon = ({ categoryName, iconName, ...props })=>{
         const category = __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["CATEGORIES"].find((cat)=>cat.name === categoryName);
         if (category) {
             determinedIconName = category.icon;
+        } else {
+            if (iconNameToComponentMap[categoryName]) {
+                determinedIconName = categoryName;
+            }
         }
     }
     const IconComponent = iconNameToComponentMap[determinedIconName || ''] || __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$circle$2d$help$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__CircleHelp$3e$__["CircleHelp"];
@@ -753,7 +794,7 @@ const CategoryIcon = ({ categoryName, iconName, ...props })=>{
         ...props
     }, void 0, false, {
         fileName: "[project]/src/components/icons.tsx",
-        lineNumber: 56,
+        lineNumber: 58,
         columnNumber: 10
     }, this);
 };
@@ -763,7 +804,7 @@ const PaymentMethodIcon = ({ iconName, ...props })=>{
         ...props
     }, void 0, false, {
         fileName: "[project]/src/components/icons.tsx",
-        lineNumber: 66,
+        lineNumber: 67,
         columnNumber: 10
     }, this);
 };
@@ -776,7 +817,7 @@ const AppLogoIcon = ()=>{
         alt: altText,
         width: 32,
         height: 32,
-        className: "h-8 w-8" // Maintain size consistency, next/image handles optimization
+        className: "h-8 w-8"
     }, void 0, false, {
         fileName: "[project]/src/components/icons.tsx",
         lineNumber: 76,
@@ -788,11 +829,276 @@ const DashboardIcon = __TURBOPACK__imported__module__$5b$project$5d2f$node_modul
 const ExportIcon = __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$file$2d$text$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__FileText$3e$__["FileText"];
 ;
 const getSelectableIcons = ()=>{
+    const iconTranslations = {
+        Briefcase: {
+            en: "Briefcase",
+            pt: "Pasta de Trabalho"
+        },
+        ShoppingCart: {
+            en: "Shopping Cart",
+            pt: "Carrinho de Compras"
+        },
+        Home: {
+            en: "Home",
+            pt: "Casa"
+        },
+        Zap: {
+            en: "Electricity",
+            pt: "Eletricidade"
+        },
+        Replace: {
+            en: "Subscriptions",
+            pt: "Assinaturas"
+        },
+        Utensils: {
+            en: "Dining Out",
+            pt: "Restaurantes"
+        },
+        Car: {
+            en: "Car",
+            pt: "Carro"
+        },
+        HeartPulse: {
+            en: "Healthcare",
+            pt: "Saúde"
+        },
+        Film: {
+            en: "Entertainment (Movies)",
+            pt: "Lazer (Filmes)"
+        },
+        ShoppingBag: {
+            en: "Shopping (General)",
+            pt: "Compras (Geral)"
+        },
+        Plane: {
+            en: "Travel (Flights)",
+            pt: "Viagens (Voos)"
+        },
+        BookOpen: {
+            en: "Education",
+            pt: "Educação"
+        },
+        Gift: {
+            en: "Gifts/Donations",
+            pt: "Presentes/Doações"
+        },
+        TrendingUp: {
+            en: "Investments/Income",
+            pt: "Investimentos/Receita"
+        },
+        Laptop: {
+            en: "Work/Freelance",
+            pt: "Trabalho/Freelance"
+        },
+        DollarSign: {
+            en: "Money/Salary",
+            pt: "Dinheiro/Salário"
+        },
+        CircleHelp: {
+            en: "Other/Default",
+            pt: "Outro/Padrão"
+        },
+        PiggyBank: {
+            en: "Savings",
+            pt: "Economias"
+        },
+        Settings: {
+            en: "Settings",
+            pt: "Configurações"
+        },
+        LayoutDashboard: {
+            en: "Dashboard",
+            pt: "Painel"
+        },
+        FileText: {
+            en: "Reports/Documents",
+            pt: "Relatórios/Documentos"
+        },
+        ListChecks: {
+            en: "Budgets/Tasks",
+            pt: "Orçamentos/Tarefas"
+        },
+        PlusCircle: {
+            en: "Add",
+            pt: "Adicionar"
+        },
+        SlidersHorizontal: {
+            en: "Manage/Adjust",
+            pt: "Gerenciar/Ajustar"
+        },
+        Wallet: {
+            en: "Wallet (Cash)",
+            pt: "Carteira (Dinheiro)"
+        },
+        CreditCard: {
+            en: "Card (Credit/Debit)",
+            pt: "Cartão (Crédito/Débito)"
+        },
+        Sparkles: {
+            en: "Personal Care",
+            pt: "Cuidados Pessoais"
+        },
+        Archive: {
+            en: "Archive",
+            pt: "Arquivo"
+        },
+        Bell: {
+            en: "Notifications",
+            pt: "Notificações"
+        },
+        Box: {
+            en: "Box/Storage",
+            pt: "Caixa/Armazenamento"
+        },
+        Camera: {
+            en: "Photography",
+            pt: "Fotografia"
+        },
+        Cog: {
+            en: "System Settings",
+            pt: "Configurações do Sistema"
+        },
+        Coins: {
+            en: "Coins/Change",
+            pt: "Moedas/Troco"
+        },
+        Flag: {
+            en: "Goals/Milestones",
+            pt: "Metas/Marcos"
+        },
+        Folder: {
+            en: "Files/Organization",
+            pt: "Arquivos/Organização"
+        },
+        Key: {
+            en: "Security/Access",
+            pt: "Segurança/Acesso"
+        },
+        Mail: {
+            en: "Mail/Support",
+            pt: "Correio/Suporte"
+        },
+        MapPin: {
+            en: "Location",
+            pt: "Localização"
+        },
+        Package: {
+            en: "Packages/Deliveries",
+            pt: "Pacotes/Entregas"
+        },
+        Pen: {
+            en: "Edit",
+            pt: "Editar"
+        },
+        Phone: {
+            en: "Phone/Communication",
+            pt: "Telefone/Comunicação"
+        },
+        Receipt: {
+            en: "Receipts/Bills",
+            pt: "Recibos/Contas"
+        },
+        Shield: {
+            en: "Security/Insurance",
+            pt: "Segurança/Seguro"
+        },
+        Tag: {
+            en: "Label/Tag",
+            pt: "Etiqueta/Tag"
+        },
+        Trash: {
+            en: "Delete",
+            pt: "Excluir"
+        },
+        User: {
+            en: "Profile/User",
+            pt: "Perfil/Usuário"
+        },
+        Wrench: {
+            en: "Maintenance/Tools",
+            pt: "Manutenção/Ferramentas"
+        },
+        Languages: {
+            en: "Language",
+            pt: "Idioma"
+        },
+        PawPrint: {
+            en: "Pets",
+            pt: "Animais de Estimação"
+        },
+        Dumbbell: {
+            en: "Fitness/Gym",
+            pt: "Fitness/Academia"
+        },
+        Pizza: {
+            en: "Pizza/Fast Food",
+            pt: "Pizza/Fast Food"
+        },
+        Shirt: {
+            en: "Clothing",
+            pt: "Vestuário"
+        },
+        Bus: {
+            en: "Public Transport",
+            pt: "Transporte Público"
+        },
+        GraduationCap: {
+            en: "Studies/University",
+            pt: "Estudos/Universidade"
+        },
+        Ticket: {
+            en: "Events/Tickets",
+            pt: "Eventos/Ingressos"
+        },
+        Palette: {
+            en: "Hobbies/Art",
+            pt: "Hobbies/Arte"
+        },
+        Clapperboard: {
+            en: "Movies/Cinema",
+            pt: "Filmes/Cinema"
+        },
+        Gamepad2: {
+            en: "Gaming",
+            pt: "Jogos"
+        },
+        Headphones: {
+            en: "Music/Audio",
+            pt: "Música/Áudio"
+        },
+        Music2: {
+            en: "Concerts/Music",
+            pt: "Shows/Música"
+        },
+        Tv: {
+            en: "TV/Streaming",
+            pt: "TV/Streaming"
+        },
+        Train: {
+            en: "Train Travel",
+            pt: "Viagem de Trem"
+        },
+        TramFront: {
+            en: "Tram/Metro",
+            pt: "Bonde/Metrô"
+        },
+        Sailboat: {
+            en: "Boating/Sailing",
+            pt: "Passeio de Barco/Vela"
+        },
+        UtensilsCrossed: {
+            en: "Restaurant",
+            pt: "Restaurante"
+        }
+    };
     return Object.entries(iconNameToComponentMap).map(([name, Component])=>({
             value: name,
-            label: name.replace(/([A-Z](?=[a-z]))|([A-Z]+(?=[A-Z][a-z]|$))/g, ' $1$2').trimStart(),
+            label: iconTranslations[name] || {
+                en: name.replace(/([A-Z](?=[a-z]))|([A-Z]+(?=[A-Z][a-z]|$))/g, ' $1$2').trimStart(),
+                pt: name.replace(/([A-Z](?=[a-z]))|([A-Z]+(?=[A-Z][a-z]|$))/g, ' $1$2').trimStart()
+            },
             iconComponent: Component
-        })).sort((a, b)=>a.label.localeCompare(b.label)); // Sort alphabetically by label
+        })).sort((a, b)=>a.label.en.localeCompare(b.label.en)); // Sort by English label for consistent order
 };
 }}),
 "[project]/src/components/icons.tsx [app-ssr] (ecmascript) <module evaluation>": ((__turbopack_context__) => {
