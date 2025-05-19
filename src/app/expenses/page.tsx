@@ -22,14 +22,14 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PlusCircle, ArrowUpDown } from "lucide-react";
-import type { Transaction, DisplayCategory, DisplayPaymentMethod, UserPreferences } from "@/types";
+import type { Transaction, DisplayCategory, DisplayPaymentMethod, UserPreferences, CustomCategoryData, CustomPaymentMethodData } from "@/types";
 import { CATEGORIES, PAYMENT_METHODS, getCategoryDisplayLabel, getPaymentMethodDisplayLabel } from "@/types";
 import { useAuth } from '@/context/auth-context';
 import { useLanguage } from '@/context/language-context';
 import { useDateNavigation } from '@/context/date-navigation-context';
 import { useToast } from "@/hooks/use-toast";
 import { db } from '@/lib/firebase';
-import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, serverTimestamp, Timestamp, doc, deleteDoc, getDoc } from "firebase/firestore";
+import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, serverTimestamp, Timestamp, doc, deleteDoc, getDoc, type Unsubscribe } from "firebase/firestore";
 import { 
   format as formatDateFns, 
   parseISO as parseISODateFns, 
@@ -65,10 +65,10 @@ export default function ExpensesPage() {
   const [isClient, setIsClient] = useState(false);
   const [transactionToDelete, setTransactionToDelete] = useState<Transaction | null>(null);
 
-  const [userCategories, setUserCategories] = useState<DisplayCategory[]>(() => [...CATEGORIES]);
-  const [userPaymentMethods, setUserPaymentMethods] = useState<DisplayPaymentMethod[]>(() => [...PAYMENT_METHODS]);
+  const [userCategories, setUserCategories] = useState<DisplayCategory[]>([]);
+  const [userPaymentMethods, setUserPaymentMethods] = useState<DisplayPaymentMethod[]>([]);
   const [isLoadingPreferences, setIsLoadingPreferences] = useState(true);
-  const unsubscribePreferencesRef = useRef<(() => void) | null>(null);
+  const unsubscribePreferencesRef = useRef<Unsubscribe | null>(null);
 
   const [sortOption, setSortOption] = useState<SortOptionValue>('dateDesc');
 
@@ -79,10 +79,10 @@ export default function ExpensesPage() {
   // Listener for User Preferences
   useEffect(() => {
     if (!userId || !isClient || authLoading) {
-      const defaultCats = [...CATEGORIES].sort((a,b) => getCategoryDisplayLabel(a, language).localeCompare(getCategoryDisplayLabel(b,language)));
-      const defaultPms = [...PAYMENT_METHODS].sort((a,b) => getPaymentMethodDisplayLabel(a,language).localeCompare(getPaymentMethodDisplayLabel(b,language)));
-      setUserCategories(defaultCats);
-      setUserPaymentMethods(defaultPms);
+      const defaultCats: DisplayCategory[] = [...CATEGORIES];
+      const defaultPms: DisplayPaymentMethod[] = [...PAYMENT_METHODS];
+      setUserCategories(defaultCats.sort((a,b) => getCategoryDisplayLabel(a, language).localeCompare(getCategoryDisplayLabel(b,language))));
+      setUserPaymentMethods(defaultPms.sort((a,b) => getPaymentMethodDisplayLabel(a,language).localeCompare(getPaymentMethodDisplayLabel(b,language))));
       setIsLoadingPreferences(false);
       if (unsubscribePreferencesRef.current) {
         unsubscribePreferencesRef.current();
@@ -107,10 +107,9 @@ export default function ExpensesPage() {
 
       if (docSnap.exists()) {
         const prefsData = docSnap.data() as UserPreferences;
-        const userDefinedCategoriesFromPrefs = prefsData.userDefinedCategories || [];
+        const userDefinedCategoriesFromPrefs: CustomCategoryData[] = prefsData.userDefinedCategories || [];
         const deselectedPredefinedCatNames = new Set((prefsData.deselectedPredefinedCategories || []).map(name => name.toLowerCase()));
 
-        // Combine predefined and custom categories
         predefinedCategoriesMap.forEach((pCat, pCatNameLower) => {
           if (!deselectedPredefinedCatNames.has(pCatNameLower)) {
             const customOverride = userDefinedCategoriesFromPrefs.find(udc => udc.name.toLowerCase() === pCatNameLower);
@@ -122,9 +121,12 @@ export default function ExpensesPage() {
             finalCategories.push(customCat);
           }
         });
+         if (finalCategories.length === 0 && CATEGORIES.length > 0) {
+          finalCategories = [...CATEGORIES]; 
+        }
 
-        // Combine predefined and custom payment methods
-        const userDefinedPaymentMethodsFromPrefs = prefsData.userDefinedPaymentMethods || [];
+
+        const userDefinedPaymentMethodsFromPrefs: CustomPaymentMethodData[] = prefsData.userDefinedPaymentMethods || [];
         const deselectedPredefinedPmNames = new Set((prefsData.deselectedPredefinedPaymentMethods || []).map(name => name.toLowerCase()));
         
         predefinedPaymentMethodsMap.forEach((pPm, pPmNameLower) => {
@@ -134,12 +136,15 @@ export default function ExpensesPage() {
           }
         });
         userDefinedPaymentMethodsFromPrefs.forEach(customPm => {
-          if (!finalPaymentMethods.some(fpm => fpm.name.toLowerCase() === customPm.name.toLowerCase())) {
-            finalPaymentMethods.push(customPm);
-          }
+            if (!finalPaymentMethods.some(fpm => fpm.name.toLowerCase() === customPm.name.toLowerCase())) {
+                finalPaymentMethods.push(customPm);
+            }
         });
+        if (finalPaymentMethods.length === 0 && PAYMENT_METHODS.length > 0) {
+          finalPaymentMethods = [...PAYMENT_METHODS];
+        }
 
-      } else { // No preferences doc
+      } else { 
         finalCategories = [...CATEGORIES];
         finalPaymentMethods = [...PAYMENT_METHODS];
       }
@@ -164,7 +169,7 @@ export default function ExpensesPage() {
         unsubscribePreferencesRef.current();
       }
     };
-  }, [userId, isClient, authLoading, language, toast, translate]);
+  }, [userId, isClient, authLoading, language, toast, translate, displayedDate]);
 
 
   // Fetch all transactions
@@ -178,7 +183,7 @@ export default function ExpensesPage() {
 
     setIsLoadingTransactions(true);
     const transactionsColRef = collection(db, 'users', userId, 'transactions');
-    const q_transactions = query(transactionsColRef, orderBy("date", "desc"));
+    const q_transactions = query(transactionsColRef); 
 
     const unsubscribe = onSnapshot(q_transactions, (querySnapshot) => {
       const fetchedTransactions = querySnapshot.docs.map(docSnap => {
@@ -216,19 +221,16 @@ export default function ExpensesPage() {
            dateString = formatDateFns(new Date(), "yyyy-MM-dd"); 
         }
 
-        if (!effectiveMonthString && dateString) {
-          try {
-            effectiveMonthString = formatDateFns(parseDateFns(dateString, "yyyy-MM-dd", new Date(0)), "yyyy-MM");
-          } catch (e) {
-            console.warn("ExpensesPage: Could not parse date " + dateString + " to derive effectiveMonth for tx " + docSnap.id);
-            effectiveMonthString = formatDateFns(new Date(), "yyyy-MM");
-          }
-        } else if (effectiveMonthString && !/^\d{4}-\d{2}$/.test(effectiveMonthString)) {
-             console.warn("ExpensesPage: Transaction has invalid effectiveMonth format. Attempting to derive. Was:", effectiveMonthString, "ID:", docSnap.id);
-             try {
-                effectiveMonthString = formatDateFns(parseDateFns(dateString, "yyyy-MM-dd", new Date(0)), "yyyy-MM");
-             } catch(e) {
-                console.warn("ExpensesPage: Could not derive effectiveMonth from date " + dateString + " for tx " + docSnap.id);
+        if (!effectiveMonthString || !/^\d{4}-\d{2}$/.test(effectiveMonthString)) {
+             if (dateString && dateString !== "1970-01-01") {
+                try {
+                    effectiveMonthString = formatDateFns(parseDateFns(dateString, "yyyy-MM-dd", new Date(0)), "yyyy-MM");
+                } catch (e) {
+                    console.warn('ExpensesPage TX effectiveMonth Derivation: Failed for tx ' + docSnap.id + ' from date ' + dateString + '. Error: ' + String(e) + '. Fallback to current month.');
+                    effectiveMonthString = formatDateFns(new Date(), "yyyy-MM");
+                }
+             } else {
+                console.warn('ExpensesPage TX effectiveMonth Derivation: Date string invalid or missing for tx ' + docSnap.id + '. Fallback to current month.');
                 effectiveMonthString = formatDateFns(new Date(), "yyyy-MM");
              }
         }
@@ -239,10 +241,9 @@ export default function ExpensesPage() {
           id: docSnap.id,
           date: dateString,
           effectiveMonth: effectiveMonthString,
+          isRecurring: data.isRecurring === true,
           expenseType: data.expenseType,
           installments: data.installments,
-          paymentMethod: data.paymentMethod,
-          isRecurring: data.isRecurring === true,
           expenseNature: data.expenseNature
         } as Transaction;
       });
@@ -271,22 +272,26 @@ export default function ExpensesPage() {
     const firstDayOfDisplayedMonth = startOfMonth(displayedDate);
         
     const monthlyDisplayTransactions: Transaction[] = [];
+    console.log(`ExpensesPage: Calculating expensesForDisplayedPeriod for ${targetEffectiveMonth}. All transactions: ${allTransactions.length}`);
 
     allTransactions.forEach(t => {
       if (t.type !== 'expense') return;
 
       let includeTransaction = false;
-      let projectedDateForDisplayString = t.date;
-      let modifiedDescription = t.description;
+      let projectedDateForDisplayString = t.date; 
+      let modifiedDescription = t.description; 
+      let reason = "";
 
       if (t.expenseType === 'installment' && t.installments && t.installments > 0) {
-        const originalInstallmentStartDate = parseDateFns(t.date, "yyyy-MM-dd", new Date(0));
-        const monthDiff = differenceInCalendarMonths(firstDayOfDisplayedMonth, startOfMonth(originalInstallmentStartDate));
+        reason = "Installment Check";
+        const installmentSeriesEffectiveStartDate = parseDateFns(t.effectiveMonth + "-01", "yyyy-MM-dd", new Date(0));
+        const monthDiff = differenceInCalendarMonths(firstDayOfDisplayedMonth, startOfMonth(installmentSeriesEffectiveStartDate));
         const currentInstallmentNum = monthDiff + 1;
 
         if (currentInstallmentNum >= 1 && currentInstallmentNum <= t.installments) {
           includeTransaction = true;
-          const projectedDateDay = getDateFns(originalInstallmentStartDate);
+          const originalTransactionDate = parseDateFns(t.date, "yyyy-MM-dd", new Date(0));
+          const projectedDateDay = getDateFns(originalTransactionDate);
           let projectedDate = setDateFnsDate(firstDayOfDisplayedMonth, projectedDateDay);
           const lastDayOfCurrentMonth = lastDayOfMonth(displayedDate);
           if (getDateFns(projectedDate) !== projectedDateDay || getMonthFns(projectedDate) !== getMonthFns(displayedDate)) {
@@ -295,10 +300,12 @@ export default function ExpensesPage() {
           projectedDateForDisplayString = formatDateFns(projectedDate, "yyyy-MM-dd");
           modifiedDescription = `${t.description} (${translate({en: "Installment", pt: "Parcela"})}) ${currentInstallmentNum}/${t.installments}`;
         }
-      } else if (t.isRecurring && t.expenseType !== 'installment') { 
-        const originalTransactionDate = parseDateFns(t.date, "yyyy-MM-dd", new Date(0));
-        if (startOfMonth(originalTransactionDate) <= firstDayOfDisplayedMonth) {
+      } else if (t.isRecurring === true && t.expenseType !== 'installment') { 
+        reason = "Recurring Check";
+        const recurrenceEffectiveStartDate = parseDateFns(t.effectiveMonth + "-01", "yyyy-MM-dd", new Date(0));
+        if (startOfMonth(recurrenceEffectiveStartDate) <= firstDayOfDisplayedMonth) {
           includeTransaction = true;
+          const originalTransactionDate = parseDateFns(t.date, "yyyy-MM-dd", new Date(0));
           const projectedDateDay = getDateFns(originalTransactionDate);
           let projectedDate = setDateFnsDate(firstDayOfDisplayedMonth, projectedDateDay);
           const lastDayOfCurrentMonth = lastDayOfMonth(displayedDate);
@@ -307,12 +314,12 @@ export default function ExpensesPage() {
           }
           projectedDateForDisplayString = formatDateFns(projectedDate, "yyyy-MM-dd");
         }
-      } else if ((!t.isRecurring || t.isRecurring === false) && (!t.expenseType || t.expenseType !== 'installment')) { 
-        if (t.effectiveMonth === targetEffectiveMonth) { 
-            includeTransaction = true;
-        }
+      } else if (t.effectiveMonth === targetEffectiveMonth) { 
+        reason = "Non-Recurring (Effective Month Match)";
+        includeTransaction = true;
       }
       
+      console.log(`ExpensesPage TX Filter: ID: ${t.id}, Desc: ${t.description}, Date: ${t.date}, EffMonth: ${t.effectiveMonth}, Type: ${t.type}, ExpType: ${t.expenseType}, isRec: ${t.isRecurring}, Inst: ${t.installments}, Amount: ${t.amount}, Included: ${includeTransaction}, Reason: ${reason}, ProjectedDate: ${projectedDateForDisplayString}, Target: ${targetEffectiveMonth}`);
       if (includeTransaction) {
         monthlyDisplayTransactions.push({
           ...t,
@@ -363,27 +370,39 @@ export default function ExpensesPage() {
     }
   };
 
-  const handleSaveTransaction = async (formData: Omit<Transaction, "id" | "userId" | "createdAt" | "updatedAt">, id?: string) => {
+  const handleSaveTransaction = async (formData: Omit<Transaction, "id" | "userId" | "createdAt" | "updatedAt">, idToUpdate?: string) => {
     if (!userId) {
       toast({ title: translate({ en: "Error", pt: "Erro" }), description: translate({ en: "User not authenticated.", pt: "Usuário não autenticado." }), variant: "destructive" });
       return;
     }
 
-    const effectiveMonth = formatDateFns(displayedDate, "yyyy-MM");
-    const fullPayload = { ...formData, type: 'expense' as 'expense', effectiveMonth, userId };
+    const effectiveMonthForSave = formatDateFns(displayedDate, "yyyy-MM");
+    
+    const payload = { 
+      ...formData, 
+      type: 'expense' as 'expense', 
+      effectiveMonth: effectiveMonthForSave, 
+      userId 
+    };
     
     const dataToSave = Object.fromEntries(
-        Object.entries(fullPayload).filter(([_, value]) => value !== undefined)
+        Object.entries(payload).filter(([_, value]) => value !== undefined)
     ) as Partial<Transaction & { createdAt?: any; updatedAt?: any; userId: string; effectiveMonth: string }>;
     
-    if (dataToSave.type === 'expense' && dataToSave.isRecurring === undefined && dataToSave.expenseType !== 'recurring' && dataToSave.expenseType !== 'installment') {
-        dataToSave.isRecurring = false;
+    if (dataToSave.type === 'expense') {
+      if (dataToSave.expenseType === 'recurring') {
+        dataToSave.isRecurring = true;
+      } else {
+        dataToSave.isRecurring = false; 
+      }
+    } else { 
+      dataToSave.isRecurring = dataToSave.isRecurring ?? false;
     }
 
 
-    if (id) {
+    if (idToUpdate) { 
       dataToSave.updatedAt = serverTimestamp();
-      const transactionDocRef = doc(db, "users", userId, "transactions", id);
+      const transactionDocRef = doc(db, "users", userId, "transactions", idToUpdate);
       try {
         await updateDoc(transactionDocRef, dataToSave);
         toast({ title: translate({ en: "Expense Updated", pt: "Despesa Atualizada" }), description: formData.description + " " + translate({ en: "has been successfully updated.", pt: "foi atualizada com sucesso." })});
@@ -393,7 +412,7 @@ export default function ExpensesPage() {
         console.error("ExpensesPage: Error updating expense:", error);
         toast({ title: translate({ en: "Error Updating Expense", pt: "Erro ao Atualizar Despesa" }), description: (error.message || translate({ en: "Could not update expense.", pt: "Não foi possível atualizar a despesa." })) + (error.code ? " (Code: " + error.code + ")" : ''), variant: "destructive" });
       }
-    } else {
+    } else { 
       dataToSave.createdAt = serverTimestamp();
       try {
         const transactionsColRef = collection(db, "users", userId, "transactions");
@@ -506,7 +525,7 @@ export default function ExpensesPage() {
                 onSave={handleSaveTransaction}
                 initialType="expense"
                 transactionToEdit={transactionToEdit}
-                defaultDate={displayedDate} // Ensure displayedDate is used for context, even if txToEdit.date is different
+                defaultDate={displayedDate} 
                 userCategories={userCategories}
                 userPaymentMethods={userPaymentMethods}
                 key={"edit-expense-" + transactionToEdit.id + "-" + displayedDate.toISOString()}
@@ -547,7 +566,7 @@ export default function ExpensesPage() {
               <div className="grid grid-cols-1 gap-4">
                 {expensesForDisplayedPeriod.map(tx => (
                   <TransactionItemCard
-                    key={tx.id} // Use projected ID if available for installments/recurring
+                    key={tx.id} 
                     transaction={tx}
                     allUserCategories={userCategories}
                     onEdit={() => handleOpenEditDialog(tx.id)}
@@ -586,7 +605,3 @@ export default function ExpensesPage() {
     </AppLayout>
   );
 }
-    
-
-    
-

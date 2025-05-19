@@ -1,4 +1,3 @@
-
 "use client";
 
 import type React from 'react';
@@ -22,14 +21,14 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PlusCircle, ArrowUpDown } from "lucide-react";
-import type { Transaction, DisplayCategory, DisplayPaymentMethod, UserPreferences } from "@/types";
+import type { Transaction, DisplayCategory, DisplayPaymentMethod, UserPreferences, CustomCategoryData, CustomPaymentMethodData } from "@/types";
 import { CATEGORIES, PAYMENT_METHODS, getCategoryDisplayLabel, getPaymentMethodDisplayLabel } from "@/types";
 import { useAuth } from '@/context/auth-context';
 import { useLanguage } from '@/context/language-context';
 import { useDateNavigation } from '@/context/date-navigation-context';
 import { useToast } from "@/hooks/use-toast";
 import { db } from '@/lib/firebase';
-import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, serverTimestamp, Timestamp, doc, deleteDoc, getDoc } from "firebase/firestore";
+import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, serverTimestamp, Timestamp, doc, deleteDoc, getDoc, type Unsubscribe } from "firebase/firestore";
 import { 
   format as formatDateFns, 
   parseISO as parseISODateFns, 
@@ -60,10 +59,10 @@ export default function IncomePage() {
   const [isClient, setIsClient] = useState(false);
   const [transactionToDelete, setTransactionToDelete] = useState<Transaction | null>(null);
 
-  const [userCategories, setUserCategories] = useState<DisplayCategory[]>(() => [...CATEGORIES]);
-  const [userPaymentMethods, setUserPaymentMethods] = useState<DisplayPaymentMethod[]>(() => [...PAYMENT_METHODS]);
+  const [userCategories, setUserCategories] = useState<DisplayCategory[]>([]);
+  const [userPaymentMethods, setUserPaymentMethods] = useState<DisplayPaymentMethod[]>([]);
   const [isLoadingPreferences, setIsLoadingPreferences] = useState(true);
-  const unsubscribePreferencesRef = useRef<(() => void) | null>(null);
+  const unsubscribePreferencesRef = useRef<Unsubscribe | null>(null);
 
   const [isEditFormOpen, setIsEditFormOpen] = useState(false);
   const [transactionToEdit, setTransactionToEdit] = useState<Transaction | null>(null);
@@ -77,10 +76,10 @@ export default function IncomePage() {
   // Listener for User Preferences
   useEffect(() => {
     if (!userId || !isClient || authLoading) {
-      const defaultCats = [...CATEGORIES].sort((a,b) => getCategoryDisplayLabel(a, language).localeCompare(getCategoryDisplayLabel(b,language)));
-      const defaultPms = [...PAYMENT_METHODS].sort((a,b) => getPaymentMethodDisplayLabel(a,language).localeCompare(getPaymentMethodDisplayLabel(b,language)));
-      setUserCategories(defaultCats);
-      setUserPaymentMethods(defaultPms);
+      const defaultCats: DisplayCategory[] = [...CATEGORIES];
+      const defaultPms: DisplayPaymentMethod[] = [...PAYMENT_METHODS];
+      setUserCategories(defaultCats.sort((a,b) => getCategoryDisplayLabel(a, language).localeCompare(getCategoryDisplayLabel(b,language))));
+      setUserPaymentMethods(defaultPms.sort((a,b) => getPaymentMethodDisplayLabel(a,language).localeCompare(getPaymentMethodDisplayLabel(b,language))));
       setIsLoadingPreferences(false);
       if (unsubscribePreferencesRef.current) {
         unsubscribePreferencesRef.current();
@@ -105,7 +104,7 @@ export default function IncomePage() {
       
       if (docSnap.exists()) {
         const prefsData = docSnap.data() as UserPreferences;
-        const userDefinedCategoriesFromPrefs = prefsData.userDefinedCategories || [];
+        const userDefinedCategoriesFromPrefs: CustomCategoryData[] = prefsData.userDefinedCategories || [];
         const deselectedPredefinedCatNames = new Set((prefsData.deselectedPredefinedCategories || []).map(name => name.toLowerCase()));
 
         predefinedCategoriesMap.forEach((pCat, pCatNameLower) => {
@@ -119,8 +118,11 @@ export default function IncomePage() {
             finalCategories.push(customCat);
           }
         });
+        if (finalCategories.length === 0 && CATEGORIES.length > 0) {
+          finalCategories = [...CATEGORIES]; 
+        }
 
-        const userDefinedPaymentMethodsFromPrefs = prefsData.userDefinedPaymentMethods || [];
+        const userDefinedPaymentMethodsFromPrefs: CustomPaymentMethodData[] = prefsData.userDefinedPaymentMethods || [];
         const deselectedPredefinedPmNames = new Set((prefsData.deselectedPredefinedPaymentMethods || []).map(name => name.toLowerCase()));
         
         predefinedPaymentMethodsMap.forEach((pPm, pPmNameLower) => {
@@ -130,10 +132,13 @@ export default function IncomePage() {
           }
         });
         userDefinedPaymentMethodsFromPrefs.forEach(customPm => {
-          if (!finalPaymentMethods.some(fpm => fpm.name.toLowerCase() === customPm.name.toLowerCase())) {
-            finalPaymentMethods.push(customPm);
-          }
+            if (!finalPaymentMethods.some(fpm => fpm.name.toLowerCase() === customPm.name.toLowerCase())) {
+                finalPaymentMethods.push(customPm);
+            }
         });
+         if (finalPaymentMethods.length === 0 && PAYMENT_METHODS.length > 0) {
+          finalPaymentMethods = [...PAYMENT_METHODS];
+        }
       } else {
         finalCategories = [...CATEGORIES];
         finalPaymentMethods = [...PAYMENT_METHODS];
@@ -159,7 +164,7 @@ export default function IncomePage() {
         unsubscribePreferencesRef.current();
       }
     };
-  }, [userId, isClient, authLoading, language, toast, translate]);
+  }, [userId, isClient, authLoading, language, toast, translate, displayedDate]); // Added displayedDate
 
 
   useEffect(() => {
@@ -172,7 +177,7 @@ export default function IncomePage() {
 
     setIsLoadingTransactions(true);
     const transactionsColRef = collection(db, "users", userId, "transactions");
-    const q_transactions = query(transactionsColRef, orderBy("date", "desc"));
+    const q_transactions = query(transactionsColRef); // No order by date, will be handled by display logic
 
     const unsubscribe = onSnapshot(q_transactions, (querySnapshot) => {
       const fetchedTransactions = querySnapshot.docs.map(docSnap => {
@@ -210,21 +215,18 @@ export default function IncomePage() {
            dateString = formatDateFns(new Date(), "yyyy-MM-dd"); 
         }
 
-        if (!effectiveMonthString && dateString) {
-          try {
-            effectiveMonthString = formatDateFns(parseDateFns(dateString, "yyyy-MM-dd", new Date(0)), "yyyy-MM");
-          } catch (e) {
-            console.warn('IncomePage: Could not parse date ' + dateString + ' to derive effectiveMonth for tx ' + docSnap.id);
-            effectiveMonthString = formatDateFns(new Date(), "yyyy-MM");
-          }
-        } else if (effectiveMonthString && !/^\d{4}-\d{2}$/.test(effectiveMonthString)) {
-            console.warn("IncomePage: Transaction has invalid effectiveMonth format. Attempting to derive. Was:", effectiveMonthString, "ID:", docSnap.id);
-            try {
-                effectiveMonthString = formatDateFns(parseDateFns(dateString, "yyyy-MM-dd", new Date(0)), "yyyy-MM");
-            } catch (e) {
-                console.warn('IncomePage: Could not derive effectiveMonth from date ' + dateString + ' for tx ' + docSnap.id);
+        if (!effectiveMonthString || !/^\d{4}-\d{2}$/.test(effectiveMonthString)) {
+             if (dateString && dateString !== "1970-01-01") {
+                try {
+                    effectiveMonthString = formatDateFns(parseDateFns(dateString, "yyyy-MM-dd", new Date(0)), "yyyy-MM");
+                } catch (e) {
+                    console.warn('IncomePage TX effectiveMonth Derivation: Failed for tx ' + docSnap.id + ' from date ' + dateString + '. Error: ' + String(e) + '. Fallback to current month.');
+                    effectiveMonthString = formatDateFns(new Date(), "yyyy-MM");
+                }
+             } else {
+                console.warn('IncomePage TX effectiveMonth Derivation: Date string invalid or missing for tx ' + docSnap.id + '. Fallback to current month.');
                 effectiveMonthString = formatDateFns(new Date(), "yyyy-MM");
-            }
+             }
         }
 
 
@@ -261,17 +263,21 @@ export default function IncomePage() {
     const firstDayOfDisplayedMonth = startOfMonth(displayedDate);
     
     const monthlyDisplayTransactions: Transaction[] = [];
+    console.log(`IncomePage: Calculating incomeForDisplayedPeriod for ${targetEffectiveMonth}. All transactions: ${allTransactions.length}`);
 
     allTransactions.forEach(t => {
       if (t.type !== 'income') return;
 
       let includeTransaction = false;
-      let projectedDateForDisplayString = t.date;
+      let projectedDateForDisplayString = t.date; // Default to original date
+      let reason = "";
 
       if (t.isRecurring) {
-        const originalTransactionDate = parseDateFns(t.date, "yyyy-MM-dd", new Date(0));
-        if (startOfMonth(originalTransactionDate) <= firstDayOfDisplayedMonth) {
+        reason = "Recurring Check";
+        const recurrenceEffectiveStartDate = parseDateFns(t.effectiveMonth + "-01", "yyyy-MM-dd", new Date(0));
+        if (startOfMonth(recurrenceEffectiveStartDate) <= firstDayOfDisplayedMonth) {
           includeTransaction = true;
+          const originalTransactionDate = parseDateFns(t.date, "yyyy-MM-dd", new Date(0));
           const projectedDateDay = getDateFns(originalTransactionDate);
           let projectedDate = setDateFnsDate(firstDayOfDisplayedMonth, projectedDateDay);
           const lastDayOfCurrentMonth = lastDayOfMonth(displayedDate);
@@ -281,13 +287,15 @@ export default function IncomePage() {
           projectedDateForDisplayString = formatDateFns(projectedDate, "yyyy-MM-dd");
         }
       } else if (t.effectiveMonth === targetEffectiveMonth) { 
+        reason = "Non-Recurring (Effective Month Match)";
         includeTransaction = true;
       }
       
+      console.log(`IncomePage TX Filter: ID: ${t.id}, Desc: ${t.description}, Date: ${t.date}, EffMonth: ${t.effectiveMonth}, Type: ${t.type}, isRec: ${t.isRecurring}, Amount: ${t.amount}, Included: ${includeTransaction}, Reason: ${reason}, ProjectedDate: ${projectedDateForDisplayString}, Target: ${targetEffectiveMonth}`);
       if (includeTransaction) {
         monthlyDisplayTransactions.push({
           ...t,
-          date: projectedDateForDisplayString,
+          date: projectedDateForDisplayString, // Use projected date for display
           id: t.isRecurring ? `${t.id}_proj_${targetEffectiveMonth}` : t.id 
         });
       }
@@ -315,7 +323,7 @@ export default function IncomePage() {
     }
 
     return monthlyDisplayTransactions;
-  }, [allTransactions, displayedDate, sortOption, language, getCategoryObjectByName]);
+  }, [allTransactions, displayedDate, sortOption, language, getCategoryObjectByName, translate]); // Added translate for description modification
 
   const handleOpenAddDialog = () => {
     setTransactionToEdit(null);
@@ -333,24 +341,34 @@ export default function IncomePage() {
     }
   };
 
-  const handleSaveTransaction = async (formData: Omit<Transaction, "id" | "userId" | "createdAt" | "updatedAt">, id?: string) => {
+  const handleSaveTransaction = async (formData: Omit<Transaction, "id" | "userId" | "createdAt" | "updatedAt">, idToUpdate?: string) => {
     if (!userId) {
       toast({ title: translate({ en: "Error", pt: "Erro" }), description: translate({ en: "User not authenticated.", pt: "Usuário não autenticado." }), variant: "destructive" });
       return;
     }
     
-    const effectiveMonth = formatDateFns(displayedDate, "yyyy-MM");
-    const fullPayload = { ...formData, type: 'income' as 'income', effectiveMonth, userId };
+    // 'formData.date' is the actual transaction date from the calendar (YYYY-MM-DD)
+    // 'effectiveMonth' is derived from 'displayedDate' (the month being viewed)
+    const effectiveMonthForSave = formatDateFns(displayedDate, "yyyy-MM");
+
+    const payload = { 
+      ...formData, 
+      type: 'income' as 'income', 
+      effectiveMonth: effectiveMonthForSave, 
+      userId 
+    };
     
     const dataToSave = Object.fromEntries(
-        Object.entries(fullPayload).filter(([_, value]) => value !== undefined)
+        Object.entries(payload).filter(([_, value]) => value !== undefined)
     ) as Partial<Transaction & { createdAt?: any; updatedAt?: any; userId: string; effectiveMonth: string }>;
 
-    if (dataToSave.isRecurring === undefined) dataToSave.isRecurring = false;
+    if (dataToSave.isRecurring === undefined) {
+      dataToSave.isRecurring = false;
+    }
 
 
-    if (id) { 
-      const transactionDocRef = doc(db, "users", userId, "transactions", id);
+    if (idToUpdate) { 
+      const transactionDocRef = doc(db, "users", userId, "transactions", idToUpdate);
       dataToSave.updatedAt = serverTimestamp();
       try {
         await updateDoc(transactionDocRef, dataToSave);
@@ -430,7 +448,7 @@ export default function IncomePage() {
   return (
     <AppLayout>
       <div className="space-y-6">
-        <div className="flex flex-col items-stretch gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="sm:flex sm:items-center sm:justify-between">
           <h1 className="text-3xl font-bold tracking-tight text-foreground mb-4 sm:mb-0">
             {pageTitle} - {displayedMonthYearLabel}
           </h1>
@@ -474,7 +492,7 @@ export default function IncomePage() {
                 onSave={handleSaveTransaction}
                 initialType="income"
                 transactionToEdit={transactionToEdit}
-                defaultDate={displayedDate} // Ensure displayedDate is used for context
+                defaultDate={displayedDate} 
                 userCategories={userCategories}
                 userPaymentMethods={userPaymentMethods}
                 key={"edit-income-" + transactionToEdit.id + "-" + displayedDate.toISOString()}
@@ -515,7 +533,7 @@ export default function IncomePage() {
               <div className="grid grid-cols-1 gap-4">
                 {incomeForDisplayedPeriod.map(tx => (
                   <TransactionItemCard
-                    key={tx.id} // Use projected ID if available
+                    key={tx.id} 
                     transaction={tx}
                     allUserCategories={userCategories}
                     onEdit={() => handleOpenEditDialog(tx.id)}
@@ -554,7 +572,3 @@ export default function IncomePage() {
     </AppLayout>
   );
 }
-    
-
-    
-
