@@ -96,6 +96,7 @@ export default function ExpensesPage() {
 
     if (unsubscribePreferencesRef.current) {
         unsubscribePreferencesRef.current();
+        unsubscribePreferencesRef.current = null;
     }
 
     unsubscribePreferencesRef.current = onSnapshot(preferencesDocRef, (docSnap) => {
@@ -111,17 +112,21 @@ export default function ExpensesPage() {
         const deselectedPredefinedCatNames = new Set((prefsData.deselectedPredefinedCategories || []).map(name => name.toLowerCase()));
 
         predefinedCategoriesMap.forEach((pCat, pCatNameLower) => {
-          if (!deselectedPredefinedCatNames.has(pCatNameLower)) {
-            const customOverride = userDefinedCategoriesFromPrefs.find(udc => udc.name.toLowerCase() === pCatNameLower);
-            finalCategories.push(customOverride ? { ...pCat, ...customOverride } : { ...pCat });
+          const customOverride = userDefinedCategoriesFromPrefs.find(udc => udc.name.toLowerCase() === pCatNameLower);
+          if (customOverride) { // If custom override exists, use it
+            if(!deselectedPredefinedCatNames.has(pCatNameLower)){ // and if not deselected
+                 finalCategories.push({ ...pCat, ...customOverride });
+            }
+          } else if (!deselectedPredefinedCatNames.has(pCatNameLower)) { // If no custom override, use predefined if not deselected
+            finalCategories.push({ ...pCat });
           }
         });
-        userDefinedCategoriesFromPrefs.forEach(customCat => {
+        userDefinedCategoriesFromPrefs.forEach(customCat => { // Add purely custom categories
           if (!finalCategories.some(fc => fc.name.toLowerCase() === customCat.name.toLowerCase())) {
             finalCategories.push(customCat);
           }
         });
-         if (finalCategories.length === 0 && CATEGORIES.length > 0) {
+         if (finalCategories.length === 0 && CATEGORIES.length > 0) { // Fallback if all are deselected
           finalCategories = [...CATEGORIES]; 
         }
 
@@ -130,9 +135,13 @@ export default function ExpensesPage() {
         const deselectedPredefinedPmNames = new Set((prefsData.deselectedPredefinedPaymentMethods || []).map(name => name.toLowerCase()));
         
         predefinedPaymentMethodsMap.forEach((pPm, pPmNameLower) => {
-          if (!deselectedPredefinedPmNames.has(pPmNameLower)) {
-            const customOverride = userDefinedPaymentMethodsFromPrefs.find(udpm => udpm.name.toLowerCase() === pPmNameLower);
-            finalPaymentMethods.push(customOverride ? { ...pPm, ...customOverride } : { ...pPm });
+          const customOverride = userDefinedPaymentMethodsFromPrefs.find(udpm => udpm.name.toLowerCase() === pPmNameLower);
+          if (customOverride) {
+            if(!deselectedPredefinedPmNames.has(pPmNameLower)){
+                 finalPaymentMethods.push({ ...pPm, ...customOverride });
+            }
+          } else if (!deselectedPredefinedPmNames.has(pPmNameLower)) {
+            finalPaymentMethods.push({ ...pPm });
           }
         });
         userDefinedPaymentMethodsFromPrefs.forEach(customPm => {
@@ -140,7 +149,7 @@ export default function ExpensesPage() {
                 finalPaymentMethods.push(customPm);
             }
         });
-        if (finalPaymentMethods.length === 0 && PAYMENT_METHODS.length > 0) {
+        if (finalPaymentMethods.length === 0 && PAYMENT_METHODS.length > 0) { // Fallback
           finalPaymentMethods = [...PAYMENT_METHODS];
         }
 
@@ -226,11 +235,11 @@ export default function ExpensesPage() {
                 try {
                     effectiveMonthString = formatDateFns(parseDateFns(dateString, "yyyy-MM-dd", new Date(0)), "yyyy-MM");
                 } catch (e) {
-                    console.warn('ExpensesPage TX effectiveMonth Derivation: Failed for tx ' + docSnap.id + ' from date ' + dateString + '. Error: ' + String(e) + '. Fallback to current month.');
+                    console.warn("ExpensesPage TX effectiveMonth Derivation: Failed for tx " + docSnap.id + " from date " + dateString + ". Error: " + String(e) + ". Fallback to current month.");
                     effectiveMonthString = formatDateFns(new Date(), "yyyy-MM");
                 }
              } else {
-                console.warn('ExpensesPage TX effectiveMonth Derivation: Date string invalid or missing for tx ' + docSnap.id + '. Fallback to current month.');
+                console.warn("ExpensesPage TX effectiveMonth Derivation: Date string invalid or missing for tx " + docSnap.id + ". Fallback to current month.");
                 effectiveMonthString = formatDateFns(new Date(), "yyyy-MM");
              }
         }
@@ -278,6 +287,7 @@ export default function ExpensesPage() {
 
       let includeTransaction = false;
       let modifiedDescription = t.description; 
+      let displayDate = t.date; // Default to original date
 
       if (t.expenseType === 'installment' && t.installments && t.installments > 0) {
         const installmentSeriesEffectiveStartDate = parseDateFns(t.effectiveMonth + "-01", "yyyy-MM-dd", new Date(0));
@@ -287,43 +297,27 @@ export default function ExpensesPage() {
         if (currentInstallmentNum >= 1 && currentInstallmentNum <= t.installments) {
           includeTransaction = true;
           modifiedDescription = `${t.description} (${translate({en: "Installment", pt: "Parcela"})}) ${currentInstallmentNum}/${t.installments}`;
+          displayDate = t.date; // Use original date for installments
         }
       } else if (t.isRecurring === true && t.expenseType !== 'installment') { 
         const recurrenceEffectiveStartDate = parseDateFns(t.effectiveMonth + "-01", "yyyy-MM-dd", new Date(0));
         if (startOfMonth(recurrenceEffectiveStartDate) <= firstDayOfDisplayedMonth) {
           includeTransaction = true;
+          displayDate = t.date; // Use original date for recurring items
         }
-      } else if (t.effectiveMonth === targetEffectiveMonth) { 
+      } else if (t.effectiveMonth === targetEffectiveMonth) { // Non-recurring, non-installment
         includeTransaction = true;
+        displayDate = t.date;
       }
       
       if (includeTransaction) {
-        let displayDate = t.date; // Default to original date
-        if (t.expenseType === 'installment' || (t.isRecurring && t.expenseType !== 'installment')) {
-            // For recurring/installments to show in future months, we need to project their date for display purposes
-            // If it's an installment, we want to show its original date
-            // If it's a generic recurring, we project its date to the current displayed month
-            if (t.expenseType !== 'installment' && t.isRecurring) {
-                try {
-                    const originalTransactionDate = parseDateFns(t.date, "yyyy-MM-dd", new Date(0));
-                    const originalTransactionDay = getDateFns(originalTransactionDate);
-                    let projectedDate = setDateFnsDate(firstDayOfDisplayedMonth, originalTransactionDay);
-                    const lastDayOfCurrentMonth = lastDayOfMonth(displayedDate);
-                    if (getDateFns(projectedDate) !== originalTransactionDay || getMonthFns(projectedDate) !== getMonthFns(displayedDate)) {
-                        projectedDate = setDateFnsDate(firstDayOfDisplayedMonth, Math.min(originalTransactionDay, getDateFns(lastDayOfCurrentMonth)));
-                    }
-                    displayDate = formatDateFns(projectedDate, "yyyy-MM-dd");
-                } catch (e) {
-                    console.warn(`ExpensesPage: Error projecting date for recurring expense tx ${t.id}: ${t.date}`, e);
-                }
-            } // For installments, t.date (original purchase date) is already correct for display
-        }
-
         monthlyDisplayTransactions.push({
           ...t,
-          date: displayDate, // Use original date for installments, projected for generic recurring
+          date: displayDate, 
           description: modifiedDescription,
-          id: (t.expenseType === 'installment' || (t.isRecurring && t.expenseType !== 'installment')) ? `${t.id}_proj_${targetEffectiveMonth}` : t.id 
+          id: (t.expenseType === 'installment' || (t.isRecurring && t.expenseType !== 'installment')) 
+            ? `${t.id}_proj_${targetEffectiveMonth}` 
+            : t.id 
         });
       }
     });
@@ -374,11 +368,10 @@ export default function ExpensesPage() {
       return;
     }
 
-    // When saving, effectiveMonth is based on the month being viewed (displayedDate)
     const effectiveMonthForSave = formatDateFns(displayedDate, "yyyy-MM");
     
     const payload = { 
-      ...formData, // formData.date is the actual date chosen in the calendar
+      ...formData, 
       type: 'expense' as 'expense', 
       effectiveMonth: effectiveMonthForSave, 
       userId 
@@ -481,7 +474,7 @@ export default function ExpensesPage() {
     <AppLayout>
       <div className="space-y-6"> 
         <div className="flex flex-col items-stretch gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">
+          <h1 className="text-3xl font-bold tracking-tight text-foreground mb-4 sm:mb-0">
             {pageTitle} - {displayedMonthYearLabel}
           </h1>
           <Dialog open={isAddFormOpen} onOpenChange={setIsAddFormOpen}>
@@ -605,3 +598,5 @@ export default function ExpensesPage() {
   );
 }
 
+
+    
