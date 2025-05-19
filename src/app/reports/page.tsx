@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Terminal, Package, Wallet, FileText, DollarSign, Target, TrendingUp, TrendingDown } from "lucide-react";
 import type { Transaction, DisplayCategory, UserPreferences, CustomCategoryData, Category, CategoryName } from "@/types";
-import { CATEGORIES, getCategoryDisplayLabel, PAYMENT_METHODS, getPaymentMethodDisplayLabel } from "@/types";
+import { CATEGORIES, getCategoryDisplayLabel, getPaymentMethodDisplayLabel } from "@/types"; // PAYMENT_METHODS might not be needed here
 import { useAuth } from '@/context/auth-context';
 import { useLanguage } from '@/context/language-context';
 import { useDateNavigation } from '@/context/date-navigation-context';
@@ -73,21 +73,20 @@ export default function ReportsPage() {
   useEffect(() => {
     setIsClient(true);
     effectMountedRef.current = true;
+    console.log("ReportsPage: Component mounted, effectMountedRef set to true");
     return () => {
       effectMountedRef.current = false;
-      // console.log("ReportsPage: Component unmounting, effectMountedRef set to false. Cleaning up listeners.");
+      console.log("ReportsPage: Component unmounting, effectMountedRef set to false. Cleaning up listeners.");
       if (unsubscribeTransactionsRef.current) {
-        // console.log("ReportsPage: Unsubscribing transaction listener on unmount for UserID:", userId);
+        console.log("ReportsPage: Unsubscribing transaction listener on unmount for UserID:", userId);
         unsubscribeTransactionsRef.current();
-        unsubscribeTransactionsRef.current = null;
       }
       if (unsubscribePreferencesRef.current) {
-        // console.log("ReportsPage: Unsubscribing preferences listener on unmount for UserID:", userId);
+        console.log("ReportsPage: Unsubscribing preferences listener on unmount for UserID:", userId);
         unsubscribePreferencesRef.current();
-        unsubscribePreferencesRef.current = null;
       }
     };
-  }, []);
+  }, [userId]); // Added userId to re-evaluate mounted state if user changes, though primary cleanup is still component unmount
 
   // Fetch All Transactions
   useEffect(() => {
@@ -97,37 +96,38 @@ export default function ReportsPage() {
         setIsLoadingTransactions(false);
       }
       if (unsubscribeTransactionsRef.current) {
+        console.log("ReportsPage (TX Effect): Cleaning up stale transaction listener for UserID:", userId);
         unsubscribeTransactionsRef.current();
         unsubscribeTransactionsRef.current = null;
       }
       return;
     }
 
+    if (effectMountedRef.current) setIsLoadingTransactions(true);
+    console.log("ReportsPage (TX Effect): Setting up transaction listener for UserID:", userId);
+
+    // Clean up previous listener before setting a new one
     if (unsubscribeTransactionsRef.current) {
-      // console.log("ReportsPage (TX Effect): Cleaning up stale transaction listener before new setup for UserID:", userId);
-      unsubscribeTransactionsRef.current();
-      unsubscribeTransactionsRef.current = null;
+        unsubscribeTransactionsRef.current();
+        unsubscribeTransactionsRef.current = null;
     }
     
-    if (effectMountedRef.current) setIsLoadingTransactions(true);
-    // console.log("ReportsPage (TX Effect): Setting up transaction listener for UserID:", userId);
-    const transactionsColRef = collection(db, 'users/' + userId + '/transactions');
+    const transactionsColRef = collection(db, 'users', userId, 'transactions');
     const q_transactions = query(transactionsColRef, orderBy("date", "desc"));
-
 
     unsubscribeTransactionsRef.current = onSnapshot(q_transactions, (querySnapshot) => {
       if (!effectMountedRef.current) {
-        // console.log("ReportsPage (TX Snapshot): Component unmounted, skipping state update for UserID:", userId);
+        console.log("ReportsPage (TX Snapshot): Component unmounted, skipping state update for UserID:", userId);
         return;
       }
-      // console.log("ReportsPage (TX Snapshot): Transaction listener fired. Docs count:", querySnapshot.docs.length, "for UserID:", userId);
+      console.log("ReportsPage (TX Snapshot): Transaction listener fired. Docs count:", querySnapshot.docs.length, "for UserID:", userId);
       const fetchedTransactions = querySnapshot.docs.map(docSnap => {
         const data = docSnap.data();
         let dateString = "1970-01-01"; 
         let effectiveMonthString = data.effectiveMonth;
 
         if (data.date) {
-          if (typeof data.date === 'object' && data.date instanceof Timestamp) {
+          if (data.date instanceof Timestamp) {
             dateString = formatDateFns(data.date.toDate(), "yyyy-MM-dd");
           } else if (typeof data.date === 'string') {
             if (/^\d{4}-\d{2}-\d{2}$/.test(data.date)) {
@@ -135,13 +135,9 @@ export default function ReportsPage() {
             } else if (data.date.includes('T')) {
               try {
                 dateString = formatDateFns(parseISODateFns(data.date), "yyyy-MM-dd");
-              } catch (e1) {
-                try {
-                  dateString = formatDateFns(new Date(data.date), "yyyy-MM-dd");
-                } catch (e2) {
-                  console.warn("ReportsPage TX Date Parse (string T general): Failed for tx " + String(docSnap.id) + ": " + String(data.date) + ". Error: " + String(e2) + ". Fallback to current date.");
-                  dateString = formatDateFns(new Date(), "yyyy-MM-dd");
-                }
+              } catch (e) {
+                console.warn("ReportsPage: Failed to parse ISO date string: " + String(data.date), e);
+                dateString = formatDateFns(new Date(), "yyyy-MM-dd");
               }
             } else {
                  console.warn("ReportsPage TX Date Parse (string other): Unhandled format for tx " + String(docSnap.id) + ": " + String(data.date) + ". Attempting general parse.");
@@ -186,7 +182,10 @@ export default function ReportsPage() {
         setIsLoadingTransactions(false);
       }
     }, (error) => {
-      if (!effectMountedRef.current) return;
+      if (!effectMountedRef.current) {
+        console.log("ReportsPage (TX Snapshot Error): Component unmounted, skipping error handling for UserID:", userId);
+        return;
+      }
       console.error("ReportsPage (TX Snapshot): Error fetching transactions for UserID:", userId, error);
       toast({
         title: translate({ en: "Error", pt: "Erro" }),
@@ -201,12 +200,12 @@ export default function ReportsPage() {
 
     return () => {
       if (unsubscribeTransactionsRef.current) {
-        // console.log("ReportsPage (TX Effect Cleanup): Unsubscribing transaction listener for UserID:", userId);
+        console.log("ReportsPage (TX Effect Cleanup): Unsubscribing transaction listener for UserID:", userId);
         unsubscribeTransactionsRef.current();
         unsubscribeTransactionsRef.current = null;
       }
     };
-  }, [userId, authLoading, isClient, toast, translate]);
+  }, [userId, authLoading, isClient, toast, translate]); // Removed effectMountedRef as it is a ref
 
   // Fetch User Preferences for Categories
   useEffect(() => {
@@ -216,29 +215,30 @@ export default function ReportsPage() {
         setIsLoadingPreferences(false);
       }
       if (unsubscribePreferencesRef.current) {
+        console.log("ReportsPage (Prefs Effect): Cleaning up stale preferences listener for UserID:", userId);
         unsubscribePreferencesRef.current();
         unsubscribePreferencesRef.current = null;
       }
       return;
     }
 
-    if (unsubscribePreferencesRef.current) {
-      // console.log("ReportsPage (Prefs Effect): Cleaning up stale preferences listener before new setup for UserID:", userId);
-      unsubscribePreferencesRef.current();
-      unsubscribePreferencesRef.current = null;
-    }
-    
-    if(effectMountedRef.current) setIsLoadingPreferences(true);
-    // console.log("ReportsPage (Prefs Effect): Setting up preferences listener for UserID:", userId);
-    const preferencesDocRef = doc(db, "users/" + userId + "/preferences/userPreferences");
+    if (effectMountedRef.current) setIsLoadingPreferences(true);
+    console.log("ReportsPage (Prefs Effect): Setting up preferences listener for UserID:", userId);
 
+    // Clean up previous listener
+    if (unsubscribePreferencesRef.current) {
+        unsubscribePreferencesRef.current();
+        unsubscribePreferencesRef.current = null;
+    }
+
+    const preferencesDocRef = doc(db, "users", userId, "preferences/userPreferences");
 
     unsubscribePreferencesRef.current = onSnapshot(preferencesDocRef, (docSnap) => {
       if (!effectMountedRef.current) {
-        // console.log("ReportsPage (Prefs Snapshot): Component unmounted, skipping state update for UserID:", userId);
+         console.log("ReportsPage (Prefs Snapshot): Component unmounted, skipping state update for UserID:", userId);
         return;
       }
-      // console.log("ReportsPage (Prefs Snapshot): Preferences snapshot received for UserID:", userId, "Exists:", docSnap.exists());
+      console.log("ReportsPage (Prefs Snapshot): Preferences snapshot received for UserID:", userId);
       let finalCategories: DisplayCategory[] = [];
       if (docSnap.exists()) {
         const prefsData = docSnap.data() as UserPreferences;
@@ -248,6 +248,7 @@ export default function ReportsPage() {
         const customCategoriesMap = new Map<string, CustomCategoryData>();
         userDefinedCategoriesFromPrefs.forEach(cc => customCategoriesMap.set(cc.name.toLowerCase(), cc));
 
+        // Start with predefined categories that are not deselected
         finalCategories = CATEGORIES
           .filter(predefCat => !deselectedPredefinedCatNames.has(predefCat.name.toLowerCase()))
           .map(predefCat => {
@@ -264,18 +265,22 @@ export default function ReportsPage() {
             finalCategories.push(customCat);
           }
         });
+
       } else {
-        // console.log("ReportsPage (Prefs Snapshot): No preferences document found for UserID:", userId, ". Using default categories.");
+        console.log("ReportsPage (Prefs Snapshot): No preferences doc found for UserID:", userId, ". Using all predefined categories.");
         finalCategories = [...CATEGORIES];
       }
 
       if (effectMountedRef.current) {
         setUserDisplayCategories(finalCategories.sort((a, b) => getCategoryDisplayLabel(a, language).localeCompare(getCategoryDisplayLabel(b, language))));
         setIsLoadingPreferences(false);
-        // console.log("ReportsPage (Prefs Snapshot): UserDisplayCategories set. Count:", finalCategories.length);
+        console.log("ReportsPage (Prefs Snapshot): UserDisplayCategories set. Count:", finalCategories.length);
       }
     }, (error) => {
-      if (!effectMountedRef.current) return;
+      if (!effectMountedRef.current) {
+        console.log("ReportsPage (Prefs Snapshot Error): Component unmounted, skipping error handling for UserID:", userId);
+        return;
+      }
       console.error("ReportsPage (Prefs Snapshot): Error fetching user preferences for UserID:", userId, error);
       toast({
         title: translate({ en: "Error Loading Preferences", pt: "Erro ao Carregar Preferências" }),
@@ -289,31 +294,31 @@ export default function ReportsPage() {
     });
     return () => {
       if (unsubscribePreferencesRef.current) {
-        // console.log("ReportsPage (Prefs Effect Cleanup): Unsubscribing preferences listener for UserID:", userId);
+        console.log("ReportsPage (Prefs Effect Cleanup): Unsubscribing preferences listener for UserID:", userId);
         unsubscribePreferencesRef.current();
         unsubscribePreferencesRef.current = null;
       }
     };
-  }, [userId, isClient, authLoading, language, toast, translate]);
+  }, [userId, isClient, authLoading, language, toast, translate]); // Removed effectMountedRef
 
   const fetchBudgetsInternal = useCallback(async () => {
-    if (!effectMountedRef.current) return; // Moved check to the top
-    if (!userId || !isClient || authLoading ) {
-      if(effectMountedRef.current) { // Check again before setting state
+    if (!effectMountedRef.current || !userId || !isClient || authLoading ) {
+      if(effectMountedRef.current) {
         setLoadedBudgets(null);
         setIsLoadingBudgets(false);
       }
       return;
     }
     
-    if(effectMountedRef.current) setIsLoadingBudgets(true); // Set loading true only if proceeding
+    if(effectMountedRef.current) setIsLoadingBudgets(true);
     const budgetMonthKey = formatDateFns(displayedDate, 'yyyy-MM');
-    // console.log('ReportsPage: Fetching budgets for month:', budgetMonthKey, "for UserID:", userId);
-    const budgetDocRef = doc(db, 'users/' + userId + '/budgets/' + budgetMonthKey);
+    console.log("ReportsPage: Fetching budgets for month: " + budgetMonthKey + " for UserID:", userId);
+    const budgetDocRef = doc(db, 'users', userId, 'budgets', budgetMonthKey);
 
     try {
       const docSnap = await getDoc(budgetDocRef);
       if (!effectMountedRef.current) { 
+        if(effectMountedRef.current) setIsLoadingBudgets(false);
         return; 
       }
       if (docSnap.exists()) {
@@ -324,14 +329,17 @@ export default function ReportsPage() {
             validBudgets[key] = budgetData[key];
           }
         }
-        // console.log('ReportsPage: Budgets data loaded for', budgetMonthKey + ':', validBudgets);
+        console.log('ReportsPage: Budgets data loaded for', budgetMonthKey + ':', validBudgets);
         if (effectMountedRef.current) setLoadedBudgets(validBudgets);
       } else {
-        // console.log('ReportsPage: No budget document found for', budgetMonthKey + '. Setting empty budgets.');
+        console.log('ReportsPage: No budget document found for', budgetMonthKey);
         if (effectMountedRef.current) setLoadedBudgets({}); 
       }
     } catch (error) {
-      if (!effectMountedRef.current) return;
+      if (!effectMountedRef.current) {
+         if(effectMountedRef.current) setIsLoadingBudgets(false);
+         return;
+      }
       console.error("ReportsPage: Error loading budgets for month " + budgetMonthKey + ":", error, "for UserID:", userId);
       toast({
         title: translate({ en: "Error Loading Budgets", pt: "Erro ao Carregar Orçamentos" }),
@@ -344,16 +352,16 @@ export default function ReportsPage() {
         setIsLoadingBudgets(false);
       }
     }
-  }, [userId, isClient, authLoading, displayedDate, toast, translate]); // Removed state setters from deps
+  }, [userId, isClient, authLoading, displayedDate, toast, translate]); // Removed effectMountedRef, setIsLoadingBudgets, setLoadedBudgets
 
   useEffect(() => {
-    if (userId && isClient && !authLoading) { // Conditions for fetching
+    if (userId && isClient && !authLoading) {
       fetchBudgetsInternal();
-    } else if (effectMountedRef.current) { // If conditions not met, ensure loading is false
+    } else if (effectMountedRef.current) { 
       setLoadedBudgets(null);
       setIsLoadingBudgets(false); 
     }
-  }, [userId, isClient, authLoading, displayedDate, fetchBudgetsInternal]);
+  }, [userId, isClient, authLoading, displayedDate, fetchBudgetsInternal]); // Added displayedDate to re-fetch budgets when month changes
 
 
   const transactionsForDisplayedPeriod = useMemo(() => {
@@ -362,10 +370,10 @@ export default function ReportsPage() {
     const targetEffectiveMonth = formatDateFns(displayedDate, "yyyy-MM");
     const firstDayOfTargetMonth = startOfMonth(displayedDate);
 
-    // console.log("ReportsPage: TRACER --- transactionsForDisplayedPeriod: Recalculating for Year: " + targetYear + " Month: " + targetMonth + " (0-indexed for " + displayedMonthYearLabel + " ), TargetEffMonth: " + targetEffectiveMonth + " All transactions count: " + allTransactions.length);
+    console.log("ReportsPage: TRACER --- transactionsForDisplayedPeriod: Recalculating for Year: " + targetYear + " Month: " + targetMonth + " (0-indexed for " + displayedMonthYearLabel + " ), TargetEffMonth: " + targetEffectiveMonth + " All transactions count: " + allTransactions.length);
 
     if (allTransactions.length === 0) {
-      // console.log("ReportsPage: TRACER --- transactionsForDisplayedPeriod: No transactions in allTransactions, returning empty.");
+      console.log("ReportsPage: TRACER --- transactionsForDisplayedPeriod: No transactions in allTransactions, returning empty.");
       return [];
     }
 
@@ -378,7 +386,7 @@ export default function ReportsPage() {
       try {
         originalTransactionDate = parseDateFns(t.date, "yyyy-MM-dd", new Date(0));
       } catch (e) {
-        // console.warn("ReportsPage TX Filter: Could not parse t.date '" + t.date + "' for tx ID " + t.id + ". Error:", e);
+        console.warn("ReportsPage TX Filter: Could not parse t.date '" + String(t.date) + "' for tx ID " + String(t.id) + ". Error:", e);
         return; 
       }
       
@@ -391,24 +399,24 @@ export default function ReportsPage() {
         const monthDiff = differenceInCalendarMonths(firstDayOfTargetMonth, installmentSeriesStartDate);
         const isInstallmentActiveThisMonth = monthDiff >= 0 && monthDiff < t.installments;
         if (isInstallmentActiveThisMonth) includeTransaction = true;
-      } else if (t.isRecurring === true && (!t.expenseType || t.expenseType !== 'installment')) { 
+      } else if (t.isRecurring === true && t.expenseType !== 'installment') { 
         reason = "Recurring Check";
         const isRecurringActiveThisMonth = originalTxYear < targetYear || (originalTxYear === targetYear && originalTxMonth <= targetMonth);
         if (isRecurringActiveThisMonth) includeTransaction = true;
-      } else if ((!t.isRecurring || t.isRecurring === false) && (!t.expenseType || t.expenseType !== 'installment')) { 
+      } else if ((!t.isRecurring || t.isRecurring === false) && t.expenseType !== 'installment') { 
         reason = "Non-Recurring Check";
         if (t.effectiveMonth === targetEffectiveMonth) {
           includeTransaction = true;
         }
       }
-      // console.log("ReportsPage TX Filter: ID: " + t.id + " Date: " + t.date + " EffMonth: " + t.effectiveMonth + " Type: " + t.type + " ExpType: " + t.expenseType + " isRec: " + t.isRecurring + " Inst: " + t.installments + " Amount: " + t.amount + " Included: " + includeTransaction + " Reason: " + reason + " Target: " + targetEffectiveMonth);
+      console.log("ReportsPage TX Filter: ID: " + t.id + " Date: " + t.date + " EffMonth: " + t.effectiveMonth + " Type: " + t.type + " ExpType: " + t.expenseType + " isRec: " + t.isRecurring + " Inst: " + t.installments + " Amount: " + t.amount + " Included: " + includeTransaction + " Reason: " + reason + " Target: " + targetEffectiveMonth);
       if (includeTransaction) {
         filtered.push(t);
       }
     });
-    // console.log("ReportsPage: TRACER --- transactionsForDisplayedPeriod: Found " + filtered.length + " transactions for the period.");
+    console.log("ReportsPage: TRACER --- transactionsForDisplayedPeriod: Found " + filtered.length + " transactions for the period.");
     return filtered;
-  }, [allTransactions, displayedDate, displayedMonthYearLabel]);
+  }, [allTransactions, displayedDate, displayedMonthYearLabel]); // displayedMonthYearLabel only for logging
 
   const totalIncomeForPeriod = useMemo(() =>
     transactionsForDisplayedPeriod
@@ -437,9 +445,9 @@ export default function ReportsPage() {
   [transactionsForDisplayedPeriod]);
 
   const budgetVsActualData = useMemo<BudgetComparisonItem[]>(() => {
-    // console.log("ReportsPage: budgetVsActualData - Recalculating. LoadedBudgets:", !!loadedBudgets, "isLoadingPrefs:", isLoadingPreferences, "userDisplayCategories empty:", userDisplayCategories.length === 0, "isLoadingBudgets:", isLoadingBudgets);
-    if (!loadedBudgets || isLoadingPreferences || userDisplayCategories.length === 0 || isLoadingBudgets) {
-      // console.log("ReportsPage: budgetVsActualData - Skipping calculation due to loading state or missing data.", {loadedBudgets:!!loadedBudgets, isLoadingPrefs, userDisplayCategoriesEmpty: userDisplayCategories.length === 0, isLoadingBudgets });
+    console.log("ReportsPage: budgetVsActualData - Recalculating. isLoadingBudgets:", isLoadingBudgets, "isLoadingPrefs:", isLoadingPreferences, "loadedBudgets empty:", !loadedBudgets || Object.keys(loadedBudgets).length === 0, "userDisplayCategories empty:", userDisplayCategories.length === 0);
+    if (isLoadingBudgets || isLoadingPreferences || !loadedBudgets || userDisplayCategories.length === 0) {
+      console.log("ReportsPage: budgetVsActualData - Skipping calculation due to loading state or missing data. LoadedBudgets:", !!loadedBudgets, "isLoadingPrefs:", isLoadingPreferences, "userDisplayCategories empty:", userDisplayCategories.length === 0, "isLoadingBudgets:", isLoadingBudgets);
       return [];
     }
 
@@ -474,12 +482,12 @@ export default function ReportsPage() {
     }).filter(item => item.budgeted > 0 || item.actual > 0) 
       .sort((a,b) => (b.budgeted + b.actual) - (a.budgeted + a.actual)); 
     
-    // console.log("ReportsPage: budgetVsActualData - Calculated data:", comparisonData);
+    console.log("ReportsPage: budgetVsActualData calculated:", comparisonData);
     return comparisonData;
   }, [loadedBudgets, transactionsForDisplayedPeriod, userDisplayCategories, language, isLoadingPreferences, isLoadingBudgets]);
 
   const expenseDataForChart = useMemo(() => {
-    // console.log("ReportsPage: Calculating expenseDataForChart. userDisplayCategories count:", userDisplayCategories.length);
+    console.log("ReportsPage: Calculating expenseDataForChart. userDisplayCategories count:", userDisplayCategories.length);
     if (isLoadingPreferences || userDisplayCategories.length === 0 || isLoadingTransactions || transactionsForDisplayedPeriod.length === 0) {
       return [];
     }
@@ -502,16 +510,15 @@ export default function ReportsPage() {
         };
       })
       .sort((a, b) => b.value - a.value); 
-    // console.log("ReportsPage: Expense data for chart calculated:", chartData);
+    console.log("ReportsPage: Expense data for chart calculated:", chartData);
     return chartData;
   }, [transactionsForDisplayedPeriod, userDisplayCategories, language, isLoadingPreferences, isLoadingTransactions]);
 
   const pageTitle = translate({ en: "Reports", pt: "Relatórios" });
   const overallLoading = !isClient || authLoading || isLoadingTransactions || isLoadingPreferences || isLoadingBudgets;
 
-  // console.log("ReportsPage: Rendering " + (overallLoading ? 'loading state' : 'main content') + ". isClient: " + isClient + " authLoading: " + authLoading + " isLoadingTransactions: " + isLoadingTransactions + " isLoadingPreferences: " + isLoadingPreferences + " isLoadingBudgets: " + isLoadingBudgets);
-
   if (overallLoading) {
+    console.log("ReportsPage: Rendering loading state. isClient:", isClient, "authLoading:", authLoading, "isLoadingTransactions:", isLoadingTransactions, "isLoadingPreferences:", isLoadingPreferences, "isLoadingBudgets:", isLoadingBudgets);
     return (
       <AppLayout>
         <div className="space-y-6">
@@ -536,7 +543,7 @@ export default function ReportsPage() {
                 <Skeleton className="h-4 w-1/2" />
               </div>
             </CardHeader>
-            <CardContent><p className="text-muted-foreground text-center py-4">{translate({ en: "AI insights are coming soon!", pt: "Insights da IA em breve!" })}</p></CardContent>
+            <CardContent><p className="text-muted-foreground text-center py-4">{translate({ en: "AI insights are loading...", pt: "Carregando insights da IA..." })}</p></CardContent>
           </Card>
            <Card className="shadow-lg bg-background dark:bg-card">
             <CardHeader>
@@ -560,6 +567,7 @@ export default function ReportsPage() {
       </AppLayout>
     );
   }
+  console.log("ReportsPage: Rendering main content. Transactions for period:", transactionsForDisplayedPeriod.length);
 
   return (
     <AppLayout>
@@ -631,13 +639,13 @@ export default function ReportsPage() {
                 <br />
                 {translate({ en: "This feature is in development. AI analysis will use transactions and defined budgets once fully integrated.", pt: "Esta funcionalidade está em desenvolvimento. A análise da IA usará transações e orçamentos definidos quando totalmente integrada." })}
               </CardDescription>
-            </CardHeader>
-            <CardContent className="pt-4">
+            </div>
+          </CardHeader>
+          <CardContent className="pt-4">
               <p className="text-muted-foreground text-center">
                 {translate({ en: "AI insights are coming soon!", pt: "Insights da IA em breve!" })}
               </p>
-            </CardContent>
-          </CardHeader>
+          </CardContent>
         </Card>
 
         <Card className="shadow-lg bg-background dark:bg-card">
@@ -648,7 +656,7 @@ export default function ReportsPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {loadedBudgets && Object.keys(loadedBudgets).length > 0 && transactionsForDisplayedPeriod.filter(t=> t.type === 'expense').length > 0 && budgetVsActualData.length > 0 ? (
+            {budgetVsActualData.length > 0 ? (
               <div className="space-y-3">
                 {budgetVsActualData.map((item) => (
                   <div key={item.categoryInternalName} className="p-3 rounded-md border bg-card hover:bg-accent/10 transition-colors">
@@ -671,7 +679,7 @@ export default function ReportsPage() {
                       )}
                     </div>
                     <Progress
-                      value={item.budgeted > 0 ? Math.min(Math.round(item.percentage), 100) : (item.actual > 0 ? 100 : 0) }
+                      value={item.budgeted > 0 ? Math.min(Math.round(item.percentage), 1000) : (item.actual > 0 ? 1000 : 0) }
                       className="h-2 mb-1"
                       indicatorClassName={cn(
                          item.budgeted === 0 && item.actual > 0 ? "bg-muted-foreground" 
