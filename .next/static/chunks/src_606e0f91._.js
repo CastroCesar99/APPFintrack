@@ -3990,16 +3990,8 @@ function ExpensesPage() {
     const [transactionToEdit, setTransactionToEdit] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(null);
     const [isClient, setIsClient] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(false);
     const [transactionToDelete, setTransactionToDelete] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(null);
-    const [userCategories, setUserCategories] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])({
-        "ExpensesPage.useState": ()=>[
-                ...__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["CATEGORIES"]
-            ]
-    }["ExpensesPage.useState"]);
-    const [userPaymentMethods, setUserPaymentMethods] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])({
-        "ExpensesPage.useState": ()=>[
-                ...__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["PAYMENT_METHODS"]
-            ]
-    }["ExpensesPage.useState"]);
+    const [userCategories, setUserCategories] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])([]);
+    const [userPaymentMethods, setUserPaymentMethods] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])([]);
     const [isLoadingPreferences, setIsLoadingPreferences] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(true);
     const unsubscribePreferencesRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useRef"])(null);
     const [sortOption, setSortOption] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])('dateDesc');
@@ -4014,16 +4006,16 @@ function ExpensesPage() {
             if (!userId || !isClient || authLoading) {
                 const defaultCats = [
                     ...__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["CATEGORIES"]
-                ].sort({
-                    "ExpensesPage.useEffect.defaultCats": (a, b)=>(0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["getCategoryDisplayLabel"])(a, language).localeCompare((0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["getCategoryDisplayLabel"])(b, language))
-                }["ExpensesPage.useEffect.defaultCats"]);
+                ];
                 const defaultPms = [
                     ...__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["PAYMENT_METHODS"]
-                ].sort({
-                    "ExpensesPage.useEffect.defaultPms": (a, b)=>(0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["getPaymentMethodDisplayLabel"])(a, language).localeCompare((0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["getPaymentMethodDisplayLabel"])(b, language))
-                }["ExpensesPage.useEffect.defaultPms"]);
-                setUserCategories(defaultCats);
-                setUserPaymentMethods(defaultPms);
+                ];
+                setUserCategories(defaultCats.sort({
+                    "ExpensesPage.useEffect": (a, b)=>(0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["getCategoryDisplayLabel"])(a, language).localeCompare((0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["getCategoryDisplayLabel"])(b, language))
+                }["ExpensesPage.useEffect"]));
+                setUserPaymentMethods(defaultPms.sort({
+                    "ExpensesPage.useEffect": (a, b)=>(0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["getPaymentMethodDisplayLabel"])(a, language).localeCompare((0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["getPaymentMethodDisplayLabel"])(b, language))
+                }["ExpensesPage.useEffect"]));
                 setIsLoadingPreferences(false);
                 if (unsubscribePreferencesRef.current) {
                     unsubscribePreferencesRef.current();
@@ -4062,7 +4054,6 @@ function ExpensesPage() {
                         const deselectedPredefinedCatNames = new Set((prefsData.deselectedPredefinedCategories || []).map({
                             "ExpensesPage.useEffect": (name)=>name.toLowerCase()
                         }["ExpensesPage.useEffect"]));
-                        // Combine predefined and custom categories
                         predefinedCategoriesMap.forEach({
                             "ExpensesPage.useEffect": (pCat, pCatNameLower)=>{
                                 if (!deselectedPredefinedCatNames.has(pCatNameLower)) {
@@ -4087,7 +4078,11 @@ function ExpensesPage() {
                                 }
                             }
                         }["ExpensesPage.useEffect"]);
-                        // Combine predefined and custom payment methods
+                        if (finalCategories.length === 0 && __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["CATEGORIES"].length > 0) {
+                            finalCategories = [
+                                ...__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["CATEGORIES"]
+                            ];
+                        }
                         const userDefinedPaymentMethodsFromPrefs = prefsData.userDefinedPaymentMethods || [];
                         const deselectedPredefinedPmNames = new Set((prefsData.deselectedPredefinedPaymentMethods || []).map({
                             "ExpensesPage.useEffect": (name)=>name.toLowerCase()
@@ -4116,6 +4111,11 @@ function ExpensesPage() {
                                 }
                             }
                         }["ExpensesPage.useEffect"]);
+                        if (finalPaymentMethods.length === 0 && __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["PAYMENT_METHODS"].length > 0) {
+                            finalPaymentMethods = [
+                                ...__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["PAYMENT_METHODS"]
+                            ];
+                        }
                     } else {
                         finalCategories = [
                             ...__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["CATEGORIES"]
@@ -4173,7 +4173,8 @@ function ExpensesPage() {
         authLoading,
         language,
         toast,
-        translate
+        translate,
+        displayedDate
     ]);
     // Fetch all transactions
     (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useEffect"])({
@@ -4186,7 +4187,7 @@ function ExpensesPage() {
             }
             setIsLoadingTransactions(true);
             const transactionsColRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$esm2017$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["collection"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["db"], 'users', userId, 'transactions');
-            const q_transactions = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$esm2017$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["query"])(transactionsColRef, (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$esm2017$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["orderBy"])("date", "desc"));
+            const q_transactions = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$esm2017$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["query"])(transactionsColRef);
             const unsubscribe = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$esm2017$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["onSnapshot"])(q_transactions, {
                 "ExpensesPage.useEffect.unsubscribe": (querySnapshot)=>{
                     const fetchedTransactions = querySnapshot.docs.map({
@@ -4223,19 +4224,16 @@ function ExpensesPage() {
                                 console.warn("ExpensesPage: Transaction has missing or non-string/non-Timestamp date. Fallback to current date YYYY-MM-DD. Date was:", data.date, "ID:", docSnap.id);
                                 dateString = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$format$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$locals$3e$__["format"])(new Date(), "yyyy-MM-dd");
                             }
-                            if (!effectiveMonthString && dateString) {
-                                try {
-                                    effectiveMonthString = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$format$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$locals$3e$__["format"])((0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$parse$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$locals$3e$__["parse"])(dateString, "yyyy-MM-dd", new Date(0)), "yyyy-MM");
-                                } catch (e) {
-                                    console.warn("ExpensesPage: Could not parse date " + dateString + " to derive effectiveMonth for tx " + docSnap.id);
-                                    effectiveMonthString = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$format$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$locals$3e$__["format"])(new Date(), "yyyy-MM");
-                                }
-                            } else if (effectiveMonthString && !/^\d{4}-\d{2}$/.test(effectiveMonthString)) {
-                                console.warn("ExpensesPage: Transaction has invalid effectiveMonth format. Attempting to derive. Was:", effectiveMonthString, "ID:", docSnap.id);
-                                try {
-                                    effectiveMonthString = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$format$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$locals$3e$__["format"])((0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$parse$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$locals$3e$__["parse"])(dateString, "yyyy-MM-dd", new Date(0)), "yyyy-MM");
-                                } catch (e) {
-                                    console.warn("ExpensesPage: Could not derive effectiveMonth from date " + dateString + " for tx " + docSnap.id);
+                            if (!effectiveMonthString || !/^\d{4}-\d{2}$/.test(effectiveMonthString)) {
+                                if (dateString && dateString !== "1970-01-01") {
+                                    try {
+                                        effectiveMonthString = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$format$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$locals$3e$__["format"])((0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$parse$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$locals$3e$__["parse"])(dateString, "yyyy-MM-dd", new Date(0)), "yyyy-MM");
+                                    } catch (e) {
+                                        console.warn('ExpensesPage TX effectiveMonth Derivation: Failed for tx ' + docSnap.id + ' from date ' + dateString + '. Error: ' + String(e) + '. Fallback to current month.');
+                                        effectiveMonthString = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$format$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$locals$3e$__["format"])(new Date(), "yyyy-MM");
+                                    }
+                                } else {
+                                    console.warn('ExpensesPage TX effectiveMonth Derivation: Date string invalid or missing for tx ' + docSnap.id + '. Fallback to current month.');
                                     effectiveMonthString = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$format$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$locals$3e$__["format"])(new Date(), "yyyy-MM");
                                 }
                             }
@@ -4244,10 +4242,9 @@ function ExpensesPage() {
                                 id: docSnap.id,
                                 date: dateString,
                                 effectiveMonth: effectiveMonthString,
+                                isRecurring: data.isRecurring === true,
                                 expenseType: data.expenseType,
                                 installments: data.installments,
-                                paymentMethod: data.paymentMethod,
-                                isRecurring: data.isRecurring === true,
                                 expenseNature: data.expenseNature
                             };
                         }
@@ -4299,19 +4296,23 @@ function ExpensesPage() {
             const targetEffectiveMonth = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$format$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$locals$3e$__["format"])(displayedDate, "yyyy-MM");
             const firstDayOfDisplayedMonth = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$startOfMonth$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__["startOfMonth"])(displayedDate);
             const monthlyDisplayTransactions = [];
+            console.log(`ExpensesPage: Calculating expensesForDisplayedPeriod for ${targetEffectiveMonth}. All transactions: ${allTransactions.length}`);
             allTransactions.forEach({
                 "ExpensesPage.useMemo[expensesForDisplayedPeriod]": (t)=>{
                     if (t.type !== 'expense') return;
                     let includeTransaction = false;
                     let projectedDateForDisplayString = t.date;
                     let modifiedDescription = t.description;
+                    let reason = "";
                     if (t.expenseType === 'installment' && t.installments && t.installments > 0) {
-                        const originalInstallmentStartDate = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$parse$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$locals$3e$__["parse"])(t.date, "yyyy-MM-dd", new Date(0));
-                        const monthDiff = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$differenceInCalendarMonths$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__["differenceInCalendarMonths"])(firstDayOfDisplayedMonth, (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$startOfMonth$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__["startOfMonth"])(originalInstallmentStartDate));
+                        reason = "Installment Check";
+                        const installmentSeriesEffectiveStartDate = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$parse$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$locals$3e$__["parse"])(t.effectiveMonth + "-01", "yyyy-MM-dd", new Date(0));
+                        const monthDiff = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$differenceInCalendarMonths$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__["differenceInCalendarMonths"])(firstDayOfDisplayedMonth, (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$startOfMonth$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__["startOfMonth"])(installmentSeriesEffectiveStartDate));
                         const currentInstallmentNum = monthDiff + 1;
                         if (currentInstallmentNum >= 1 && currentInstallmentNum <= t.installments) {
                             includeTransaction = true;
-                            const projectedDateDay = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$getDate$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__["getDate"])(originalInstallmentStartDate);
+                            const originalTransactionDate = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$parse$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$locals$3e$__["parse"])(t.date, "yyyy-MM-dd", new Date(0));
+                            const projectedDateDay = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$getDate$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__["getDate"])(originalTransactionDate);
                             let projectedDate = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$setDate$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__["setDate"])(firstDayOfDisplayedMonth, projectedDateDay);
                             const lastDayOfCurrentMonth = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$lastDayOfMonth$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__["lastDayOfMonth"])(displayedDate);
                             if ((0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$getDate$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__["getDate"])(projectedDate) !== projectedDateDay || (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$getMonth$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__["getMonth"])(projectedDate) !== (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$getMonth$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__["getMonth"])(displayedDate)) {
@@ -4323,10 +4324,12 @@ function ExpensesPage() {
                                 pt: "Parcela"
                             })}) ${currentInstallmentNum}/${t.installments}`;
                         }
-                    } else if (t.isRecurring && t.expenseType !== 'installment') {
-                        const originalTransactionDate = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$parse$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$locals$3e$__["parse"])(t.date, "yyyy-MM-dd", new Date(0));
-                        if ((0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$startOfMonth$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__["startOfMonth"])(originalTransactionDate) <= firstDayOfDisplayedMonth) {
+                    } else if (t.isRecurring === true && t.expenseType !== 'installment') {
+                        reason = "Recurring Check";
+                        const recurrenceEffectiveStartDate = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$parse$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$locals$3e$__["parse"])(t.effectiveMonth + "-01", "yyyy-MM-dd", new Date(0));
+                        if ((0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$startOfMonth$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__["startOfMonth"])(recurrenceEffectiveStartDate) <= firstDayOfDisplayedMonth) {
                             includeTransaction = true;
+                            const originalTransactionDate = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$parse$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$locals$3e$__["parse"])(t.date, "yyyy-MM-dd", new Date(0));
                             const projectedDateDay = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$getDate$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__["getDate"])(originalTransactionDate);
                             let projectedDate = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$setDate$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__["setDate"])(firstDayOfDisplayedMonth, projectedDateDay);
                             const lastDayOfCurrentMonth = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$lastDayOfMonth$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__["lastDayOfMonth"])(displayedDate);
@@ -4335,11 +4338,11 @@ function ExpensesPage() {
                             }
                             projectedDateForDisplayString = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$format$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$locals$3e$__["format"])(projectedDate, "yyyy-MM-dd");
                         }
-                    } else if ((!t.isRecurring || t.isRecurring === false) && (!t.expenseType || t.expenseType !== 'installment')) {
-                        if (t.effectiveMonth === targetEffectiveMonth) {
-                            includeTransaction = true;
-                        }
+                    } else if (t.effectiveMonth === targetEffectiveMonth) {
+                        reason = "Non-Recurring (Effective Month Match)";
+                        includeTransaction = true;
                     }
+                    console.log(`ExpensesPage TX Filter: ID: ${t.id}, Desc: ${t.description}, Date: ${t.date}, EffMonth: ${t.effectiveMonth}, Type: ${t.type}, ExpType: ${t.expenseType}, isRec: ${t.isRecurring}, Inst: ${t.installments}, Amount: ${t.amount}, Included: ${includeTransaction}, Reason: ${reason}, ProjectedDate: ${projectedDateForDisplayString}, Target: ${targetEffectiveMonth}`);
                     if (includeTransaction) {
                         monthlyDisplayTransactions.push({
                             ...t,
@@ -4416,7 +4419,7 @@ function ExpensesPage() {
             });
         }
     };
-    const handleSaveTransaction = async (formData, id)=>{
+    const handleSaveTransaction = async (formData, idToUpdate)=>{
         if (!userId) {
             toast({
                 title: translate({
@@ -4431,20 +4434,26 @@ function ExpensesPage() {
             });
             return;
         }
-        const effectiveMonth = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$format$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$locals$3e$__["format"])(displayedDate, "yyyy-MM");
-        const fullPayload = {
+        const effectiveMonthForSave = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$format$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$locals$3e$__["format"])(displayedDate, "yyyy-MM");
+        const payload = {
             ...formData,
             type: 'expense',
-            effectiveMonth,
+            effectiveMonth: effectiveMonthForSave,
             userId
         };
-        const dataToSave = Object.fromEntries(Object.entries(fullPayload).filter(([_, value])=>value !== undefined));
-        if (dataToSave.type === 'expense' && dataToSave.isRecurring === undefined && dataToSave.expenseType !== 'recurring' && dataToSave.expenseType !== 'installment') {
-            dataToSave.isRecurring = false;
+        const dataToSave = Object.fromEntries(Object.entries(payload).filter(([_, value])=>value !== undefined));
+        if (dataToSave.type === 'expense') {
+            if (dataToSave.expenseType === 'recurring') {
+                dataToSave.isRecurring = true;
+            } else {
+                dataToSave.isRecurring = false;
+            }
+        } else {
+            dataToSave.isRecurring = dataToSave.isRecurring ?? false;
         }
-        if (id) {
+        if (idToUpdate) {
             dataToSave.updatedAt = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$esm2017$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["serverTimestamp"])();
-            const transactionDocRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$esm2017$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["doc"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["db"], "users", userId, "transactions", id);
+            const transactionDocRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$esm2017$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["doc"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["db"], "users", userId, "transactions", idToUpdate);
             try {
                 await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$esm2017$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["updateDoc"])(transactionDocRef, dataToSave);
                 toast({
@@ -4636,7 +4645,7 @@ function ExpensesPage() {
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/src/app/expenses/page.tsx",
-                                lineNumber: 466,
+                                lineNumber: 485,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$dialog$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Dialog"], {
@@ -4653,7 +4662,7 @@ function ExpensesPage() {
                                                     className: "mr-2 h-4 w-4"
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/app/expenses/page.tsx",
-                                                    lineNumber: 472,
+                                                    lineNumber: 491,
                                                     columnNumber: 17
                                                 }, this),
                                                 translate({
@@ -4663,12 +4672,12 @@ function ExpensesPage() {
                                             ]
                                         }, void 0, true, {
                                             fileName: "[project]/src/app/expenses/page.tsx",
-                                            lineNumber: 471,
+                                            lineNumber: 490,
                                             columnNumber: 15
                                         }, this)
                                     }, void 0, false, {
                                         fileName: "[project]/src/app/expenses/page.tsx",
-                                        lineNumber: 470,
+                                        lineNumber: 489,
                                         columnNumber: 13
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$dialog$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["DialogContent"], {
@@ -4683,7 +4692,7 @@ function ExpensesPage() {
                                                         })
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/app/expenses/page.tsx",
-                                                        lineNumber: 478,
+                                                        lineNumber: 497,
                                                         columnNumber: 17
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$dialog$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["DialogDescription"], {
@@ -4693,13 +4702,13 @@ function ExpensesPage() {
                                                         })
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/app/expenses/page.tsx",
-                                                        lineNumber: 479,
+                                                        lineNumber: 498,
                                                         columnNumber: 17
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/src/app/expenses/page.tsx",
-                                                lineNumber: 477,
+                                                lineNumber: 496,
                                                 columnNumber: 15
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$dashboard$2f$transaction$2d$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["TransactionForm"], {
@@ -4711,25 +4720,25 @@ function ExpensesPage() {
                                                 userPaymentMethods: userPaymentMethods
                                             }, "add-expense-" + displayedDate.toISOString(), false, {
                                                 fileName: "[project]/src/app/expenses/page.tsx",
-                                                lineNumber: 483,
+                                                lineNumber: 502,
                                                 columnNumber: 15
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/src/app/expenses/page.tsx",
-                                        lineNumber: 476,
+                                        lineNumber: 495,
                                         columnNumber: 13
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/src/app/expenses/page.tsx",
-                                lineNumber: 469,
+                                lineNumber: 488,
                                 columnNumber: 11
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/src/app/expenses/page.tsx",
-                        lineNumber: 465,
+                        lineNumber: 484,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$dialog$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Dialog"], {
@@ -4747,7 +4756,7 @@ function ExpensesPage() {
                                             })
                                         }, void 0, false, {
                                             fileName: "[project]/src/app/expenses/page.tsx",
-                                            lineNumber: 499,
+                                            lineNumber: 518,
                                             columnNumber: 15
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$dialog$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["DialogDescription"], {
@@ -4757,13 +4766,13 @@ function ExpensesPage() {
                                             })
                                         }, void 0, false, {
                                             fileName: "[project]/src/app/expenses/page.tsx",
-                                            lineNumber: 500,
+                                            lineNumber: 519,
                                             columnNumber: 15
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/src/app/expenses/page.tsx",
-                                    lineNumber: 498,
+                                    lineNumber: 517,
                                     columnNumber: 13
                                 }, this),
                                 transactionToEdit && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$dashboard$2f$transaction$2d$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["TransactionForm"], {
@@ -4775,18 +4784,18 @@ function ExpensesPage() {
                                     userPaymentMethods: userPaymentMethods
                                 }, "edit-expense-" + transactionToEdit.id + "-" + displayedDate.toISOString(), false, {
                                     fileName: "[project]/src/app/expenses/page.tsx",
-                                    lineNumber: 505,
+                                    lineNumber: 524,
                                     columnNumber: 15
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/src/app/expenses/page.tsx",
-                            lineNumber: 497,
+                            lineNumber: 516,
                             columnNumber: 11
                         }, this)
                     }, void 0, false, {
                         fileName: "[project]/src/app/expenses/page.tsx",
-                        lineNumber: 496,
+                        lineNumber: 515,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -4802,7 +4811,7 @@ function ExpensesPage() {
                                             className: "mr-2 h-4 w-4"
                                         }, void 0, false, {
                                             fileName: "[project]/src/app/expenses/page.tsx",
-                                            lineNumber: 521,
+                                            lineNumber: 540,
                                             columnNumber: 15
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["SelectValue"], {
@@ -4812,13 +4821,13 @@ function ExpensesPage() {
                                             })
                                         }, void 0, false, {
                                             fileName: "[project]/src/app/expenses/page.tsx",
-                                            lineNumber: 522,
+                                            lineNumber: 541,
                                             columnNumber: 15
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/src/app/expenses/page.tsx",
-                                    lineNumber: 520,
+                                    lineNumber: 539,
                                     columnNumber: 13
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["SelectContent"], {
@@ -4827,23 +4836,23 @@ function ExpensesPage() {
                                             children: option.label
                                         }, option.value, false, {
                                             fileName: "[project]/src/app/expenses/page.tsx",
-                                            lineNumber: 526,
+                                            lineNumber: 545,
                                             columnNumber: 17
                                         }, this))
                                 }, void 0, false, {
                                     fileName: "[project]/src/app/expenses/page.tsx",
-                                    lineNumber: 524,
+                                    lineNumber: 543,
                                     columnNumber: 13
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/src/app/expenses/page.tsx",
-                            lineNumber: 519,
+                            lineNumber: 538,
                             columnNumber: 11
                         }, this)
                     }, void 0, false, {
                         fileName: "[project]/src/app/expenses/page.tsx",
-                        lineNumber: 518,
+                        lineNumber: 537,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Card"], {
@@ -4860,7 +4869,7 @@ function ExpensesPage() {
                                         })
                                     }, void 0, false, {
                                         fileName: "[project]/src/app/expenses/page.tsx",
-                                        lineNumber: 536,
+                                        lineNumber: 555,
                                         columnNumber: 13
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["CardDescription"], {
@@ -4876,13 +4885,13 @@ function ExpensesPage() {
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/src/app/expenses/page.tsx",
-                                        lineNumber: 537,
+                                        lineNumber: 556,
                                         columnNumber: 13
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/src/app/expenses/page.tsx",
-                                lineNumber: 535,
+                                lineNumber: 554,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["CardContent"], {
@@ -4894,12 +4903,12 @@ function ExpensesPage() {
                                             className: "h-36 w-full rounded-lg"
                                         }, i, false, {
                                             fileName: "[project]/src/app/expenses/page.tsx",
-                                            lineNumber: 544,
+                                            lineNumber: 563,
                                             columnNumber: 46
                                         }, this))
                                 }, void 0, false, {
                                     fileName: "[project]/src/app/expenses/page.tsx",
-                                    lineNumber: 543,
+                                    lineNumber: 562,
                                     columnNumber: 15
                                 }, this) : expensesForDisplayedPeriod.length > 0 ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                                     className: "grid grid-cols-1 gap-4",
@@ -4910,12 +4919,12 @@ function ExpensesPage() {
                                             onDelete: ()=>openDeleteConfirmation(tx.id)
                                         }, tx.id, false, {
                                             fileName: "[project]/src/app/expenses/page.tsx",
-                                            lineNumber: 549,
+                                            lineNumber: 568,
                                             columnNumber: 19
                                         }, this))
                                 }, void 0, false, {
                                     fileName: "[project]/src/app/expenses/page.tsx",
-                                    lineNumber: 547,
+                                    lineNumber: 566,
                                     columnNumber: 15
                                 }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
                                     className: "text-center text-muted-foreground py-8",
@@ -4925,24 +4934,24 @@ function ExpensesPage() {
                                     })
                                 }, void 0, false, {
                                     fileName: "[project]/src/app/expenses/page.tsx",
-                                    lineNumber: 559,
+                                    lineNumber: 578,
                                     columnNumber: 15
                                 }, this)
                             }, void 0, false, {
                                 fileName: "[project]/src/app/expenses/page.tsx",
-                                lineNumber: 541,
+                                lineNumber: 560,
                                 columnNumber: 11
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/src/app/expenses/page.tsx",
-                        lineNumber: 534,
+                        lineNumber: 553,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/src/app/expenses/page.tsx",
-                lineNumber: 464,
+                lineNumber: 483,
                 columnNumber: 7
             }, this),
             transactionToDelete && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$alert$2d$dialog$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["AlertDialog"], {
@@ -4959,7 +4968,7 @@ function ExpensesPage() {
                                     })
                                 }, void 0, false, {
                                     fileName: "[project]/src/app/expenses/page.tsx",
-                                    lineNumber: 570,
+                                    lineNumber: 589,
                                     columnNumber: 15
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$alert$2d$dialog$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["AlertDialogDescription"], {
@@ -4972,7 +4981,7 @@ function ExpensesPage() {
                                             children: transactionToDelete.description
                                         }, void 0, false, {
                                             fileName: "[project]/src/app/expenses/page.tsx",
-                                            lineNumber: 573,
+                                            lineNumber: 592,
                                             columnNumber: 17
                                         }, this),
                                         " (",
@@ -4985,13 +4994,13 @@ function ExpensesPage() {
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/src/app/expenses/page.tsx",
-                                    lineNumber: 571,
+                                    lineNumber: 590,
                                     columnNumber: 15
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/src/app/expenses/page.tsx",
-                            lineNumber: 569,
+                            lineNumber: 588,
                             columnNumber: 13
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$alert$2d$dialog$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["AlertDialogFooter"], {
@@ -5004,7 +5013,7 @@ function ExpensesPage() {
                                     })
                                 }, void 0, false, {
                                     fileName: "[project]/src/app/expenses/page.tsx",
-                                    lineNumber: 578,
+                                    lineNumber: 597,
                                     columnNumber: 15
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$alert$2d$dialog$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["AlertDialogAction"], {
@@ -5016,34 +5025,34 @@ function ExpensesPage() {
                                     })
                                 }, void 0, false, {
                                     fileName: "[project]/src/app/expenses/page.tsx",
-                                    lineNumber: 579,
+                                    lineNumber: 598,
                                     columnNumber: 15
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/src/app/expenses/page.tsx",
-                            lineNumber: 577,
+                            lineNumber: 596,
                             columnNumber: 13
                         }, this)
                     ]
                 }, void 0, true, {
                     fileName: "[project]/src/app/expenses/page.tsx",
-                    lineNumber: 568,
+                    lineNumber: 587,
                     columnNumber: 11
                 }, this)
             }, void 0, false, {
                 fileName: "[project]/src/app/expenses/page.tsx",
-                lineNumber: 567,
+                lineNumber: 586,
                 columnNumber: 9
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/src/app/expenses/page.tsx",
-        lineNumber: 463,
+        lineNumber: 482,
         columnNumber: 5
     }, this);
 }
-_s(ExpensesPage, "rWnoXzjFA5FIeZKYzELfI3HJ1So=", false, function() {
+_s(ExpensesPage, "oFkhxoazEPmVpk3cx1eMWNcx5C8=", false, function() {
     return [
         __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$context$2f$auth$2d$context$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useAuth"],
         __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$navigation$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useRouter"],

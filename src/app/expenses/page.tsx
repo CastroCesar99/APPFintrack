@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PlusCircle, ArrowUpDown } from "lucide-react";
-import type { Transaction, DisplayCategory, DisplayPaymentMethod, UserPreferences, CustomCategoryData, CustomPaymentMethodData } from "@/types";
+import type { Transaction, DisplayCategory, DisplayPaymentMethod, UserPreferences, CustomCategoryData, CustomPaymentMethodData, CategoryName } from "@/types";
 import { CATEGORIES, PAYMENT_METHODS, getCategoryDisplayLabel, getPaymentMethodDisplayLabel } from "@/types";
 import { useAuth } from '@/context/auth-context';
 import { useLanguage } from '@/context/language-context';
@@ -169,7 +169,7 @@ export default function ExpensesPage() {
         unsubscribePreferencesRef.current();
       }
     };
-  }, [userId, isClient, authLoading, language, toast, translate, displayedDate]);
+  }, [userId, isClient, authLoading, language, toast, translate]);
 
 
   // Fetch all transactions
@@ -199,10 +199,10 @@ export default function ExpensesPage() {
             } else if (data.date.includes('T')) { 
                 try { 
                     dateString = formatDateFns(parseISODateFns(data.date), "yyyy-MM-dd"); 
-                } catch (e1) {
+                } catch (e1){ 
                    try { 
                        dateString = formatDateFns(new Date(data.date), "yyyy-MM-dd");
-                   } catch (e2) {
+                   } catch (e2){
                        console.warn("ExpensesPage: Failed to parse existing datetime string to yyyy-MM-dd (fallback for " + String(data.date) + "): " + String(e2));
                        dateString = formatDateFns(new Date(), "yyyy-MM-dd");
                    }
@@ -272,60 +272,58 @@ export default function ExpensesPage() {
     const firstDayOfDisplayedMonth = startOfMonth(displayedDate);
         
     const monthlyDisplayTransactions: Transaction[] = [];
-    console.log(`ExpensesPage: Calculating expensesForDisplayedPeriod for ${targetEffectiveMonth}. All transactions: ${allTransactions.length}`);
-
+    
     allTransactions.forEach(t => {
       if (t.type !== 'expense') return;
 
       let includeTransaction = false;
-      let projectedDateForDisplayString = t.date; 
       let modifiedDescription = t.description; 
-      let reason = "";
 
       if (t.expenseType === 'installment' && t.installments && t.installments > 0) {
-        reason = "Installment Check";
         const installmentSeriesEffectiveStartDate = parseDateFns(t.effectiveMonth + "-01", "yyyy-MM-dd", new Date(0));
         const monthDiff = differenceInCalendarMonths(firstDayOfDisplayedMonth, startOfMonth(installmentSeriesEffectiveStartDate));
         const currentInstallmentNum = monthDiff + 1;
 
         if (currentInstallmentNum >= 1 && currentInstallmentNum <= t.installments) {
           includeTransaction = true;
-          const originalTransactionDate = parseDateFns(t.date, "yyyy-MM-dd", new Date(0));
-          const projectedDateDay = getDateFns(originalTransactionDate);
-          let projectedDate = setDateFnsDate(firstDayOfDisplayedMonth, projectedDateDay);
-          const lastDayOfCurrentMonth = lastDayOfMonth(displayedDate);
-          if (getDateFns(projectedDate) !== projectedDateDay || getMonthFns(projectedDate) !== getMonthFns(displayedDate)) {
-               projectedDate = setDateFnsDate(firstDayOfDisplayedMonth, Math.min(projectedDateDay, getDateFns(lastDayOfCurrentMonth)));
-          }
-          projectedDateForDisplayString = formatDateFns(projectedDate, "yyyy-MM-dd");
           modifiedDescription = `${t.description} (${translate({en: "Installment", pt: "Parcela"})}) ${currentInstallmentNum}/${t.installments}`;
         }
       } else if (t.isRecurring === true && t.expenseType !== 'installment') { 
-        reason = "Recurring Check";
         const recurrenceEffectiveStartDate = parseDateFns(t.effectiveMonth + "-01", "yyyy-MM-dd", new Date(0));
         if (startOfMonth(recurrenceEffectiveStartDate) <= firstDayOfDisplayedMonth) {
           includeTransaction = true;
-          const originalTransactionDate = parseDateFns(t.date, "yyyy-MM-dd", new Date(0));
-          const projectedDateDay = getDateFns(originalTransactionDate);
-          let projectedDate = setDateFnsDate(firstDayOfDisplayedMonth, projectedDateDay);
-          const lastDayOfCurrentMonth = lastDayOfMonth(displayedDate);
-          if (getDateFns(projectedDate) !== projectedDateDay || getMonthFns(projectedDate) !== getMonthFns(displayedDate)) {
-               projectedDate = setDateFnsDate(firstDayOfDisplayedMonth, Math.min(projectedDateDay, getDateFns(lastDayOfCurrentMonth)));
-          }
-          projectedDateForDisplayString = formatDateFns(projectedDate, "yyyy-MM-dd");
         }
       } else if (t.effectiveMonth === targetEffectiveMonth) { 
-        reason = "Non-Recurring (Effective Month Match)";
         includeTransaction = true;
       }
       
-      console.log(`ExpensesPage TX Filter: ID: ${t.id}, Desc: ${t.description}, Date: ${t.date}, EffMonth: ${t.effectiveMonth}, Type: ${t.type}, ExpType: ${t.expenseType}, isRec: ${t.isRecurring}, Inst: ${t.installments}, Amount: ${t.amount}, Included: ${includeTransaction}, Reason: ${reason}, ProjectedDate: ${projectedDateForDisplayString}, Target: ${targetEffectiveMonth}`);
       if (includeTransaction) {
+        let displayDate = t.date; // Default to original date
+        if (t.expenseType === 'installment' || (t.isRecurring && t.expenseType !== 'installment')) {
+            // For recurring/installments to show in future months, we need to project their date for display purposes
+            // If it's an installment, we want to show its original date
+            // If it's a generic recurring, we project its date to the current displayed month
+            if (t.expenseType !== 'installment' && t.isRecurring) {
+                try {
+                    const originalTransactionDate = parseDateFns(t.date, "yyyy-MM-dd", new Date(0));
+                    const originalTransactionDay = getDateFns(originalTransactionDate);
+                    let projectedDate = setDateFnsDate(firstDayOfDisplayedMonth, originalTransactionDay);
+                    const lastDayOfCurrentMonth = lastDayOfMonth(displayedDate);
+                    if (getDateFns(projectedDate) !== originalTransactionDay || getMonthFns(projectedDate) !== getMonthFns(displayedDate)) {
+                        projectedDate = setDateFnsDate(firstDayOfDisplayedMonth, Math.min(originalTransactionDay, getDateFns(lastDayOfCurrentMonth)));
+                    }
+                    displayDate = formatDateFns(projectedDate, "yyyy-MM-dd");
+                } catch (e) {
+                    console.warn(`ExpensesPage: Error projecting date for recurring expense tx ${t.id}: ${t.date}`, e);
+                }
+            } // For installments, t.date (original purchase date) is already correct for display
+        }
+
         monthlyDisplayTransactions.push({
           ...t,
-          date: projectedDateForDisplayString,
+          date: displayDate, // Use original date for installments, projected for generic recurring
           description: modifiedDescription,
-          id: (t.expenseType === 'installment' || t.isRecurring) ? `${t.id}_proj_${targetEffectiveMonth}` : t.id 
+          id: (t.expenseType === 'installment' || (t.isRecurring && t.expenseType !== 'installment')) ? `${t.id}_proj_${targetEffectiveMonth}` : t.id 
         });
       }
     });
@@ -376,10 +374,11 @@ export default function ExpensesPage() {
       return;
     }
 
+    // When saving, effectiveMonth is based on the month being viewed (displayedDate)
     const effectiveMonthForSave = formatDateFns(displayedDate, "yyyy-MM");
     
     const payload = { 
-      ...formData, 
+      ...formData, // formData.date is the actual date chosen in the calendar
       type: 'expense' as 'expense', 
       effectiveMonth: effectiveMonthForSave, 
       userId 
@@ -482,7 +481,7 @@ export default function ExpensesPage() {
     <AppLayout>
       <div className="space-y-6"> 
         <div className="flex flex-col items-stretch gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <h1 className="text-3xl font-bold tracking-tight text-foreground mb-4 sm:mb-0">
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">
             {pageTitle} - {displayedMonthYearLabel}
           </h1>
           <Dialog open={isAddFormOpen} onOpenChange={setIsAddFormOpen}>
@@ -605,3 +604,4 @@ export default function ExpensesPage() {
     </AppLayout>
   );
 }
+
