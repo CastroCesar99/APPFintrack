@@ -1,7 +1,7 @@
 
 "use client";
 import type React from 'react';
-import { Sidebar, SidebarInset, SidebarRail } from "@/components/ui/sidebar";
+import { Sidebar, SidebarInset } from "@/components/ui/sidebar"; 
 import { AppSidebarContent } from "./app-sidebar-content";
 import { AppHeaderContent } from "./app-header-content";
 
@@ -12,14 +12,12 @@ interface AppLayoutProps {
 export function AppLayout({ children }: AppLayoutProps) {
   return (
     <div className="flex min-h-screen w-full">
-      <Sidebar variant="sidebar" collapsible="none"> {/* Changed from "icon" to "none" */}
+      <Sidebar variant="sidebar" collapsible="none">
         <AppSidebarContent />
-        {/* SidebarRail can be conditionally rendered or removed if not used for resizing */}
-        {/* <SidebarRail /> */}
       </Sidebar>
       <SidebarInset className="flex flex-col">
         <AppHeaderContent />
-        <main className="flex-1 overflow-y-auto p-4 pt-6 md:p-6">
+        <main className="flex-1 overflow-y-auto overflow-x-hidden p-4 pt-6 md:p-6"> {/* Added overflow-x-hidden */}
           {children}
         </main>
       </SidebarInset>
