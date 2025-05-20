@@ -11,13 +11,13 @@ interface AppLayoutProps {
 
 export function AppLayout({ children }: AppLayoutProps) {
   return (
-    <div className="flex min-h-screen w-full">
+    <div className="flex min-h-screen w-full overflow-x-hidden"> {/* Added overflow-x-hidden */}
       <Sidebar variant="sidebar" collapsible="none">
         <AppSidebarContent />
       </Sidebar>
       <SidebarInset className="flex flex-col">
         <AppHeaderContent />
-        <main className="flex-1 overflow-y-auto overflow-x-hidden p-4 pt-6 md:p-6"> {/* Added overflow-x-hidden */}
+        <main className="flex-1 overflow-y-auto p-4 pt-6 md:p-6"> {/* Removed previous overflow-x-hidden as parent now handles it */}
           {children}
         </main>
       </SidebarInset>

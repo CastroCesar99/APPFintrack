@@ -583,7 +583,7 @@ export default function ReportsPage() {
           <ExportData transactions={transactionsForDisplayedPeriod} />
         </div>
 
-        <div className="grid gap-4 md:grid-cols-3">
+ <div className="grid gap-4 grid-cols-1 md:grid-cols-3">
           <Card className="shadow-lg">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">{translate({ en: "Total Income", pt: "Receita Total" })}</CardTitle>
@@ -613,7 +613,7 @@ export default function ReportsPage() {
           </Card>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2">
+ <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
           <Card className="shadow-lg">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">{translate({ en: "Total Fixed Expenses", pt: "Despesas Fixas Totais" })}</CardTitle>
