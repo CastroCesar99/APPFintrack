@@ -1036,6 +1036,10 @@ body {
   width: 100%;
 }
 
+.w-24 {
+  width: 6rem;
+}
+
 .min-w-0 {
   min-width: 0;
 }
@@ -1080,8 +1084,16 @@ body {
   flex-shrink: 0;
 }
 
+.flex-shrink {
+  flex-shrink: 1;
+}
+
 .shrink-0 {
   flex-shrink: 0;
+}
+
+.shrink {
+  flex-shrink: 1;
 }
 
 .flex-grow {

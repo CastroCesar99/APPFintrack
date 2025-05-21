@@ -1084,22 +1084,23 @@ function AppHeaderContent() {
     const { translate } = (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$context$2f$language$2d$context$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useLanguage"])();
     const { user, loading: authLoading } = (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$context$2f$auth$2d$context$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useAuth"])();
     const { displayedMonthYearLabel, handlePreviousMonth, handleNextMonth } = (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$context$2f$date$2d$navigation$2d$context$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useDateNavigation"])();
-    const welcomeMessage = translate({
+    const welcomeText = translate({
         en: "Welcome,",
         pt: "Bem Vindo,"
     });
     let userGreeting = null;
     if (!authLoading && user && user.displayName) {
-        userGreeting = `${welcomeMessage} ${user.displayName}`;
+        userGreeting = `${welcomeText} ${user.displayName}`;
     } else if (!authLoading && user && !user.displayName) {
-        userGreeting = `${welcomeMessage}`;
+        userGreeting = `${welcomeText}`;
     }
     return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
         className: "flex h-14 items-center justify-between gap-4 border-b bg-background px-4 lg:px-6",
         children: [
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                className: "flex items-center gap-3",
+                className: "flex items-center gap-3 min-w-0",
                 children: [
+                    " ",
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$sidebar$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["SidebarTrigger"], {
                         className: "md:hidden"
                     }, void 0, false, {
@@ -1108,10 +1109,13 @@ function AppHeaderContent() {
                         columnNumber: 9
                     }, this),
                     userGreeting && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
-                        className: "text-base font-semibold text-foreground truncate",
+                        className: "text-base font-semibold text-foreground truncate min-w-0",
                         title: userGreeting,
-                        children: userGreeting
-                    }, void 0, false, {
+                        children: [
+                            " ",
+                            userGreeting
+                        ]
+                    }, void 0, true, {
                         fileName: "[project]/src/components/layout/app-header-content.tsx",
                         lineNumber: 36,
                         columnNumber: 11
@@ -1158,7 +1162,7 @@ function AppHeaderContent() {
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
-                        className: "text-base font-medium text-foreground w-28 sm:w-32 text-center truncate",
+                        className: "text-base font-medium text-foreground w-24 sm:w-32 text-center truncate min-w-0 flex-shrink" /* Adjusted width and added shrink */ ,
                         title: displayedMonthYearLabel,
                         children: displayedMonthYearLabel
                     }, void 0, false, {
@@ -1179,12 +1183,12 @@ function AppHeaderContent() {
                             className: "h-4 w-4"
                         }, void 0, false, {
                             fileName: "[project]/src/components/layout/app-header-content.tsx",
-                            lineNumber: 68,
+                            lineNumber: 71,
                             columnNumber: 11
                         }, this)
                     }, void 0, false, {
                         fileName: "[project]/src/components/layout/app-header-content.tsx",
-                        lineNumber: 61,
+                        lineNumber: 64,
                         columnNumber: 9
                     }, this)
                 ]
