@@ -1899,7 +1899,8 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$firebase$2f$
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$firebase$2f$node_modules$2f40$firebase$2f$auth$2f$dist$2f$esm2017$2f$index$2d$68039fd7$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__ab__as__createUserWithEmailAndPassword$3e$__ = __turbopack_context__.i("[project]/node_modules/firebase/node_modules/@firebase/auth/dist/esm2017/index-68039fd7.js [app-client] (ecmascript) <export ab as createUserWithEmailAndPassword>");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$firebase$2f$node_modules$2f40$firebase$2f$auth$2f$dist$2f$esm2017$2f$index$2d$68039fd7$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__ac__as__signInWithEmailAndPassword$3e$__ = __turbopack_context__.i("[project]/node_modules/firebase/node_modules/@firebase/auth/dist/esm2017/index-68039fd7.js [app-client] (ecmascript) <export ac as signInWithEmailAndPassword>");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$firebase$2f$node_modules$2f40$firebase$2f$auth$2f$dist$2f$esm2017$2f$index$2d$68039fd7$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__D__as__signOut$3e$__ = __turbopack_context__.i("[project]/node_modules/firebase/node_modules/@firebase/auth/dist/esm2017/index-68039fd7.js [app-client] (ecmascript) <export D as signOut>");
-var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/lib/firebase.ts [app-client] (ecmascript)"); // Using the initialized auth from firebase.ts
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$firebase$2f$node_modules$2f40$firebase$2f$auth$2f$dist$2f$esm2017$2f$index$2d$68039fd7$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__a6__as__sendPasswordResetEmail$3e$__ = __turbopack_context__.i("[project]/node_modules/firebase/node_modules/@firebase/auth/dist/esm2017/index-68039fd7.js [app-client] (ecmascript) <export a6 as sendPasswordResetEmail>");
+var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/lib/firebase.ts [app-client] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$navigation$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/navigation.js [app-client] (ecmascript)");
 ;
 var _s = __turbopack_context__.k.signature(), _s1 = __turbopack_context__.k.signature();
@@ -1919,15 +1920,15 @@ function AuthProvider({ children }) {
             console.log("AuthContext: useEffect for onAuthStateChanged, initial loading state:", loading);
             const unsubscribe = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$firebase$2f$node_modules$2f40$firebase$2f$auth$2f$dist$2f$esm2017$2f$index$2d$68039fd7$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__z__as__onAuthStateChanged$3e$__["onAuthStateChanged"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["auth"], {
                 "AuthProvider.useEffect.unsubscribe": (currentUser)=>{
-                    console.log("AuthContext: onAuthStateChanged fired. User:", currentUser, "Setting loading to false.");
+                    console.log("AuthContext: onAuthStateChanged fired. User:", currentUser, "Email Verified:", currentUser?.emailVerified);
                     setUser(currentUser);
                     setLoading(false);
                 }
             }["AuthProvider.useEffect.unsubscribe"], {
                 "AuthProvider.useEffect.unsubscribe": (error)=>{
                     console.error("AuthContext: Error in onAuthStateChanged listener:", error);
-                    setUser(null); // Ensure user is null on auth error
-                    setLoading(false); // Ensure loading is false even on auth error
+                    setUser(null);
+                    setLoading(false);
                 }
             }["AuthProvider.useEffect.unsubscribe"]);
             return ({
@@ -1937,22 +1938,24 @@ function AuthProvider({ children }) {
                 }
             })["AuthProvider.useEffect"];
         }
-    }["AuthProvider.useEffect"], []); // Empty dependency array means this runs once on mount and cleans up on unmount
+    }["AuthProvider.useEffect"], []);
     const signUp = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useCallback"])({
         "AuthProvider.useCallback[signUp]": async (email, pass)=>{
             console.log("AuthContext: signUp called. Setting loading to true.");
             setLoading(true);
             try {
                 const userCredential = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$firebase$2f$node_modules$2f40$firebase$2f$auth$2f$dist$2f$esm2017$2f$index$2d$68039fd7$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__ab__as__createUserWithEmailAndPassword$3e$__["createUserWithEmailAndPassword"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["auth"], email, pass);
-                setUser(userCredential.user);
-                console.log("AuthContext: signUp successful. User:", userCredential.user);
+                // User object here might not immediately have emailVerified: true,
+                // and displayName might not be set yet by updateProfile.
+                // We rely on onAuthStateChanged to get the final state after profile updates/verification.
+                console.log("AuthContext: signUp successful. User from credential:", userCredential.user);
                 return userCredential.user;
             } catch (error) {
                 console.error("AuthContext: Error signing up:", error);
                 return null;
             } finally{
                 console.log("AuthContext: signUp finished. Setting loading to false.");
-                setLoading(false);
+            // setLoading(false); // Let onAuthStateChanged handle this
             }
         }
     }["AuthProvider.useCallback[signUp]"], []);
@@ -1962,55 +1965,80 @@ function AuthProvider({ children }) {
             setLoading(true);
             try {
                 const userCredential = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$firebase$2f$node_modules$2f40$firebase$2f$auth$2f$dist$2f$esm2017$2f$index$2d$68039fd7$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__ac__as__signInWithEmailAndPassword$3e$__["signInWithEmailAndPassword"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["auth"], email, pass);
-                setUser(userCredential.user);
-                console.log("AuthContext: logIn successful. User:", userCredential.user);
+                // onAuthStateChanged will update user and loading state
+                console.log("AuthContext: logIn successful. User from credential:", userCredential.user);
                 return userCredential.user;
             } catch (error) {
-                console.error("AuthContext: Error logging in:", error); // This is where "auth/invalid-credential" would be caught
+                console.error("AuthContext: Error logging in:", error);
+                setLoading(false); // Ensure loading is false on login error
                 return null;
-            } finally{
-                console.log("AuthContext: logIn finished. Setting loading to false.");
-                setLoading(false);
             }
+        // setLoading(false) will be handled by onAuthStateChanged
         }
     }["AuthProvider.useCallback[logIn]"], []);
     const logOut = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useCallback"])({
         "AuthProvider.useCallback[logOut]": async ()=>{
-            console.log("AuthContext: logOut called. Setting loading to true.");
-            setLoading(true);
+            console.log("AuthContext: logOut called.");
+            // setLoading(true); // Let onAuthStateChanged handle this
             try {
                 await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$firebase$2f$node_modules$2f40$firebase$2f$auth$2f$dist$2f$esm2017$2f$index$2d$68039fd7$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__D__as__signOut$3e$__["signOut"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["auth"]);
-                setUser(null);
-                console.log("AuthContext: logOut successful. User set to null.");
+                // setUser(null) and setLoading(false) will be handled by onAuthStateChanged
+                console.log("AuthContext: logOut successful. User should be null now.");
                 router.push('/login');
             } catch (error) {
                 console.error("AuthContext: Error logging out:", error);
-            } finally{
-                console.log("AuthContext: logOut finished. Setting loading to false.");
-                setLoading(false);
+            // setLoading(false); // Ensure loading is false on logout error
             }
         }
     }["AuthProvider.useCallback[logOut]"], [
         router
     ]);
+    const sendPasswordResetEmail = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useCallback"])({
+        "AuthProvider.useCallback[sendPasswordResetEmail]": async (email)=>{
+            return (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$firebase$2f$node_modules$2f40$firebase$2f$auth$2f$dist$2f$esm2017$2f$index$2d$68039fd7$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__a6__as__sendPasswordResetEmail$3e$__["sendPasswordResetEmail"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["auth"], email);
+        }
+    }["AuthProvider.useCallback[sendPasswordResetEmail]"], []);
+    const reloadUser = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useCallback"])({
+        "AuthProvider.useCallback[reloadUser]": async ()=>{
+            const currentUser = __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["auth"].currentUser;
+            if (currentUser) {
+                console.log("AuthContext: Reloading user data...");
+                await currentUser.reload();
+                // After reload, onAuthStateChanged should fire with the updated user state.
+                // For immediate UI reflection if onAuthStateChanged is slow or doesn't pick it up,
+                // we can manually update our local user state if needed, but typically reload()
+                // followed by onAuthStateChanged is the pattern.
+                // Forcing a local state update to ensure reactivity if onAuthStateChanged doesn't fire quickly enough
+                // after manual reload for emailVerified change.
+                const reloadedUser = __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["auth"].currentUser; // Get the potentially updated user object
+                console.log("AuthContext: User reloaded. New emailVerified status:", reloadedUser?.emailVerified);
+                setUser(reloadedUser ? {
+                    ...reloadedUser
+                } : null); // Spread to ensure new object reference if needed for reactivity
+            } else {
+                console.log("AuthContext: No current user to reload.");
+            }
+        }
+    }["AuthProvider.useCallback[reloadUser]"], []);
     const value = {
         user,
         loading,
         signUp,
         logIn,
-        logOut
+        logOut,
+        sendPasswordResetEmail,
+        reloadUser
     };
-    // console.log("AuthContext: Provider rendering. Current loading state:", loading, "User:", user); // This log can be very noisy
     return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(AuthContext.Provider, {
         value: value,
         children: children
     }, void 0, false, {
         fileName: "[project]/src/context/auth-context.tsx",
-        lineNumber: 108,
+        lineNumber: 134,
         columnNumber: 10
     }, this);
 }
-_s(AuthProvider, "+wsDlT1DBN+Vpq42RjSqTG9tups=", false, function() {
+_s(AuthProvider, "UMSuWlNC3u1noYvBF3A+ZBw63n8=", false, function() {
     return [
         __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$navigation$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useRouter"]
     ];

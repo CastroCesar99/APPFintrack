@@ -1108,6 +1108,7 @@ function AppHeaderContent() {
                         lineNumber: 34,
                         columnNumber: 9
                     }, this),
+                    " ",
                     userGreeting && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
                         className: "text-base font-semibold text-foreground truncate min-w-0",
                         title: userGreeting,
@@ -1162,7 +1163,7 @@ function AppHeaderContent() {
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
-                        className: "text-base font-medium text-foreground w-24 sm:w-32 text-center truncate min-w-0 flex-shrink" /* Adjusted width and added shrink */ ,
+                        className: "text-base font-medium text-foreground w-24 sm:w-32 text-center truncate min-w-0 flex-shrink",
                         title: displayedMonthYearLabel,
                         children: displayedMonthYearLabel
                     }, void 0, false, {
@@ -3147,20 +3148,21 @@ function TransactionItemCard({ transaction, onEdit, onDelete, allUserCategories 
     const { language, translate } = (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$context$2f$language$2d$context$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useLanguage"])();
     let displayDate = transaction.date;
     try {
-        if (transaction.date && transaction.date.match(/^\d{4}-\d{2}-\d{2}$/)) {
+        // Ensure transaction.date is a valid string before parsing
+        if (transaction.date && typeof transaction.date === 'string' && transaction.date.match(/^\d{4}-\d{2}-\d{2}$/)) {
             const parsedDate = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$parse$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$locals$3e$__["parse"])(transaction.date, "yyyy-MM-dd", new Date(0));
             displayDate = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$format$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$locals$3e$__["format"])(parsedDate, language === 'pt' ? "dd 'de' MMMM, yyyy" : "MMMM dd, yyyy", {
                 locale: language === 'pt' ? __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$locale$2f$pt$2d$BR$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["ptBR"] : __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$locale$2f$en$2d$US$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["enUS"]
             });
         } else {
-            console.warn("TransactionItemCard: Unexpected date format for transaction ID " + transaction.id + ": " + transaction.date);
+            console.warn("TransactionItemCard: Unexpected or invalid date format for transaction ID " + transaction.id + ": " + transaction.date);
+        // Fallback or leave as is if transaction.date might sometimes be pre-formatted
         }
     } catch (e) {
         console.warn("TransactionItemCard: Could not parse date string for display: " + transaction.date, e);
     }
-    // Find category details from allUserCategories passed from parent
-    const categoryDetailsFromUserList = allUserCategories.find((cat)=>cat.name.toLowerCase() === transaction.category.toLowerCase());
-    const finalCategoryDetails = categoryDetailsFromUserList || __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["CATEGORIES"].find((c)=>c.name.toLowerCase() === transaction.category.toLowerCase()) || {
+    const categoryDetails = allUserCategories?.find((cat)=>cat.name.toLowerCase() === transaction.category.toLowerCase());
+    const finalCategoryDetails = categoryDetails || __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$index$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["CATEGORIES"].find((c)=>c.name.toLowerCase() === transaction.category.toLowerCase()) || {
         name: transaction.category,
         type: transaction.type,
         icon: 'CircleHelp',
@@ -3176,6 +3178,7 @@ function TransactionItemCard({ transaction, onEdit, onDelete, allUserCategories 
         en: transaction.expenseNature.charAt(0).toUpperCase() + transaction.expenseNature.slice(1),
         pt: transaction.expenseNature === 'fixed' ? 'Fixo' : 'Variável'
     }) : '';
+    // console.log(`TransactionItemCard: Rendering tx ${transaction.id}, CatDisplay: ${categoryDisplayName}, PMDisplay: ${paymentMethodDisplayName}, DateDisplay: ${displayDate}`);
     return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Card"], {
         className: "shadow-md hover:shadow-lg transition-shadow duration-200 flex flex-col h-full",
         children: [
@@ -3192,7 +3195,7 @@ function TransactionItemCard({ transaction, onEdit, onDelete, allUserCategories 
                                     className: "h-5 w-5 text-muted-foreground flex-shrink-0 mt-1"
                                 }, void 0, false, {
                                     fileName: "[project]/src/components/transactions/transaction-item-card.tsx",
-                                    lineNumber: 71,
+                                    lineNumber: 74,
                                     columnNumber: 13
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["CardTitle"], {
@@ -3201,35 +3204,35 @@ function TransactionItemCard({ transaction, onEdit, onDelete, allUserCategories 
                                     children: transaction.description
                                 }, void 0, false, {
                                     fileName: "[project]/src/components/transactions/transaction-item-card.tsx",
-                                    lineNumber: 72,
+                                    lineNumber: 75,
                                     columnNumber: 13
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/src/components/transactions/transaction-item-card.tsx",
-                            lineNumber: 70,
+                            lineNumber: 73,
                             columnNumber: 11
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                            className: (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$utils$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["cn"])("text-lg font-bold whitespace-nowrap pl-2", transaction.type === "income" ? "text-green-600 dark:text-green-500" : "text-red-600 dark:text-red-500"),
+                            className: (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$utils$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["cn"])("text-lg font-bold pl-2", transaction.type === "income" ? "text-green-600 dark:text-green-500" : "text-red-600 dark:text-red-500"),
                             children: [
                                 transaction.type === "income" ? "+" : "-",
                                 (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$utils$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["formatCurrency"])(transaction.amount)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/src/components/transactions/transaction-item-card.tsx",
-                            lineNumber: 76,
+                            lineNumber: 79,
                             columnNumber: 11
                         }, this)
                     ]
                 }, void 0, true, {
                     fileName: "[project]/src/components/transactions/transaction-item-card.tsx",
-                    lineNumber: 69,
+                    lineNumber: 72,
                     columnNumber: 9
                 }, this)
             }, void 0, false, {
                 fileName: "[project]/src/components/transactions/transaction-item-card.tsx",
-                lineNumber: 68,
+                lineNumber: 71,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["CardContent"], {
@@ -3239,7 +3242,7 @@ function TransactionItemCard({ transaction, onEdit, onDelete, allUserCategories 
                         children: displayDate
                     }, void 0, false, {
                         fileName: "[project]/src/components/transactions/transaction-item-card.tsx",
-                        lineNumber: 88,
+                        lineNumber: 91,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -3253,7 +3256,7 @@ function TransactionItemCard({ transaction, onEdit, onDelete, allUserCategories 
                         ]
                     }, void 0, true, {
                         fileName: "[project]/src/components/transactions/transaction-item-card.tsx",
-                        lineNumber: 91,
+                        lineNumber: 94,
                         columnNumber: 9
                     }, this),
                     paymentMethodDisplayName && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -3267,12 +3270,12 @@ function TransactionItemCard({ transaction, onEdit, onDelete, allUserCategories 
                         ]
                     }, void 0, true, {
                         fileName: "[project]/src/components/transactions/transaction-item-card.tsx",
-                        lineNumber: 95,
+                        lineNumber: 98,
                         columnNumber: 11
                     }, this),
                     transaction.type === 'expense' && transaction.expenseType === 'installment' && transaction.installments && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {}, void 0, false, {
                         fileName: "[project]/src/components/transactions/transaction-item-card.tsx",
-                        lineNumber: 100,
+                        lineNumber: 103,
                         columnNumber: 11
                     }, this),
                     transaction.type === 'expense' && expenseNatureDisplay && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -3286,13 +3289,13 @@ function TransactionItemCard({ transaction, onEdit, onDelete, allUserCategories 
                         ]
                     }, void 0, true, {
                         fileName: "[project]/src/components/transactions/transaction-item-card.tsx",
-                        lineNumber: 105,
+                        lineNumber: 108,
                         columnNumber: 11
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/src/components/transactions/transaction-item-card.tsx",
-                lineNumber: 87,
+                lineNumber: 90,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -3313,12 +3316,12 @@ function TransactionItemCard({ transaction, onEdit, onDelete, allUserCategories 
                                 className: "h-4 w-4"
                             }, void 0, false, {
                                 fileName: "[project]/src/components/transactions/transaction-item-card.tsx",
-                                lineNumber: 119,
+                                lineNumber: 122,
                                 columnNumber: 13
                             }, this)
                         }, void 0, false, {
                             fileName: "[project]/src/components/transactions/transaction-item-card.tsx",
-                            lineNumber: 112,
+                            lineNumber: 115,
                             columnNumber: 11
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$button$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Button"], {
@@ -3334,29 +3337,29 @@ function TransactionItemCard({ transaction, onEdit, onDelete, allUserCategories 
                                 className: "h-4 w-4"
                             }, void 0, false, {
                                 fileName: "[project]/src/components/transactions/transaction-item-card.tsx",
-                                lineNumber: 128,
+                                lineNumber: 131,
                                 columnNumber: 13
                             }, this)
                         }, void 0, false, {
                             fileName: "[project]/src/components/transactions/transaction-item-card.tsx",
-                            lineNumber: 121,
+                            lineNumber: 124,
                             columnNumber: 11
                         }, this)
                     ]
                 }, void 0, true, {
                     fileName: "[project]/src/components/transactions/transaction-item-card.tsx",
-                    lineNumber: 111,
+                    lineNumber: 114,
                     columnNumber: 9
                 }, this)
             }, void 0, false, {
                 fileName: "[project]/src/components/transactions/transaction-item-card.tsx",
-                lineNumber: 110,
+                lineNumber: 113,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/src/components/transactions/transaction-item-card.tsx",
-        lineNumber: 67,
+        lineNumber: 70,
         columnNumber: 5
     }, this);
 }

@@ -1,8 +1,7 @@
-
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm, type SubmitHandler } from "react-hook-form"; // Added SubmitHandler
+import { useForm, type SubmitHandler } from "react-hook-form";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import {
@@ -21,7 +20,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
   DialogClose,
 } from "@/components/ui/dialog";
 import { useAuth } from "@/context/auth-context";
@@ -29,8 +27,8 @@ import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
 import { useLanguage } from "@/context/language-context";
-import { sendPasswordResetEmail, getAuth } from "firebase/auth";
-import { auth as firebaseAuth } from "@/lib/firebase"; // Renamed to avoid conflict
+// import { sendPasswordResetEmail as firebaseSendPasswordResetEmail } from "firebase/auth"; // Now using from context
+// import { auth as firebaseAuth } from "@/lib/firebase"; // Now using from context
 
 const loginFormSchema = z.object({
   email: z.string().email({ message: "Por favor, insira um email válido." }),
@@ -46,7 +44,7 @@ type ForgotPasswordFormValues = z.infer<typeof forgotPasswordSchema>;
 
 
 export function LoginForm() {
-  const { logIn } = useAuth();
+  const { logIn, sendPasswordResetEmail } = useAuth(); // Use sendPasswordResetEmail from context
   const router = useRouter();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
@@ -73,11 +71,22 @@ export function LoginForm() {
     setIsLoading(true);
     const user = await logIn(values.email, values.password);
     setIsLoading(false);
+
     if (user) {
+      if (!user.emailVerified) {
+        toast({
+          title: translate({ en: "Email Not Verified", pt: "E-mail Não Verificado" }),
+          description: translate({ en: "Please verify your email address before logging in.", pt: "Por favor, verifique seu endereço de e-mail antes de fazer login." }),
+          variant: "destructive",
+        });
+        router.push("/verify-email");
+        return;
+      }
       toast({
         title: translate({ en: "Login successful!", pt: "Login bem-sucedido!" }),
         description: translate({ en: "Welcome back.", pt: "Bem-vindo(a) de volta." })
       });
+      // Onboarding check is handled by DashboardPage or OnboardingPage itself
       router.push("/"); 
     } else {
       toast({
@@ -91,7 +100,7 @@ export function LoginForm() {
   const onForgotPasswordSubmit: SubmitHandler<ForgotPasswordFormValues> = async (data) => {
     setIsSendingResetEmail(true);
     try {
-      await sendPasswordResetEmail(firebaseAuth, data.resetEmail);
+      await sendPasswordResetEmail(data.resetEmail); // Use from context
       toast({
         title: translate({ en: "Password Reset Email Sent", pt: "E-mail de Redefinição Enviado" }),
         description: translate({ en: "If an account exists for this email, a password reset link has been sent.", pt: "Se existir uma conta para este e-mail, um link de redefinição de senha foi enviado." }),
@@ -101,9 +110,7 @@ export function LoginForm() {
     } catch (error: any) {
       console.error("Error sending password reset email:", error);
       let errorMessage = translate({ en: "Could not send reset email. Please try again.", pt: "Não foi possível enviar o e-mail de redefinição. Por favor, tente novamente." });
-      if (error.code === 'auth/user-not-found') {
-        errorMessage = translate({ en: "No user found with this email address.", pt: "Nenhum usuário encontrado com este endereço de e-mail." });
-      }
+      // Firebase specific error codes can be checked here if needed, e.g. error.code === 'auth/user-not-found'
       toast({
         title: translate({ en: "Password Reset Error", pt: "Erro na Redefinição de Senha" }),
         description: errorMessage,
