@@ -60,31 +60,35 @@ export function SignupForm() {
       try {
         await updateProfile(user, { displayName: values.name });
 
+        // Create or merge user document in Firestore
         const userDocRef = doc(db, "users", user.uid);
         await setDoc(userDocRef, {
           uid: user.uid,
           name: values.name,
           email: values.email,
           createdAt: serverTimestamp(),
-          onboardingComplete: false,
-          emailVerified: false, // Initialize emailVerified to false
-        });
+          onboardingComplete: false, // Initialize onboarding status
+          emailVerified: false, // Initialize email verification status
+        }, { merge: true }); // Use merge: true to prevent overwriting existing data
 
         await sendEmailVerification(user);
+
         toast({
           title: translate({ en: "Signup successful!", pt: "Cadastro realizado!" }),
           description: translate({ 
             en: "Your account has been created. Please check your email to verify your account before proceeding.", 
-            pt: "Sua conta foi criada com sucesso. Por favor, verifique seu e-mail para verificar sua conta antes de prosseguir." 
+            pt: "Sua conta foi criada com sucesso. Por favor, verifique seu e-mail para ativar sua conta antes de prosseguir." 
           })
         });
-        localStorage.removeItem('onboardingComplete');
-        router.push("/verify-email"); // Redirect to email verification page
+        localStorage.removeItem('onboardingComplete'); // Clear any stale local flag
+        router.push("/verify-email"); 
       } catch (error: any) {
         console.error("Error during signup post-processing:", error);
         let errorMessage = translate({ en: "An error occurred. Please try again.", pt: "Ocorreu um erro. Por favor, tente novamente." });
         if (error.code === 'auth/email-already-in-use') {
           errorMessage = translate({ en: "This email is already in use.", pt: "Este e-mail já está em uso." });
+        } else if (error.code) {
+          errorMessage = `${translate({ en: "Error:", pt: "Erro:" })} ${error.code} - ${error.message}`;
         }
         toast({
           title: translate({ en: "Signup Error", pt: "Erro no Cadastro" }),
@@ -93,6 +97,7 @@ export function SignupForm() {
         });
       }
     } else {
+      // This block is typically for when signUp itself fails (e.g., email already in use if not caught by specific code above)
       toast({
         title: translate({ en: "Signup Error", pt: "Erro no Cadastro" }),
         description: translate({ en: "Could not create your account. The email might already be in use or another error occurred.", pt: "Não foi possível criar sua conta. O e-mail já pode estar em uso ou ocorreu outro erro." }),
@@ -158,4 +163,9 @@ export function SignupForm() {
           )}
         />
         <Button type="submit" className="w-full bg-primary hover:bg-primary/90" disabled={isLoading}>
-          {isLoading ? translate({ en: "Creating account...", pt: "Criando conta..." }) : translate({ en: "Create Account", pt: "Criar
+          {isLoading ? translate({ en: "Creating account...", pt: "Criando conta..." }) : translate({ en: "Create Account", pt: "Criar Conta" })}
+        </Button>
+      </form>
+    </Form>
+  );
+}
