@@ -1707,7 +1707,7 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$re
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$trending$2d$down$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__TrendingDown$3e$__ = __turbopack_context__.i("[project]/node_modules/lucide-react/dist/esm/icons/trending-down.js [app-client] (ecmascript) <export default as TrendingDown>");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$list$2d$checks$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__ListChecks$3e$__ = __turbopack_context__.i("[project]/node_modules/lucide-react/dist/esm/icons/list-checks.js [app-client] (ecmascript) <export default as ListChecks>");
 var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$context$2f$language$2d$context$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/context/language-context.tsx [app-client] (ecmascript)");
-var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/compiled/react/index.js [app-client] (ecmascript)"); // Import useMemo
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/compiled/react/index.js [app-client] (ecmascript)");
 ;
 var _s = __turbopack_context__.k.signature();
 "use client";
@@ -1717,7 +1717,7 @@ var _s = __turbopack_context__.k.signature();
 ;
 ;
 ;
-function SummarySection({ transactionsForDisplayedPeriod, monthlyBudget, displayedMonthYearLabel }) {
+function SummarySection({ transactionsForDisplayedPeriod = [], monthlyBudget, displayedMonthYearLabel }) {
     _s();
     const { translate } = (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$context$2f$language$2d$context$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useLanguage"])();
     console.log("SummarySection: TRACER --- Received props: displayedMonthYearLabel:", displayedMonthYearLabel, "transactionsForDisplayedPeriod.length:", transactionsForDisplayedPeriod.length);
@@ -1759,7 +1759,7 @@ function SummarySection({ transactionsForDisplayedPeriod, monthlyBudget, display
                 iconClassName: "text-green-500"
             }, void 0, false, {
                 fileName: "[project]/src/components/dashboard/summary-section.tsx",
-                lineNumber: 38,
+                lineNumber: 43,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$dashboard$2f$summary$2d$card$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["SummaryCard"], {
@@ -1773,7 +1773,7 @@ function SummarySection({ transactionsForDisplayedPeriod, monthlyBudget, display
                 iconClassName: "text-red-500"
             }, void 0, false, {
                 fileName: "[project]/src/components/dashboard/summary-section.tsx",
-                lineNumber: 45,
+                lineNumber: 50,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$dashboard$2f$summary$2d$card$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["SummaryCard"], {
@@ -1790,7 +1790,7 @@ function SummarySection({ transactionsForDisplayedPeriod, monthlyBudget, display
                 iconClassName: netCashFlowThisPeriod >= 0 ? "text-primary" : "text-destructive"
             }, void 0, false, {
                 fileName: "[project]/src/components/dashboard/summary-section.tsx",
-                lineNumber: 52,
+                lineNumber: 57,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$dashboard$2f$budget$2d$summary$2d$card$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["BudgetSummaryCard"], {
@@ -1804,13 +1804,13 @@ function SummarySection({ transactionsForDisplayedPeriod, monthlyBudget, display
                 description: displayedMonthYearLabel
             }, void 0, false, {
                 fileName: "[project]/src/components/dashboard/summary-section.tsx",
-                lineNumber: 62,
+                lineNumber: 67,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/src/components/dashboard/summary-section.tsx",
-        lineNumber: 37,
+        lineNumber: 42,
         columnNumber: 5
     }, this);
 }
