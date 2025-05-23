@@ -7,13 +7,14 @@ import { AppLayout } from "@/components/layout/app-layout";
 import { SummarySection } from "@/components/dashboard/summary-section";
 import { QuickActionsSection } from "@/components/dashboard/quick-actions-section";
 import { RecentTransactionsSection } from "@/components/dashboard/recent-transactions-section";
-import { Card, CardContent, CardHeader, CardDescription, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardDescription } from "@/components/ui/card";
 import type { Transaction, DisplayCategory, UserPreferences, CustomCategoryData, PaymentMethodName, DisplayPaymentMethod, CustomPaymentMethodData, CategoryName } from "@/types";
 import { CATEGORIES, PAYMENT_METHODS, getCategoryDisplayLabel, getPaymentMethodDisplayLabel } from "@/types";
-import { collection, query, orderBy, onSnapshot, doc, getDoc, addDoc, serverTimestamp, Timestamp, writeBatch, Unsubscribe } from "firebase/firestore";
+import { collection, query, orderBy, onSnapshot, doc, getDoc, addDoc, serverTimestamp, Timestamp, writeBatch, type Unsubscribe } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency, cn } from "@/lib/utils";
-import { CategoryIcon, Package, Wallet } from "lucide-react"; 
+import { CategoryIcon } from "@/components/icons"; // Correct import for CategoryIcon
+import { Package, Wallet } from "lucide-react"; // Correct import for Package and Wallet
 import { useDateNavigation } from '@/context/date-navigation-context';
 import { useLanguage } from '@/context/language-context';
 import { 
@@ -28,7 +29,8 @@ import {
   setDate as setDateFnsDate,
   differenceInCalendarMonths,
   isWithinInterval,
-  lastDayOfMonth
+  lastDayOfMonth,
+  parseISO as parseISODateFns
 } from 'date-fns';
 import { ptBR, enUS } from 'date-fns/locale';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -42,7 +44,7 @@ export default function DashboardPage() {
   const { toast } = useToast();
   const { displayedDate, displayedMonthYearLabel } = useDateNavigation();
 
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
   const [isLoadingTransactions, setIsLoadingTransactions] = useState(true);
   
   const [userCategories, setUserCategories] = useState<DisplayCategory[]>([]);
@@ -60,33 +62,37 @@ export default function DashboardPage() {
 
   const [showAllRecentIncome, setShowAllRecentIncome] = useState(false);
   const [showAllRecentExpenses, setShowAllRecentExpenses] = useState(false);
+  
+  console.log("DashboardPage TRACER --- About to RENDER. displayedDate for QuickActionsSection:", displayedDate.toISOString());
 
   const cleanupListener = useCallback((listenerRef: React.MutableRefObject<Unsubscribe | null>, type: string, currentUserIdForCleanup?: string | null) => {
     if (listenerRef.current && typeof listenerRef.current === 'function') {
-      console.log(\`DashboardPage: TRACER --- cleanupListener: Unsubscribing \${type} for UserID:\`, currentUserIdForCleanup || "N/A");
+      console.log("DashboardPage: TRACER --- cleanupListener: Unsubscribing " + type + " for UserID:", currentUserIdForCleanup || "N/A");
       listenerRef.current();
       listenerRef.current = null;
+    } else {
+      console.log("DashboardPage: TRACER --- cleanupListener: No snapshot to unsubscribe for " + type + " or ref is not a function for UserID:", currentUserIdForCleanup || "N/A");
     }
   }, []);
 
   useEffect(() => {
-    console.log("DashboardPage TRACER --- isClient useEffect running");
+    console.log("DashboardPage: TRACER --- isClient useEffect running");
     setIsClient(true);
     effectMountedRef.current = true; 
-    
-    const currentUserIdForCleanup = mainFetchInitiatedForUser.current; 
+    const currentUserIdForCleanupOnUnmount = mainFetchInitiatedForUser.current; 
+
     return () => {
-      console.log("DashboardPage: TRACER --- Component UNMOUNT: Cleaning up ALL listeners for UserID:", currentUserIdForCleanup);
       effectMountedRef.current = false; 
-      cleanupListener(unsubscribeTransactionsRef, "transactions", currentUserIdForCleanup);
-      cleanupListener(unsubscribePreferencesRef, "preferences", currentUserIdForCleanup);
+      console.log("DashboardPage: TRACER --- Main useEffect (isClient) UNMOUNTING/CLEANUP for UserID:", currentUserIdForCleanupOnUnmount);
+      cleanupListener(unsubscribeTransactionsRef, "transactions on unmount", currentUserIdForCleanupOnUnmount);
+      cleanupListener(unsubscribePreferencesRef, "preferences on unmount", currentUserIdForCleanupOnUnmount);
     };
   }, [cleanupListener]); 
 
-
-  // Listener for User Preferences (Categories and Payment Methods)
+  // Listener for User Preferences
   useEffect(() => {
-    if (!userId || !isClient || authLoading) {
+    const currentUserId = userId; 
+    if (!isClient || authLoading || !currentUserId) {
       if (effectMountedRef.current) {
         const defaultCats: DisplayCategory[] = [...CATEGORIES];
         const defaultPms: DisplayPaymentMethod[] = [...PAYMENT_METHODS];
@@ -94,17 +100,21 @@ export default function DashboardPage() {
         setUserPaymentMethods(defaultPms.sort((a,b) => getPaymentMethodDisplayLabel(a,language).localeCompare(getPaymentMethodDisplayLabel(b,language))));
         if (isLoadingPreferences) setIsLoadingPreferences(false);
       }
-      cleanupListener(unsubscribePreferencesRef, "preferences (no user/auth/client)", userId);
+      cleanupListener(unsubscribePreferencesRef, "preferences (no user/auth/client or effect unmounted)", currentUserId);
       return;
     }
 
     if (effectMountedRef.current && !isLoadingPreferences) setIsLoadingPreferences(true);
-    const preferencesDocRef = doc(db, 'users', userId, 'preferences/userPreferences');
+    console.log("DashboardPage: TRACER --- Setting up preferences listener for UserID:", currentUserId);
+    const preferencesDocRef = doc(db, 'users', currentUserId, 'preferences/userPreferences');
     
-    cleanupListener(unsubscribePreferencesRef, "preferences (before new listener)", userId);
+    cleanupListener(unsubscribePreferencesRef, "preferences (before new listener)", currentUserId);
 
     unsubscribePreferencesRef.current = onSnapshot(preferencesDocRef, (docSnap) => {
-      if (!effectMountedRef.current) return;
+      if (!effectMountedRef.current) {
+        console.log("DashboardPage: TRACER --- Preferences snapshot received, but component unmounted for UserID:", currentUserId);
+        return;
+      }
       
       let finalCategories: DisplayCategory[] = []; 
       let finalPaymentMethods: DisplayPaymentMethod[] = []; 
@@ -113,13 +123,15 @@ export default function DashboardPage() {
 
       if (docSnap.exists()) {
         const prefsData = docSnap.data() as UserPreferences;
+        console.log("DashboardPage: TRACER --- Preferences loaded:", prefsData);
+        
+        // Process Categories
         const userDefinedCategoriesFromPrefs: CustomCategoryData[] = prefsData.userDefinedCategories || [];
         const deselectedPredefinedCatNames = new Set((prefsData.deselectedPredefinedCategories || []).map(name => name.toLowerCase()));
         const customCategoriesMap = new Map<string, CustomCategoryData>();
         userDefinedCategoriesFromPrefs.forEach(cc => customCategoriesMap.set(cc.name.toLowerCase(), cc));
 
         finalCategories = predefinedCategoriesArray
-          .filter(predefCat => !deselectedPredefinedCatNames.has(predefCat.name.toLowerCase()))
           .map(predefCat => {
             const customOverride = customCategoriesMap.get(predefCat.name.toLowerCase());
             if (customOverride) {
@@ -127,20 +139,26 @@ export default function DashboardPage() {
               return { ...predefCat, ...customOverride }; 
             }
             return predefCat;
-          });
+          })
+          .filter(cat => !deselectedPredefinedCatNames.has(cat.name.toLowerCase()));
+        
         customCategoriesMap.forEach(customCat => {
           if (!finalCategories.some(fc => fc.name.toLowerCase() === customCat.name.toLowerCase())) {
             finalCategories.push(customCat);
           }
         });
-        
+        if (finalCategories.length === 0 && predefinedCategoriesArray.length > 0) {
+           finalCategories = [...predefinedCategoriesArray.filter(cat => !deselectedPredefinedCatNames.has(cat.name.toLowerCase()))];
+           if(finalCategories.length === 0) finalCategories = [...predefinedCategoriesArray];
+        }
+
+        // Process Payment Methods
         const userDefinedPaymentMethodsFromPrefs: CustomPaymentMethodData[] = prefsData.userDefinedPaymentMethods || [];
         const deselectedPredefinedPmNames = new Set((prefsData.deselectedPredefinedPaymentMethods || []).map(name => name.toLowerCase()));
         const customPaymentMethodsMap = new Map<string, CustomPaymentMethodData>();
         userDefinedPaymentMethodsFromPrefs.forEach(customPm => customPaymentMethodsMap.set(customPm.name.toLowerCase(), customPm));
 
         finalPaymentMethods = predefinedPaymentMethodsArray
-          .filter(predefPm => !deselectedPredefinedPmNames.has(predefPm.name.toLowerCase()))
           .map(predefPm => {
             const customOverride = customPaymentMethodsMap.get(predefPm.name.toLowerCase());
             if (customOverride) {
@@ -148,13 +166,21 @@ export default function DashboardPage() {
               return { ...predefPm, ...customOverride };
             }
             return predefPm;
-          });
+          })
+          .filter(pm => !deselectedPredefinedPmNames.has(pm.name.toLowerCase()));
+
         customPaymentMethodsMap.forEach(customPm => {
           if (!finalPaymentMethods.some(fpm => fpm.name.toLowerCase() === customPm.name.toLowerCase())) {
             finalPaymentMethods.push(customPm);
           }
         });
+        if (finalPaymentMethods.length === 0 && predefinedPaymentMethodsArray.length > 0) {
+            finalPaymentMethods = [...predefinedPaymentMethodsArray.filter(pm => !deselectedPredefinedPmNames.has(pm.name.toLowerCase()))];
+            if(finalPaymentMethods.length === 0) finalPaymentMethods = [...predefinedPaymentMethodsArray];
+        }
+
       } else { 
+         console.log("DashboardPage: TRACER --- No preferences document found for UserID:", currentUserId);
          finalCategories = [...predefinedCategoriesArray];
          finalPaymentMethods = [...predefinedPaymentMethodsArray];
       }
@@ -163,10 +189,11 @@ export default function DashboardPage() {
         setUserCategories(finalCategories.sort((a,b) => getCategoryDisplayLabel(a, language).localeCompare(getCategoryDisplayLabel(b, language))));
         setUserPaymentMethods(finalPaymentMethods.sort((a,b) => getPaymentMethodDisplayLabel(a, language).localeCompare(getPaymentMethodDisplayLabel(b, language))));
         setIsLoadingPreferences(false);
+        console.log("DashboardPage: TRACER --- Set userCategories:", finalCategories.length, "items; Set userPaymentMethods:", finalPaymentMethods.length, "items");
       }
     }, (error) => {
       if (!effectMountedRef.current) return;
-      console.error("DashboardPage: TRACER --- Error listening to user preferences for UserID:", userId, error);
+      console.error("DashboardPage: TRACER --- Error listening to user preferences for UserID:", currentUserId, error);
       toast({ title: translate({ en: "Error Loading Preferences", pt: "Erro ao Carregar Preferências" }), description: translate({en: "Could not load your settings.", pt: "Não foi possível carregar suas configurações."}), variant: "destructive" });
       if (effectMountedRef.current) {
         setUserCategories([...CATEGORIES].sort((a,b) => getCategoryDisplayLabel(a, language).localeCompare(getCategoryDisplayLabel(b, language)))); 
@@ -174,101 +201,128 @@ export default function DashboardPage() {
         setIsLoadingPreferences(false);
       }
     });
-    return () => cleanupListener(unsubscribePreferencesRef, "preferences (cleanup)", userId);
+    return () => cleanupListener(unsubscribePreferencesRef, "preferences (cleanup)", currentUserId);
   }, [userId, isClient, authLoading, language, toast, translate, cleanupListener]);
-
 
   // Main useEffect for fetching transactions and user onboarding status
   useEffect(() => {
-    const fullCleanup = () => {
-      cleanupListener(unsubscribeTransactionsRef, "transactions (full cleanup)", mainFetchInitiatedForUser.current);
-      mainFetchInitiatedForUser.current = null;
-    };
+    const currentUserId = userId;
+    console.log("Dashboard: TRACER --- Main useEffect START. UserID:", currentUserId, ", AuthLoading:", authLoading, ", isClient:", isClient, ", InitiatedFor:", mainFetchInitiatedForUser.current, ", isLoadingTransactions:", isLoadingTransactions);
 
-    if (!isClient) return fullCleanup;
-    if (authLoading) {
-      if (effectMountedRef.current && !isLoadingTransactions) setIsLoadingTransactions(true);
-      return fullCleanup;
+    if (!isClient) {
+      console.log("Dashboard: TRACER --- Main useEffect: Not client yet, waiting.");
+      return;
     }
-    if (!userId) {
+    if (authLoading) {
+      console.log("Dashboard: TRACER --- Main useEffect: Auth is loading, waiting...");
+      // Don't set isLoadingTransactions to false here yet, wait for auth to resolve.
+      return;
+    }
+    if (!currentUserId) {
+      console.log("Dashboard: TRACER --- Main useEffect: No user ID, redirecting to login. Setting all loading false.");
       if (effectMountedRef.current) {
-        setTransactions([]);
-        if(isLoadingTransactions) setIsLoadingTransactions(false); 
+        setIsLoadingTransactions(false); 
+        setIsLoadingPreferences(false); 
+        setIsLoadingBudgets(false); 
       }
       router.push('/login');
-      return fullCleanup;
+      return;
     }
-    if (user && !user.emailVerified) {
+     if (user && !user.emailVerified) {
+      console.log("Dashboard: TRACER --- Main useEffect: User email not verified, redirecting. Setting all loading false.");
+      if(effectMountedRef.current) {
+        setIsLoadingTransactions(false);
+        setIsLoadingPreferences(false);
+        setIsLoadingBudgets(false);
+      }
       router.push('/verify-email');
-      if(effectMountedRef.current && isLoadingTransactions) setIsLoadingTransactions(false);
-      return fullCleanup;
+      return;
     }
 
-    if (mainFetchInitiatedForUser.current !== userId || !unsubscribeTransactionsRef.current) {
+    if (mainFetchInitiatedForUser.current !== currentUserId || !unsubscribeTransactionsRef.current) {
+      console.log("Dashboard: TRACER --- Main useEffect: Initiating NEW fetch/listener for UserID:", currentUserId, ". PrevInitiatedFor:", mainFetchInitiatedForUser.current, ". ListenerExisted:", !!unsubscribeTransactionsRef.current);
       cleanupListener(unsubscribeTransactionsRef, "transactions (stale before new)", mainFetchInitiatedForUser.current); 
-      mainFetchInitiatedForUser.current = userId; 
-
-      const fetchDataInternal = async (currentUserId: string) => {
+      mainFetchInitiatedForUser.current = currentUserId; 
+      
+      const fetchDataInternal = async (targetUserId: string) => {
         if (!effectMountedRef.current) {
-          if(effectMountedRef.current) setIsLoadingTransactions(false);
+          console.log("Dashboard: TRACER --- fetchDataInternal: Component unmounted before starting for UserID:", targetUserId);
+          if (effectMountedRef.current && isLoadingTransactions) setIsLoadingTransactions(false); 
           return;
         }
+        console.log("Dashboard: TRACER --- setIsLoadingTransactions(true) for new fetch/setup of user:", targetUserId);
         if (effectMountedRef.current) setIsLoadingTransactions(true); 
+        console.log("Dashboard: TRACER --- fetchDataInternal: Starting for UserID:", targetUserId);
         
         try {
-          const userDocRef = doc(db, "users", currentUserId);
+          const userDocRef = doc(db, "users", targetUserId);
           const userDocSnap = await getDoc(userDocRef);
 
           if (!effectMountedRef.current) {
-             if(effectMountedRef.current) setIsLoadingTransactions(false);
+            console.log("Dashboard: TRACER --- fetchDataInternal: Component unmounted after getDoc for UserID:", targetUserId);
+             if (effectMountedRef.current && isLoadingTransactions) setIsLoadingTransactions(false);
             return;
           }
 
           if (!userDocSnap.exists() || !userDocSnap.data()?.onboardingComplete) {
             if (effectMountedRef.current) {
-              setIsLoadingTransactions(false);
-              router.push(userDocSnap.exists() && !userDocSnap.data()?.emailVerified ? '/verify-email' : '/onboarding'); 
+              console.log("Dashboard: TRACER --- fetchDataInternal: User onboarding not complete or doc doesn't exist for UserID:", targetUserId, ". Redirecting to onboarding.");
+              setIsLoadingTransactions(false); // Ensure loading is false before redirect
+              setIsLoadingPreferences(false); // Also related to user data
+              setIsLoadingBudgets(false); // Also related to user data
+              router.push('/onboarding'); 
             }
             return;
           }
+          console.log("Dashboard: TRACER --- fetchDataInternal: User onboarding complete for UserID:", targetUserId, ". Setting up onSnapshot listener for transactions.");
           
-          const transactionsColRef = collection(db, 'users', currentUserId, 'transactions');
+          const transactionsColRef = collection(db, 'users', targetUserId, 'transactions');
           const q_transactions = query(transactionsColRef); 
           
           if (unsubscribeTransactionsRef.current) { 
-            unsubscribeTransactionsRef.current();
+            console.log("Dashboard: TRACER --- fetchDataInternal: Stale transaction snapshot ref found before new onSnapshot. Cleaning up again for UserID:", targetUserId);
+            unsubscribeTransactionsRef.current(); 
             unsubscribeTransactionsRef.current = null;
           }
 
           unsubscribeTransactionsRef.current = onSnapshot(q_transactions, (querySnapshot) => {
-            if (!effectMountedRef.current) return;
+            if (!effectMountedRef.current) {
+                console.log("Dashboard: TRACER --- Transaction onSnapshot: Received data, but component unmounted for UserID:", targetUserId);
+                return;
+            }
+            console.log("Dashboard: TRACER --- Transaction onSnapshot: Received data for UserID:", targetUserId, ". Empty:", querySnapshot.empty, "PendingWrites:", querySnapshot.metadata.hasPendingWrites);
             const fetchedTransactions = querySnapshot.docs.map(docSnap => {
               const data = docSnap.data();
               let dateString = "1970-01-01"; 
               let effectiveMonthString = data.effectiveMonth;
 
+              // Date processing
               if (data.date) {
                 if (data.date instanceof Timestamp) {
                   dateString = formatDateFns(data.date.toDate(), "yyyy-MM-dd");
                 } else if (typeof data.date === 'string') {
-                    if (/^\d{4}-\d{2}-\d{2}$/.test(data.date)) { 
-                      dateString = data.date; 
-                    } else {
-                        try { 
-                            dateString = formatDateFns(parseDateFns(data.date, "yyyy-MM-dd'T'HH:mm:ss.SSSXXX", new Date(0)), "yyyy-MM-dd");
-                        } catch (e1){ 
-                          try { 
-                            dateString = formatDateFns(parseDateFns(data.date, "yyyy-MM-dd'T'HH:mm:ssXXX", new Date(0)), "yyyy-MM-dd");
-                          } catch (e2) {
-                            try {
-                                dateString = formatDateFns(new Date(data.date), "yyyy-MM-dd");
-                            } catch (e3){
-                                console.warn("DashboardPage TX Date Parse (string general for " + String(docSnap.id) + "): Failed for date '" + String(data.date) + "'. Error: " + String(e3) + ". Fallback to current date.");
-                                dateString = formatDateFns(new Date(), "yyyy-MM-dd"); 
-                            }
-                          }
-                        }
+                  if (/^\d{4}-\d{2}-\d{2}$/.test(data.date)) { 
+                    dateString = data.date; 
+                  } else if (data.date.includes('T')) {
+                    try { 
+                      dateString = formatDateFns(parseISODateFns(data.date), "yyyy-MM-dd");
+                    } catch (e1){ 
+                      try { 
+                        dateString = formatDateFns(new Date(data.date), "yyyy-MM-dd");
+                      } catch (e2){
+                        console.warn("DashboardPage TX Date Parse (string T general for " + String(docSnap.id) + "): Failed for date '" + String(data.date) + "'. Error: " + String(e2) + ". Fallback to current date.");
+                        dateString = formatDateFns(new Date(), "yyyy-MM-dd"); 
+                      }
                     }
+                  } else { 
+                    console.warn("DashboardPage TX Date Parse (string other for " + String(docSnap.id) + "): Date was '" + String(data.date) + "'. Attempting general parse.");
+                    try {
+                      dateString = formatDateFns(new Date(data.date), "yyyy-MM-dd");
+                    } catch (e){
+                      console.warn("DashboardPage TX Date Parse (string other general for " + String(docSnap.id) + "): Failed. Error: " + String(e) + ". Fallback to current date.");
+                      dateString = formatDateFns(new Date(), "yyyy-MM-dd");
+                    }
+                  }
                 } else { 
                    console.warn("DashboardPage TX Date Parse (missing/invalid for " + String(docSnap.id) + "): Date was '" + String(data.date) + "'. Fallback to current date.");
                    dateString = formatDateFns(new Date(), "yyyy-MM-dd"); 
@@ -278,6 +332,7 @@ export default function DashboardPage() {
                  dateString = formatDateFns(new Date(), "yyyy-MM-dd");
               }
 
+              // EffectiveMonth processing
               if (!effectiveMonthString || !/^\d{4}-\d{2}$/.test(effectiveMonthString)) {
                  if (dateString && dateString !== "1970-01-01") { 
                     try {
@@ -303,58 +358,73 @@ export default function DashboardPage() {
               } as Transaction;
             });
             if (effectMountedRef.current) {
-              setTransactions(fetchedTransactions);
+              console.log("Dashboard: TRACER --- Transaction onSnapshot: Setting " + fetchedTransactions.length + " transactions for UserID:", targetUserId);
+              setAllTransactions(fetchedTransactions);
               setIsLoadingTransactions(false);
+              console.log("Dashboard: TRACER --- setIsLoadingTransactions(false) after processing snapshot data for UserID:", targetUserId);
             }
           }, (error: any) => {
-            if (!effectMountedRef.current) return;
-            console.error("DashboardPage: TRACER --- Transaction onSnapshot: Error listening for UserID:", currentUserId, error);
+            if (!effectMountedRef.current) {
+              console.log("Dashboard: TRACER --- Transaction onSnapshot error, but component unmounted for UserID:", targetUserId);
+              return;
+            }
+            console.error("DashboardPage: TRACER --- Transaction onSnapshot: Error listening for UserID:", targetUserId, error);
             toast({ title: translate({ en: "Transaction Error", pt: "Erro nas Transações" }), description: translate({en: "Could not load transactions.", pt: "Não foi possível carregar as transações."}), variant: "destructive" });
             if (effectMountedRef.current) {
-              setTransactions([]);
+              setAllTransactions([]);
               setIsLoadingTransactions(false);
             }
           });
         } catch (error) {
           if (!effectMountedRef.current) {
-            if(effectMountedRef.current) setIsLoadingTransactions(false); 
+             console.log("Dashboard: TRACER --- fetchDataInternal: Error, but component unmounted for UserID:", targetUserId);
+            if(effectMountedRef.current && isLoadingTransactions) setIsLoadingTransactions(false); 
             return;
           }
-          console.error("DashboardPage: TRACER --- fetchDataInternal: Error for UserID:", currentUserId, error);
+          console.error("DashboardPage: TRACER --- fetchDataInternal: Error for UserID:", targetUserId, error);
           toast({ title: translate({ en: "Error", pt: "Erro" }), description: translate({en: "An error occurred loading data.", pt: "Ocorreu um erro ao carregar os dados."}), variant: "destructive" });
           if (effectMountedRef.current) {
-            setTransactions([]);
+            setAllTransactions([]);
             setIsLoadingTransactions(false); 
           }
         }
       };
-      fetchDataInternal(userId);
+      fetchDataInternal(currentUserId);
     } else {
+        console.log("Dashboard: TRACER --- Main useEffect: Fetch already initiated for this user or listener exists. CurrentUser:", currentUserId, "mainFetchInitiatedForUser:", mainFetchInitiatedForUser.current, "ListenerExists:", !!unsubscribeTransactionsRef.current);
         if(effectMountedRef.current && isLoadingTransactions) { 
-            setIsLoadingTransactions(false); 
+            // This case is tricky: if the effect re-runs due to other dep changes but fetch shouldn't happen,
+            // ensure loading is false if it was true for some reason.
+            // However, if a fetch for this user IS in progress, this could prematurely set it to false.
+            // The `mainFetchInitiatedForUser` and `!unsubscribeTransactionsRef.current` checks should handle this.
         }
     }
-    return fullCleanup;
-  }, [userId, authLoading, isClient, router, cleanupListener, toast, translate, user]); 
+    // Cleanup function for the main useEffect
+    return () => {
+      console.log("Dashboard: TRACER --- Main useEffect FULL CLEANUP for UserID:", currentUserId);
+      cleanupListener(unsubscribeTransactionsRef, "transactions (main effect cleanup)", currentUserId);
+    };
+  }, [userId, authLoading, isClient, router, toast, translate, cleanupListener]); // Dependencies for main data fetching effect
 
   const loadBudgets = useCallback(async () => {
-    if (!effectMountedRef.current || !userId || !isClient || authLoading ) {
+    const currentUserId = userId; // Use userId from the outer scope
+    if (!effectMountedRef.current || !currentUserId || !isClient || authLoading ) {
       if (effectMountedRef.current) {
         setLoadedBudgetsForMonth(null); 
-        setIsLoadingBudgets(false); 
+        if (isLoadingBudgets) setIsLoadingBudgets(false); 
       }
       return;
     }
-    if (!effectMountedRef.current) return; // Guard against updates on unmounted component
-
-    if (effectMountedRef.current) setIsLoadingBudgets(true);
+    
+    if (effectMountedRef.current && !isLoadingBudgets) setIsLoadingBudgets(true);
     const budgetMonthKey = formatDateFns(displayedDate, 'yyyy-MM');
-    const budgetDocRef = doc(db, 'users/' + userId + '/budgets/' + budgetMonthKey);
+    console.log("Dashboard: TRACER --- Loading budgets for user " + currentUserId + ", month: " + budgetMonthKey);
+    const budgetDocRef = doc(db, 'users/' + currentUserId + '/budgets/' + budgetMonthKey);
     
     try {
       const docSnap = await getDoc(budgetDocRef);
       if (!effectMountedRef.current) { 
-        if(effectMountedRef.current) setIsLoadingBudgets(false);
+        if(effectMountedRef.current && isLoadingBudgets) setIsLoadingBudgets(false);
         return; 
       }
       if (docSnap.exists()) {
@@ -371,21 +441,23 @@ export default function DashboardPage() {
       }
     } catch (error) {
       if (!effectMountedRef.current) {
-         if(effectMountedRef.current) setIsLoadingBudgets(false);
+         if(effectMountedRef.current && isLoadingBudgets) setIsLoadingBudgets(false);
          return;
       }
-      console.error("Dashboard: Error loading budgets for UserID:", userId, "Month:", budgetMonthKey, error);
+      console.error("Dashboard: TRACER --- Error loading budgets for UserID:", currentUserId, "Month:", budgetMonthKey, error);
       toast({ title: translate({ en: "Error Loading Budgets", pt: "Erro ao Carregar Orçamentos" }), description: translate({en: "Could not load your budget data for this month.", pt: "Não foi possível carregar seus dados de orçamento para este mês."}), variant: "destructive" });
       if (effectMountedRef.current) setLoadedBudgetsForMonth({}); 
     } finally {
-      if (effectMountedRef.current) setIsLoadingBudgets(false);
+      if (effectMountedRef.current && isLoadingBudgets) setIsLoadingBudgets(false);
     }
-  }, [userId, isClient, authLoading, displayedDate, toast, translate]); 
+  }, [userId, isClient, authLoading, displayedDate, toast, translate, isLoadingBudgets]); 
 
   useEffect(() => {
+    console.log("Dashboard: TRACER --- useEffect for loadBudgets. UserID:", userId, "isClient:", isClient, "AuthLoading:", authLoading);
     if (userId && isClient && !authLoading) { 
         loadBudgets();
-    } else if (effectMountedRef.current) { 
+    } else if (effectMountedRef.current && isLoadingBudgets) { 
+        console.log("Dashboard: TRACER --- useEffect for loadBudgets: Conditions not met, ensuring budgets loading is false.");
         setLoadedBudgetsForMonth(null); 
         setIsLoadingBudgets(false); 
     }
@@ -393,36 +465,53 @@ export default function DashboardPage() {
 
 
  const onAddTransaction = useCallback(async (newTransactionData: Omit<Transaction, "id" | "userId" | "createdAt" | "updatedAt">) => {
-    if (!userId) {
+    const currentUserId = userId; 
+    if (!currentUserId) {
       toast({ title: translate({ en: "Error", pt: "Erro" }), description: translate({ en: "User not authenticated.", pt: "Usuário não autenticado." }), variant: "destructive" });
       return;
     }
     
-    const transactionDate = newTransactionData.date; // This is "YYYY-MM-DD" string from form
-    const effectiveMonthForSave = formatDateFns(displayedDate, "yyyy-MM"); // Based on dashboard's displayed month
-
-    console.log("DashboardPage TRACER --- onAddTransaction: Received date from form:", transactionDate);
+    // The date from the form is already YYYY-MM-DD string
+    const transactionActualDate = newTransactionData.date; 
+    // Effective month is based on the month currently being viewed on the dashboard
+    const effectiveMonthForSave = formatDateFns(displayedDate, "yyyy-MM"); 
+    
+    console.log("DashboardPage TRACER --- onAddTransaction: Received date from form:", transactionActualDate);
     
     const fullPayload = {
       ...newTransactionData,
-      date: transactionDate, 
+      date: transactionActualDate, 
       effectiveMonth: effectiveMonthForSave, 
-      userId: userId,
+      userId: currentUserId,
       createdAt: serverTimestamp(),
     };
-    
+
     const dataToSave = Object.fromEntries(
-        Object.entries(fullPayload).filter(([_, value]) => value !== undefined)
+      Object.entries(fullPayload).filter(([_, value]) => value !== undefined)
     ) as Partial<Transaction & { createdAt: any; userId: string; effectiveMonth: string }>;
     
-    console.log("DashboardPage TRACER --- onAddTransaction: Saving to Firestore with date:", dataToSave.date, "and effectiveMonth:", dataToSave.effectiveMonth, "Full dataToSave:", JSON.stringify(dataToSave));
+    // Ensure isRecurring is explicitly false if not otherwise set (especially for upfront/installment expenses)
+    if (dataToSave.type === 'expense') {
+      if (dataToSave.expenseType === 'recurring') {
+        dataToSave.isRecurring = true;
+      } else {
+        dataToSave.isRecurring = false; // Explicitly false for upfront or installment
+      }
+    } else { // income
+      dataToSave.isRecurring = dataToSave.isRecurring ?? false;
+    }
+    
+    console.log("DashboardPage TRACER --- onAddTransaction: Saving to Firestore with date:", dataToSave.date, "and effectiveMonth:", dataToSave.effectiveMonth);
+    console.log("DashboardPage TRACER --- onAddTransaction: Full dataToSave:", JSON.stringify(dataToSave, null, 2));
+    console.log("DashboardPage TRACER --- onAddTransaction: Full newTransactionData from form:", JSON.stringify(newTransactionData, null, 2));
+
 
     try {
-      const transactionsColRef = collection(db, 'users', userId, 'transactions');
+      const transactionsColRef = collection(db, 'users', currentUserId, 'transactions');
       await addDoc(transactionsColRef, dataToSave);
       toast({ title: translate({ en: "Transaction Added", pt: "Transação Adicionada" }), description: newTransactionData.description + " " + translate({en:"added.", pt:"adicionada."})});
     } catch (error: any) {
-      console.error("Dashboard: TRACER --- onAddTransaction: Error adding transaction for UserID:", userId, error);
+      console.error("Dashboard: TRACER --- onAddTransaction: Error adding transaction for UserID:", currentUserId, error);
       toast({ title: translate({ en: "Error adding transaction", pt: "Erro ao adicionar transação" }), description: (error.message || translate({en:"Could not save your transaction.", pt: "Não foi possível salvar sua transação."})), variant: "destructive" });
     }
   }, [userId, displayedDate, toast, translate]);
@@ -431,49 +520,64 @@ export default function DashboardPage() {
   const transactionsForDisplayedPeriod = useMemo(() => {
     const targetEffectiveMonth = formatDateFns(displayedDate, "yyyy-MM");
     const firstDayOfTargetMonth = startOfMonth(displayedDate);
-    console.log("Dashboard: TRACER --- transactionsForDisplayedPeriod: Recalculating for Year:", getYearFns(displayedDate), "Month:", getMonthFns(displayedDate), "(0-indexed for", displayedMonthYearLabel, "), TargetEffMonth:", targetEffectiveMonth, "All transactions count:", transactions.length);
+    
+    console.log("Dashboard: TRACER --- transactionsForDisplayedPeriod: Recalculating for Year:", getYearFns(displayedDate), "Month:", getMonthFns(displayedDate), "(0-indexed for", displayedMonthYearLabel, "), TargetEffMonth:", targetEffectiveMonth, "All transactions count:", allTransactions.length);
 
-    if (transactions.length === 0) {
+    if (allTransactions.length === 0) {
       console.log("Dashboard: TRACER --- transactionsForDisplayedPeriod: No transactions in allTransactions, returning empty.");
       return [];
     }
     
     const filtered: Transaction[] = [];
-    transactions.forEach(t => {
+    allTransactions.forEach(t => {
       let includeTransaction = false;
       let reason = "N/A";
+      let originalTransactionDate: Date;
       
       try {
-        if (t.type === 'expense' && t.expenseType === 'installment' && t.installments && t.installments > 0) {
-          reason = "Installment Check";
-          const firstImpactMonthDate = parseDateFns(t.effectiveMonth + "-01", "yyyy-MM-dd", new Date(0));
-          const monthDiffFromEffectiveStart = differenceInCalendarMonths(firstDayOfTargetMonth, startOfMonth(firstImpactMonthDate));
-          const isActive = monthDiffFromEffectiveStart >= 0 && monthDiffFromEffectiveStart < t.installments;
-          if (isActive) includeTransaction = true;
-
-        } else if (t.isRecurring === true && t.expenseType !== 'installment') { 
-          reason = "Recurring Check";
-          const firstImpactMonthDate = parseDateFns(t.effectiveMonth + "-01", "yyyy-MM-dd", new Date(0));
-          if (startOfMonth(firstImpactMonthDate) <= firstDayOfTargetMonth) {
-            includeTransaction = true;
-          }
-        } else { 
-          reason = "Non-Recurring Check";
-          if (t.effectiveMonth === targetEffectiveMonth) {
-            includeTransaction = true;
-          }
-        }
-        console.log("Dashboard TRACER --- Tx Filter (Summary): ID:", t.id, "Date:", t.date, "EffMonth:", t.effectiveMonth, "Type:", t.type, "ExpType:", t.expenseType, "isRec:", t.isRecurring, "Inst:", t.installments, "Amount:", t.amount, "Included:", includeTransaction, "Reason:", reason, "Target:", targetEffectiveMonth);
-        if (includeTransaction) {
-          filtered.push(t);
-        }
+        originalTransactionDate = parseDateFns(t.date, "yyyy-MM-dd", new Date(0));
       } catch (e) {
-        console.error("DashboardPage: TRACER --- Error processing transaction", t.id, "in transactionsForDisplayedPeriod:", e, t);
+        console.warn("Dashboard: TRACER --- Tx Filter: Could not parse t.date '" + String(t.date) + "' for tx ID " + String(t.id) + ". Error:", e);
+        return; 
+      }
+      
+      // Handle installments
+      if (t.type === 'expense' && t.expenseType === 'installment' && t.installments && t.installments > 0) {
+        reason = "Installment Check";
+        // For summaries, an installment applies if its effectiveMonth is the start of the series,
+        // AND the current displayedDate is within the installment period.
+        const firstImpactMonthDate = parseDateFns(t.effectiveMonth + "-01", "yyyy-MM-dd", new Date(0));
+        const monthDiffFromEffectiveStart = differenceInCalendarMonths(firstDayOfTargetMonth, startOfMonth(firstImpactMonthDate));
+        const isInstallmentActiveThisMonth = monthDiffFromEffectiveStart >= 0 && monthDiffFromEffectiveStart < t.installments;
+        
+        if (isInstallmentActiveThisMonth) {
+          includeTransaction = true;
+        }
+      } 
+      // Handle generic recurring (non-installment)
+      else if (t.isRecurring === true && t.expenseType !== 'installment') { 
+        reason = "Recurring Check";
+        // For summaries, a recurring item applies if its effectiveMonth is on or before the current displayed month
+        const firstImpactMonthDate = parseDateFns(t.effectiveMonth + "-01", "yyyy-MM-dd", new Date(0));
+        if (startOfMonth(firstImpactMonthDate) <= firstDayOfTargetMonth) {
+          includeTransaction = true;
+        }
+      } 
+      // Handle non-recurring, non-installment
+      else { 
+        reason = "Non-Recurring Check";
+        if (t.effectiveMonth === targetEffectiveMonth) { 
+          includeTransaction = true;
+        }
+      }
+      console.log("Dashboard: TRACER --- Tx Filter: ID:", t.id, "Date:", t.date, "EffMonth:", t.effectiveMonth, "Type:", t.type, "ExpType:", t.expenseType, "isRec:", t.isRecurring, "Inst:", t.installments, "Amount:", t.amount, "Included:", includeTransaction, "Reason:", reason, "Target:", targetEffectiveMonth);
+      if (includeTransaction) {
+        filtered.push(t);
       }
     });
     console.log("Dashboard: TRACER --- transactionsForDisplayedPeriod: Found", filtered.length, "transactions for the period.");
     return filtered;
-  }, [transactions, displayedDate, displayedMonthYearLabel]); 
+  }, [allTransactions, displayedDate, displayedMonthYearLabel]); 
 
 
   const totalIncomeForSummary = useMemo(() => {
@@ -507,12 +611,17 @@ export default function DashboardPage() {
       let categoryDetail: DisplayCategory | undefined = userCategories.find(cat => cat.name.toLowerCase() === largestCategoryKey!.toLowerCase());
       if (!categoryDetail) { 
           categoryDetail = CATEGORIES.find(cat => cat.name.toLowerCase() === largestCategoryKey!.toLowerCase()) || 
-                           { name: largestCategoryKey!, type: 'expense', icon: 'CircleHelp', label: { en: largestCategoryKey!, pt: largestCategoryKey! } };
+                           { 
+                             name: largestCategoryKey!, 
+                             type: 'expense', 
+                             icon: 'CircleHelp', 
+                             label: { en: largestCategoryKey!, pt: largestCategoryKey! } 
+                           };
       }
       return { ...categoryDetail, amount: maxAmount } as DisplayCategory & { amount: number };
     }
     return null;
-  }, [transactionsForDisplayedPeriod, userCategories, language]);
+  }, [transactionsForDisplayedPeriod, userCategories, language]); 
 
   const totalFixedExpensesForDisplayedPeriod = useMemo(() => {
     return transactionsForDisplayedPeriod.filter(t => t.type === 'expense' && t.expenseNature === 'fixed').reduce((sum, t) => sum + t.amount, 0);
@@ -529,53 +638,50 @@ export default function DashboardPage() {
 
 
  const fullRecentIncomeList = useMemo(() => {
+    console.log("Dashboard: TRACER --- recentIncome: Calculating for", displayedMonthYearLabel, ". Total transactions in allTransactions:", allTransactions.length);
     const targetEffectiveMonth = formatDateFns(displayedDate, "yyyy-MM");
     const firstDayOfDisplayedMonth = startOfMonth(displayedDate);
     const monthlyDisplayTransactions: Transaction[] = [];
-    console.log("Dashboard: TRACER --- recentIncome: Calculating for", displayedMonthYearLabel + ". Total transactions:", transactions.length);
 
-    transactions.forEach(t => {
+    allTransactions.forEach(t => {
       if (t.type !== 'income') return;
-      let includeTransaction = false;
-      let displayDateForList = t.date; 
-      let reason = "";
       
       try {
-        if (t.isRecurring) {
-          reason = "Recurring Projection";
-          const firstImpactMonthDate = parseDateFns(t.effectiveMonth + "-01", "yyyy-MM-dd", new Date(0));
-          if (startOfMonth(firstImpactMonthDate) <= firstDayOfDisplayedMonth) {
-            includeTransaction = true;
-            const originalTransactionDate = parseDateFns(t.date, "yyyy-MM-dd", new Date(0));
+        // Non-recurring income for the current effectiveMonth
+        if (!t.isRecurring && t.effectiveMonth === targetEffectiveMonth) {
+          console.log("Dashboard: TRACER --- recentIncome: Adding non-recurring:", t.description, "Date:", t.date, "EffMonth:", t.effectiveMonth);
+          monthlyDisplayTransactions.push(t);
+        } 
+        // Recurring income
+        else if (t.isRecurring) {
+          const originalTransactionDate = parseDateFns(t.date, "yyyy-MM-dd", new Date(0));
+          const firstImpactMonthForRecurrence = parseDateFns(t.effectiveMonth + "-01", "yyyy-MM-dd", new Date(0));
+
+          if (startOfMonth(firstImpactMonthForRecurrence) <= firstDayOfDisplayedMonth) {
             const originalDay = getDateFns(originalTransactionDate);
             let projectedDate = setDateFnsDate(firstDayOfDisplayedMonth, originalDay);
             const lastDayOfCurrentMonth = lastDayOfMonth(displayedDate);
             if (getDateFns(projectedDate) !== originalDay || getMonthFns(projectedDate) !== getMonthFns(displayedDate)) {
                 projectedDate = setDateFnsDate(firstDayOfDisplayedMonth, Math.min(originalDay, getDateFns(lastDayOfCurrentMonth)));
             }
-            displayDateForList = formatDateFns(projectedDate, "yyyy-MM-dd");
+            const projectedDateForDisplayString = formatDateFns(projectedDate, "yyyy-MM-dd");
+            
+            console.log("Dashboard: TRACER --- recentIncome: Added projected recurring:", t.description, "Orig Date:", t.date, "Orig EffMonth:", t.effectiveMonth, "Projected Date:", projectedDateForDisplayString);
+            monthlyDisplayTransactions.push({
+              ...t,
+              date: projectedDateForDisplayString, 
+              id: `${t.id}_proj_${targetEffectiveMonth}` 
+            });
           }
-        } else if (t.effectiveMonth === targetEffectiveMonth) { 
-          reason = "Non-Recurring Match";
-          includeTransaction = true;
-          displayDateForList = t.date;
-        }
-        
-        // console.log(\`DashboardPage TRACER --- recentIncome: ID: \${t.id}, Date: \${t.date}, EffMonth: \${t.effectiveMonth}, isRec: \${t.isRecurring}, Included: \${includeTransaction}, Reason: \${reason}, ProjectedDate: \${displayDateForList}, Target: \${targetEffectiveMonth}\`);
-        if (includeTransaction) {
-          monthlyDisplayTransactions.push({
-            ...t,
-            date: displayDateForList, 
-            id: (t.isRecurring) ? \`\${t.id}_proj_\${targetEffectiveMonth}\` : t.id 
-          });
         }
       } catch(e) {
         console.error("DashboardPage: TRACER --- Error processing transaction", t.id, "in fullRecentIncomeList:", e, t);
       }
     });
-    console.log("Dashboard: TRACER --- recentIncome: Found", monthlyDisplayTransactions.length, "items before sort.");
-    return monthlyDisplayTransactions.sort((a, b) => parseDateFns(b.date, "yyyy-MM-dd", new Date(0)).getTime() - parseDateFns(a.date, "yyyy-MM-dd", new Date(0)).getTime());
-  }, [transactions, displayedDate, displayedMonthYearLabel]); 
+    const sorted = monthlyDisplayTransactions.sort((a, b) => parseDateFns(b.date, "yyyy-MM-dd", new Date(0)).getTime() - parseDateFns(a.date, "yyyy-MM-dd", new Date(0)).getTime());
+    console.log("Dashboard: TRACER --- recentIncome: Found", sorted.length, "items for display.");
+    return sorted;
+  }, [allTransactions, displayedDate, displayedMonthYearLabel, language, translate]); 
 
   const recentIncomeToDisplay = useMemo(() => {
     return showAllRecentIncome ? fullRecentIncomeList : fullRecentIncomeList.slice(0, 5);
@@ -583,69 +689,60 @@ export default function DashboardPage() {
 
 
   const fullRecentExpensesList = useMemo(() => {
+    console.log("Dashboard: TRACER --- recentExpenses: Calculating for", displayedMonthYearLabel, ". Total transactions in allTransactions:", allTransactions.length);
     const targetEffectiveMonth = formatDateFns(displayedDate, "yyyy-MM");
     const firstDayOfDisplayedMonth = startOfMonth(displayedDate);
     const monthlyDisplayTransactions: Transaction[] = [];
-    console.log("Dashboard: TRACER --- recentExpenses: Calculating for", displayedMonthYearLabel + ". Total transactions:", transactions.length);
 
-    transactions.forEach(t => {
+    allTransactions.forEach(t => {
       if (t.type !== 'expense') return;
-      let includeTransaction = false;
-      let displayDateForList = t.date;
       let currentDescription = t.description;
-      let uniqueIdSuffix = "";
-      let reason = "";
       
       try {
+        // Installment expenses
         if (t.expenseType === 'installment' && t.installments && t.installments > 0) {
-          reason = "Installment Projection";
-          const firstImpactMonthDate = parseDateFns(t.effectiveMonth + "-01", "yyyy-MM-dd", new Date(0));
-          const monthDiffFromEffectiveStart = differenceInCalendarMonths(firstDayOfDisplayedMonth, startOfMonth(firstImpactMonthDate));
+          const firstImpactMonthForInstallment = parseDateFns(t.effectiveMonth + "-01", "yyyy-MM-dd", new Date(0)); 
+          const monthDiffFromEffectiveStart = differenceInCalendarMonths(firstDayOfDisplayedMonth, startOfMonth(firstImpactMonthForInstallment));
           const currentInstallmentNum = monthDiffFromEffectiveStart + 1;
 
           if (currentInstallmentNum >= 1 && currentInstallmentNum <= t.installments) {
-            includeTransaction = true;
-            currentDescription = \`\${t.description} (\${translate({en: "Installment", pt: "Parcela"})}) \${currentInstallmentNum}/\${t.installments}\`;
-            displayDateForList = t.date; // Original purchase date for installments
-            uniqueIdSuffix = \`_inst_\${currentInstallmentNum}\`;
+            currentDescription = `${t.description} (${translate({en: "Installment", pt: "Parcela"})}) ${currentInstallmentNum}/${t.installments}`;
+            console.log("Dashboard: TRACER --- recentExpenses: Added projected installment:", currentDescription, "Orig Date:", t.date, "Orig EffMonth:", t.effectiveMonth, "Display Date:", t.date); // Display original date
+            monthlyDisplayTransactions.push({ 
+              ...t, 
+              date: t.date, // Display original date for installments
+              description: currentDescription, 
+              id: `${t.id}_inst_${currentInstallmentNum}_${targetEffectiveMonth}` 
+            });
           }
-        } else if (t.isRecurring && t.expenseType !== 'installment') { 
-          reason = "Recurring Projection";
-          const firstImpactMonthDate = parseDateFns(t.effectiveMonth + "-01", "yyyy-MM-dd", new Date(0));
-          if (startOfMonth(firstImpactMonthDate) <= firstDayOfDisplayedMonth) {
-            includeTransaction = true;
-            const originalTransactionDate = parseDateFns(t.date, "yyyy-MM-dd", new Date(0));
-            const originalDay = getDateFns(originalTransactionDate);
-            let projectedDate = setDateFnsDate(firstDayOfDisplayedMonth, originalDay);
-            const lastDayOfCurrentMonth = lastDayOfMonth(displayedDate);
-            if (getDateFns(projectedDate) !== originalDay || getMonthFns(projectedDate) !== getMonthFns(displayedDate)) {
-                projectedDate = setDateFnsDate(firstDayOfDisplayedMonth, Math.min(originalDay, getDateFns(lastDayOfCurrentMonth)));
-            }
-            displayDateForList = formatDateFns(projectedDate, "yyyy-MM-dd");
-            uniqueIdSuffix = "_proj";
+        } 
+        // Generic recurring expenses (non-installment)
+        else if (t.isRecurring && t.expenseType !== 'installment') { 
+          const originalTransactionDate = parseDateFns(t.date, "yyyy-MM-dd", new Date(0));
+          const firstImpactMonthForRecurrence = parseDateFns(t.effectiveMonth + "-01", "yyyy-MM-dd", new Date(0));
+
+          if (startOfMonth(firstImpactMonthForRecurrence) <= firstDayOfDisplayedMonth) {
+             console.log("Dashboard: TRACER --- recentExpenses: Added projected recurring:", t.description, "Orig Date:", t.date, "Orig EffMonth:", t.effectiveMonth, "Display Date:", t.date); // Display original date
+            monthlyDisplayTransactions.push({ 
+              ...t, 
+              date: t.date, // Display original date
+              id: `${t.id}_proj_${targetEffectiveMonth}` 
+            });
           }
-        } else if (t.effectiveMonth === targetEffectiveMonth && t.expenseType !== 'installment' && !t.isRecurring) { 
-          reason = "Non-Recurring Match";
-          includeTransaction = true;
-          displayDateForList = t.date;
-        }
-        
-        // console.log(\`DashboardPage TRACER --- recentExpenses: ID: \${t.id}, Date: \${t.date}, EffMonth: \${t.effectiveMonth}, isRec: \${t.isRecurring}, ExpType: \${t.expenseType}, Included: \${includeTransaction}, Reason: \${reason}, ProjectedDate: \${displayDateForList}, Target: \${targetEffectiveMonth}\`);
-        if (includeTransaction) {
-          monthlyDisplayTransactions.push({ 
-            ...t, 
-            date: displayDateForList,
-            description: currentDescription, 
-            id: t.id + uniqueIdSuffix + \`_\${targetEffectiveMonth}\` 
-          });
+        } 
+        // Non-recurring, non-installment expenses
+        else if (!t.isRecurring && t.expenseType !== 'installment' && t.effectiveMonth === targetEffectiveMonth) {
+          console.log("Dashboard: TRACER --- recentExpenses: Added non-recurring:", t.description, "Date:", t.date, "EffMonth:", t.effectiveMonth);
+          monthlyDisplayTransactions.push(t);
         }
       } catch (e) {
         console.error("DashboardPage: TRACER --- Error processing transaction", t.id, "in fullRecentExpensesList:", e, t);
       }
     });
-    console.log("Dashboard: TRACER --- recentExpenses: Found", monthlyDisplayTransactions.length, "items before sort.");
-    return monthlyDisplayTransactions.sort((a, b) => parseDateFns(b.date, "yyyy-MM-dd", new Date(0)).getTime() - parseDateFns(a.date, "yyyy-MM-dd", new Date(0)).getTime());
-  },[transactions, displayedDate, translate, displayedMonthYearLabel]); 
+    const sorted = monthlyDisplayTransactions.sort((a, b) => parseDateFns(b.date, "yyyy-MM-dd", new Date(0)).getTime() - parseDateFns(a.date, "yyyy-MM-dd", new Date(0)).getTime());
+    console.log("Dashboard: TRACER --- recentExpenses: Found", sorted.length, "items for display.");
+    return sorted;
+  },[allTransactions, displayedDate, displayedMonthYearLabel, language, translate]); 
 
   const recentExpensesToDisplay = useMemo(() => {
     return showAllRecentExpenses ? fullRecentExpensesList : fullRecentExpensesList.slice(0,5);
@@ -653,7 +750,9 @@ export default function DashboardPage() {
 
   const overallLoading = !isClient || authLoading || isLoadingTransactions || isLoadingPreferences || isLoadingBudgets;
   
-  console.log("DashboardPage TRACER --- About to RENDER. displayedDate for QuickActionsSection:", displayedDate.toISOString());
+  console.log("Dashboard: TRACER --- RENDERING. OverallLoading:", overallLoading, "isClient:", isClient, "authLoading:", authLoading, "isLoadingTransactions:", isLoadingTransactions, "isLoadingPreferences:", isLoadingPreferences, "isLoadingBudgets:", isLoadingBudgets);
+  console.log("Dashboard: TRACER --- RENDERING with: displayedMonth:", displayedMonthYearLabel, "transactionsInPeriod:", transactionsForDisplayedPeriod.length, "totalIncomeForSummary:", totalIncomeForSummary, "totalExpensesForSummary:", totalExpensesForSummary);
+
 
   if (overallLoading) {
     return (
@@ -661,41 +760,39 @@ export default function DashboardPage() {
         <div className="flex items-center justify-center h-full w-full p-4">
           <div className="space-y-4 w-full">
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-8">
-              {[...Array(4)].map((_, i) => <Skeleton key={`summary-skel-\${i}`} className="h-24 w-full rounded-lg" />)}
+              {[...Array(4)].map((_, i) => <Skeleton key={`summary-skel-${i}`} className="h-24 w-full rounded-lg" />)}
             </div>
              <Card className="shadow-lg bg-background dark:bg-card rounded-lg">
-                <CardHeader className="flex flex-row items-start gap-4 space-y-0 p-4 md:p-6">
-                  <div className="flex-grow">
-                    <div className="text-xl font-medium leading-none tracking-tight text-foreground">
+                <CardHeader className="flex flex-col items-center text-center p-4 md:p-6">
+                  <div className="text-xl font-medium leading-none tracking-tight text-foreground">
                        <Skeleton className="h-6 w-1/2 mb-2"/>
-                    </div>
-                    <CardDescription className="mt-1">
-                      <Skeleton className="h-4 w-3/4"/>
-                    </CardDescription>
                   </div>
+                  <CardDescription className="mt-1">
+                      <Skeleton className="h-4 w-3/4"/>
+                  </CardDescription>
                 </CardHeader>
                 <CardContent className="p-4 md:p-6 pt-0">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {[...Array(3)].map((_, i) => (
-                      <div key={`spending-sum-skel-\${i}`} className="p-4 rounded-lg bg-background dark:bg-card flex flex-col items-center text-center shadow-md border">
-                        <div className="text-sm font-medium text-foreground mb-1">
-                           <Skeleton className="h-5 w-3/5 mb-2"/>
-                        </div>
-                        <div className="flex items-center gap-2 mt-1">
-                          <Skeleton className="h-7 w-7 rounded-full"/>
-                          <Skeleton className="h-5 w-4/5 mb-1"/>
-                        </div>
-                        <div className="text-xl font-bold text-primary mt-1">
-                          <Skeleton className="h-7 w-2/5"/>
-                        </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {[...Array(3)].map((_, i) => (
+                    <div key={`spending-sum-skel-${i}`} className="p-4 rounded-lg bg-background dark:bg-card flex flex-col items-center text-center shadow-md border">
+                      <div className="text-sm font-medium text-foreground mb-1 break-words">
+                         <Skeleton className="h-5 w-3/5 mb-2"/>
                       </div>
-                    ))}
-                  </div>
+                      <div className="flex items-center gap-2 mt-1">
+                        <Skeleton className="h-7 w-7 rounded-full"/>
+                         <Skeleton className="h-5 w-4/5 mb-1"/>
+                      </div>
+                      <div className="text-xl font-bold text-primary mt-1">
+                        <Skeleton className="h-7 w-2/5"/>
+                      </div>
+                    </div>
+                  ))}
+                </div>
                 </CardContent>
               </Card>
             <Card className="shadow-md bg-muted/50 rounded-lg">
-                <CardHeader  className="p-4 md:p-6"><Skeleton className="h-6 w-1/4"/></CardHeader>
-                <CardContent  className="p-4 md:p-6 pt-0">
+                <CardHeader className="p-4 md:p-6"><Skeleton className="h-6 w-1/4"/></CardHeader>
+                <CardContent className="p-4 md:p-6 pt-0">
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <Skeleton className="h-10 w-full rounded-md"/><Skeleton className="h-10 w-full rounded-md"/><Skeleton className="h-10 w-full rounded-md"/>
                   </div>
@@ -710,26 +807,25 @@ export default function DashboardPage() {
       </AppLayout>
     );
   }
-  console.log("Dashboard: TRACER --- RENDERING with: displayedMonth:", displayedMonthYearLabel, "transactionsInPeriod:", transactionsForDisplayedPeriod.length, "totalIncomeForSummary:", totalIncomeForSummary, "totalExpensesForSummary:", totalExpensesForSummary);
+  console.log("Dashboard: TRACER --- RENDERING DASHBOARD CONTENT. Transactions:", allTransactions.length, "isLoadingTransactions:", isLoadingTransactions, "Displayed Period Transactions:", transactionsForDisplayedPeriod.length);
   return (
     <AppLayout>
       <div className="space-y-4 md:space-y-6">
         <SummarySection
-          transactionsForDisplayedPeriod={transactionsForDisplayedPeriod}
+          totalIncomeThisPeriod={totalIncomeForSummary}
+          totalExpensesThisPeriod={totalExpensesForSummary}
           monthlyBudget={totalCalculatedMonthlyBudget}
           displayedMonthYearLabel={displayedMonthYearLabel}
         />
         
         <Card className="shadow-lg bg-background dark:bg-card rounded-lg">
-          <CardHeader className="flex flex-row items-start gap-4 space-y-0 p-4 md:p-6">
-            <div className="flex-grow">
-              <div className="text-xl font-medium leading-none tracking-tight text-foreground">
-                {translate({ en: "Spending Summary", pt: "Resumo de Gastos" })}
-              </div>
-              <CardDescription className="mt-1">
-                {translate({ en: "Your spending breakdown for", pt: "Seu detalhamento de gastos em" })} {displayedMonthYearLabel}
-              </CardDescription>
+          <CardHeader className="flex flex-col items-center text-center p-4 md:p-6">
+            <div className="text-xl font-medium leading-none tracking-tight text-foreground">
+              {translate({ en: "Spending Summary", pt: "Resumo de Gastos" })}
             </div>
+            <CardDescription className="mt-1">
+              {translate({ en: "Your spending breakdown for", pt: "Seu detalhamento de gastos em" })} {displayedMonthYearLabel}
+            </CardDescription>
           </CardHeader>
           <CardContent className="p-4 md:p-6 pt-0">
             {transactionsForDisplayedPeriod.filter(t => t.type === 'expense').length > 0 ? (
@@ -737,7 +833,7 @@ export default function DashboardPage() {
                 
                 <div className="p-4 rounded-lg bg-background dark:bg-card flex flex-col items-center text-center shadow-md border">
                   <p className="text-sm font-medium text-foreground mb-1 break-words">
-                    {translate({ en: "Largest Expense Category", pt: "Principal Categoria de Gasto" })}:
+                    {translate({ en: "Largest Expense Category", pt: "Principal Categoria de Gasto" })}
                   </p>
                   {largestExpenseCategoryForDisplayedPeriod ? (
                     <>
@@ -758,7 +854,7 @@ export default function DashboardPage() {
 
                 <div className="p-4 rounded-lg bg-background dark:bg-card flex flex-col items-center text-center shadow-md border">
                   <p className="text-sm font-medium text-foreground mb-1">
-                    {translate({ en: "Total", pt: "Total de Gastos" })}
+                    {translate({ en: "Total Fixed", pt: "Total de Gastos" })}
                   </p>
                   <div className="flex items-center gap-2 mt-1">
                     <Package className="h-7 w-7 text-primary" />
@@ -773,7 +869,7 @@ export default function DashboardPage() {
 
                 <div className="p-4 rounded-lg bg-background dark:bg-card flex flex-col items-center text-center shadow-md border">
                    <p className="text-sm font-medium text-foreground mb-1">
-                    {translate({ en: "Total", pt: "Total de Gastos" })}
+                    {translate({ en: "Total Variable", pt: "Total de Gastos" })}
                   </p>
                   <div className="flex items-center gap-2 mt-1">
                     <Wallet className="h-7 w-7 text-primary" />
@@ -832,4 +928,5 @@ export default function DashboardPage() {
     </AppLayout>
   );
 }
+
     
