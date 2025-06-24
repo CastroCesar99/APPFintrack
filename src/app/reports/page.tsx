@@ -643,7 +643,7 @@ export default function ReportsPage() {
           <ExportData transactions={transactionsForDisplayedPeriod} />
         </div>
 
-        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
           <Card className="shadow-lg">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-2">
               <CardTitle className="text-sm font-medium truncate" title={translate({ en: "Total Income", pt: "Receita Total" })}>{translate({ en: "Total Income", pt: "Receita Total" })}</CardTitle>
@@ -778,7 +778,7 @@ export default function ReportsPage() {
                         )}
                       />
                       
-                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between text-sm gap-1 sm:gap-4">
+                      <div className="flex flex-col md:flex-row md:items-center md:justify-between text-sm gap-1 md:gap-4">
                         <p className="text-muted-foreground truncate">
                           {translate({ en: 'Spent:', pt: 'Gasto:' })}{' '}
                           <span className="font-medium text-foreground">
@@ -793,7 +793,7 @@ export default function ReportsPage() {
                         
                         {item.budgeted > 0 ? (
                           <p className={cn(
-                            'font-medium text-right sm:text-left',
+                            'font-medium text-left md:text-right',
                             item.difference >= 0
                               ? 'text-green-600 dark:text-green-500'
                               : 'text-red-600 dark:text-red-500'
@@ -804,7 +804,7 @@ export default function ReportsPage() {
                               : translate({ en: 'over', pt: 'acima' })}
                           </p>
                         ) : (
-                          <p className="text-muted-foreground text-right sm:text-left">
+                          <p className="text-muted-foreground text-left md:text-right">
                             {translate({ en: 'No budget', pt: 'Sem orçamento' })}
                           </p>
                         )}

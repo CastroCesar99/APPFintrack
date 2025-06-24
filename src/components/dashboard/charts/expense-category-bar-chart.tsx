@@ -1,3 +1,4 @@
+
 "use client";
 import type { Transaction, DisplayCategory } from "@/types";
 import {
@@ -97,9 +98,9 @@ export function ExpenseCategoryBarChart({ transactions, userCategories }: Expens
             tickLine={false}
             axisLine={false}
             stroke="hsl(var(--foreground))"
-            fontSize={11}
-            tickMargin={5}
-            width={65} 
+            fontSize={10}
+            tickMargin={2}
+            width={50} 
             interval={0} 
             textAnchor="end"
           />
