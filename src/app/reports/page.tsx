@@ -662,7 +662,7 @@ export default function ReportsPage() {
               <div className="text-lg md:text-2xl font-bold">{formatCurrency(totalExpensesForPeriod)}</div>
             </CardContent>
           </Card>
-          <Card className="shadow-lg col-span-2 md:col-span-1">
+          <Card className="shadow-lg">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">{translate({ en: "Net Cash Flow", pt: "Fluxo de Caixa Líquido" })}</CardTitle>
               <DollarSign className={cn("h-4 w-4 ", netFlowForPeriod >= 0 ? 'text-green-500' : 'text-red-500')} />
