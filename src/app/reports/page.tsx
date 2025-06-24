@@ -1,3 +1,4 @@
+
 "use client";
 
 import type React from 'react';
@@ -642,29 +643,29 @@ export default function ReportsPage() {
           <ExportData transactions={transactionsForDisplayedPeriod} />
         </div>
 
-        <div className="grid gap-4 grid-cols-1 md:grid-cols-3">
+        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
           <Card className="shadow-lg">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">{translate({ en: "Total Income", pt: "Receita Total" })}</CardTitle>
-              <TrendingUp className="h-4 w-4 text-green-500" />
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-2">
+              <CardTitle className="text-sm font-medium truncate" title={translate({ en: "Total Income", pt: "Receita Total" })}>{translate({ en: "Total Income", pt: "Receita Total" })}</CardTitle>
+              <TrendingUp className="h-4 w-4 text-green-500 flex-shrink-0" />
             </CardHeader>
             <CardContent>
               <div className="text-lg md:text-2xl font-bold">{formatCurrency(totalIncomeForPeriod)}</div>
             </CardContent>
           </Card>
           <Card className="shadow-lg">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">{translate({ en: "Total Expenses", pt: "Despesa Total" })}</CardTitle>
-              <TrendingDown className="h-4 w-4 text-red-500" />
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-2">
+              <CardTitle className="text-sm font-medium truncate" title={translate({ en: "Total Expenses", pt: "Despesa Total" })}>{translate({ en: "Total Expenses", pt: "Despesa Total" })}</CardTitle>
+              <TrendingDown className="h-4 w-4 text-red-500 flex-shrink-0" />
             </CardHeader>
             <CardContent>
               <div className="text-lg md:text-2xl font-bold">{formatCurrency(totalExpensesForPeriod)}</div>
             </CardContent>
           </Card>
-          <Card className="shadow-lg col-span-1 md:col-span-1">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">{translate({ en: "Net Cash Flow", pt: "Fluxo de Caixa Líquido" })}</CardTitle>
-              <DollarSign className={cn("h-4 w-4 ", netFlowForPeriod >= 0 ? 'text-green-500' : 'text-red-500')} />
+          <Card className="shadow-lg">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-2">
+              <CardTitle className="text-sm font-medium truncate" title={translate({ en: "Net Cash Flow", pt: "Fluxo de Caixa Líquido" })}>{translate({ en: "Net Cash Flow", pt: "Fluxo de Caixa Líquido" })}</CardTitle>
+              <DollarSign className={cn("h-4 w-4 flex-shrink-0", netFlowForPeriod >= 0 ? 'text-green-500' : 'text-red-500')} />
             </CardHeader>
             <CardContent>
               <div className={cn("text-lg md:text-2xl font-bold", netFlowForPeriod >= 0 ? 'text-green-500' : 'text-red-500')}>{formatCurrency(netFlowForPeriod)}</div>
@@ -674,18 +675,18 @@ export default function ReportsPage() {
 
         <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
           <Card className="shadow-lg">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">{translate({ en: "Total Fixed Expenses", pt: "Despesas Fixas Totais" })}</CardTitle>
-              <Package className="h-4 w-4 text-muted-foreground" />
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-2">
+              <CardTitle className="text-sm font-medium truncate" title={translate({ en: "Total Fixed Expenses", pt: "Despesas Fixas Totais" })}>{translate({ en: "Total Fixed Expenses", pt: "Despesas Fixas Totais" })}</CardTitle>
+              <Package className="h-4 w-4 text-muted-foreground flex-shrink-0" />
             </CardHeader>
             <CardContent>
               <div className="text-lg md:text-2xl font-bold">{formatCurrency(totalFixedExpensesForPeriod)}</div>
             </CardContent>
           </Card>
           <Card className="shadow-lg">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">{translate({ en: "Total Variable Expenses", pt: "Despesas Variáveis Totais" })}</CardTitle>
-              <Wallet className="h-4 w-4 text-muted-foreground" />
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-2">
+              <CardTitle className="text-sm font-medium truncate" title={translate({ en: "Total Variable Expenses", pt: "Despesas Variáveis Totais" })}>{translate({ en: "Total Variable Expenses", pt: "Despesas Variáveis Totais" })}</CardTitle>
+              <Wallet className="h-4 w-4 text-muted-foreground flex-shrink-0" />
             </CardHeader>
             <CardContent>
               <div className="text-lg md:text-2xl font-bold">{formatCurrency(totalVariableExpensesForPeriod)}</div>
@@ -755,7 +756,7 @@ export default function ReportsPage() {
                   const progressPercent = item.budgeted > 0 ? (item.actual / item.budgeted) * 100 : item.actual > 0 ? 100 : 0;
                   
                   return (
-                    <div key={item.categoryInternalName} className="space-y-2 rounded-lg border p-2 transition-colors hover:bg-muted/50">
+                    <div key={item.categoryInternalName} className="space-y-2 rounded-lg border p-3 transition-colors hover:bg-muted/50">
                       <div className="flex items-center gap-3">
                         <CategoryIcon iconName={item.icon} className="h-6 w-6 flex-shrink-0 text-primary" />
                         <p className="truncate font-semibold text-foreground" title={item.categoryName}>
@@ -777,7 +778,7 @@ export default function ReportsPage() {
                         )}
                       />
                       
-                      <div className="flex flex-col md:flex-row md:items-center md:justify-between text-sm gap-1 md:gap-4">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between text-sm gap-1 sm:gap-4">
                         <p className="text-muted-foreground truncate">
                           {translate({ en: 'Spent:', pt: 'Gasto:' })}{' '}
                           <span className="font-medium text-foreground">
@@ -792,7 +793,7 @@ export default function ReportsPage() {
                         
                         {item.budgeted > 0 ? (
                           <p className={cn(
-                            'font-medium text-right md:text-left',
+                            'font-medium text-right sm:text-left',
                             item.difference >= 0
                               ? 'text-green-600 dark:text-green-500'
                               : 'text-red-600 dark:text-red-500'
@@ -803,7 +804,7 @@ export default function ReportsPage() {
                               : translate({ en: 'over', pt: 'acima' })}
                           </p>
                         ) : (
-                          <p className="text-muted-foreground text-right md:text-left">
+                          <p className="text-muted-foreground text-right sm:text-left">
                             {translate({ en: 'No budget', pt: 'Sem orçamento' })}
                           </p>
                         )}
