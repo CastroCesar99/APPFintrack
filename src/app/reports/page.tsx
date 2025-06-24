@@ -6,9 +6,9 @@ import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { AppLayout } from "@/components/layout/app-layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Terminal, Package, Wallet, FileText, DollarSign, Target, TrendingUp, TrendingDown, Sparkles } from "lucide-react";
+import { Terminal, Package, Wallet, FileText, DollarSign, Target, TrendingUp, TrendingDown, Sparkles, ListChecks } from "lucide-react";
 import type { Transaction, DisplayCategory, UserPreferences, CustomCategoryData, Category, CategoryName } from "@/types";
-import { CATEGORIES, getCategoryDisplayLabel, getPaymentMethodDisplayLabel } from "@/types";
+import { CATEGORIES, getCategoryDisplayLabel } from "@/types";
 import { useAuth } from '@/context/auth-context';
 import { useLanguage } from '@/context/language-context';
 import { useDateNavigation } from '@/context/date-navigation-context';
@@ -508,6 +508,46 @@ export default function ReportsPage() {
       .reduce((sum, t) => sum + t.amount, 0),
   [transactionsForDisplayedPeriod]);
 
+  const totalBudgetForPeriod = useMemo(() => {
+    if (!loadedBudgets) return 0;
+    return Object.values(loadedBudgets).reduce((sum, budget) => sum + (budget || 0), 0);
+  }, [loadedBudgets]);
+
+  const largestExpenseCategoryForDisplayedPeriod = useMemo(() => {
+    const expensesThisPeriod = transactionsForDisplayedPeriod.filter(t => t.type === 'expense');
+    if (expensesThisPeriod.length === 0) return null;
+
+    const expensesByCategory: Record<string, number> = {};
+    expensesThisPeriod.forEach(tx => {
+      const categoryName = tx.category as string;
+      expensesByCategory[categoryName] = (expensesByCategory[categoryName] || 0) + tx.amount;
+    });
+
+    let maxAmount = 0;
+    let largestCategoryKey: string | null = null;
+    for (const key in expensesByCategory) {
+      if (expensesByCategory[key] > maxAmount) {
+        maxAmount = expensesByCategory[key];
+        largestCategoryKey = key;
+      }
+    }
+
+    if (largestCategoryKey) {
+      let categoryDetail: DisplayCategory | undefined = userDisplayCategories.find(cat => cat.name.toLowerCase() === largestCategoryKey!.toLowerCase());
+      if (!categoryDetail) { 
+          categoryDetail = CATEGORIES.find(cat => cat.name.toLowerCase() === largestCategoryKey!.toLowerCase()) ||
+                           {
+                             name: largestCategoryKey!,
+                             type: 'expense',
+                             icon: 'CircleHelp',
+                             label: { en: largestCategoryKey!, pt: largestCategoryKey! }
+                           };
+      }
+      return { ...categoryDetail, amount: maxAmount } as DisplayCategory & { amount: number };
+    }
+    return null;
+  }, [transactionsForDisplayedPeriod, userDisplayCategories, language]);
+
   const budgetVsActualData = useMemo<BudgetComparisonItem[]>(() => {
     console.log("ReportsPage: budgetVsActualData - Recalculating. isLoadingBudgets:", isLoadingBudgets, "isLoadingPrefs:", isLoadingPreferences, "loadedBudgets empty:", !loadedBudgets || Object.keys(loadedBudgets).length === 0, "userDisplayCategories empty:", userDisplayCategories.length === 0);
     if (isLoadingBudgets || isLoadingPreferences || !loadedBudgets || userDisplayCategories.length === 0) {
@@ -642,58 +682,137 @@ export default function ReportsPage() {
           </h1>
           <ExportData transactions={transactionsForDisplayedPeriod} />
         </div>
-
-        <div className="grid gap-4 grid-cols-1 md:grid-cols-3">
-          <Card className="shadow-lg">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-2 px-4 pt-4 md:px-6 md:pt-6">
-              <CardTitle className="text-sm font-medium truncate" title={translate({ en: "Total Income", pt: "Receita Total" })}>{translate({ en: "Total Income", pt: "Receita Total" })}</CardTitle>
-              <TrendingUp className="h-4 w-4 text-green-500 flex-shrink-0" />
-            </CardHeader>
-            <CardContent className="p-4 pt-0 md:p-6 md:pt-0">
-              <div className="text-base sm:text-lg md:text-2xl font-bold">{formatCurrency(totalIncomeForPeriod)}</div>
-            </CardContent>
-          </Card>
-          <Card className="shadow-lg">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-2 px-4 pt-4 md:px-6 md:pt-6">
-              <CardTitle className="text-sm font-medium truncate" title={translate({ en: "Total Expenses", pt: "Despesa Total" })}>{translate({ en: "Total Expenses", pt: "Despesa Total" })}</CardTitle>
-              <TrendingDown className="h-4 w-4 text-red-500 flex-shrink-0" />
-            </CardHeader>
-            <CardContent className="p-4 pt-0 md:p-6 md:pt-0">
-              <div className="text-base sm:text-lg md:text-2xl font-bold">{formatCurrency(totalExpensesForPeriod)}</div>
-            </CardContent>
-          </Card>
-          <Card className="shadow-lg">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-2 px-4 pt-4 md:px-6 md:pt-6">
-              <CardTitle className="text-sm font-medium truncate" title={translate({ en: "Net Cash Flow", pt: "Fluxo de Caixa Líquido" })}>{translate({ en: "Net Cash Flow", pt: "Fluxo de Caixa Líquido" })}</CardTitle>
-              <DollarSign className={cn("h-4 w-4 flex-shrink-0", netFlowForPeriod >= 0 ? 'text-green-500' : 'text-red-500')} />
-            </CardHeader>
-            <CardContent className="p-4 pt-0 md:p-6 md:pt-0">
-              <div className={cn("text-base sm:text-lg md:text-2xl font-bold", netFlowForPeriod >= 0 ? 'text-green-500' : 'text-red-500')}>{formatCurrency(netFlowForPeriod)}</div>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
-          <Card className="shadow-lg">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-2 px-4 pt-4 md:px-6 md:pt-6">
-              <CardTitle className="text-sm font-medium truncate" title={translate({ en: "Total Fixed Expenses", pt: "Despesas Fixas Totais" })}>{translate({ en: "Total Fixed Expenses", pt: "Despesas Fixas Totais" })}</CardTitle>
-              <Package className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-            </CardHeader>
-            <CardContent className="p-4 pt-0 md:p-6 md:pt-0">
-              <div className="text-base sm:text-lg md:text-2xl font-bold">{formatCurrency(totalFixedExpensesForPeriod)}</div>
-            </CardContent>
-          </Card>
-          <Card className="shadow-lg">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-2 px-4 pt-4 md:px-6 md:pt-6">
-              <CardTitle className="text-sm font-medium truncate" title={translate({ en: "Total Variable Expenses", pt: "Despesas Variáveis Totais" })}>{translate({ en: "Total Variable Expenses", pt: "Despesas Variáveis Totais" })}</CardTitle>
-              <Wallet className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-            </CardHeader>
-            <CardContent className="p-4 pt-0 md:p-6 md:pt-0">
-              <div className="text-base sm:text-lg md:text-2xl font-bold">{formatCurrency(totalVariableExpensesForPeriod)}</div>
-            </CardContent>
-          </Card>
-        </div>
         
+        <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
+          <Card className="shadow-lg">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4">
+              <CardTitle className="text-sm font-medium truncate">{translate({ en: "Total Income", pt: "Receita Total" })}</CardTitle>
+              <TrendingUp className="h-4 w-4 text-green-500" />
+            </CardHeader>
+            <CardContent className="px-4 pb-4 pt-2">
+              <div className="text-2xl font-bold">{formatCurrency(totalIncomeForPeriod)}</div>
+              <p className="text-xs text-muted-foreground">{displayedMonthYearLabel}</p>
+            </CardContent>
+          </Card>
+          <Card className="shadow-lg">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4">
+              <CardTitle className="text-sm font-medium truncate">{translate({ en: "Total Expenses", pt: "Despesa Total" })}</CardTitle>
+              <TrendingDown className="h-4 w-4 text-red-500" />
+            </CardHeader>
+            <CardContent className="px-4 pb-4 pt-2">
+              <div className="text-2xl font-bold">{formatCurrency(totalExpensesForPeriod)}</div>
+              <p className="text-xs text-muted-foreground">{displayedMonthYearLabel}</p>
+            </CardContent>
+          </Card>
+          <Card className="shadow-lg">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4">
+              <CardTitle className="text-sm font-medium truncate">{translate({ en: "Net Cash Flow", pt: "Fluxo de Caixa Líquido" })}</CardTitle>
+              <DollarSign className={cn("h-4 w-4", netFlowForPeriod >= 0 ? 'text-green-500' : 'text-red-500')} />
+            </CardHeader>
+            <CardContent className="px-4 pb-4 pt-2">
+              <div className={cn("text-2xl font-bold", netFlowForPeriod >= 0 ? 'text-green-500' : 'text-red-500')}>{formatCurrency(netFlowForPeriod)}</div>
+              <p className="text-xs text-muted-foreground">{translate({ en: "For", pt: "Para" })} {displayedMonthYearLabel}</p>
+            </CardContent>
+          </Card>
+          <Card className="shadow-lg">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4">
+              <CardTitle className="text-sm font-medium truncate">{translate({ en: "Monthly Budget Status", pt: "Status do Orçamento Mensal" })}</CardTitle>
+              <ListChecks className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent className="px-4 pb-4 pt-2">
+              <div className="text-lg font-bold">
+                {formatCurrency(totalExpensesForPeriod)}
+                {totalBudgetForPeriod > 0 ? ` / ${formatCurrency(totalBudgetForPeriod)}` : ''}
+              </div>
+              <p className="text-xs text-muted-foreground">{displayedMonthYearLabel}</p>
+              {totalBudgetForPeriod > 0 && (
+                <>
+                  <Progress value={(totalExpensesForPeriod / totalBudgetForPeriod) * 100} className="mt-2 h-2" />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {Math.round((totalExpensesForPeriod / totalBudgetForPeriod) * 100)}% {translate({ en: "of budget used", pt: "do orçamento utilizado" })}
+                  </p>
+                </>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        <Card className="shadow-lg bg-background dark:bg-card rounded-lg">
+           <CardHeader className="p-4 md:p-6">
+             <CardTitle className="text-xl font-medium leading-none tracking-tight text-foreground">
+               {translate({ en: "Spending Summary", pt: "Resumo de Gastos" })}
+             </CardTitle>
+             <CardDescription className="mt-1">
+               {translate({ en: "Your spending breakdown for", pt: "Seu detalhamento de gastos em" })} {displayedMonthYearLabel}
+             </CardDescription>
+           </CardHeader>
+           <CardContent className="p-4 md:p-6 pt-0">
+            {transactionsForDisplayedPeriod.filter(t => t.type === 'expense').length > 0 ? (
+               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                 <div className="p-4 rounded-lg bg-muted/50 dark:bg-card flex flex-col items-center text-center shadow-inner border">
+                  <p className="text-sm font-medium text-foreground mb-1 break-words">
+                    {translate({ en: "Largest Expense Category", pt: "Principal Categoria de Gasto" })}
+                  </p>
+                  {largestExpenseCategoryForDisplayedPeriod ? (
+                    <>
+                      <div className="flex items-center gap-2 mt-1">
+                        <CategoryIcon iconName={largestExpenseCategoryForDisplayedPeriod.icon} className="h-7 w-7 text-primary" />
+                        <span className="font-semibold text-lg text-foreground break-words">
+                           {getCategoryDisplayLabel(largestExpenseCategoryForDisplayedPeriod, language)}
+                        </span>
+                      </div>
+                      <p className="text-xl font-bold text-primary mt-1">
+                        {formatCurrency(largestExpenseCategoryForDisplayedPeriod.amount)}
+                      </p>
+                    </>
+                  ) : (
+                    <p className="text-sm text-muted-foreground mt-2">{translate({ en: "N/A", pt: "N/D"})}</p>
+                  )}
+                </div>
+
+                <div className="p-4 rounded-lg bg-muted/50 dark:bg-card flex flex-col items-center text-center shadow-inner border">
+                   <p className="text-sm font-medium text-foreground mb-1">
+                     {translate({ en: "Total Expenses", pt: "Total de Gastos" })}
+                   </p>
+                    <div className="flex items-center gap-2 mt-1">
+                        <Package className="h-7 w-7 text-primary" />
+                        <span className="font-semibold text-lg text-foreground">
+                            {translate({ en: "Fixed", pt: "Fixos" })}
+                        </span>
+                    </div>
+                   <p className="text-xl font-bold text-primary mt-1">
+                     {formatCurrency(totalFixedExpensesForPeriod)}
+                   </p>
+                 </div>
+
+                <div className="p-4 rounded-lg bg-muted/50 dark:bg-card flex flex-col items-center text-center shadow-inner border">
+                   <p className="text-sm font-medium text-foreground mb-1">
+                    {translate({ en: "Total Expenses", pt: "Total de Gastos" })}
+                  </p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <Wallet className="h-7 w-7 text-primary" />
+                    <span className="font-semibold text-lg text-foreground">
+                      {translate({ en: "Variable", pt: "Variáveis" })}
+                    </span>
+                  </div>
+                  <p className="text-xl font-bold text-primary mt-1">
+                    {formatCurrency(totalVariableExpensesForPeriod)}
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center justify-center h-[100px]">
+                <p className="text-muted-foreground">
+                  {translate({
+                    en: "No expense data for this period.",
+                    pt: "Sem dados de despesa para este período."
+                  })}
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
         <Card className="shadow-lg bg-muted/50 border-dashed">
           <CardHeader className="flex flex-row items-start gap-4 space-y-0 p-6">
             <Terminal className="h-8 w-8 text-primary flex-shrink-0" />
