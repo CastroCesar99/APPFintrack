@@ -6,7 +6,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { AppLayout } from "@/components/layout/app-layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Terminal, Package, Wallet, FileText, DollarSign, Target, TrendingUp, TrendingDown } from "lucide-react";
+import { Terminal, Package, Wallet, FileText, DollarSign, Target, TrendingUp, TrendingDown, Sparkles } from "lucide-react";
 import type { Transaction, DisplayCategory, UserPreferences, CustomCategoryData, Category, CategoryName } from "@/types";
 import { CATEGORIES, getCategoryDisplayLabel, getPaymentMethodDisplayLabel } from "@/types";
 import { useAuth } from '@/context/auth-context';
@@ -635,20 +635,23 @@ export default function ReportsPage() {
         </div>
         
         <Card className="shadow-lg bg-muted/50 border-dashed">
-          <CardHeader className="flex flex-row items-start gap-4 space-y-0">
-            <Terminal className="h-8 w-8 text-primary flex-shrink-0 mt-1" />
+          <CardHeader className="flex flex-row items-start gap-4 space-y-0 p-6">
+            <Terminal className="h-8 w-8 text-primary flex-shrink-0" />
             <div className="flex-grow">
               <CardTitle>{translate({ en: "Financial Insights by AI", pt: "Insights Financeiros por IA" })}</CardTitle>
-              <CardDescription className="text-wrap"> {translate({ en: "AI-generated summary and advice for", pt: "Resumo e conselhos gerados por IA para" })} {displayedMonthYearLabel}.
-                <br />
-                {translate({ en: "This feature is in development. AI analysis will use transactions and defined budgets once fully integrated.", pt: "Esta funcionalidade está em desenvolvimento. A análise da IA usará transações e orçamentos definidos quando totalmente integrada." })}
+              <CardDescription className="text-wrap mt-1">
+                {translate({ en: "AI-generated summary and advice for", pt: "Resumo e conselhos gerados por IA para" })} {displayedMonthYearLabel}.
               </CardDescription>
             </div>
           </CardHeader>
-          <CardContent className="pt-4">
-              <p className="text-muted-foreground text-center">
-                {translate({ en: "AI insights are coming soon!", pt: "Insights da IA em breve!" })}
-              </p>
+          <CardContent className="p-6 pt-0">
+             <Alert>
+                <Sparkles className="h-4 w-4" />
+                <AlertTitle className="font-semibold">{translate({ en: "Feature in Development", pt: "Funcionalidade em Desenvolvimento" })}</AlertTitle>
+                <AlertDescription>
+                  {translate({ en: "AI analysis will use your transaction and budget data to provide personalized insights here soon.", pt: "A análise da IA usará seus dados de transações e orçamento para fornecer insights personalizados aqui em breve." })}
+                </AlertDescription>
+              </Alert>
           </CardContent>
         </Card>
 
@@ -661,41 +664,43 @@ export default function ReportsPage() {
           </CardHeader>
           <CardContent>
             {budgetVsActualData.length > 0 ? (
-              <div className="space-y-3">
+              <div className="space-y-4">
                 {budgetVsActualData.map((item) => (
-                  <div key={item.categoryInternalName} className="p-3 rounded-md border bg-card hover:bg-accent/10 transition-colors">
-                    <div className="flex items-center justify-between mb-1">
-                      <div className="flex items-center gap-2">
-                        <CategoryIcon iconName={item.icon} className="h-5 w-5 text-muted-foreground" />
-                        <span className="font-medium text-sm">{item.categoryName}</span>
-                      </div>
-                      {item.budgeted > 0 && ( 
-                        <span className={cn(
-                          "text-xs font-semibold px-2 py-0.5 rounded-full",
-                          item.difference >= 0 ? 'bg-green-100 text-green-700 dark:bg-green-900/70 dark:text-green-300' : 'bg-red-100 text-red-700 dark:bg-red-900/70 dark:text-red-300'
-                        )}>
-                          {formatCurrency(Math.abs(item.difference))} {' '}
-                          {item.difference >= 0
-                            ? translate({ en: "under budget", pt: "abaixo do orçamento" })
-                            : translate({ en: "over budget", pt: "acima do orçamento" })
-                          }
-                        </span>
-                      )}
+                  <div key={item.categoryInternalName} className="p-4 rounded-lg border bg-background hover:bg-muted/50 transition-colors">
+                    <div className="flex items-center gap-3 mb-2">
+                      <CategoryIcon iconName={item.icon} className="h-6 w-6 text-primary" />
+                      <span className="font-semibold text-base text-foreground">{item.categoryName}</span>
                     </div>
                     <Progress
-                      value={item.budgeted > 0 ? Math.min(Math.round(item.percentage), 1000) : (item.actual > 0 ? 1000 : 0) }
-                      className="h-2 mb-1"
+                      value={item.budgeted > 0 ? item.percentage : (item.actual > 0 ? 100 : 0)}
+                      className="h-2"
                       indicatorClassName={cn(
-                         item.budgeted === 0 && item.actual > 0 ? "bg-muted-foreground" 
-                        : item.budgeted > 0 && item.actual > 0 && item.percentage > 100 ? "bg-destructive" 
-                        : item.budgeted > 0 && item.actual > 0 && item.percentage > 80 ? "bg-yellow-500 dark:bg-yellow-600" 
-                        : "bg-primary" 
+                        item.budgeted === 0 && item.actual > 0 ? "bg-gray-400" :
+                        item.percentage > 100 ? "bg-destructive" :
+                        item.percentage > 80 ? "bg-yellow-500" :
+                        "bg-primary"
                       )}
                     />
-                    <div className="flex justify-between text-xs text-muted-foreground">
-                      <span>{translate({ en: "Spent:", pt: "Gasto:" })} {formatCurrency(item.actual)}</span>
-                      <span>{translate({ en: "Budget:", pt: "Orçado:" })} {formatCurrency(item.budgeted)}</span>
+                    <div className="flex items-center justify-between mt-2 text-sm">
+                      <span className="text-muted-foreground">
+                        {translate({ pt: "Gasto:", en: "Spent:"})} <span className="font-medium text-foreground">{formatCurrency(item.actual)}</span>
+                      </span>
+                      {item.budgeted > 0 ? (
+                        <span className={cn(
+                          "font-medium",
+                          item.difference >= 0 ? "text-green-600 dark:text-green-500" : "text-red-600 dark:text-red-500"
+                        )}>
+                          {formatCurrency(Math.abs(item.difference))} {item.difference >= 0 ? translate({ pt: "restante", en: "left" }) : translate({ pt: "acima", en: "over" })}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground">{translate({ pt: "Sem orçamento", en: "No budget" })}</span>
+                      )}
                     </div>
+                    {item.budgeted > 0 && (
+                      <div className="text-right text-xs text-muted-foreground mt-1">
+                        {translate({ pt: "de um orçamento de", en: "of"})} {formatCurrency(item.budgeted)}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
