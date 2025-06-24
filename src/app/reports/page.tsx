@@ -445,8 +445,16 @@ export default function ReportsPage() {
         setFinancialSummaryError(null);
       }
 
+      const sanitizedTransactions = transactionsForDisplayedPeriod.map(t => {
+        const { createdAt, updatedAt, userId, ...plainTransaction } = t;
+        return {
+          ...plainTransaction,
+          category: getCategoryDisplayLabel(userDisplayCategories.find(c => c.name === t.category), 'en') || (t.category as string),
+        };
+      });
+
       const flowInput: FinancialSummaryInput = {
-        transactionsForMonth: transactionsForDisplayedPeriod.map(t => ({...t, category: getCategoryDisplayLabel(userDisplayCategories.find(c => c.name === t.category), 'en')})), // Use English for the model
+        transactionsForMonth: sanitizedTransactions,
         budgetsForMonth: loadedBudgets || undefined,
         monthYearLabel: displayedMonthYearLabel
       };
@@ -846,6 +854,3 @@ export default function ReportsPage() {
     </AppLayout>
   );
 }
-
-
-    
