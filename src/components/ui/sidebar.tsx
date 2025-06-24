@@ -219,15 +219,6 @@ const Sidebar = React.forwardRef<
       >
         <div
           className={cn(
-            "relative h-svh bg-transparent transition-[width] duration-200 ease-in-out", // Ensure transition is smooth
-            state === "expanded" ? "w-[--sidebar-width]" : "w-[--sidebar-width-icon]",
-            variant === "floating" || variant === "inset"
-              ? "" 
-              : "" 
-          )}
-        />
-        <div
-          className={cn(
             "fixed inset-y-0 z-10 hidden h-svh transition-[width] duration-200 ease-in-out md:flex",
             state === "expanded" ? "w-[--sidebar-width]" : "w-[--sidebar-width-icon]",
             side === "left"
