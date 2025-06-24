@@ -1,3 +1,4 @@
+
 "use client";
 import type { LucideIcon } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"; // Added CardDescription
@@ -20,7 +21,7 @@ export function SummaryCard({ title, value, icon: Icon, description, className, 
         <Icon className={cn("h-5 w-5 text-muted-foreground", iconClassName)} />
       </CardHeader>
       <CardContent>
-        <div className="text-xl font-bold sm:text-2xl">{value}</div>
+        <div className="text-lg font-bold sm:text-2xl">{value}</div>
         {description && <p className="truncate text-xs text-muted-foreground">{description}</p>}
       </CardContent>
     </Card>

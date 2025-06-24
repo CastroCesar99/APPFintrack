@@ -1,3 +1,4 @@
+
 "use client";
 import type { LucideIcon } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -34,8 +35,10 @@ export function BudgetSummaryCard({
         <Icon className={cn("h-5 w-5 text-muted-foreground", iconClassName)} />
       </CardHeader>
       <CardContent>
-        <div className="text-xl font-bold sm:text-2xl">
-          {formatCurrency(spentAmount)} / <span className="text-base text-muted-foreground">{formatCurrency(totalBudget)}</span>
+        <div className="flex flex-wrap items-baseline gap-x-2 text-lg font-bold sm:text-2xl">
+          <span>{formatCurrency(spentAmount)}</span>
+          <span className="font-normal text-muted-foreground">/</span>
+          <span className="font-normal text-base text-muted-foreground">{formatCurrency(totalBudget)}</span>
         </div>
         {description && <p className="truncate text-xs text-muted-foreground">{description}</p>}
         <Progress value={percentageUsed} className="mt-2 h-2" />
