@@ -650,7 +650,7 @@ export default function ReportsPage() {
               <TrendingUp className="h-4 w-4 text-green-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{formatCurrency(totalIncomeForPeriod)}</div>
+              <div className="text-lg sm:text-2xl font-bold">{formatCurrency(totalIncomeForPeriod)}</div>
             </CardContent>
           </Card>
           <Card className="shadow-lg">
@@ -659,7 +659,7 @@ export default function ReportsPage() {
               <TrendingDown className="h-4 w-4 text-red-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{formatCurrency(totalExpensesForPeriod)}</div>
+              <div className="text-lg sm:text-2xl font-bold">{formatCurrency(totalExpensesForPeriod)}</div>
             </CardContent>
           </Card>
           <Card className="shadow-lg">
@@ -668,7 +668,7 @@ export default function ReportsPage() {
               <DollarSign className={cn("h-4 w-4 ", netFlowForPeriod >= 0 ? 'text-green-500' : 'text-red-500')} />
             </CardHeader>
             <CardContent>
-              <div className={cn("text-2xl font-bold ", netFlowForPeriod >= 0 ? 'text-green-500' : 'text-red-500')}>{formatCurrency(netFlowForPeriod)}</div>
+              <div className={cn("text-lg sm:text-2xl font-bold ", netFlowForPeriod >= 0 ? 'text-green-500' : 'text-red-500')}>{formatCurrency(netFlowForPeriod)}</div>
             </CardContent>
           </Card>
         </div>
@@ -680,7 +680,7 @@ export default function ReportsPage() {
               <Package className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{formatCurrency(totalFixedExpensesForPeriod)}</div>
+              <div className="text-lg sm:text-2xl font-bold">{formatCurrency(totalFixedExpensesForPeriod)}</div>
             </CardContent>
           </Card>
           <Card className="shadow-lg">
@@ -689,7 +689,7 @@ export default function ReportsPage() {
               <Wallet className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{formatCurrency(totalVariableExpensesForPeriod)}</div>
+              <div className="text-lg sm:text-2xl font-bold">{formatCurrency(totalVariableExpensesForPeriod)}</div>
             </CardContent>
           </Card>
         </div>
