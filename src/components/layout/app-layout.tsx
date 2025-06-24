@@ -12,7 +12,7 @@ interface AppLayoutProps {
 export function AppLayout({ children }: AppLayoutProps) {
   return (
     <div className="flex min-h-screen w-full overflow-x-hidden"> {/* Added overflow-x-hidden */}
-      <Sidebar variant="sidebar" collapsible="none">
+      <Sidebar variant="sidebar" collapsible="icon">
         <AppSidebarContent />
       </Sidebar>
       <SidebarInset className="flex flex-col">
