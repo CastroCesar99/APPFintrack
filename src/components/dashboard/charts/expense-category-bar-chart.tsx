@@ -1,4 +1,3 @@
-
 "use client";
 import type { Transaction, DisplayCategory } from "@/types";
 import {
@@ -98,10 +97,11 @@ export function ExpenseCategoryBarChart({ transactions, userCategories }: Expens
             tickLine={false}
             axisLine={false}
             stroke="hsl(var(--foreground))"
-            fontSize={12}
+            fontSize={11}
             tickMargin={5}
-            width={80} 
+            width={65} 
             interval={0} 
+            textAnchor="end"
           />
           <Tooltip
             cursor={{ fill: "hsl(var(--muted))" }}
@@ -130,5 +130,3 @@ export function ExpenseCategoryBarChart({ transactions, userCategories }: Expens
     </ChartContainer>
   );
 }
-
-    

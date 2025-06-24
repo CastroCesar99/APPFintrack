@@ -589,12 +589,12 @@ export default function ReportsPage() {
             <Skeleton className="h-9 w-1/3 mb-4 sm:mb-0" />
             <Skeleton className="h-9 w-full sm:w-32" />
           </div>
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
             <Skeleton className="h-24 w-full" />
             <Skeleton className="h-24 w-full" />
             <Skeleton className="h-24 w-full" />
           </div>
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
             <Skeleton className="h-24 w-full" />
             <Skeleton className="h-24 w-full" />
           </div>
@@ -661,13 +661,13 @@ export default function ReportsPage() {
               <div className="text-lg md:text-2xl font-bold">{formatCurrency(totalExpensesForPeriod)}</div>
             </CardContent>
           </Card>
-          <Card className="shadow-lg">
+          <Card className="shadow-lg col-span-1 md:col-span-1">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">{translate({ en: "Net Cash Flow", pt: "Fluxo de Caixa Líquido" })}</CardTitle>
               <DollarSign className={cn("h-4 w-4 ", netFlowForPeriod >= 0 ? 'text-green-500' : 'text-red-500')} />
             </CardHeader>
             <CardContent>
-              <div className={cn("text-lg md:text-2xl font-bold ", netFlowForPeriod >= 0 ? 'text-green-500' : 'text-red-500')}>{formatCurrency(netFlowForPeriod)}</div>
+              <div className={cn("text-lg md:text-2xl font-bold", netFlowForPeriod >= 0 ? 'text-green-500' : 'text-red-500')}>{formatCurrency(netFlowForPeriod)}</div>
             </CardContent>
           </Card>
         </div>
@@ -755,7 +755,7 @@ export default function ReportsPage() {
                   const progressPercent = item.budgeted > 0 ? (item.actual / item.budgeted) * 100 : item.actual > 0 ? 100 : 0;
                   
                   return (
-                    <div key={item.categoryInternalName} className="space-y-2 rounded-lg border p-3 transition-colors hover:bg-muted/50">
+                    <div key={item.categoryInternalName} className="space-y-2 rounded-lg border p-2 transition-colors hover:bg-muted/50">
                       <div className="flex items-center gap-3">
                         <CategoryIcon iconName={item.icon} className="h-6 w-6 flex-shrink-0 text-primary" />
                         <p className="truncate font-semibold text-foreground" title={item.categoryName}>
@@ -777,8 +777,8 @@ export default function ReportsPage() {
                         )}
                       />
                       
-                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between text-sm gap-1 sm:gap-4">
-                        <p className="text-muted-foreground">
+                      <div className="flex flex-col md:flex-row md:items-center md:justify-between text-sm gap-1 md:gap-4">
+                        <p className="text-muted-foreground truncate">
                           {translate({ en: 'Spent:', pt: 'Gasto:' })}{' '}
                           <span className="font-medium text-foreground">
                             {formatCurrency(item.actual)}
@@ -792,7 +792,7 @@ export default function ReportsPage() {
                         
                         {item.budgeted > 0 ? (
                           <p className={cn(
-                            'font-medium text-right sm:text-left',
+                            'font-medium text-right md:text-left',
                             item.difference >= 0
                               ? 'text-green-600 dark:text-green-500'
                               : 'text-red-600 dark:text-red-500'
@@ -803,7 +803,7 @@ export default function ReportsPage() {
                               : translate({ en: 'over', pt: 'acima' })}
                           </p>
                         ) : (
-                          <p className="text-muted-foreground text-right sm:text-left">
+                          <p className="text-muted-foreground text-right md:text-left">
                             {translate({ en: 'No budget', pt: 'Sem orçamento' })}
                           </p>
                         )}
