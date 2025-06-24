@@ -643,53 +643,53 @@ export default function ReportsPage() {
           <ExportData transactions={transactionsForDisplayedPeriod} />
         </div>
 
-        <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 grid-cols-1 md:grid-cols-3">
           <Card className="shadow-lg">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-2">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-2 px-4 pt-4 md:px-6 md:pt-6">
               <CardTitle className="text-sm font-medium truncate" title={translate({ en: "Total Income", pt: "Receita Total" })}>{translate({ en: "Total Income", pt: "Receita Total" })}</CardTitle>
               <TrendingUp className="h-4 w-4 text-green-500 flex-shrink-0" />
             </CardHeader>
-            <CardContent>
-              <div className="text-lg md:text-2xl font-bold">{formatCurrency(totalIncomeForPeriod)}</div>
+            <CardContent className="p-4 pt-0 md:p-6 md:pt-0">
+              <div className="text-base sm:text-lg md:text-2xl font-bold">{formatCurrency(totalIncomeForPeriod)}</div>
             </CardContent>
           </Card>
           <Card className="shadow-lg">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-2">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-2 px-4 pt-4 md:px-6 md:pt-6">
               <CardTitle className="text-sm font-medium truncate" title={translate({ en: "Total Expenses", pt: "Despesa Total" })}>{translate({ en: "Total Expenses", pt: "Despesa Total" })}</CardTitle>
               <TrendingDown className="h-4 w-4 text-red-500 flex-shrink-0" />
             </CardHeader>
-            <CardContent>
-              <div className="text-lg md:text-2xl font-bold">{formatCurrency(totalExpensesForPeriod)}</div>
+            <CardContent className="p-4 pt-0 md:p-6 md:pt-0">
+              <div className="text-base sm:text-lg md:text-2xl font-bold">{formatCurrency(totalExpensesForPeriod)}</div>
             </CardContent>
           </Card>
           <Card className="shadow-lg">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-2">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-2 px-4 pt-4 md:px-6 md:pt-6">
               <CardTitle className="text-sm font-medium truncate" title={translate({ en: "Net Cash Flow", pt: "Fluxo de Caixa Líquido" })}>{translate({ en: "Net Cash Flow", pt: "Fluxo de Caixa Líquido" })}</CardTitle>
               <DollarSign className={cn("h-4 w-4 flex-shrink-0", netFlowForPeriod >= 0 ? 'text-green-500' : 'text-red-500')} />
             </CardHeader>
-            <CardContent>
-              <div className={cn("text-lg md:text-2xl font-bold", netFlowForPeriod >= 0 ? 'text-green-500' : 'text-red-500')}>{formatCurrency(netFlowForPeriod)}</div>
+            <CardContent className="p-4 pt-0 md:p-6 md:pt-0">
+              <div className={cn("text-base sm:text-lg md:text-2xl font-bold", netFlowForPeriod >= 0 ? 'text-green-500' : 'text-red-500')}>{formatCurrency(netFlowForPeriod)}</div>
             </CardContent>
           </Card>
         </div>
 
         <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
           <Card className="shadow-lg">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-2">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-2 px-4 pt-4 md:px-6 md:pt-6">
               <CardTitle className="text-sm font-medium truncate" title={translate({ en: "Total Fixed Expenses", pt: "Despesas Fixas Totais" })}>{translate({ en: "Total Fixed Expenses", pt: "Despesas Fixas Totais" })}</CardTitle>
               <Package className="h-4 w-4 text-muted-foreground flex-shrink-0" />
             </CardHeader>
-            <CardContent>
-              <div className="text-lg md:text-2xl font-bold">{formatCurrency(totalFixedExpensesForPeriod)}</div>
+            <CardContent className="p-4 pt-0 md:p-6 md:pt-0">
+              <div className="text-base sm:text-lg md:text-2xl font-bold">{formatCurrency(totalFixedExpensesForPeriod)}</div>
             </CardContent>
           </Card>
           <Card className="shadow-lg">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-2">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-2 px-4 pt-4 md:px-6 md:pt-6">
               <CardTitle className="text-sm font-medium truncate" title={translate({ en: "Total Variable Expenses", pt: "Despesas Variáveis Totais" })}>{translate({ en: "Total Variable Expenses", pt: "Despesas Variáveis Totais" })}</CardTitle>
               <Wallet className="h-4 w-4 text-muted-foreground flex-shrink-0" />
             </CardHeader>
-            <CardContent>
-              <div className="text-lg md:text-2xl font-bold">{formatCurrency(totalVariableExpensesForPeriod)}</div>
+            <CardContent className="p-4 pt-0 md:p-6 md:pt-0">
+              <div className="text-base sm:text-lg md:text-2xl font-bold">{formatCurrency(totalVariableExpensesForPeriod)}</div>
             </CardContent>
           </Card>
         </div>
