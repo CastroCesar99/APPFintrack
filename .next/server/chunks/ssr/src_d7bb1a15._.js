@@ -1639,7 +1639,7 @@ function SummarySection({ transactionsForDisplayedPeriod = [], monthlyBudget, di
     const netCashFlowThisPeriod = totalIncomeThisPeriod - totalExpensesThisPeriod;
     console.log("SummarySection: TRACER --- Calculated totals: totalIncomeThisPeriod:", totalIncomeThisPeriod, "totalExpensesThisPeriod:", totalExpensesThisPeriod);
     return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-        className: "grid gap-4 md:grid-cols-2 lg:grid-cols-4",
+        className: "grid grid-cols-2 gap-4 lg:grid-cols-4",
         children: [
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$dashboard$2f$summary$2d$card$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["SummaryCard"], {
                 title: `${translate({
@@ -1652,7 +1652,7 @@ function SummarySection({ transactionsForDisplayedPeriod = [], monthlyBudget, di
                 iconClassName: "text-green-500"
             }, void 0, false, {
                 fileName: "[project]/src/components/dashboard/summary-section.tsx",
-                lineNumber: 43,
+                lineNumber: 42,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$dashboard$2f$summary$2d$card$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["SummaryCard"], {
@@ -1666,7 +1666,7 @@ function SummarySection({ transactionsForDisplayedPeriod = [], monthlyBudget, di
                 iconClassName: "text-red-500"
             }, void 0, false, {
                 fileName: "[project]/src/components/dashboard/summary-section.tsx",
-                lineNumber: 50,
+                lineNumber: 49,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$dashboard$2f$summary$2d$card$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["SummaryCard"], {
@@ -1683,7 +1683,7 @@ function SummarySection({ transactionsForDisplayedPeriod = [], monthlyBudget, di
                 iconClassName: netCashFlowThisPeriod >= 0 ? "text-primary" : "text-destructive"
             }, void 0, false, {
                 fileName: "[project]/src/components/dashboard/summary-section.tsx",
-                lineNumber: 57,
+                lineNumber: 56,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$dashboard$2f$budget$2d$summary$2d$card$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["BudgetSummaryCard"], {
@@ -1697,13 +1697,13 @@ function SummarySection({ transactionsForDisplayedPeriod = [], monthlyBudget, di
                 description: displayedMonthYearLabel
             }, void 0, false, {
                 fileName: "[project]/src/components/dashboard/summary-section.tsx",
-                lineNumber: 67,
+                lineNumber: 66,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/src/components/dashboard/summary-section.tsx",
-        lineNumber: 42,
+        lineNumber: 41,
         columnNumber: 5
     }, this);
 }
