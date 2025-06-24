@@ -21,7 +21,7 @@ export function SummaryCard({ title, value, icon: Icon, description, className, 
       </CardHeader>
       <CardContent>
         <div className="text-xl font-bold sm:text-2xl">{value}</div>
-        {description && <p className="text-xs text-muted-foreground">{description}</p>}
+        {description && <p className="truncate text-xs text-muted-foreground">{description}</p>}
       </CardContent>
     </Card>
   );

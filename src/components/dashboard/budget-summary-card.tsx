@@ -37,7 +37,7 @@ export function BudgetSummaryCard({
         <div className="text-xl font-bold sm:text-2xl">
           {formatCurrency(spentAmount)} / <span className="text-base text-muted-foreground">{formatCurrency(totalBudget)}</span>
         </div>
-        {description && <p className="text-xs text-muted-foreground">{description}</p>}
+        {description && <p className="truncate text-xs text-muted-foreground">{description}</p>}
         <Progress value={percentageUsed} className="mt-2 h-2" />
         <p className="text-xs text-muted-foreground mt-1">
           {percentageUsed}% {translate({ en: "of total budget used", pt: "do orçamento total utilizado" })}
