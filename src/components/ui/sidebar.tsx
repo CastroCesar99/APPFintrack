@@ -87,10 +87,8 @@ const SidebarProvider = React.forwardRef<
     const toggleSidebar = React.useCallback(() => {
       if (isMobile) {
         setOpenMobile((currentOpenMobile) => !currentOpenMobile)
-      } else {
-        setOpen(!open) // Re-enable desktop toggle
       }
-    }, [isMobile, setOpenMobile, open, setOpen])
+    }, [isMobile, setOpenMobile])
 
     React.useEffect(() => {
       const handleKeyDown = (event: KeyboardEvent) => {
@@ -237,7 +235,6 @@ const Sidebar = React.forwardRef<
           >
             {children}
           </div>
-           {collapsible === "icon" && <SidebarRail />}
         </div>
       </div>
     )
