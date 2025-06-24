@@ -38,7 +38,7 @@ export function SummarySection({
 
 
   return (
-    <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-4">
       <SummaryCard
         title={`${translate({ en: "Total Income", pt: "Receita Total" })}`}
         value={formatCurrency(totalIncomeThisPeriod)}
