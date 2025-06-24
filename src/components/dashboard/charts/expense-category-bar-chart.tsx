@@ -1,3 +1,4 @@
+
 "use client";
 import type { Transaction, DisplayCategory } from "@/types";
 import {
@@ -87,7 +88,7 @@ export function ExpenseCategoryBarChart({ transactions, userCategories }: Expens
         <BarChart
           data={expenseData}
           layout="vertical"
-          margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+          margin={{ top: 5, right: 20, left: 10, bottom: 5 }}
         >
           <CartesianGrid horizontal={false} strokeDasharray="3 3" />
           <XAxis type="number" tickFormatter={(value) => formatCurrency(value).replace(/\.\d{2}$/, '')}  fontSize={12} />
@@ -98,8 +99,8 @@ export function ExpenseCategoryBarChart({ transactions, userCategories }: Expens
             axisLine={false}
             stroke="hsl(var(--foreground))"
             fontSize={12}
-            tickMargin={8}
-            width={120} 
+            tickMargin={5}
+            width={80} 
             interval={0} 
           />
           <Tooltip
@@ -129,3 +130,5 @@ export function ExpenseCategoryBarChart({ transactions, userCategories }: Expens
     </ChartContainer>
   );
 }
+
+    

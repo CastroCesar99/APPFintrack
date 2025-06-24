@@ -37,6 +37,8 @@ import { formatCurrency, cn } from '@/lib/utils';
 import { ExportData } from '@/components/dashboard/export-data';
 import { Progress } from "@/components/ui/progress";
 import { CategoryIcon } from "@/components/icons";
+import { generateFinancialSummary, type FinancialSummaryInput, type FinancialSummaryOutput } from '@/ai/flows/financial-summary-flow';
+
 
 interface BudgetComparisonItem {
   categoryInternalName: string;
@@ -65,6 +67,11 @@ export default function ReportsPage() {
   const [isLoadingBudgets, setIsLoadingBudgets] = useState(true);
 
   const [isClient, setIsClient] = useState(false);
+
+  const [financialSummary, setFinancialSummary] = useState<FinancialSummaryOutput | null>(null);
+  const [isLoadingFinancialSummary, setIsLoadingFinancialSummary] = useState(false);
+  const [financialSummaryError, setFinancialSummaryError] = useState<string | null>(null);
+
 
   const effectMountedRef = useRef(true);
   const unsubscribeTransactionsRef = useRef<(() => void) | null>(null);
@@ -413,7 +420,6 @@ export default function ReportsPage() {
         reason = "Non-Recurring Check";
         includeTransaction = true;
       }
-      console.log("ReportsPage TX Filter: ID: " + t.id + " Date: " + t.date + " EffMonth: " + t.effectiveMonth + " Type: " + t.type + " ExpType: " + t.expenseType + " isRec: " + t.isRecurring + " Inst: " + t.installments + " Amount: " + t.amount + " Included: " + includeTransaction + " Reason: " + reason + " Target: " + targetEffectiveMonth);
       if (includeTransaction) {
         filtered.push(t);
       }
@@ -421,6 +427,52 @@ export default function ReportsPage() {
     console.log("ReportsPage: TRACER --- transactionsForDisplayedPeriod: Found " + filtered.length + " transactions for the period.");
     return filtered;
   }, [allTransactions, displayedDate, displayedMonthYearLabel]);
+
+  // Effect to trigger AI summary generation
+  useEffect(() => {
+    const fetchSummary = async () => {
+      if (isLoadingTransactions || isLoadingBudgets || transactionsForDisplayedPeriod.length === 0) {
+        if(effectMountedRef.current) {
+          setFinancialSummary(null);
+          setFinancialSummaryError(null);
+          setIsLoadingFinancialSummary(false);
+        }
+        return;
+      }
+
+      if(effectMountedRef.current) {
+        setIsLoadingFinancialSummary(true);
+        setFinancialSummaryError(null);
+      }
+
+      const flowInput: FinancialSummaryInput = {
+        transactionsForMonth: transactionsForDisplayedPeriod.map(t => ({...t, category: getCategoryDisplayLabel(userDisplayCategories.find(c => c.name === t.category), 'en')})), // Use English for the model
+        budgetsForMonth: loadedBudgets || undefined,
+        monthYearLabel: displayedMonthYearLabel
+      };
+
+      try {
+        const summaryOutput = await generateFinancialSummary(flowInput);
+        if (effectMountedRef.current) {
+          setFinancialSummary(summaryOutput);
+        }
+      } catch (error) {
+        console.error("Error generating financial summary:", error);
+        if (effectMountedRef.current) {
+          setFinancialSummaryError(translate({
+            en: "Could not generate AI summary at this time.",
+            pt: "Não foi possível gerar o resumo de IA no momento."
+          }));
+        }
+      } finally {
+        if (effectMountedRef.current) {
+          setIsLoadingFinancialSummary(false);
+        }
+      }
+    };
+
+    fetchSummary();
+  }, [transactionsForDisplayedPeriod, loadedBudgets, isLoadingTransactions, isLoadingBudgets, displayedMonthYearLabel, userDisplayCategories, translate]);
 
   const totalIncomeForPeriod = useMemo(() =>
     transactionsForDisplayedPeriod
@@ -645,13 +697,40 @@ export default function ReportsPage() {
             </div>
           </CardHeader>
           <CardContent className="p-6 pt-0">
-             <Alert>
-                <Sparkles className="h-4 w-4" />
-                <AlertTitle className="font-semibold">{translate({ en: "Feature in Development", pt: "Funcionalidade em Desenvolvimento" })}</AlertTitle>
-                <AlertDescription>
-                  {translate({ en: "AI analysis will use your transaction and budget data to provide personalized insights here soon.", pt: "A análise da IA usará seus dados de transações e orçamento para fornecer insights personalizados aqui em breve." })}
-                </AlertDescription>
-              </Alert>
+             {isLoadingFinancialSummary ? (
+                <div className="space-y-2">
+                  <Skeleton className="h-4 w-3/4" />
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-5/6" />
+                </div>
+              ) : financialSummaryError ? (
+                <Alert variant="destructive">
+                  <Sparkles className="h-4 w-4" />
+                  <AlertTitle>{translate({ en: "Error", pt: "Erro" })}</AlertTitle>
+                  <AlertDescription>{financialSummaryError}</AlertDescription>
+                </Alert>
+              ) : financialSummary ? (
+                <div className="space-y-4 text-sm">
+                  <div>
+                    <h4 className="font-semibold mb-1">{translate({ en: "Overall Status", pt: "Status Geral"})}</h4>
+                    <p className="text-muted-foreground">{financialSummary.overallStatus}</p>
+                  </div>
+                   <div>
+                    <h4 className="font-semibold mb-1">{translate({ en: "Key Observations", pt: "Observações Chave"})}</h4>
+                    <ul className="list-disc list-inside space-y-1 text-muted-foreground">
+                      {financialSummary.keyObservations.map((obs, i) => <li key={i}>{obs}</li>)}
+                    </ul>
+                  </div>
+                   <div>
+                    <h4 className="font-semibold mb-1">{translate({ en: "Actionable Advice", pt: "Conselhos Práticos"})}</h4>
+                    <ul className="list-disc list-inside space-y-1 text-muted-foreground">
+                      {financialSummary.actionableAdvice.map((adv, i) => <li key={i}>{adv}</li>)}
+                    </ul>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-muted-foreground text-center py-4">{translate({ en: "No data to generate AI insights.", pt: "Sem dados para gerar insights de IA." })}</p>
+              )}
           </CardContent>
         </Card>
 
@@ -669,19 +748,12 @@ export default function ReportsPage() {
                   const progressPercent = item.budgeted > 0 ? (item.actual / item.budgeted) * 100 : item.actual > 0 ? 100 : 0;
                   
                   return (
-                    <div key={item.categoryInternalName} className="space-y-2 rounded-lg border p-4 transition-colors hover:bg-muted/50">
-                      <div className="flex items-center justify-between gap-x-3">
-                        <div className="flex items-center gap-3 min-w-0">
-                          <CategoryIcon iconName={item.icon} className="h-6 w-6 flex-shrink-0 text-primary" />
-                          <p className="truncate font-semibold text-foreground" title={item.categoryName}>
-                            {item.categoryName}
-                          </p>
-                        </div>
-                        {item.budgeted > 0 && (
-                          <p className="whitespace-nowrap text-sm font-medium text-muted-foreground">
-                            {Math.round(progressPercent)}%
-                          </p>
-                        )}
+                    <div key={item.categoryInternalName} className="space-y-2 rounded-lg border p-3 transition-colors hover:bg-muted/50">
+                      <div className="flex items-center gap-3">
+                        <CategoryIcon iconName={item.icon} className="h-6 w-6 flex-shrink-0 text-primary" />
+                        <p className="truncate font-semibold text-foreground" title={item.categoryName}>
+                          {item.categoryName}
+                        </p>
                       </div>
 
                       <Progress
@@ -693,21 +765,27 @@ export default function ReportsPage() {
                             : progressPercent > 100
                               ? 'bg-destructive'
                               : progressPercent > 80
-                                ? 'bg-yellow-500' // This color is not in the theme, but can be a specific exception for warnings
+                                ? 'bg-yellow-500'
                                 : 'bg-primary'
                         )}
                       />
                       
-                      <div className="flex items-center justify-between text-sm">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between text-sm gap-1 sm:gap-4">
                         <p className="text-muted-foreground">
                           {translate({ en: 'Spent:', pt: 'Gasto:' })}{' '}
                           <span className="font-medium text-foreground">
                             {formatCurrency(item.actual)}
                           </span>
+                          {item.budgeted > 0 && (
+                            <span className="text-muted-foreground">
+                              {' '}/ {formatCurrency(item.budgeted)} ({Math.round(progressPercent)}%)
+                            </span>
+                          )}
                         </p>
+                        
                         {item.budgeted > 0 ? (
                           <p className={cn(
-                            'font-medium',
+                            'font-medium text-right sm:text-left',
                             item.difference >= 0
                               ? 'text-green-600 dark:text-green-500'
                               : 'text-red-600 dark:text-red-500'
@@ -718,7 +796,7 @@ export default function ReportsPage() {
                               : translate({ en: 'over', pt: 'acima' })}
                           </p>
                         ) : (
-                          <p className="text-muted-foreground">
+                          <p className="text-muted-foreground text-right sm:text-left">
                             {translate({ en: 'No budget', pt: 'Sem orçamento' })}
                           </p>
                         )}
@@ -768,3 +846,6 @@ export default function ReportsPage() {
     </AppLayout>
   );
 }
+
+
+    

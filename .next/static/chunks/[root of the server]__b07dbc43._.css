@@ -1040,6 +1040,10 @@ body {
   width: 100%;
 }
 
+.w-5\/6 {
+  width: 83.3333%;
+}
+
 .min-w-0 {
   min-width: 0;
 }
@@ -1169,6 +1173,14 @@ body {
 
 .select-none {
   user-select: none;
+}
+
+.list-inside {
+  list-style-position: inside;
+}
+
+.list-disc {
+  list-style-type: disc;
 }
 
 .grid-cols-1 {
@@ -3078,6 +3090,10 @@ body {
 
   .sm\:justify-between {
     justify-content: space-between;
+  }
+
+  .sm\:gap-4 {
+    gap: 1rem;
   }
 
   .sm\:space-x-2 > :not([hidden]) ~ :not([hidden]) {
