@@ -1135,6 +1135,10 @@ body {
   gap: 1.5rem;
 }
 
+.gap-x-3 {
+  column-gap: .75rem;
+}
+
 .space-x-1 > :not([hidden]) ~ :not([hidden]) {
   --tw-space-x-reverse: 0;
   margin-right: calc(.25rem * var(--tw-space-x-reverse));

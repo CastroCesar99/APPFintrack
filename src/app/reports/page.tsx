@@ -478,9 +478,9 @@ export default function ReportsPage() {
       const difference = budgeted - actual;
       let percentage = 0;
       if (budgeted > 0) {
-        percentage = Math.min(Math.round((actual / budgeted) * 100), 1000); 
+        percentage = (actual / budgeted) * 100;
       } else if (actual > 0) { 
-        percentage = 1000; 
+        percentage = 100; 
       }
       return { categoryInternalName: internalName, categoryName: displayName, icon: icon, budgeted, actual, difference, percentage };
     }).filter(item => item.budgeted > 0 || item.actual > 0) 
@@ -665,44 +665,67 @@ export default function ReportsPage() {
           <CardContent>
             {budgetVsActualData.length > 0 ? (
               <div className="space-y-4">
-                {budgetVsActualData.map((item) => (
-                  <div key={item.categoryInternalName} className="p-4 rounded-lg border bg-background hover:bg-muted/50 transition-colors">
-                    <div className="flex items-center gap-3 mb-2">
-                      <CategoryIcon iconName={item.icon} className="h-6 w-6 text-primary" />
-                      <span className="font-semibold text-base text-foreground">{item.categoryName}</span>
-                    </div>
-                    <Progress
-                      value={item.budgeted > 0 ? item.percentage : (item.actual > 0 ? 100 : 0)}
-                      className="h-2"
-                      indicatorClassName={cn(
-                        item.budgeted === 0 && item.actual > 0 ? "bg-gray-400" :
-                        item.percentage > 100 ? "bg-destructive" :
-                        item.percentage > 80 ? "bg-yellow-500" :
-                        "bg-primary"
-                      )}
-                    />
-                    <div className="flex items-center justify-between mt-2 text-sm">
-                      <span className="text-muted-foreground">
-                        {translate({ pt: "Gasto:", en: "Spent:"})} <span className="font-medium text-foreground">{formatCurrency(item.actual)}</span>
-                      </span>
-                      {item.budgeted > 0 ? (
-                        <span className={cn(
-                          "font-medium",
-                          item.difference >= 0 ? "text-green-600 dark:text-green-500" : "text-red-600 dark:text-red-500"
-                        )}>
-                          {formatCurrency(Math.abs(item.difference))} {item.difference >= 0 ? translate({ pt: "restante", en: "left" }) : translate({ pt: "acima", en: "over" })}
-                        </span>
-                      ) : (
-                        <span className="text-muted-foreground">{translate({ pt: "Sem orçamento", en: "No budget" })}</span>
-                      )}
-                    </div>
-                    {item.budgeted > 0 && (
-                      <div className="text-right text-xs text-muted-foreground mt-1">
-                        {translate({ pt: "de um orçamento de", en: "of"})} {formatCurrency(item.budgeted)}
+                {budgetVsActualData.map((item) => {
+                  const progressPercent = item.budgeted > 0 ? (item.actual / item.budgeted) * 100 : item.actual > 0 ? 100 : 0;
+                  
+                  return (
+                    <div key={item.categoryInternalName} className="space-y-2 rounded-lg border p-4 transition-colors hover:bg-muted/50">
+                      <div className="flex items-center justify-between gap-x-3">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <CategoryIcon iconName={item.icon} className="h-6 w-6 flex-shrink-0 text-primary" />
+                          <p className="truncate font-semibold text-foreground" title={item.categoryName}>
+                            {item.categoryName}
+                          </p>
+                        </div>
+                        {item.budgeted > 0 && (
+                          <p className="whitespace-nowrap text-sm font-medium text-muted-foreground">
+                            {Math.round(progressPercent)}%
+                          </p>
+                        )}
                       </div>
-                    )}
-                  </div>
-                ))}
+
+                      <Progress
+                        value={progressPercent}
+                        className="h-2"
+                        indicatorClassName={cn(
+                          item.budgeted === 0 && item.actual > 0
+                            ? 'bg-muted-foreground'
+                            : progressPercent > 100
+                              ? 'bg-destructive'
+                              : progressPercent > 80
+                                ? 'bg-yellow-500' // This color is not in the theme, but can be a specific exception for warnings
+                                : 'bg-primary'
+                        )}
+                      />
+                      
+                      <div className="flex items-center justify-between text-sm">
+                        <p className="text-muted-foreground">
+                          {translate({ en: 'Spent:', pt: 'Gasto:' })}{' '}
+                          <span className="font-medium text-foreground">
+                            {formatCurrency(item.actual)}
+                          </span>
+                        </p>
+                        {item.budgeted > 0 ? (
+                          <p className={cn(
+                            'font-medium',
+                            item.difference >= 0
+                              ? 'text-green-600 dark:text-green-500'
+                              : 'text-red-600 dark:text-red-500'
+                          )}>
+                            {formatCurrency(Math.abs(item.difference))}{' '}
+                            {item.difference >= 0
+                              ? translate({ en: 'left', pt: 'restante' })
+                              : translate({ en: 'over', pt: 'acima' })}
+                          </p>
+                        ) : (
+                          <p className="text-muted-foreground">
+                            {translate({ en: 'No budget', pt: 'Sem orçamento' })}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center h-[150px] text-center">
@@ -745,5 +768,3 @@ export default function ReportsPage() {
     </AppLayout>
   );
 }
-
-    
