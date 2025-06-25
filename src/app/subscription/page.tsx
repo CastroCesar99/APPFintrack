@@ -33,6 +33,7 @@ export default function SubscriptionPage() {
   const [subscriptionData, setSubscriptionData] = useState<UserSubscriptionData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSimulating, setIsSimulating] = useState(false);
+  const [isCanceling, setIsCanceling] = useState(false);
 
   const fetchSubscriptionStatus = useCallback(async () => {
     if (!user) {
@@ -115,6 +116,35 @@ export default function SubscriptionPage() {
       setIsSimulating(false);
     }
   }
+
+  const handleSimulateCancellation = async () => {
+    if (!user) return;
+    setIsCanceling(true);
+    try {
+      const userDocRef = doc(db, 'users', user.uid);
+      
+      await updateDoc(userDocRef, {
+        subscriptionStatus: 'canceled',
+        subscriptionEndDate: null, 
+        updatedAt: serverTimestamp(),
+      });
+
+      toast({
+        title: translate({ en: "Subscription Canceled", pt: "Assinatura Cancelada" }),
+        description: translate({ en: "Your subscription has been simulated as canceled.", pt: "Sua assinatura foi simulada como cancelada." }),
+      });
+      await fetchSubscriptionStatus(); 
+    } catch (error) {
+       console.error("Error simulating cancellation:", error);
+      toast({
+        title: translate({ en: "Error", pt: "Erro" }),
+        description: translate({ en: "Could not simulate the cancellation.", pt: "Não foi possível simular o cancelamento." }),
+        variant: "destructive",
+      });
+    } finally {
+      setIsCanceling(false);
+    }
+  };
 
   const renderStatusContent = () => {
     if (isLoading || !subscriptionData) {
@@ -207,11 +237,16 @@ export default function SubscriptionPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="mt-4 border-t pt-4">
+            <div className="mt-4 border-t pt-4 space-y-2">
                 <p className="text-sm text-muted-foreground">{translate({ en: 'For testing purposes:', pt: 'Para fins de teste:' })}</p>
-                <Button onClick={handleSimulatePayment} variant="secondary" className="mt-2" disabled={isSimulating}>
-                    {isSimulating ? translate({ en: 'Processing...', pt: 'Processando...' }) : translate({ en: 'Simulate 30-Day Subscription', pt: 'Simular Assinatura de 30 Dias' })}
-                </Button>
+                <div className="flex flex-col sm:flex-row gap-2 justify-center">
+                    <Button onClick={handleSimulatePayment} variant="secondary" className="mt-2" disabled={isSimulating || isCanceling}>
+                        {isSimulating ? translate({ en: 'Processing...', pt: 'Processando...' }) : translate({ en: 'Simulate 30-Day Subscription', pt: 'Simular Assinatura de 30 Dias' })}
+                    </Button>
+                    <Button onClick={handleSimulateCancellation} variant="destructive" className="mt-2" disabled={isSimulating || isCanceling}>
+                        {isCanceling ? translate({ en: 'Canceling...', pt: 'Cancelando...' }) : translate({ en: 'Simulate Cancellation', pt: 'Simular Cancelamento' })}
+                    </Button>
+                </div>
             </div>
           </CardContent>
         </Card>
