@@ -84,7 +84,7 @@ export function ExpenseCategoryBarChart({ transactions, userCategories }: Expens
 
   return (
     <ChartContainer config={chartConfig} className="min-h-[300px] w-full">
-      <ResponsiveContainer width="100%" height={Math.max(300, expenseData.length * 40)}>
+      <ResponsiveContainer width="100%" height={Math.max(300, expenseData.length * 35)}>
         <BarChart
           data={expenseData}
           layout="vertical"
@@ -118,7 +118,7 @@ export function ExpenseCategoryBarChart({ transactions, userCategories }: Expens
               />
             }
           />
-          <Bar dataKey="value" layout="vertical" radius={[0, 4, 4, 0]}>
+          <Bar dataKey="value" layout="vertical" radius={[0, 4, 4, 0]} barSize={20}>
             {expenseData.map((entry, index) => (
               <Cell
                 key={`cell-${index}`}

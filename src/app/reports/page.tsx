@@ -630,7 +630,7 @@ export default function ReportsPage() {
             <Skeleton className="h-9 w-1/3 mb-4 sm:mb-0" />
             <Skeleton className="h-9 w-full sm:w-32" />
           </div>
-          <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-4 mb-8">
             <Skeleton className="h-24 w-full" />
             <Skeleton className="h-24 w-full" />
             <Skeleton className="h-24 w-full" />
@@ -683,8 +683,8 @@ export default function ReportsPage() {
           <ExportData transactions={transactionsForDisplayedPeriod} />
         </div>
         
-        <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
-          <Card className="shadow-lg">
+        <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-4 mb-8">
+          <Card className="shadow-lg bg-background dark:bg-card rounded-lg">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4">
               <CardTitle className="text-sm font-medium truncate">{translate({ en: "Total Income", pt: "Receita Total" })}</CardTitle>
               <TrendingUp className="h-4 w-4 text-green-500 flex-shrink-0" />
@@ -694,7 +694,7 @@ export default function ReportsPage() {
               <p className="text-xs text-muted-foreground">{displayedMonthYearLabel}</p>
             </CardContent>
           </Card>
-          <Card className="shadow-lg">
+          <Card className="shadow-lg bg-background dark:bg-card rounded-lg">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4">
               <CardTitle className="text-sm font-medium truncate">{translate({ en: "Total Expenses", pt: "Despesa Total" })}</CardTitle>
               <TrendingDown className="h-4 w-4 text-red-500 flex-shrink-0" />
@@ -704,7 +704,7 @@ export default function ReportsPage() {
               <p className="text-xs text-muted-foreground">{displayedMonthYearLabel}</p>
             </CardContent>
           </Card>
-          <Card className="shadow-lg">
+          <Card className="shadow-lg bg-background dark:bg-card rounded-lg">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4">
               <CardTitle className="text-sm font-medium truncate">{translate({ en: "Net Cash Flow", pt: "Fluxo de Caixa Líquido" })}</CardTitle>
               <DollarSign className={cn("h-4 w-4 flex-shrink-0", netFlowForPeriod >= 0 ? 'text-green-500' : 'text-red-500')} />
@@ -714,7 +714,7 @@ export default function ReportsPage() {
               <p className="text-xs text-muted-foreground">{translate({ en: "For", pt: "Para" })} {displayedMonthYearLabel}</p>
             </CardContent>
           </Card>
-          <Card className="shadow-lg">
+          <Card className="shadow-lg bg-background dark:bg-card rounded-lg">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4">
               <CardTitle className="text-sm font-medium truncate">{translate({ en: "Monthly Budget Status", pt: "Status do Orçamento Mensal" })}</CardTitle>
               <ListChecks className="h-4 w-4 text-muted-foreground flex-shrink-0" />
