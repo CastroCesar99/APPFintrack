@@ -1,4 +1,3 @@
-
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -13,7 +12,7 @@ import {
 import { AppLogoIcon, DashboardIcon, SettingsIcon } from "@/components/icons";
 import { useLanguage } from "@/context/language-context";
 import { useAuth } from "@/context/auth-context";
-import { LogOut, CreditCard, TrendingUp, ListChecks, FileText, Star } from "lucide-react";
+import { LogOut, CreditCard, TrendingUp, ListChecks, FileText } from "lucide-react";
 import { Separator } from "@/components/ui/separator"; 
 
 export function AppSidebarContent() {
@@ -53,12 +52,6 @@ export function AppSidebarContent() {
       label: translate({ en: "Reports", pt: "Relatórios" }),
       icon: FileText,
       exact: false
-    },
-     {
-      href: "/subscription",
-      label: translate({ en: "Subscription", pt: "Assinatura" }),
-      icon: Star,
-      exact: true
     },
   ];
 
