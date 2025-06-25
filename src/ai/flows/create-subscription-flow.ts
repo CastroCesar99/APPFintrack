@@ -60,7 +60,7 @@ const createSubscriptionPlanFlow = ai.defineFlow(
         ],
         payment_methods: []
       },
-      back_url": "https://fintrack-beta.vercel.app/"
+      back_url: "https://fintrack-beta.vercel.app/"
     };
 
     console.log("Sending payload to Mercado Pago:", JSON.stringify(planPayload, null, 2));

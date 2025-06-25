@@ -37,8 +37,6 @@ import { formatCurrency, cn } from '@/lib/utils';
 import { ExportData } from '@/components/dashboard/export-data';
 import { Progress } from "@/components/ui/progress";
 import { CategoryIcon } from "@/components/icons";
-import { generateFinancialSummary, type FinancialSummaryInput, type FinancialSummaryOutput } from '@/ai/flows/financial-summary-flow';
-
 
 interface BudgetComparisonItem {
   categoryInternalName: string;
@@ -67,11 +65,6 @@ export default function ReportsPage() {
   const [isLoadingBudgets, setIsLoadingBudgets] = useState(true);
 
   const [isClient, setIsClient] = useState(false);
-
-  const [financialSummary, setFinancialSummary] = useState<FinancialSummaryOutput | null>(null);
-  const [isLoadingFinancialSummary, setIsLoadingFinancialSummary] = useState(false);
-  const [financialSummaryError, setFinancialSummaryError] = useState<string | null>(null);
-
 
   const effectMountedRef = useRef(true);
   const unsubscribeTransactionsRef = useRef<(() => void) | null>(null);
@@ -428,60 +421,6 @@ export default function ReportsPage() {
     return filtered;
   }, [allTransactions, displayedDate, displayedMonthYearLabel]);
 
-  // Effect to trigger AI summary generation
-  useEffect(() => {
-    const fetchSummary = async () => {
-      if (isLoadingTransactions || isLoadingBudgets || transactionsForDisplayedPeriod.length === 0) {
-        if(effectMountedRef.current) {
-          setFinancialSummary(null);
-          setFinancialSummaryError(null);
-          setIsLoadingFinancialSummary(false);
-        }
-        return;
-      }
-
-      if(effectMountedRef.current) {
-        setIsLoadingFinancialSummary(true);
-        setFinancialSummaryError(null);
-      }
-
-      const sanitizedTransactions = transactionsForDisplayedPeriod.map(t => {
-        const { createdAt, updatedAt, userId, ...plainTransaction } = t;
-        return {
-          ...plainTransaction,
-          category: getCategoryDisplayLabel(userDisplayCategories.find(c => c.name === t.category), 'en') || (t.category as string),
-        };
-      });
-
-      const flowInput: FinancialSummaryInput = {
-        transactionsForMonth: sanitizedTransactions,
-        budgetsForMonth: loadedBudgets || undefined,
-        monthYearLabel: displayedMonthYearLabel
-      };
-
-      try {
-        const summaryOutput = await generateFinancialSummary(flowInput);
-        if (effectMountedRef.current) {
-          setFinancialSummary(summaryOutput);
-        }
-      } catch (error) {
-        console.error("Error generating financial summary:", error);
-        if (effectMountedRef.current) {
-          setFinancialSummaryError(translate({
-            en: "Could not generate AI summary at this time.",
-            pt: "Não foi possível gerar o resumo de IA no momento."
-          }));
-        }
-      } finally {
-        if (effectMountedRef.current) {
-          setIsLoadingFinancialSummary(false);
-        }
-      }
-    };
-
-    fetchSummary();
-  }, [transactionsForDisplayedPeriod, loadedBudgets, isLoadingTransactions, isLoadingBudgets, displayedMonthYearLabel, userDisplayCategories, translate]);
-
   const totalIncomeForPeriod = useMemo(() =>
     transactionsForDisplayedPeriod
       .filter(t => t.type === 'income')
@@ -814,50 +753,20 @@ export default function ReportsPage() {
         </Card>
 
         <Card className="shadow-lg bg-muted/50 border-dashed">
-          <CardHeader className="flex flex-row items-start gap-4 space-y-0 p-6">
-            <Terminal className="h-8 w-8 text-primary flex-shrink-0" />
+          <CardHeader className="flex flex-row items-start gap-4 space-y-0">
+            <Terminal className="h-8 w-8 text-primary flex-shrink-0 mt-1" />
             <div className="flex-grow">
               <CardTitle>{translate({ en: "Financial Insights by AI", pt: "Insights Financeiros por IA" })}</CardTitle>
-              <CardDescription className="text-wrap mt-1">
-                {translate({ en: "AI-generated summary and advice for", pt: "Resumo e conselhos gerados por IA para" })} {displayedMonthYearLabel}.
+              <CardDescription className="text-wrap"> {translate({ en: "AI-generated summary and advice for", pt: "Resumo e conselhos gerados por IA para" })} {displayedMonthYearLabel}.
+                <br />
+                {translate({ en: "This feature is in development. AI analysis will use transactions and defined budgets once fully integrated.", pt: "Esta funcionalidade está em desenvolvimento. A análise da IA usará transações e orçamentos definidos quando totalmente integrada." })}
               </CardDescription>
             </div>
           </CardHeader>
-          <CardContent className="p-6 pt-0">
-             {isLoadingFinancialSummary ? (
-                <div className="space-y-2">
-                  <Skeleton className="h-4 w-3/4" />
-                  <Skeleton className="h-4 w-full" />
-                  <Skeleton className="h-4 w-5/6" />
-                </div>
-              ) : financialSummaryError ? (
-                <Alert variant="destructive">
-                  <Sparkles className="h-4 w-4" />
-                  <AlertTitle>{translate({ en: "Error", pt: "Erro" })}</AlertTitle>
-                  <AlertDescription>{financialSummaryError}</AlertDescription>
-                </Alert>
-              ) : financialSummary ? (
-                <div className="space-y-4 text-sm">
-                  <div>
-                    <h4 className="font-semibold mb-1">{translate({ en: "Overall Status", pt: "Status Geral"})}</h4>
-                    <p className="text-muted-foreground">{financialSummary.overallStatus}</p>
-                  </div>
-                   <div>
-                    <h4 className="font-semibold mb-1">{translate({ en: "Key Observations", pt: "Observações Chave"})}</h4>
-                    <ul className="list-disc list-inside space-y-1 text-muted-foreground">
-                      {financialSummary.keyObservations.map((obs, i) => <li key={i}>{obs}</li>)}
-                    </ul>
-                  </div>
-                   <div>
-                    <h4 className="font-semibold mb-1">{translate({ en: "Actionable Advice", pt: "Conselhos Práticos"})}</h4>
-                    <ul className="list-disc list-inside space-y-1 text-muted-foreground">
-                      {financialSummary.actionableAdvice.map((adv, i) => <li key={i}>{adv}</li>)}
-                    </ul>
-                  </div>
-                </div>
-              ) : (
-                <p className="text-muted-foreground text-center py-4">{translate({ en: "No data to generate AI insights.", pt: "Sem dados para gerar insights de IA." })}</p>
-              )}
+          <CardContent className="pt-4">
+              <p className="text-muted-foreground text-center">
+                {translate({ en: "AI insights are coming soon!", pt: "Insights da IA em breve!" })}
+              </p>
           </CardContent>
         </Card>
 
