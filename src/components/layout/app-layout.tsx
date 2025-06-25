@@ -17,7 +17,7 @@ export function AppLayout({ children }: AppLayoutProps) {
       </Sidebar>
       <SidebarInset className="flex flex-col">
         <AppHeaderContent />
-        <main className="flex-1 overflow-y-auto p-4 pt-6 md:p-6"> {/* Removed previous overflow-x-hidden as parent now handles it */}
+        <main className="flex-1 overflow-y-auto overflow-x-hidden p-4 pt-6 md:p-6"> {/* Added overflow-x-hidden */}
           {children}
         </main>
       </SidebarInset>
