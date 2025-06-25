@@ -2,28 +2,24 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import React, { useState } from "react"; // Added useState for dialog
+import React, { useState } from "react"; 
 import {
   SidebarHeader,
   SidebarContent,
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
-  // SidebarFooter, // Removed SidebarFooter import
 } from "@/components/ui/sidebar";
-// Button import might not be needed if SidebarMenuButton handles onClick for logout
 import { AppLogoIcon, DashboardIcon, SettingsIcon } from "@/components/icons";
 import { useLanguage } from "@/context/language-context";
 import { useAuth } from "@/context/auth-context";
-import { LogOut, CreditCard, TrendingUp, ListChecks, FileText } from "lucide-react";
-// Dialog related imports are removed as settings button now navigates
+import { LogOut, CreditCard, TrendingUp, ListChecks, FileText, Star } from "lucide-react";
 import { Separator } from "@/components/ui/separator"; 
 
 export function AppSidebarContent() {
   const pathname = usePathname();
-  const { translate } = useLanguage(); // Removed setLanguage as it's not used here
+  const { translate } = useLanguage(); 
   const { user, logOut, loading: authLoading } = useAuth();
-  // Removed isSettingsDialogOpen and setIsSettingsDialogOpen
 
   const appTitle = "FinTrack";
 
@@ -58,6 +54,12 @@ export function AppSidebarContent() {
       icon: FileText,
       exact: false
     },
+     {
+      href: "/subscription",
+      label: translate({ en: "Subscription", pt: "Assinatura" }),
+      icon: Star,
+      exact: true
+    },
   ];
 
   const settingsLabel = translate({
@@ -78,7 +80,7 @@ export function AppSidebarContent() {
           <span className="text-xl font-semibold">{appTitle}</span>
         </Link>
       </SidebarHeader>
-      <SidebarContent className="p-2"> {/* SidebarContent handles scrolling */}
+      <SidebarContent className="p-2">
         <SidebarMenu>
           {menuItems.map((item) => (
             <SidebarMenuItem key={item.href}>
@@ -98,7 +100,6 @@ export function AppSidebarContent() {
             </SidebarMenuItem>
           ))}
 
-          {/* Moved Settings and Logout into the main menu, after a separator */}
           <Separator className="my-2" />
 
           <SidebarMenuItem>
@@ -120,7 +121,7 @@ export function AppSidebarContent() {
           {user && !authLoading && (
             <SidebarMenuItem>
               <SidebarMenuButton
-                onClick={logOut} // SidebarMenuButton can handle onClick
+                onClick={logOut}
                 className="w-full justify-start gap-2 text-red-500 hover:text-red-600 hover:bg-red-500/10"
                 tooltip={{ children: logoutLabel, side: "right", align: "center" }}
               >
@@ -131,7 +132,6 @@ export function AppSidebarContent() {
           )}
         </SidebarMenu>
       </SidebarContent>
-      {/* SidebarFooter is removed as its content is now part of SidebarMenu */}
     </>
   );
 }

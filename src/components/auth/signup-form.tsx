@@ -21,7 +21,7 @@ import { useState } from "react";
 import { updateProfile, sendEmailVerification } from "firebase/auth";
 import { useLanguage } from '@/context/language-context';
 import { db } from "@/lib/firebase";
-import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { doc, setDoc, serverTimestamp, Timestamp } from "firebase/firestore";
 
 const signupFormSchema = z.object({
   name: z.string().min(2, { message: "O nome deve ter pelo menos 2 caracteres." }),
@@ -62,14 +62,19 @@ export function SignupForm() {
 
         // Create or merge user document in Firestore
         const userDocRef = doc(db, "users", user.uid);
+        const trialEndDate = new Date();
+        trialEndDate.setDate(trialEndDate.getDate() + 7);
+
         await setDoc(userDocRef, {
           uid: user.uid,
           name: values.name,
           email: values.email,
           createdAt: serverTimestamp(),
-          onboardingComplete: false, // Initialize onboarding status
-          emailVerified: false, // Initialize email verification status
-        }, { merge: true }); // Use merge: true to prevent overwriting existing data
+          onboardingComplete: false,
+          emailVerified: false,
+          subscriptionStatus: 'trial',
+          trialEndDate: Timestamp.fromDate(trialEndDate),
+        }, { merge: true });
 
         await sendEmailVerification(user);
 
@@ -80,7 +85,7 @@ export function SignupForm() {
             pt: "Sua conta foi criada com sucesso. Por favor, verifique seu e-mail para ativar sua conta antes de prosseguir." 
           })
         });
-        localStorage.removeItem('onboardingComplete'); // Clear any stale local flag
+        localStorage.removeItem('onboardingComplete'); 
         router.push("/verify-email"); 
       } catch (error: any) {
         console.error("Error during signup post-processing:", error);
@@ -97,7 +102,6 @@ export function SignupForm() {
         });
       }
     } else {
-      // This block is typically for when signUp itself fails (e.g., email already in use if not caught by specific code above)
       toast({
         title: translate({ en: "Signup Error", pt: "Erro no Cadastro" }),
         description: translate({ en: "Could not create your account. The email might already be in use or another error occurred.", pt: "Não foi possível criar sua conta. O e-mail já pode estar em uso ou ocorreu outro erro." }),
