@@ -16,6 +16,7 @@ import { doc, getDoc, updateDoc, Timestamp, serverTimestamp } from "firebase/fir
 import { format } from "date-fns";
 import { ptBR, enUS } from 'date-fns/locale';
 import Link from 'next/link';
+import { createSubscriptionPlan } from '@/ai/flows/create-subscription-flow';
 
 type SubscriptionStatus = 'trial' | 'active' | 'inactive' | 'canceled' | 'expired';
 
@@ -34,6 +35,8 @@ export default function SubscriptionPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSimulating, setIsSimulating] = useState(false);
   const [isCanceling, setIsCanceling] = useState(false);
+  const [isCreatingSubscription, setIsCreatingSubscription] = useState(false);
+
 
   const fetchSubscriptionStatus = useCallback(async () => {
     if (!user) {
@@ -145,6 +148,28 @@ export default function SubscriptionPage() {
       setIsCanceling(false);
     }
   };
+  
+  const handleCreateSubscription = async () => {
+    if (!user) return;
+    setIsCreatingSubscription(true);
+    try {
+      const result = await createSubscriptionPlan({});
+      if (result.init_point) {
+        window.location.href = result.init_point;
+      } else {
+        throw new Error("No checkout URL returned.");
+      }
+    } catch(error) {
+      console.error("Error creating subscription:", error);
+      toast({
+        title: translate({en: "Subscription Error", pt: "Erro na Assinatura"}),
+        description: translate({en: "Could not create the subscription plan at this time. Please try again later.", pt: "Não foi possível criar o plano de assinatura no momento. Tente novamente mais tarde."}),
+        variant: "destructive"
+      });
+      setIsCreatingSubscription(false);
+    }
+    // No finally block to set loading to false, as the user will be redirected.
+  }
 
   const renderStatusContent = () => {
     if (isLoading || !subscriptionData) {
@@ -153,6 +178,11 @@ export default function SubscriptionPage() {
 
     const locale = language === 'pt' ? ptBR : enUS;
     const { status, trialEndDate, subscriptionEndDate } = subscriptionData;
+    
+    const isLoadingAction = isSimulating || isCanceling || isCreatingSubscription;
+    const subscribeButtonLabel = isCreatingSubscription ? translate({ en: 'Redirecting...', pt: 'Redirecionando...' }) : translate({ en: 'Subscribe Now', pt: 'Assine Agora' });
+    const manageButtonLabel = isCreatingSubscription ? translate({ en: 'Redirecting...', pt: 'Redirecionando...' }) : translate({ en: 'Manage Subscription', pt: 'Gerenciar Assinatura' });
+
 
     switch (status) {
       case 'trial':
@@ -168,12 +198,10 @@ export default function SubscriptionPage() {
                 : translate({ en: 'Enjoy full access to all features.', pt: 'Aproveite o acesso completo a todos os recursos.' })
               }
             </CardDescription>
-            <Link href="https://www.mercadopago.com.br/" target="_blank" rel="noopener noreferrer" className="w-full">
-              <Button className="w-full mt-6 bg-primary hover:bg-primary/90">
-                <Star className="mr-2 h-4 w-4" />
-                {translate({ en: 'Subscribe Now', pt: 'Assine Agora' })}
-              </Button>
-            </Link>
+            <Button className="w-full mt-6 bg-primary hover:bg-primary/90" onClick={handleCreateSubscription} disabled={isLoadingAction}>
+              <Star className="mr-2 h-4 w-4" />
+              {subscribeButtonLabel}
+            </Button>
           </>
         );
       case 'active':
@@ -191,8 +219,8 @@ export default function SubscriptionPage() {
               }
             </CardDescription>
              <Link href="https://www.mercadopago.com.br/subscriptions" target="_blank" rel="noopener noreferrer" className="w-full">
-              <Button className="w-full mt-6 bg-primary hover:bg-primary/90">
-                {translate({ en: 'Manage Subscription', pt: 'Gerenciar Assinatura' })}
+              <Button className="w-full mt-6 bg-primary hover:bg-primary/90" disabled={isLoadingAction}>
+                {manageButtonLabel}
               </Button>
             </Link>
           </>
@@ -210,12 +238,10 @@ export default function SubscriptionPage() {
             <CardDescription>
               {translate({ en: 'Please subscribe to continue using FinTrack and keep your finances in order.', pt: 'Por favor, assine para continuar usando o FinTrack e manter suas finanças em ordem.' })}
             </CardDescription>
-            <Link href="https://www.mercadopago.com.br/" target="_blank" rel="noopener noreferrer" className="w-full">
-              <Button className="w-full mt-6 bg-primary hover:bg-primary/90">
+            <Button className="w-full mt-6 bg-primary hover:bg-primary/90" onClick={handleCreateSubscription} disabled={isLoadingAction}>
                  <Star className="mr-2 h-4 w-4" />
-                {translate({ en: 'Subscribe Now', pt: 'Assine Agora' })}
-              </Button>
-            </Link>
+                {subscribeButtonLabel}
+            </Button>
           </>
         );
       default:
@@ -240,10 +266,10 @@ export default function SubscriptionPage() {
             <div className="mt-4 border-t pt-4 space-y-2">
                 <p className="text-sm text-muted-foreground">{translate({ en: 'For testing purposes:', pt: 'Para fins de teste:' })}</p>
                 <div className="flex flex-col sm:flex-row gap-2 justify-center">
-                    <Button onClick={handleSimulatePayment} variant="secondary" className="mt-2" disabled={isSimulating || isCanceling}>
+                    <Button onClick={handleSimulatePayment} variant="secondary" className="mt-2" disabled={isSimulating || isCanceling || isCreatingSubscription}>
                         {isSimulating ? translate({ en: 'Processing...', pt: 'Processando...' }) : translate({ en: 'Simulate 30-Day Subscription', pt: 'Simular Assinatura de 30 Dias' })}
                     </Button>
-                    <Button onClick={handleSimulateCancellation} variant="destructive" className="mt-2" disabled={isSimulating || isCanceling}>
+                    <Button onClick={handleSimulateCancellation} variant="destructive" className="mt-2" disabled={isSimulating || isCanceling || isCreatingSubscription}>
                         {isCanceling ? translate({ en: 'Canceling...', pt: 'Cancelando...' }) : translate({ en: 'Simulate Cancellation', pt: 'Simular Cancelamento' })}
                     </Button>
                 </div>
