@@ -12,12 +12,17 @@ import {
   type User,
   sendPasswordResetEmail as firebaseSendPasswordResetEmail
 } from 'firebase/auth';
-import { auth } from '@/lib/firebase'; 
+import { auth, db } from '@/lib/firebase'; 
 import { useRouter } from 'next/navigation';
+import { doc, onSnapshot } from 'firebase/firestore';
+
+export type SubscriptionStatus = 'trial' | 'active' | 'inactive' | 'canceled' | 'expired';
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
+  isSubscriptionActive: boolean;
+  subscriptionStatus: SubscriptionStatus | null;
   signUp: (email: string, pass: string) => Promise<User | null>;
   logIn: (email: string, pass: string) => Promise<User | null>;
   logOut: () => Promise<void>;
@@ -30,24 +35,66 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isSubscriptionActive, setIsSubscriptionActive] = useState(false);
+  const [subscriptionStatus, setSubscriptionStatus] = useState<SubscriptionStatus | null>(null);
   const router = useRouter();
 
   useEffect(() => {
-    console.log("AuthContext: useEffect for onAuthStateChanged, initial loading state:", loading);
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      console.log("AuthContext: onAuthStateChanged fired. User:", currentUser, "Email Verified:", currentUser?.emailVerified);
+    const unsubscribeAuth = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
+      if (!currentUser) {
+        setIsSubscriptionActive(false);
+        setSubscriptionStatus(null);
+        setLoading(false);
+      }
+    });
+    return () => unsubscribeAuth();
+  }, []);
+
+  useEffect(() => {
+    if (!user) {
+      return;
+    }
+
+    setLoading(true);
+    const userDocRef = doc(db, 'users', user.uid);
+    const unsubscribeDoc = onSnapshot(userDocRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        let status: SubscriptionStatus = data.subscriptionStatus || 'inactive';
+        const trialEndDate = data.trialEndDate?.toDate();
+        const subscriptionEndDate = data.subscriptionEndDate?.toDate();
+        const now = new Date();
+
+        let isActive = false;
+        
+        if (status === 'trial' && trialEndDate && trialEndDate >= now) {
+          isActive = true;
+        } else if (status === 'active' && subscriptionEndDate && subscriptionEndDate >= now) {
+          isActive = true;
+        } else if (status === 'trial' && trialEndDate && trialEndDate < now) {
+          status = 'expired';
+        } else if (status === 'active' && subscriptionEndDate && subscriptionEndDate < now) {
+          status = 'expired';
+        }
+        
+        setIsSubscriptionActive(isActive);
+        setSubscriptionStatus(status);
+      } else {
+        setIsSubscriptionActive(false);
+        setSubscriptionStatus('inactive');
+      }
       setLoading(false);
     }, (error) => {
-      console.error("AuthContext: Error in onAuthStateChanged listener:", error);
-      setUser(null);
-      setLoading(false);
+        console.error("AuthContext: Error listening to user document:", error);
+        setIsSubscriptionActive(false);
+        setSubscriptionStatus(null);
+        setLoading(false);
     });
-    return () => {
-      console.log("AuthContext: Unsubscribing from onAuthStateChanged.");
-      unsubscribe();
-    }
-  }, []);
+
+    return () => unsubscribeDoc();
+  }, [user]);
+
 
   const signUp = useCallback(async (email: string, pass: string): Promise<User | null> => {
     console.log("AuthContext: signUp called. Setting loading to true.");
@@ -112,6 +159,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const value = {
     user,
     loading,
+    isSubscriptionActive,
+    subscriptionStatus,
     signUp,
     logIn,
     logOut,

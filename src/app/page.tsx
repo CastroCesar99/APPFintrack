@@ -38,7 +38,7 @@ import { db } from '@/lib/firebase';
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, isSubscriptionActive } = useAuth();
   const userId = user?.uid;
   const { language, translate } = useLanguage();
   const { toast } = useToast();
@@ -261,32 +261,14 @@ export default function DashboardPage() {
                 router.push('/onboarding');
                 return;
               }
-
-              const now = new Date();
-              const status = userData.subscriptionStatus;
-              const trialEndDate = userData.trialEndDate?.toDate();
-              const subscriptionEndDate = userData.subscriptionEndDate?.toDate();
-
-              let allowAccess = false;
-              if (status === 'trial' && trialEndDate && trialEndDate >= now) {
-                allowAccess = true;
-              } else if (status === 'active' && subscriptionEndDate && subscriptionEndDate >= now) {
-                allowAccess = true;
-              }
-
-              if (!allowAccess) {
-                console.log("DashboardPage: Access denied. Status:", status, "Redirecting to /subscription.");
-                router.push('/subscription');
-                return;
-              }
-
+              // Subscription check that was here is removed. It's now handled by the AuthContext and UI components.
             } else {
               console.log("DashboardPage: No user document found. Redirecting to onboarding.");
               router.push('/onboarding');
               return;
             }
 
-            console.log("DashboardPage: TRACER --- fetchDataInternal: User onboarding and subscription OK for UserID:", targetUserId, ". Setting up onSnapshot listener for transactions.");
+            console.log("DashboardPage: TRACER --- fetchDataInternal: User onboarding OK for UserID:", targetUserId, ". Setting up onSnapshot listener for transactions.");
 
             cleanupListener(unsubscribeTransactionsRef, "transactions old (before new setup)", targetUserId);
             
@@ -870,6 +852,7 @@ export default function DashboardPage() {
           currentDisplayedDate={displayedDate}
           userCategories={userCategories}
           userPaymentMethods={userPaymentMethods}
+          isSubscriptionActive={isSubscriptionActive}
         />
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

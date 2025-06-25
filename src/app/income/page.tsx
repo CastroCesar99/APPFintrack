@@ -1,3 +1,4 @@
+
 "use client";
 
 import type React from 'react';
@@ -8,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { TransactionForm } from "@/components/dashboard/transaction-form";
 import { TransactionItemCard } from "@/components/transactions/transaction-item-card";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -46,7 +47,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 type SortOptionValue = 'dateDesc' | 'dateAsc' | 'amountDesc' | 'amountAsc' | 'categoryAsc' | 'descriptionAsc';
 
 export default function IncomePage() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, isSubscriptionActive } = useAuth();
   const userId = user?.uid;
   const router = useRouter();
   const { language, translate } = useLanguage();
@@ -58,6 +59,7 @@ export default function IncomePage() {
   const [isAddFormOpen, setIsAddFormOpen] = useState(false);
   const [isClient, setIsClient] = useState(false);
   const [transactionToDelete, setTransactionToDelete] = useState<Transaction | null>(null);
+  const [showSubscriptionAlert, setShowSubscriptionAlert] = useState(false);
 
   const [userCategories, setUserCategories] = useState<DisplayCategory[]>([]);
   const [userPaymentMethods, setUserPaymentMethods] = useState<DisplayPaymentMethod[]>([]);
@@ -326,6 +328,10 @@ export default function IncomePage() {
   }, [allTransactions, displayedDate, sortOption, language, getCategoryObjectByName, translate]); // Added translate for description modification
 
   const handleOpenAddDialog = () => {
+    if (!isSubscriptionActive) {
+      setShowSubscriptionAlert(true);
+      return;
+    }
     setTransactionToEdit(null);
     setIsAddFormOpen(true);
   };
@@ -347,8 +353,6 @@ export default function IncomePage() {
       return;
     }
     
-    // 'formData.date' is the actual transaction date from the calendar (YYYY-MM-DD)
-    // 'effectiveMonth' is derived from 'displayedDate' (the month being viewed)
     const effectiveMonthForSave = formatDateFns(displayedDate, "yyyy-MM");
 
     const payload = { 
@@ -452,32 +456,31 @@ export default function IncomePage() {
           <h1 className="text-3xl font-bold tracking-tight text-foreground mb-4 sm:mb-0">
             {pageTitle} - {displayedMonthYearLabel}
           </h1>
-          <Dialog open={isAddFormOpen} onOpenChange={setIsAddFormOpen}>
-            <DialogTrigger asChild>
-              <Button variant="outline" className="w-full sm:w-auto">
-                <PlusCircle className="mr-2 h-4 w-4" />
-                {translate({ en: "Add New Income", pt: "Adicionar Nova Receita" })}
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px]">
-              <DialogHeader>
-                <DialogTitle>{translate({ en: "New Income", pt: "Nova Receita" })}</DialogTitle>
-                <DialogDescription>
-                  {translate({ en: "Fill in the details for your new income.", pt: "Preencha os detalhes da sua nova receita." })}
-                </DialogDescription>
-              </DialogHeader>
-              <TransactionForm
-                onSave={handleSaveTransaction}
-                initialType="income"
-                transactionToEdit={null}
-                defaultDate={displayedDate}
-                userCategories={userCategories}
-                userPaymentMethods={userPaymentMethods}
-                key={"add-income-" + displayedDate.toISOString()}
-              />
-            </DialogContent>
-          </Dialog>
+          <Button onClick={handleOpenAddDialog} variant="outline" className="w-full sm:w-auto">
+            <PlusCircle className="mr-2 h-4 w-4" />
+            {translate({ en: "Add New Income", pt: "Adicionar Nova Receita" })}
+          </Button>
         </div>
+
+        <Dialog open={isAddFormOpen} onOpenChange={setIsAddFormOpen}>
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle>{translate({ en: "New Income", pt: "Nova Receita" })}</DialogTitle>
+              <DialogDescription>
+                {translate({ en: "Fill in the details for your new income.", pt: "Preencha os detalhes da sua nova receita." })}
+              </DialogDescription>
+            </DialogHeader>
+            <TransactionForm
+              onSave={handleSaveTransaction}
+              initialType="income"
+              transactionToEdit={null}
+              defaultDate={displayedDate}
+              userCategories={userCategories}
+              userPaymentMethods={userPaymentMethods}
+              key={"add-income-" + displayedDate.toISOString()}
+            />
+          </DialogContent>
+        </Dialog>
 
         <Dialog open={isEditFormOpen} onOpenChange={setIsEditFormOpen}>
           <DialogContent className="sm:max-w-[425px]">
@@ -549,6 +552,24 @@ export default function IncomePage() {
           </CardContent>
         </Card>
       </div>
+
+      <AlertDialog open={showSubscriptionAlert} onOpenChange={setShowSubscriptionAlert}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{translate({ en: "Subscription Required", pt: "Assinatura Necessária" })}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {translate({ en: "You need an active subscription to add new transactions. Please renew your subscription to continue.", pt: "Você precisa de uma assinatura ativa para adicionar novas transações. Por favor, renove sua assinatura para continuar." })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{translate({ en: "Cancel", pt: "Cancelar" })}</AlertDialogCancel>
+            <AlertDialogAction onClick={() => router.push('/subscription')}>
+              {translate({ en: "Go to Subscription", pt: "Ir para Assinatura" })}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
        {transactionToDelete && (
         <AlertDialog open={!!transactionToDelete} onOpenChange={(open) => !open && setTransactionToDelete(null)}>
           <AlertDialogContent>
