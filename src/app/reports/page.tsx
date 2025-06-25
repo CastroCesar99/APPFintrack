@@ -892,7 +892,7 @@ export default function ReportsPage() {
                             : progressPercent > 100
                               ? 'bg-destructive'
                               : progressPercent > 80
-                                ? 'bg-yellow-500'
+                                ? 'bg-accent'
                                 : 'bg-primary'
                         )}
                       />
