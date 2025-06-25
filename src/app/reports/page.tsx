@@ -630,7 +630,7 @@ export default function ReportsPage() {
             <Skeleton className="h-9 w-1/3 mb-4 sm:mb-0" />
             <Skeleton className="h-9 w-full sm:w-32" />
           </div>
-          <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
             <Skeleton className="h-24 w-full" />
             <Skeleton className="h-24 w-full" />
             <Skeleton className="h-24 w-full" />
@@ -687,7 +687,7 @@ export default function ReportsPage() {
           <Card className="shadow-lg">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4">
               <CardTitle className="text-sm font-medium truncate">{translate({ en: "Total Income", pt: "Receita Total" })}</CardTitle>
-              <TrendingUp className="h-4 w-4 text-green-500" />
+              <TrendingUp className="h-4 w-4 text-green-500 flex-shrink-0" />
             </CardHeader>
             <CardContent className="px-4 pb-4 pt-2">
               <div className="text-2xl font-bold">{formatCurrency(totalIncomeForPeriod)}</div>
@@ -697,7 +697,7 @@ export default function ReportsPage() {
           <Card className="shadow-lg">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4">
               <CardTitle className="text-sm font-medium truncate">{translate({ en: "Total Expenses", pt: "Despesa Total" })}</CardTitle>
-              <TrendingDown className="h-4 w-4 text-red-500" />
+              <TrendingDown className="h-4 w-4 text-red-500 flex-shrink-0" />
             </CardHeader>
             <CardContent className="px-4 pb-4 pt-2">
               <div className="text-2xl font-bold">{formatCurrency(totalExpensesForPeriod)}</div>
@@ -707,7 +707,7 @@ export default function ReportsPage() {
           <Card className="shadow-lg">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4">
               <CardTitle className="text-sm font-medium truncate">{translate({ en: "Net Cash Flow", pt: "Fluxo de Caixa Líquido" })}</CardTitle>
-              <DollarSign className={cn("h-4 w-4", netFlowForPeriod >= 0 ? 'text-green-500' : 'text-red-500')} />
+              <DollarSign className={cn("h-4 w-4 flex-shrink-0", netFlowForPeriod >= 0 ? 'text-green-500' : 'text-red-500')} />
             </CardHeader>
             <CardContent className="px-4 pb-4 pt-2">
               <div className={cn("text-2xl font-bold", netFlowForPeriod >= 0 ? 'text-green-500' : 'text-red-500')}>{formatCurrency(netFlowForPeriod)}</div>
@@ -717,7 +717,7 @@ export default function ReportsPage() {
           <Card className="shadow-lg">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4">
               <CardTitle className="text-sm font-medium truncate">{translate({ en: "Monthly Budget Status", pt: "Status do Orçamento Mensal" })}</CardTitle>
-              <ListChecks className="h-4 w-4 text-muted-foreground" />
+              <ListChecks className="h-4 w-4 text-muted-foreground flex-shrink-0" />
             </CardHeader>
             <CardContent className="px-4 pb-4 pt-2">
               <div className="text-lg font-bold">
@@ -748,7 +748,7 @@ export default function ReportsPage() {
            </CardHeader>
            <CardContent className="p-4 md:p-6 pt-0">
             {transactionsForDisplayedPeriod.filter(t => t.type === 'expense').length > 0 ? (
-               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                  <div className="p-4 rounded-lg bg-muted/50 dark:bg-card flex flex-col items-center text-center shadow-inner border">
                   <p className="text-sm font-medium text-foreground mb-1 break-words">
                     {translate({ en: "Largest Expense Category", pt: "Principal Categoria de Gasto" })}
