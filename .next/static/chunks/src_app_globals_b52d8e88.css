@@ -854,6 +854,10 @@ body {
   min-height: 150px;
 }
 
+.min-h-\[120px\] {
+  min-height: 120px;
+}
+
 .w-0 {
   width: 0;
 }
