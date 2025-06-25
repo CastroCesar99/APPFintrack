@@ -30,10 +30,10 @@ export function AppHeaderContent() {
   return (
     <div className="flex h-14 items-center justify-between gap-4 border-b bg-background px-4 lg:px-6">
       {/* Left Section: Sidebar Trigger and User Greeting */}
-      <div className="flex items-center gap-3 min-w-0"> {/* Added min-w-0 for shrink */}
-        <SidebarTrigger className="md:hidden" /> {/* Re-added md:hidden */}
+      <div className="flex flex-1 items-center gap-3 min-w-0"> {/* Use flex-1 to allow this container to shrink */}
+        <SidebarTrigger className="md:hidden" />
         {userGreeting && (
-          <span className="text-base font-semibold text-foreground truncate min-w-0" title={userGreeting}> {/* Added min-w-0 */}
+          <span className="text-base font-semibold text-foreground truncate" title={userGreeting}> {/* Keep truncate */}
             {userGreeting}
           </span>
         )}
@@ -45,7 +45,7 @@ export function AppHeaderContent() {
       </div>
       
       {/* Right Section: Month Navigation */}
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-1 flex-shrink-0"> {/* Add flex-shrink-0 to prevent this container from shrinking */}
         <Button
           onClick={handlePreviousMonth}
           variant="ghost"
@@ -56,7 +56,7 @@ export function AppHeaderContent() {
           <ChevronLeft className="h-4 w-4" />
         </Button>
         <span 
-          className="text-base font-medium text-foreground w-24 sm:w-32 text-center truncate min-w-0 flex-shrink" 
+          className="text-base font-medium text-foreground w-24 sm:w-32 text-center truncate"
           title={displayedMonthYearLabel}
         >
           {displayedMonthYearLabel}
