@@ -6,7 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/context/language-context";
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { createUserSubscription } from '@/ai/flows/create-mercadopago-subscription';
+import { createUserSubscription } from '@/lib/actions/mercado-pago-actions';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/auth-context';
 import { cn } from '@/lib/utils';
@@ -25,17 +25,16 @@ export function MercadoPagoCardForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [initializationError, setInitializationError] = useState<string | null>(null);
-  const isInitialized = useRef(false); // Ref to prevent re-initialization
+  const cardFormRef = useRef<any>(null);
 
-  // Chave pública de teste do Mercado Pago
   const publicKey = "TEST-2f341a85-9c17-4c58-bd7b-e2e3f9af5501"; 
 
   useEffect(() => {
-    // Only run initialization once
-    if (isInitialized.current) {
+    if (cardFormRef.current) {
+      console.log("Mercado Pago Form already initialized.");
       return;
     }
-
+    
     if (typeof window === 'undefined' || !window.MercadoPago) {
       setInitializationError(translate({ en: "Mercado Pago SDK not loaded.", pt: "SDK do Mercado Pago não carregado." }));
       return;
@@ -48,7 +47,7 @@ export function MercadoPagoCardForm() {
 
     try {
       console.log("Attempting to initialize Mercado Pago CardForm...");
-      const mp = new window.MercadoPago(publicKey);
+      const mp = new window.MercadoPago(publicKey, { locale: 'pt-BR' });
       const cardForm = mp.cardForm({
         amount: "19.99",
         iframe: true,
@@ -80,7 +79,7 @@ export function MercadoPagoCardForm() {
                 return;
             }
 
-            const cardFormData = cardForm.getCardFormData();
+            const cardFormData = cardFormRef.current?.getCardFormData();
             if (!cardFormData || !cardFormData.token) {
                  toast({ title: "Error", description: "Could not get card token. Please check your card details.", variant: "destructive"});
                  return;
@@ -125,13 +124,13 @@ export function MercadoPagoCardForm() {
           }
         },
       });
-      isInitialized.current = true;
+      cardFormRef.current = cardForm;
     } catch(e: any) {
         console.error("Error initializing Mercado Pago CardForm:", e);
         const errorMessage = e.message || translate({ en: "An unknown error occurred during payment form setup.", pt: "Ocorreu um erro desconhecido durante a configuração do formulário de pagamento." });
         setInitializationError(errorMessage);
     }
-  }, [user?.email, translate, toast, router, user]);
+  }, [user, translate, toast, router]);
 
   if (initializationError) {
     return <div className="text-center text-destructive p-4 font-medium">{initializationError}</div>;
