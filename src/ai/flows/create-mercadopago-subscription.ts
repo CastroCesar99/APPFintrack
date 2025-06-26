@@ -10,12 +10,7 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
-// Firebase Admin SDK imports are commented out as per the request to not use service account key for now.
-// To re-enable the Firestore update logic, you would need to:
-// 1. Uncomment the `adminApp` import and the related `try/catch` block below.
-// 2. Ensure your FIREBASE_SERVICE_ACCOUNT_KEY is set in your .env.local file.
-// import { adminApp } from '@/lib/firebase-admin';
-// import { getFirestore, Timestamp } from 'firebase-admin/firestore';
+import { v4 as uuidv4 } from 'uuid'; // Import UUID for idempotency key
 
 
 const CreateUserSubscriptionInputSchema = z.object({
@@ -31,7 +26,7 @@ export type CreateUserSubscriptionInput = z.infer<typeof CreateUserSubscriptionI
 const CreateUserSubscriptionOutputSchema = z.object({
   success: z.boolean(),
   subscriptionId: z.string().optional(),
-  init_point: z.string().optional(), // URL for checkout
+  init_point: z.string().optional(),
   error: z.string().optional(),
 });
 export type CreateUserSubscriptionOutput = z.infer<typeof CreateUserSubscriptionOutputSchema>;
@@ -49,9 +44,12 @@ const createUserSubscriptionFlow = ai.defineFlow(
     outputSchema: CreateUserSubscriptionOutputSchema,
   },
   async (input) => {
-    // Test credentials hardcoded as requested.
     const accessToken = "TEST-4997780561675232-062608-6e8858e1e9c8d426726877731ec0dbe0-2519291532";
     const planId = "2c938084979341770197acaba53a0a05";
+
+    const startDate = new Date();
+    const endDate = new Date();
+    endDate.setFullYear(endDate.getFullYear() + 1); // Subscription valid for 1 year
 
     const payload = {
       preapproval_plan_id: planId,
@@ -62,6 +60,8 @@ const createUserSubscriptionFlow = ai.defineFlow(
       auto_recurring: {
         frequency: 1,
         frequency_type: "months",
+        start_date: startDate.toISOString(),
+        end_date: endDate.toISOString(),
         transaction_amount: 19.99,
         currency_id: "BRL"
       },
@@ -77,7 +77,7 @@ const createUserSubscriptionFlow = ai.defineFlow(
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${accessToken}`,
-          'X-Idempotency-Key': `fintrack-sub-${input.userId}-${Date.now()}`
+          'X-Idempotency-Key': uuidv4() // Use UUID for idempotency
         },
         body: JSON.stringify(payload)
       });
@@ -93,30 +93,9 @@ const createUserSubscriptionFlow = ai.defineFlow(
       console.log("Mercado Pago API Success Response:", responseData);
 
       const checkoutUrl = responseData.init_point;
-
-      // The following logic updates the user's status in Firebase.
-      // It is commented out because it requires the Firebase Admin SDK and a service account key.
-      /*
-      if (adminApp) {
-        try {
-          const db = getFirestore(adminApp);
-          const userDocRef = db.collection('users').doc(input.userId);
-          const newSubscriptionEndDate = new Date();
-          newSubscriptionEndDate.setMonth(newSubscriptionEndDate.getMonth() + 1);
-
-          await userDocRef.update({
-            subscriptionStatus: 'active',
-            subscriptionEndDate: Timestamp.fromDate(newSubscriptionEndDate),
-            mercadoPagoSubscriptionId: responseData.id,
-            updatedAt: Timestamp.now(),
-          });
-          
-          console.log("Successfully updated user subscription status in Firestore for user:", input.userId);
-        } catch (dbError) {
-          console.error("Firestore update failed after successful payment:", dbError);
-        }
-      }
-      */
+      
+      // Firestore update logic can be re-enabled here once Firebase Admin is configured.
+      // For now, the successful payment will redirect or return success.
 
       return { success: true, subscriptionId: responseData.id, init_point: checkoutUrl };
 

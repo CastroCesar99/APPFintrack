@@ -1,7 +1,7 @@
 
 "use client";
 
-import React from 'react';
+import React, { useState } from 'react';
 import Script from 'next/script';
 import { AppLayout } from "@/components/layout/app-layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,6 +13,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 export default function SubscriptionPage() {
   const { user, loading: authLoading } = useAuth();
   const { translate } = useLanguage();
+  const [isScriptLoaded, setIsScriptLoaded] = useState(false);
   
   if (authLoading) {
     return (
@@ -27,7 +28,17 @@ export default function SubscriptionPage() {
 
   return (
     <>
-      <Script src="https://sdk.mercadopago.com/js/v2" strategy="beforeInteractive" />
+      <Script 
+        src="https://sdk.mercadopago.com/js/v2" 
+        strategy="afterInteractive"
+        onLoad={() => {
+          console.log("Mercado Pago SDK script loaded successfully.");
+          setIsScriptLoaded(true);
+        }}
+        onError={(e) => {
+          console.error("Error loading Mercado Pago SDK script:", e);
+        }}
+      />
       <AppLayout>
         <div className="space-y-6 max-w-2xl mx-auto">
           <h1 className="text-3xl font-bold tracking-tight text-foreground">
@@ -39,11 +50,11 @@ export default function SubscriptionPage() {
               <CardDescription>{translate({ en: 'Unlock all features with our monthly subscription.', pt: 'Desbloqueie todos os recursos com nossa assinatura mensal.' })}</CardDescription>
             </CardHeader>
             <CardContent>
-              {user?.email ? (
+              {user?.email && isScriptLoaded ? (
                   <MercadoPagoCardForm />
               ) : (
                 <div className="text-center text-muted-foreground p-8">
-                  <p>{translate({ en: 'Please log in to subscribe.', pt: 'Por favor, faça login para assinar.' })}</p>
+                  <p>{translate({ en: 'Loading payment form...', pt: 'Carregando formulário de pagamento...' })}</p>
                 </div>
               )}
             </CardContent>
