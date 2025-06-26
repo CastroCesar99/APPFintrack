@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/context/language-context";
 import { Button } from '@/components/ui/button';
@@ -24,97 +24,115 @@ export function MercadoPagoCardForm() {
   const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [initializationError, setInitializationError] = useState<string | null>(null);
+  const cardFormRef = useRef<any>(null); // Use a ref to hold the cardForm instance
 
   const publicKey = "TEST-2f341a85-9c17-4c58-bd7b-e2e3f9af5501"; 
 
   useEffect(() => {
-    let cardForm: any;
+    // Only run initialization once
+    if (cardFormRef.current) {
+      return;
+    }
 
     if (typeof window === 'undefined' || !window.MercadoPago) {
-      console.error("Mercado Pago SDK not available. The form will not initialize.");
-      toast({
-        title: translate({ en: "Initialization Error", pt: "Erro de Inicialização" }),
-        description: translate({ en: "The payment form could not be loaded. Please refresh the page.", pt: "O formulário de pagamento não pôde ser carregado. Por favor, atualize a página." }),
-        variant: "destructive"
-      });
+      setInitializationError(translate({ en: "Mercado Pago SDK not loaded.", pt: "SDK do Mercado Pago não carregado." }));
       return;
     }
-
+    
     if (!publicKey || !user?.email) {
-      console.warn("Mercado Pago Public Key or User Email is missing. The form will not initialize.");
+      setInitializationError(translate({ en: "User data not available.", pt: "Dados do usuário não disponíveis." }));
       return;
     }
-    
-    console.log("Mercado Pago SDK and user data are ready. Initializing CardForm with Public Key:", publicKey);
-    
-    const mp = new window.MercadoPago(publicKey);
-    cardForm = mp.cardForm({
-      amount: "19.99",
-      iframe: true,
-      form: {
-        id: "form-checkout",
-        cardNumber: { id: "form-checkout__cardNumber", placeholder: translate({ en: "Card Number", pt: "Número do Cartão" }) },
-        expirationDate: { id: "form-checkout__expirationDate", placeholder: "MM/YY" },
-        securityCode: { id: "form-checkout__securityCode", placeholder: translate({ en: "Security Code", pt: "Código de Segurança" }) },
-        cardholderName: { id: "form-checkout__cardholderName", placeholder: translate({ en: "Cardholder Name", pt: "Nome do Titular" }) },
-        identificationType: { id: "form-checkout__identificationType", placeholder: translate({ en: "Document Type", pt: "Tipo de Documento" }) },
-        identificationNumber: { id: "form-checkout__identificationNumber", placeholder: translate({ en: "Document Number", pt: "Número do Documento" }) },
-        cardholderEmail: { id: "form-checkout__cardholderEmail", placeholder: "E-mail" },
-      },
-      callbacks: {
-        onFormMounted: (error: any) => {
-          if (error) return console.warn("Form Mounted handling error: ", error);
-          console.log("Mercado Pago Form mounted successfully.");
+
+    try {
+      console.log("Attempting to initialize Mercado Pago CardForm...");
+      const mp = new window.MercadoPago(publicKey);
+      const cardForm = mp.cardForm({
+        amount: "19.99",
+        iframe: true,
+        form: {
+          id: "form-checkout",
+          cardNumber: { id: "form-checkout__cardNumber", placeholder: translate({ en: "Card Number", pt: "Número do Cartão" }) },
+          expirationDate: { id: "form-checkout__expirationDate", placeholder: "MM/YY" },
+          securityCode: { id: "form-checkout__securityCode", placeholder: translate({ en: "Security Code", pt: "Código de Segurança" }) },
+          cardholderName: { id: "form-checkout__cardholderName", placeholder: translate({ en: "Cardholder Name", pt: "Nome do Titular" }) },
+          identificationType: { id: "form-checkout__identificationType", placeholder: translate({ en: "Document Type", pt: "Tipo de Documento" }) },
+          identificationNumber: { id: "form-checkout__identificationNumber", placeholder: translate({ en: "Document Number", pt: "Número do Documento" }) },
+          cardholderEmail: { id: "form-checkout__cardholderEmail", placeholder: "E-mail" },
         },
-        onSubmit: async (event: Event) => {
-          event.preventDefault();
-          if (!user) {
-              toast({ title: "Error", description: "User not authenticated", variant: "destructive" });
+        callbacks: {
+          onFormMounted: (error: any) => {
+            if (error) {
+              console.error("Form Mounted handling error: ", error);
+              setInitializationError(translate({en: "Could not display payment form.", pt: "Não foi possível exibir o formulário de pagamento."}));
               return;
-          }
-          setIsLoading(true);
-          setProgress(50);
-
-          const { token } = cardForm.getCardFormData();
-
-          try {
-            const result = await createUserSubscription({
-              token,
-              payer_email: user.email!,
-              userId: user.uid,
-            });
-
-            if (result.success && result.init_point) {
-              window.location.href = result.init_point;
-            } else if (result.success) {
-              setProgress(100);
-              toast({
-                title: translate({ en: "Subscription Successful!", pt: "Assinatura Realizada com Sucesso!" }),
-                description: translate({ en: "Welcome aboard!", pt: "Bem-vindo(a) a bordo!" }),
-              });
-              router.push('/');
-            } else {
-              throw new Error(result.error || translate({ en: 'An unknown error occurred.', pt: 'Ocorreu um erro desconhecido.' }));
+            };
+            console.log("Mercado Pago Form mounted successfully.");
+          },
+          onSubmit: async (event: Event) => {
+            event.preventDefault();
+            if (!user) {
+                toast({ title: "Error", description: "User not authenticated", variant: "destructive" });
+                return;
             }
-          } catch (error: any) {
-            setProgress(0);
-            toast({
-              title: translate({ en: "Payment Failed", pt: "Falha no Pagamento" }),
-              description: error.message,
-              variant: "destructive",
-            });
-            setIsLoading(false);
+            if (!cardFormRef.current) {
+                toast({ title: "Error", description: "Payment form not ready.", variant: "destructive"});
+                return;
+            }
+
+            setIsLoading(true);
+            setProgress(50);
+
+            const { token } = cardFormRef.current.getCardFormData();
+
+            try {
+              const result = await createUserSubscription({
+                token,
+                payer_email: user.email!,
+                userId: user.uid,
+              });
+
+              if (result.success && result.init_point) {
+                window.location.href = result.init_point;
+              } else if (result.success) {
+                setProgress(100);
+                toast({
+                  title: translate({ en: "Subscription Successful!", pt: "Assinatura Realizada com Sucesso!" }),
+                  description: translate({ en: "Welcome aboard!", pt: "Bem-vindo(a) a bordo!" }),
+                });
+                router.push('/');
+              } else {
+                throw new Error(result.error || translate({ en: 'An unknown error occurred.', pt: 'Ocorreu um erro desconhecido.' }));
+              }
+            } catch (error: any) {
+              setProgress(0);
+              toast({
+                title: translate({ en: "Payment Failed", pt: "Falha no Pagamento" }),
+                description: error.message,
+                variant: "destructive",
+              });
+              setIsLoading(false);
+            }
+          },
+          onFetching: (resource: any) => {
+            console.log("Fetching resource: ", resource);
+            setProgress(prev => Math.max(prev, 25));
+            return () => {};
           }
         },
-        onFetching: (resource: any) => {
-          console.log("Fetching resource: ", resource);
-          setProgress(prev => Math.max(prev, 25));
-          return () => {};
-        }
-      },
-    });
+      });
+      cardFormRef.current = cardForm; // Store the instance after successful initialization
+    } catch(e: any) {
+        console.error("Error initializing Mercado Pago CardForm:", e);
+        const errorMessage = e.message || translate({ en: "An unknown error occurred during payment form setup.", pt: "Ocorreu um erro desconhecido durante a configuração do formulário de pagamento." });
+        setInitializationError(errorMessage);
+    }
+  }, [user?.email]);
 
-  }, [user, publicKey, translate, toast, router]);
+  if (initializationError) {
+    return <div className="text-center text-destructive p-4 font-medium">{initializationError}</div>;
+  }
 
   const inputClasses = "h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50";
 
@@ -139,3 +157,4 @@ export function MercadoPagoCardForm() {
     </form>
   );
 }
+
