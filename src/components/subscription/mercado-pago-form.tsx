@@ -25,13 +25,14 @@ export function MercadoPagoCardForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [initializationError, setInitializationError] = useState<string | null>(null);
-  const cardFormRef = useRef<any>(null); // Use a ref to hold the cardForm instance
+  const isInitialized = useRef(false); // Ref to prevent re-initialization
 
+  // Chave pública de teste do Mercado Pago
   const publicKey = "TEST-2f341a85-9c17-4c58-bd7b-e2e3f9af5501"; 
 
   useEffect(() => {
     // Only run initialization once
-    if (cardFormRef.current) {
+    if (isInitialized.current) {
       return;
     }
 
@@ -60,6 +61,8 @@ export function MercadoPagoCardForm() {
           identificationType: { id: "form-checkout__identificationType", placeholder: translate({ en: "Document Type", pt: "Tipo de Documento" }) },
           identificationNumber: { id: "form-checkout__identificationNumber", placeholder: translate({ en: "Document Number", pt: "Número do Documento" }) },
           cardholderEmail: { id: "form-checkout__cardholderEmail", placeholder: "E-mail" },
+          issuer: { id: "form-checkout__issuer", placeholder: translate({ en: "Issuing Bank", pt: "Banco Emissor" }) },
+          installments: { id: "form-checkout__installments", placeholder: translate({ en: "Installments", pt: "Parcelas" }) },
         },
         callbacks: {
           onFormMounted: (error: any) => {
@@ -76,19 +79,19 @@ export function MercadoPagoCardForm() {
                 toast({ title: "Error", description: "User not authenticated", variant: "destructive" });
                 return;
             }
-            if (!cardFormRef.current) {
-                toast({ title: "Error", description: "Payment form not ready.", variant: "destructive"});
-                return;
+
+            const cardFormData = cardForm.getCardFormData();
+            if (!cardFormData || !cardFormData.token) {
+                 toast({ title: "Error", description: "Could not get card token. Please check your card details.", variant: "destructive"});
+                 return;
             }
 
             setIsLoading(true);
             setProgress(50);
 
-            const { token } = cardFormRef.current.getCardFormData();
-
             try {
               const result = await createUserSubscription({
-                token,
+                token: cardFormData.token,
                 payer_email: user.email!,
                 userId: user.uid,
               });
@@ -122,13 +125,13 @@ export function MercadoPagoCardForm() {
           }
         },
       });
-      cardFormRef.current = cardForm; // Store the instance after successful initialization
+      isInitialized.current = true;
     } catch(e: any) {
         console.error("Error initializing Mercado Pago CardForm:", e);
         const errorMessage = e.message || translate({ en: "An unknown error occurred during payment form setup.", pt: "Ocorreu um erro desconhecido durante a configuração do formulário de pagamento." });
         setInitializationError(errorMessage);
     }
-  }, [user?.email]);
+  }, [user?.email, translate, toast, router, user]);
 
   if (initializationError) {
     return <div className="text-center text-destructive p-4 font-medium">{initializationError}</div>;
@@ -143,11 +146,13 @@ export function MercadoPagoCardForm() {
           <div id="form-checkout__expirationDate" className={cn(inputClasses, "w-1/2")}></div>
           <div id="form-checkout__securityCode" className={cn(inputClasses, "w-1/2")}></div>
       </div>
-      <div id="form-checkout__cardholderName" className={inputClasses}></div>
+      <input type="text" id="form-checkout__cardholderName" className={inputClasses} />
+      <select id="form-checkout__issuer" className={inputClasses}></select>
       <div className="flex gap-4">
-          <div id="form-checkout__identificationType" className={cn(inputClasses, "w-1/3")}></div>
-          <div id="form-checkout__identificationNumber" className={cn(inputClasses, "w-2/3")}></div>
+          <select id="form-checkout__identificationType" className={cn(inputClasses, "w-1/3")}></select>
+          <input type="text" id="form-checkout__identificationNumber" className={cn(inputClasses, "w-2/3")} />
       </div>
+      <select id="form-checkout__installments" className={inputClasses}></select>
       <input type="hidden" id="form-checkout__cardholderEmail" defaultValue={user?.email || ""} />
       
       <Button type="submit" id="form-checkout__submit" className="w-full mt-4" disabled={isLoading || !user}>
@@ -157,4 +162,3 @@ export function MercadoPagoCardForm() {
     </form>
   );
 }
-
