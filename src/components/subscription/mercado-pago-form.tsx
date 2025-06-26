@@ -30,7 +30,7 @@ export function MercadoPagoCardForm() {
   useEffect(() => {
     let cardForm: any;
 
-    if (!window.MercadoPago) {
+    if (typeof window === 'undefined' || !window.MercadoPago) {
       console.error("Mercado Pago SDK not available. The form will not initialize.");
       toast({
         title: translate({ en: "Initialization Error", pt: "Erro de Inicialização" }),
@@ -57,8 +57,6 @@ export function MercadoPagoCardForm() {
         expirationDate: { id: "form-checkout__expirationDate", placeholder: "MM/YY" },
         securityCode: { id: "form-checkout__securityCode", placeholder: translate({ en: "Security Code", pt: "Código de Segurança" }) },
         cardholderName: { id: "form-checkout__cardholderName", placeholder: translate({ en: "Cardholder Name", pt: "Nome do Titular" }) },
-        issuer: { id: "form-checkout__issuer", placeholder: translate({ en: "Issuing Bank", pt: "Banco Emissor" }) },
-        installments: { id: "form-checkout__installments", placeholder: translate({ en: "Installments", pt: "Parcelas" }) },
         identificationType: { id: "form-checkout__identificationType", placeholder: translate({ en: "Document Type", pt: "Tipo de Documento" }) },
         identificationNumber: { id: "form-checkout__identificationNumber", placeholder: translate({ en: "Document Number", pt: "Número do Documento" }) },
         cardholderEmail: { id: "form-checkout__cardholderEmail", placeholder: "E-mail" },
@@ -77,19 +75,11 @@ export function MercadoPagoCardForm() {
           setIsLoading(true);
           setProgress(50);
 
-          const {
-            token,
-            issuerId: issuer_id,
-            paymentMethodId: payment_method_id,
-            installments,
-          } = cardForm.getCardFormData();
+          const { token } = cardForm.getCardFormData();
 
           try {
             const result = await createUserSubscription({
               token,
-              issuer_id,
-              payment_method_id,
-              installments,
               payer_email: user.email!,
               userId: user.uid,
             });
@@ -135,14 +125,12 @@ export function MercadoPagoCardForm() {
           <div id="form-checkout__expirationDate" className={cn(inputClasses, "w-1/2")}></div>
           <div id="form-checkout__securityCode" className={cn(inputClasses, "w-1/2")}></div>
       </div>
-      <input type="text" id="form-checkout__cardholderName" className={inputClasses} />
-      <select id="form-checkout__issuer" className={inputClasses}></select>
-      <select id="form-checkout__installments" className={inputClasses}></select>
+      <div id="form-checkout__cardholderName" className={inputClasses}></div>
       <div className="flex gap-4">
-          <select id="form-checkout__identificationType" className={cn(inputClasses, "w-1/3")}></select>
-          <input type="text" id="form-checkout__identificationNumber" className={cn(inputClasses, "w-2/3")} />
+          <div id="form-checkout__identificationType" className={cn(inputClasses, "w-1/3")}></div>
+          <div id="form-checkout__identificationNumber" className={cn(inputClasses, "w-2/3")}></div>
       </div>
-      <input type="email" id="form-checkout__cardholderEmail" defaultValue={user?.email || ""} className={inputClasses} disabled />
+      <input type="hidden" id="form-checkout__cardholderEmail" defaultValue={user?.email || ""} />
       
       <Button type="submit" id="form-checkout__submit" className="w-full mt-4" disabled={isLoading || !user}>
         {isLoading ? translate({ en: 'Processing...', pt: 'Processando...' }) : translate({ en: 'Subscribe for R$19.99/month', pt: 'Assinar por R$19,99/mês' })}
