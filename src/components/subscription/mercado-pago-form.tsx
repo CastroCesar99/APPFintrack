@@ -26,34 +26,56 @@ export function MercadoPagoCardForm() {
   const [progress, setProgress] = useState(0);
   const [initializationError, setInitializationError] = useState<string | null>(null);
   const cardFormRef = useRef<any>(null);
-  const [isFormInitialized, setIsFormInitialized] = useState(false);
-  const formInitAttempted = useRef(false);
+  const [isScriptLoaded, setIsScriptLoaded] = useState(false);
 
   // Chave pública de teste do Mercado Pago
   const publicKey = "TEST-2f341a85-9c17-4c58-bd7b-e2e3f9af5501"; 
 
+  // Effect to track script loading
   useEffect(() => {
-    if (typeof window === 'undefined' || !window.MercadoPago || formInitAttempted.current) {
-        if (formInitAttempted.current) {
-            console.log("Mercado Pago Form initialization already attempted. Skipping.");
-        }
+    if (document.querySelector('script[src="https://sdk.mercadopago.com/js/v2"]')) {
+      if (window.MercadoPago) setIsScriptLoaded(true);
       return;
+    }
+
+    const script = document.createElement('script');
+    script.src = "https://sdk.mercadopago.com/js/v2";
+    script.async = true;
+    script.onload = () => {
+      console.log("Mercado Pago SDK script loaded successfully.");
+      setIsScriptLoaded(true);
+    };
+    script.onerror = (e) => {
+      console.error("Error loading Mercado Pago SDK script:", e);
+      setInitializationError(translate({ en: "Could not load payment script. Please check your connection.", pt: "Não foi possível carregar o script de pagamento. Verifique sua conexão."}));
+    };
+    document.body.appendChild(script);
+
+    return () => {
+      const existingScript = document.querySelector('script[src="https://sdk.mercadopago.com/js/v2"]');
+      if (existingScript) document.body.removeChild(existingScript);
+    }
+  }, [translate]);
+
+
+  useEffect(() => {
+    if (!isScriptLoaded || !window.MercadoPago || cardFormRef.current) {
+        return;
     }
     
     if (!publicKey || !user?.email) {
       const errorMsg = translate({ en: "User data or public key not available. Cannot initialize payment form.", pt: "Dados do usuário ou chave pública não disponíveis. Não é possível inicializar o formulário de pagamento." });
-      console.error(errorMsg);
       setInitializationError(errorMsg);
       return;
     }
-    
-    formInitAttempted.current = true; // Mark that we are attempting initialization
+
+    let cardFormInstance: any;
 
     try {
       console.log("Attempting to initialize Mercado Pago CardForm with locale 'pt-BR'...");
       const mp = new window.MercadoPago(publicKey, { locale: 'pt-BR' });
 
-      const cardForm = mp.cardForm({
+      cardFormInstance = mp.cardForm({
         iframe: true,
         form: {
           id: "form-checkout",
@@ -130,14 +152,22 @@ export function MercadoPagoCardForm() {
           }
         },
       });
-      cardFormRef.current = cardForm;
-      setIsFormInitialized(true);
+      cardFormRef.current = cardFormInstance;
     } catch(e: any) {
         console.error("Error initializing Mercado Pago CardForm:", e);
         const errorMessage = e.message || translate({ en: "An unknown error occurred during payment form setup.", pt: "Ocorreu um erro desconhecido durante a configuração do formulário de pagamento." });
         setInitializationError(errorMessage);
     }
-  }, [user, translate, toast, router]);
+    
+    return () => {
+        if (cardFormInstance && typeof cardFormInstance.unmount === 'function') {
+            console.log("Unmounting Mercado Pago Card Form");
+            cardFormInstance.unmount();
+        }
+        cardFormRef.current = null;
+    }
+
+  }, [user, translate, toast, router, isScriptLoaded]);
 
   if (initializationError) {
     return <div className="text-center text-destructive p-4 font-medium">{initializationError}</div>;
