@@ -31,24 +31,12 @@ export async function createUserSubscription(input: CreateUserSubscriptionInput)
     const accessToken = "TEST-4997780561675232-062608-6e8858e1e9c8d426726877731ec0dbe0-2519291532";
     const planId = "2c938084979341770197acaba53a0a05";
 
-    const startDate = new Date();
-    const endDate = new Date();
-    endDate.setFullYear(endDate.getFullYear() + 1); // Subscription valid for 1 year
-
     const payload = {
       preapproval_plan_id: planId,
       reason: "Assinatura Fintrack",
       external_reference: `fintrack-user-${input.userId}-${Date.now()}`,
       payer_email: input.payer_email,
       card_token_id: input.token,
-      auto_recurring: {
-        frequency: 1,
-        frequency_type: "months",
-        start_date: startDate.toISOString(),
-        end_date: endDate.toISOString(),
-        transaction_amount: 19.99,
-        currency_id: "BRL"
-      },
       back_url: "https://www.castromanagement.com",
       status: "authorized"
     };
@@ -61,7 +49,7 @@ export async function createUserSubscription(input: CreateUserSubscriptionInput)
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${accessToken}`,
-          'X-Idempotency-Key': uuidv4() // Use UUID for idempotency
+          'X-Idempotency-Key': uuidv4()
         },
         body: JSON.stringify(payload)
       });
