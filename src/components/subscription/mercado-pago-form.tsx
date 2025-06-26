@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useEffect, useState } from 'react';
@@ -8,6 +9,7 @@ import { Progress } from '@/components/ui/progress';
 import { createUserSubscription } from '@/ai/flows/create-mercadopago-subscription';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/auth-context';
+import { cn } from '@/lib/utils';
 
 interface MercadoPagoCardFormProps {
   // Props are no longer needed as they are derived from context or hardcoded
@@ -32,13 +34,33 @@ export function MercadoPagoCardForm({}: MercadoPagoCardFormProps) {
 
   useEffect(() => {
     let cardForm: any;
+    let attempts = 0;
 
-    const initializeMercadoPago = async () => {
-      if (!window.MercadoPago || !publicKey || !user?.email) {
-          console.warn("Mercado Pago SDK not loaded or missing required data (PublicKey/UserEmail).");
-          return;
+    const initializeMercadoPago = () => {
+      console.log("Attempting to initialize Mercado Pago form...");
+      if (!window.MercadoPago) {
+        attempts++;
+        if (attempts < 10) {
+          console.warn(`Mercado Pago SDK not found, attempt ${attempts}. Retrying in 500ms.`);
+          setTimeout(initializeMercadoPago, 500);
+        } else {
+          console.error("Mercado Pago SDK failed to load after 10 attempts.");
+          toast({
+            title: translate({ en: "Load Error", pt: "Erro ao Carregar" }),
+            description: translate({ en: "Could not load the payment form. Please refresh the page.", pt: "Não foi possível carregar o formulário de pagamento. Por favor, atualize a página." }),
+            variant: "destructive"
+          });
+        }
+        return;
       }
 
+      if (!publicKey || !user?.email) {
+        console.warn("Mercado Pago Public Key or User Email is missing.");
+        return;
+      }
+      
+      console.log("All pre-conditions met. Initializing with Public Key:", publicKey);
+      
       const mp = new window.MercadoPago(publicKey);
       cardForm = mp.cardForm({
         amount: "19.99",
@@ -58,6 +80,7 @@ export function MercadoPagoCardForm({}: MercadoPagoCardFormProps) {
         callbacks: {
           onFormMounted: (error: any) => {
             if (error) return console.warn("Form Mounted handling error: ", error);
+            console.log("Mercado Pago Form mounted");
           },
           onSubmit: async (event: Event) => {
             event.preventDefault();
@@ -108,6 +131,7 @@ export function MercadoPagoCardForm({}: MercadoPagoCardFormProps) {
             }
           },
           onFetching: (resource: any) => {
+            console.log("Fetching resource: ", resource);
             setProgress(prev => Math.max(prev, 25));
             return () => {};
           }
@@ -115,59 +139,32 @@ export function MercadoPagoCardForm({}: MercadoPagoCardFormProps) {
       });
     };
 
-    if (document.readyState === "complete" && window.MercadoPago) {
-      initializeMercadoPago();
-    } else {
-      window.addEventListener('load', initializeMercadoPago);
-      return () => window.removeEventListener('load', initializeMercadoPago);
-    }
-  }, [publicKey, user, translate, toast, router]);
+    initializeMercadoPago();
+
+  }, [user, publicKey, translate]); // Simplified dependencies for initialization
+
+  const inputClasses = "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50";
 
   return (
-    <>
-      <style jsx>{`
-        #form-checkout__cardNumber, #form-checkout__expirationDate, #form-checkout__securityCode {
-          height: 40px;
-          padding: 10px;
-          border: 1px solid hsl(var(--border));
-          border-radius: var(--radius);
-          background-color: hsl(var(--background));
-          margin-bottom: 1rem;
-        }
-        #form-checkout__cardholderName, #form-checkout__identificationNumber, #form-checkout__cardholderEmail, #form-checkout__issuer, #form-checkout__installments, #form-checkout__identificationType {
-          height: 40px;
-          padding: 0 10px;
-          border: 1px solid hsl(var(--border));
-          border-radius: var(--radius);
-          background-color: hsl(var(--background));
-          color: hsl(var(--foreground));
-          width: 100%;
-          margin-bottom: 1rem;
-        }
-        #form-checkout__submit {
-            margin-top: 1rem;
-        }
-      `}</style>
-      <form id="form-checkout">
-        <div id="form-checkout__cardNumber" className="container"></div>
-        <div className="flex gap-4">
-            <div id="form-checkout__expirationDate" className="container w-1/2"></div>
-            <div id="form-checkout__securityCode" className="container w-1/2"></div>
-        </div>
-        <input type="text" id="form-checkout__cardholderName" />
-        <select id="form-checkout__issuer" className="input"></select>
-        <select id="form-checkout__installments" className="input"></select>
-        <div className="flex gap-4">
-            <select id="form-checkout__identificationType" className="input w-1/3"></select>
-            <input type="text" id="form-checkout__identificationNumber" className="w-2/3" />
-        </div>
-        <input type="email" id="form-checkout__cardholderEmail" defaultValue={user?.email || ""} disabled />
-        
-        <Button type="submit" id="form-checkout__submit" className="w-full" disabled={isLoading || !user}>
-          {isLoading ? translate({ en: 'Processing...', pt: 'Processando...' }) : translate({ en: 'Subscribe for R$19.99/month', pt: 'Assinar por R$19,99/mês' })}
-        </Button>
-        {isLoading && <Progress value={progress} className="w-full mt-4" />}
-      </form>
-    </>
+    <form id="form-checkout" key={user?.uid} className="space-y-4">
+      <div id="form-checkout__cardNumber" className={inputClasses}></div>
+      <div className="flex gap-4">
+          <div id="form-checkout__expirationDate" className={cn(inputClasses, "w-1/2")}></div>
+          <div id="form-checkout__securityCode" className={cn(inputClasses, "w-1/2")}></div>
+      </div>
+      <input type="text" id="form-checkout__cardholderName" className={inputClasses} />
+      <select id="form-checkout__issuer" className={inputClasses}></select>
+      <select id="form-checkout__installments" className={inputClasses}></select>
+      <div className="flex gap-4">
+          <select id="form-checkout__identificationType" className={cn(inputClasses, "w-1/3")}></select>
+          <input type="text" id="form-checkout__identificationNumber" className={cn(inputClasses, "w-2/3")} />
+      </div>
+      <input type="email" id="form-checkout__cardholderEmail" defaultValue={user?.email || ""} className={inputClasses} disabled />
+      
+      <Button type="submit" id="form-checkout__submit" className="w-full mt-4" disabled={isLoading || !user}>
+        {isLoading ? translate({ en: 'Processing...', pt: 'Processando...' }) : translate({ en: 'Subscribe for R$19.99/month', pt: 'Assinar por R$19,99/mês' })}
+      </Button>
+      {isLoading && <Progress value={progress} className="w-full mt-4" />}
+    </form>
   );
 }
