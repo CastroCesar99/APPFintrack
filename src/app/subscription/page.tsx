@@ -1,6 +1,6 @@
 "use client";
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { AppLayout } from "@/components/layout/app-layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from '@/components/ui/button';
@@ -13,9 +13,21 @@ export default function SubscriptionPage() {
   const { translate } = useLanguage();
   
   const planId = "2c9380849783ce770197addd014510cf";
-  const checkoutUrl = `https://www.mercadopago.com.br/subscriptions/checkout?preapproval_plan_id=${planId}`;
+
+  // Dynamically generate the checkout URL with the user's ID
+  const checkoutUrl = useMemo(() => {
+    if (user?.uid) {
+      return `https://www.mercadopago.com.br/subscriptions/checkout?preapproval_plan_id=${planId}&external_reference=${user.uid}`;
+    }
+    return `https://www.mercadopago.com.br/subscriptions/checkout?preapproval_plan_id=${planId}`;
+  }, [user?.uid]);
 
   const openCheckoutPopup = () => {
+    if (!user) {
+        // This should ideally not happen if the page is protected, but as a safeguard.
+        alert("Please log in to subscribe.");
+        return;
+    }
     const width = 600;
     const height = 800;
     const left = (window.innerWidth - width) / 2;
@@ -54,7 +66,7 @@ export default function SubscriptionPage() {
                 <p className='text-lg font-semibold text-muted-foreground'>{translate({en: "Monthly Plan", pt: "Plano Mensal"})}</p>
                 <p className='text-4xl font-bold text-primary'>R$ 19,99</p>
             </div>
-            <Button className="w-full" onClick={openCheckoutPopup}>
+            <Button className="w-full" onClick={openCheckoutPopup} disabled={!user}>
               {translate({ en: 'Subscribe via Mercado Pago', pt: 'Assinar com Mercado Pago' })}
             </Button>
             <p className="text-xs text-muted-foreground mt-4 text-center">
