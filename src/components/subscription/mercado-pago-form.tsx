@@ -25,13 +25,11 @@ export function MercadoPagoCardForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [initializationError, setInitializationError] = useState<string | null>(null);
-  const cardFormRef = useRef<any>(null);
   const [isScriptLoaded, setIsScriptLoaded] = useState(false);
+  const cardFormRef = useRef<any>(null); // Ref to store the card form instance
 
-  // Chave pública de teste do Mercado Pago
   const publicKey = "TEST-2f341a85-9c17-4c58-bd7b-e2e3f9af5501"; 
 
-  // Effect to track script loading
   useEffect(() => {
     if (document.querySelector('script[src="https://sdk.mercadopago.com/js/v2"]')) {
       if (window.MercadoPago) setIsScriptLoaded(true);
@@ -53,29 +51,34 @@ export function MercadoPagoCardForm() {
 
     return () => {
       const existingScript = document.querySelector('script[src="https://sdk.mercadopago.com/js/v2"]');
-      if (existingScript) document.body.removeChild(existingScript);
+      if (existingScript) {
+        try {
+            document.body.removeChild(existingScript);
+        } catch (error) {
+            console.warn("Could not remove Mercado Pago script on cleanup:", error);
+        }
+      }
     }
   }, [translate]);
 
-
   useEffect(() => {
-    if (!isScriptLoaded || !window.MercadoPago || cardFormRef.current) {
-        return;
-    }
-    
-    if (!publicKey || !user?.email) {
-      const errorMsg = translate({ en: "User data or public key not available. Cannot initialize payment form.", pt: "Dados do usuário ou chave pública não disponíveis. Não é possível inicializar o formulário de pagamento." });
-      setInitializationError(errorMsg);
+    // Ensure all conditions are met before trying to initialize
+    if (!isScriptLoaded || !window.MercadoPago || !user?.email) {
       return;
     }
 
-    let cardFormInstance: any;
-
+    // Prevent re-initialization if the instance already exists
+    if (cardFormRef.current) {
+      return;
+    }
+    
+    let mpInstance: any;
     try {
       console.log("Attempting to initialize Mercado Pago CardForm with locale 'pt-BR'...");
-      const mp = new window.MercadoPago(publicKey, { locale: 'pt-BR' });
+      mpInstance = new window.MercadoPago(publicKey, { locale: 'pt-BR' });
 
-      cardFormInstance = mp.cardForm({
+      const cardFormInstance = mpInstance.cardForm({
+        amount: "19.99",
         iframe: true,
         form: {
           id: "form-checkout",
@@ -83,11 +86,11 @@ export function MercadoPagoCardForm() {
           expirationDate: { id: "form-checkout__expirationDate", placeholder: "MM/AA" },
           securityCode: { id: "form-checkout__securityCode", placeholder: translate({ en: "Security Code", pt: "Código de Segurança" }) },
           cardholderName: { id: "form-checkout__cardholderName", placeholder: translate({ en: "Cardholder Name", pt: "Nome do Titular" }) },
+          issuer: { id: "form-checkout__issuer", placeholder: translate({ en: "Issuing Bank", pt: "Banco Emissor" }) },
+          installments: { id: "form-checkout__installments", placeholder: translate({ en: "Installments", pt: "Parcelas" }) },
           identificationType: { id: "form-checkout__identificationType", placeholder: translate({ en: "Document Type", pt: "Tipo de Documento" }) },
           identificationNumber: { id: "form-checkout__identificationNumber", placeholder: translate({ en: "Document Number", pt: "Número do Documento" }) },
           cardholderEmail: { id: "form-checkout__cardholderEmail", placeholder: "E-mail" },
-          issuer: { id: "form-checkout__issuer", placeholder: translate({ en: "Issuing Bank", pt: "Banco Emissor" }) },
-          installments: { id: "form-checkout__installments", placeholder: translate({ en: "Installments", pt: "Parcelas" }) },
         },
         callbacks: {
           onFormMounted: (error: any) => {
@@ -95,22 +98,22 @@ export function MercadoPagoCardForm() {
               console.error("Form Mounted handling error: ", error);
               setInitializationError(translate({en: "Could not display payment form.", pt: "Não foi possível exibir o formulário de pagamento."}));
               return;
-            };
+            }
             console.log("Mercado Pago Form mounted successfully.");
           },
           onSubmit: async (event: Event) => {
             event.preventDefault();
             if (!user) {
-                toast({ title: "Error", description: "User not authenticated", variant: "destructive" });
-                return;
+              toast({ title: "Error", description: "User not authenticated", variant: "destructive" });
+              return;
             }
             setIsLoading(true);
             setProgress(50);
             
             try {
-              const cardFormData = cardFormRef.current?.getCardFormData();
+              const { token } = cardFormRef.current.getCardFormData();
               
-              if (!cardFormData || !cardFormData.token) {
+              if (!token) {
                  toast({ title: "Error", description: "Could not get card token. Please check your card details.", variant: "destructive"});
                  setIsLoading(false);
                  setProgress(0);
@@ -118,7 +121,7 @@ export function MercadoPagoCardForm() {
               }
 
               const result = await createUserSubscription({
-                token: cardFormData.token,
+                token: token,
                 payer_email: user.email!,
                 userId: user.uid,
               });
@@ -158,15 +161,15 @@ export function MercadoPagoCardForm() {
         const errorMessage = e.message || translate({ en: "An unknown error occurred during payment form setup.", pt: "Ocorreu um erro desconhecido durante a configuração do formulário de pagamento." });
         setInitializationError(errorMessage);
     }
-    
-    return () => {
-        if (cardFormInstance && typeof cardFormInstance.unmount === 'function') {
-            console.log("Unmounting Mercado Pago Card Form");
-            cardFormInstance.unmount();
-        }
-        cardFormRef.current = null;
-    }
 
+    // Cleanup function
+    return () => {
+      if (cardFormRef.current && typeof cardFormRef.current.unmount === 'function') {
+        console.log("Unmounting Mercado Pago Card Form");
+        cardFormRef.current.unmount();
+        cardFormRef.current = null;
+      }
+    };
   }, [user, translate, toast, router, isScriptLoaded]);
 
   if (initializationError) {
