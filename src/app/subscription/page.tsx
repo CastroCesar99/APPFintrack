@@ -12,7 +12,7 @@ export default function SubscriptionPage() {
   const { user, loading: authLoading } = useAuth();
   const { translate } = useLanguage();
   
-  const planId = "2c938084979341770197acaba53a0a05";
+  const planId = "2c9380849783ce770197addd014510cf";
   const checkoutUrl = `https://www.mercadopago.com.br/subscriptions/checkout?preapproval_plan_id=${planId}`;
 
   const openCheckoutPopup = () => {
