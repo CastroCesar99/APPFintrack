@@ -1,5 +1,17 @@
 {
-  "node": {},
+  "node": {
+    "409b8197637c3ff16d96d3f81d1f1e4aeed4e12bd6": {
+      "workers": {
+        "app/subscription/page": {
+          "moduleId": "[project]/.next-internal/server/app/subscription/page/actions.js { ACTIONS_MODULE0 => \"[project]/src/ai/flows/create-subscription-flow.ts [app-rsc] (ecmascript)\" } [app-rsc] (server actions loader, ecmascript)",
+          "async": false
+        }
+      },
+      "layer": {
+        "app/subscription/page": "action-browser"
+      }
+    }
+  },
   "edge": {},
   "encryptionKey": "QsHuGICI3izuVTmtaOdAZ41Lh1lkXebXGlpNe1WZCAs="
 }

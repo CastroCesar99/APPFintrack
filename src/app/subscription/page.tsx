@@ -1,282 +1,57 @@
 
 "use client";
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React from 'react';
+import Script from 'next/script';
 import { AppLayout } from "@/components/layout/app-layout";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Star, CheckCircle2, XCircle } from "lucide-react";
 import { useAuth } from '@/context/auth-context';
 import { useLanguage } from '@/context/language-context';
-import { useToast } from "@/hooks/use-toast";
-import { db } from '@/lib/firebase';
-import { doc, getDoc, updateDoc, Timestamp, serverTimestamp } from "firebase/firestore";
-import { format } from "date-fns";
-import { ptBR, enUS } from 'date-fns/locale';
-import Link from 'next/link';
-import { createSubscriptionPlan } from '@/ai/flows/create-subscription-flow';
-
-type SubscriptionStatus = 'trial' | 'active' | 'inactive' | 'canceled' | 'expired';
-
-interface UserSubscriptionData {
-  status: SubscriptionStatus;
-  trialEndDate?: Date;
-  subscriptionEndDate?: Date;
-}
+import { MercadoPagoCardForm } from '@/components/subscription/mercado-pago-form';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function SubscriptionPage() {
   const { user, loading: authLoading } = useAuth();
-  const { translate, language } = useLanguage();
-  const { toast } = useToast();
+  const { translate } = useLanguage();
   
-  const [subscriptionData, setSubscriptionData] = useState<UserSubscriptionData | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSimulating, setIsSimulating] = useState(false);
-  const [isCanceling, setIsCanceling] = useState(false);
-  const [isCreatingSubscription, setIsCreatingSubscription] = useState(false);
+  const publicKey = process.env.NEXT_PUBLIC_MERCADO_PAGO_PUBLIC_KEY;
 
-
-  const fetchSubscriptionStatus = useCallback(async () => {
-    if (!user) {
-      setIsLoading(false);
-      return;
-    }
-    setIsLoading(true);
-    try {
-      const userDocRef = doc(db, 'users', user.uid);
-      const docSnap = await getDoc(userDocRef);
-
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        let status: SubscriptionStatus = data.subscriptionStatus || 'inactive';
-        const trialEndDate = data.trialEndDate?.toDate();
-        const subscriptionEndDate = data.subscriptionEndDate?.toDate();
-        const now = new Date();
-
-        if (status === 'trial' && trialEndDate && trialEndDate < now) {
-          status = 'expired';
-        }
-        if (status === 'active' && subscriptionEndDate && subscriptionEndDate < now) {
-          status = 'expired';
-        }
-        
-        setSubscriptionData({
-          status: status,
-          trialEndDate: trialEndDate,
-          subscriptionEndDate: subscriptionEndDate,
-        });
-
-      } else {
-        setSubscriptionData({ status: 'inactive' });
-      }
-    } catch (error) {
-      console.error("Error fetching subscription status:", error);
-      toast({
-        title: translate({ en: "Error", pt: "Erro" }),
-        description: translate({ en: "Could not load your subscription status.", pt: "Não foi possível carregar seu status de assinatura." }),
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  }, [user, toast, translate]);
-
-  useEffect(() => {
-    if (!authLoading) {
-      fetchSubscriptionStatus();
-    }
-  }, [authLoading, fetchSubscriptionStatus]);
-
-  const handleSimulatePayment = async () => {
-    if (!user) return;
-    setIsSimulating(true);
-    try {
-      const userDocRef = doc(db, 'users', user.uid);
-      const newSubscriptionEndDate = new Date();
-      newSubscriptionEndDate.setDate(newSubscriptionEndDate.getDate() + 30);
-
-      await updateDoc(userDocRef, {
-        subscriptionStatus: 'active',
-        subscriptionEndDate: Timestamp.fromDate(newSubscriptionEndDate),
-        updatedAt: serverTimestamp(),
-      });
-
-      toast({
-        title: translate({ en: "Payment Simulated", pt: "Pagamento Simulado" }),
-        description: translate({ en: "Your subscription is now active for 30 days.", pt: "Sua assinatura agora está ativa por 30 dias." }),
-      });
-      await fetchSubscriptionStatus(); // Refresh data
-    } catch (error) {
-       console.error("Error simulating payment:", error);
-      toast({
-        title: translate({ en: "Error", pt: "Erro" }),
-        description: translate({ en: "Could not simulate the payment.", pt: "Não foi possível simular o pagamento." }),
-        variant: "destructive",
-      });
-    } finally {
-      setIsSimulating(false);
-    }
+  if (authLoading) {
+    return (
+      <AppLayout>
+        <div className="space-y-6 max-w-2xl mx-auto">
+           <Skeleton className="h-9 w-1/3 mb-4 sm:mb-0" />
+           <Skeleton className="h-96 w-full" />
+        </div>
+      </AppLayout>
+    )
   }
-
-  const handleSimulateCancellation = async () => {
-    if (!user) return;
-    setIsCanceling(true);
-    try {
-      const userDocRef = doc(db, 'users', user.uid);
-      
-      await updateDoc(userDocRef, {
-        subscriptionStatus: 'canceled',
-        subscriptionEndDate: null, 
-        updatedAt: serverTimestamp(),
-      });
-
-      toast({
-        title: translate({ en: "Subscription Canceled", pt: "Assinatura Cancelada" }),
-        description: translate({ en: "Your subscription has been simulated as canceled.", pt: "Sua assinatura foi simulada como cancelada." }),
-      });
-      await fetchSubscriptionStatus(); 
-    } catch (error) {
-       console.error("Error simulating cancellation:", error);
-      toast({
-        title: translate({ en: "Error", pt: "Erro" }),
-        description: translate({ en: "Could not simulate the cancellation.", pt: "Não foi possível simular o cancelamento." }),
-        variant: "destructive",
-      });
-    } finally {
-      setIsCanceling(false);
-    }
-  };
-  
-  const handleCreateSubscription = async () => {
-    if (!user) return;
-    setIsCreatingSubscription(true);
-    try {
-      const result = await createSubscriptionPlan({});
-      if (result.init_point) {
-        window.location.href = result.init_point;
-      } else {
-        throw new Error("No checkout URL returned.");
-      }
-    } catch(error) {
-      console.error("Error creating subscription:", error);
-      toast({
-        title: translate({en: "Subscription Error", pt: "Erro na Assinatura"}),
-        description: translate({en: "Could not create the subscription plan at this time. Please try again later.", pt: "Não foi possível criar o plano de assinatura no momento. Tente novamente mais tarde."}),
-        variant: "destructive"
-      });
-      setIsCreatingSubscription(false);
-    }
-    // No finally block to set loading to false, as the user will be redirected.
-  }
-
-  const renderStatusContent = () => {
-    if (isLoading || !subscriptionData) {
-      return <Skeleton className="h-48 w-full" />;
-    }
-
-    const locale = language === 'pt' ? ptBR : enUS;
-    const { status, trialEndDate, subscriptionEndDate } = subscriptionData;
-    
-    const isLoadingAction = isSimulating || isCanceling || isCreatingSubscription;
-    const subscribeButtonLabel = isCreatingSubscription ? translate({ en: 'Redirecting...', pt: 'Redirecionando...' }) : translate({ en: 'Subscribe Now', pt: 'Assine Agora' });
-    const manageButtonLabel = isCreatingSubscription ? translate({ en: 'Redirecting...', pt: 'Redirecionando...' }) : translate({ en: 'Manage Subscription', pt: 'Gerenciar Assinatura' });
-
-
-    switch (status) {
-      case 'trial':
-        return (
-          <>
-            <Badge variant="secondary" className="bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300">
-                {translate({ en: 'Trial Period', pt: 'Período de Teste' })}
-            </Badge>
-            <CardTitle className="mt-4">{translate({ en: 'You are on a Free Trial!', pt: 'Você está em um Teste Gratuito!' })}</CardTitle>
-            <CardDescription>
-              {trialEndDate 
-                ? `${translate({ en: 'Your free trial ends on', pt: 'Seu teste gratuito termina em' })} ${format(trialEndDate, 'PPP', { locale })}.`
-                : translate({ en: 'Enjoy full access to all features.', pt: 'Aproveite o acesso completo a todos os recursos.' })
-              }
-            </CardDescription>
-            <Button className="w-full mt-6 bg-primary hover:bg-primary/90" onClick={handleCreateSubscription} disabled={isLoadingAction}>
-              <Star className="mr-2 h-4 w-4" />
-              {subscribeButtonLabel}
-            </Button>
-          </>
-        );
-      case 'active':
-        return (
-          <>
-            <Badge variant="secondary" className="bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300">
-                <CheckCircle2 className="mr-1 h-4 w-4" />
-                {translate({ en: 'Active Subscriber', pt: 'Assinatura Ativa' })}
-            </Badge>
-            <CardTitle className="mt-4">{translate({ en: 'Your Subscription is Active', pt: 'Sua Assinatura está Ativa' })}</CardTitle>
-            <CardDescription>
-              {subscriptionEndDate
-                ? `${translate({ en: 'Thank you for being a subscriber! Your access is valid until', pt: 'Obrigado por ser um assinante! Seu acesso é válido até' })} ${format(subscriptionEndDate, 'PPP', { locale })}.`
-                : translate({ en: 'Thank you for being a subscriber!', pt: 'Obrigado por ser um assinante!' })
-              }
-            </CardDescription>
-             <Link href="https://www.mercadopago.com.br/subscriptions" target="_blank" rel="noopener noreferrer" className="w-full">
-              <Button className="w-full mt-6 bg-primary hover:bg-primary/90" disabled={isLoadingAction}>
-                {manageButtonLabel}
-              </Button>
-            </Link>
-          </>
-        );
-      case 'expired':
-      case 'inactive':
-      case 'canceled':
-        return (
-          <>
-            <Badge variant="destructive">
-                <XCircle className="mr-1 h-4 w-4" />
-                {translate({ en: 'Subscription Required', pt: 'Assinatura Necessária' })}
-            </Badge>
-            <CardTitle className="mt-4">{translate({ en: 'Your Access Has Expired', pt: 'Seu Acesso Expirou' })}</CardTitle>
-            <CardDescription>
-              {translate({ en: 'Please subscribe to continue using FinTrack and keep your finances in order.', pt: 'Por favor, assine para continuar usando o FinTrack e manter suas finanças em ordem.' })}
-            </CardDescription>
-            <Button className="w-full mt-6 bg-primary hover:bg-primary/90" onClick={handleCreateSubscription} disabled={isLoadingAction}>
-                 <Star className="mr-2 h-4 w-4" />
-                {subscribeButtonLabel}
-            </Button>
-          </>
-        );
-      default:
-        return null;
-    }
-  };
-
 
   return (
-    <AppLayout>
-      <div className="space-y-6 max-w-2xl mx-auto">
-        <h1 className="text-3xl font-bold tracking-tight text-foreground">
-          {translate({ en: "Subscription", pt: "Assinatura" })}
-        </h1>
-        <Card className="shadow-lg text-center">
-          <CardHeader>
-            <div className="flex flex-col items-center gap-2">
-              {renderStatusContent()}
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="mt-4 border-t pt-4 space-y-2">
-                <p className="text-sm text-muted-foreground">{translate({ en: 'For testing purposes:', pt: 'Para fins de teste:' })}</p>
-                <div className="flex flex-col sm:flex-row gap-2 justify-center">
-                    <Button onClick={handleSimulatePayment} variant="secondary" className="mt-2" disabled={isSimulating || isCanceling || isCreatingSubscription}>
-                        {isSimulating ? translate({ en: 'Processing...', pt: 'Processando...' }) : translate({ en: 'Simulate 30-Day Subscription', pt: 'Simular Assinatura de 30 Dias' })}
-                    </Button>
-                    <Button onClick={handleSimulateCancellation} variant="destructive" className="mt-2" disabled={isSimulating || isCanceling || isCreatingSubscription}>
-                        {isCanceling ? translate({ en: 'Canceling...', pt: 'Cancelando...' }) : translate({ en: 'Simulate Cancellation', pt: 'Simular Cancelamento' })}
-                    </Button>
+    <>
+      <Script src="https://sdk.mercadopago.com/js/v2" strategy="beforeInteractive" />
+      <AppLayout>
+        <div className="space-y-6 max-w-2xl mx-auto">
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">
+            {translate({ en: "Subscription", pt: "Assinatura" })}
+          </h1>
+          <Card className="shadow-lg">
+            <CardHeader>
+              <CardTitle>{translate({ en: 'Choose Your Plan', pt: 'Escolha seu Plano' })}</CardTitle>
+              <CardDescription>{translate({ en: 'Unlock all features with our monthly subscription.', pt: 'Desbloqueie todos os recursos com nossa assinatura mensal.' })}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {publicKey && user?.email ? (
+                  <MercadoPagoCardForm publicKey={publicKey} userEmail={user.email} />
+              ) : (
+                <div className="text-center text-muted-foreground p-8">
+                  <p>{!publicKey ? translate({ en: 'Payment provider configuration is missing.', pt: 'A configuração do provedor de pagamento está ausente.' }) : translate({ en: 'Please log in to subscribe.', pt: 'Por favor, faça login para assinar.' })}</p>
                 </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    </AppLayout>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </AppLayout>
+    </>
   );
 }
