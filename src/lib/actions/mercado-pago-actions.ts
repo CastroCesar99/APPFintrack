@@ -35,7 +35,7 @@ export async function createUserSubscription(input: CreateUserSubscriptionInput)
       preapproval_plan_id: planId,
       reason: "Assinatura Fintrack",
       external_reference: `fintrack-user-${input.userId}-${Date.now()}`,
-      payer_email: "test_user_12345678@testuser.com", // Using a test user email as required by Mercado Pago sandbox
+      payer_email: input.payer_email, // Use the actual user's email from the input
       card_token_id: input.token,
       back_url: "https://www.castromanagement.com",
       status: "authorized"
