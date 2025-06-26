@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useEffect, useState } from 'react';
@@ -28,10 +27,8 @@ export function MercadoPagoCardForm({}: MercadoPagoCardFormProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [progress, setProgress] = useState(0);
 
-  // Hardcoded test keys as requested.
-  // IMPORTANT: The Public Key is different from the Access Token.
-  // You need to get this key from your Mercado Pago developer dashboard.
-  const publicKey = "TEST-YOUR-PUBLIC-KEY-HERE"; 
+  // Test Public Key provided by the user.
+  const publicKey = "TEST-2f341a85-9c17-4c58-bd7b-e2e3f9af5501"; 
 
   useEffect(() => {
     let cardForm: any;
