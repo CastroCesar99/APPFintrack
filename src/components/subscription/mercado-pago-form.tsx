@@ -49,7 +49,7 @@ export function MercadoPagoCardForm() {
       const mp = new window.MercadoPago(publicKey, { locale: 'pt-BR' });
 
       const cardForm = mp.cardForm({
-        amount: "19.99", // This field is required for CardForm to initialize correctly
+        amount: "19.99",
         iframe: true,
         form: {
           id: "form-checkout",
