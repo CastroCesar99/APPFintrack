@@ -1,10 +1,10 @@
 {
   "node": {
-    "409b8197637c3ff16d96d3f81d1f1e4aeed4e12bd6": {
+    "409b9cdb93fb07bb04915a54f9bf3951fe96ac2ded": {
       "workers": {
         "app/subscription/page": {
-          "moduleId": "[project]/.next-internal/server/app/subscription/page/actions.js { ACTIONS_MODULE0 => \"[project]/src/ai/flows/create-subscription-flow.ts [app-rsc] (ecmascript)\" } [app-rsc] (server actions loader, ecmascript)",
-          "async": false
+          "moduleId": "[project]/.next-internal/server/app/subscription/page/actions.js { ACTIONS_MODULE0 => \"[project]/src/ai/flows/create-mercadopago-subscription.ts [app-rsc] (ecmascript)\" } [app-rsc] (server actions loader, ecmascript)",
+          "async": true
         }
       },
       "layer": {

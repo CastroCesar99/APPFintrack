@@ -8,10 +8,10 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { createUserSubscription } from '@/ai/flows/create-mercadopago-subscription';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '@/context/auth-context';
 
 interface MercadoPagoCardFormProps {
-  publicKey: string;
-  userEmail: string;
+  // Props are no longer needed as they are derived from context or hardcoded
 }
 
 declare global {
@@ -20,98 +20,111 @@ declare global {
   }
 }
 
-export function MercadoPagoCardForm({ publicKey, userEmail }: MercadoPagoCardFormProps) {
+export function MercadoPagoCardForm({}: MercadoPagoCardFormProps) {
   const { toast } = useToast();
   const { translate } = useLanguage();
   const router = useRouter();
+  const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [progress, setProgress] = useState(0);
+
+  // Hardcoded test keys as requested.
+  // IMPORTANT: The Public Key is different from the Access Token.
+  // You need to get this key from your Mercado Pago developer dashboard.
+  const publicKey = "TEST-YOUR-PUBLIC-KEY-HERE"; 
 
   useEffect(() => {
     let cardForm: any;
 
     const initializeMercadoPago = async () => {
-      if (window.MercadoPago) {
-        const mp = new window.MercadoPago(publicKey);
-        cardForm = mp.cardForm({
-          amount: "39.90", // The amount from the plan
-          iframe: true,
-          form: {
-            id: "form-checkout",
-            cardNumber: { id: "form-checkout__cardNumber", placeholder: translate({ en: "Card Number", pt: "Número do Cartão" }) },
-            expirationDate: { id: "form-checkout__expirationDate", placeholder: "MM/YY" },
-            securityCode: { id: "form-checkout__securityCode", placeholder: translate({ en: "Security Code", pt: "Código de Segurança" }) },
-            cardholderName: { id: "form-checkout__cardholderName", placeholder: translate({ en: "Cardholder Name", pt: "Nome do Titular" }) },
-            issuer: { id: "form-checkout__issuer", placeholder: translate({ en: "Issuing Bank", pt: "Banco Emissor" }) },
-            installments: { id: "form-checkout__installments", placeholder: translate({ en: "Installments", pt: "Parcelas" }) },
-            identificationType: { id: "form-checkout__identificationType", placeholder: translate({ en: "Document Type", pt: "Tipo de Documento" }) },
-            identificationNumber: { id: "form-checkout__identificationNumber", placeholder: translate({ en: "Document Number", pt: "Número do Documento" }) },
-            cardholderEmail: { id: "form-checkout__cardholderEmail", placeholder: "E-mail" },
+      if (!window.MercadoPago || !publicKey || !user?.email) {
+          console.warn("Mercado Pago SDK not loaded or missing required data (PublicKey/UserEmail).");
+          return;
+      }
+
+      const mp = new window.MercadoPago(publicKey);
+      cardForm = mp.cardForm({
+        amount: "19.99",
+        iframe: true,
+        form: {
+          id: "form-checkout",
+          cardNumber: { id: "form-checkout__cardNumber", placeholder: translate({ en: "Card Number", pt: "Número do Cartão" }) },
+          expirationDate: { id: "form-checkout__expirationDate", placeholder: "MM/YY" },
+          securityCode: { id: "form-checkout__securityCode", placeholder: translate({ en: "Security Code", pt: "Código de Segurança" }) },
+          cardholderName: { id: "form-checkout__cardholderName", placeholder: translate({ en: "Cardholder Name", pt: "Nome do Titular" }) },
+          issuer: { id: "form-checkout__issuer", placeholder: translate({ en: "Issuing Bank", pt: "Banco Emissor" }) },
+          installments: { id: "form-checkout__installments", placeholder: translate({ en: "Installments", pt: "Parcelas" }) },
+          identificationType: { id: "form-checkout__identificationType", placeholder: translate({ en: "Document Type", pt: "Tipo de Documento" }) },
+          identificationNumber: { id: "form-checkout__identificationNumber", placeholder: translate({ en: "Document Number", pt: "Número do Documento" }) },
+          cardholderEmail: { id: "form-checkout__cardholderEmail", placeholder: "E-mail" },
+        },
+        callbacks: {
+          onFormMounted: (error: any) => {
+            if (error) return console.warn("Form Mounted handling error: ", error);
           },
-          callbacks: {
-            onFormMounted: (error: any) => {
-              if (error) return console.warn("Form Mounted handling error: ", error);
-            },
-            onSubmit: async (event: Event) => {
-              event.preventDefault();
-              setIsLoading(true);
-              setProgress(50);
+          onSubmit: async (event: Event) => {
+            event.preventDefault();
+            if (!user) {
+                toast({ title: "Error", description: "User not authenticated", variant: "destructive" });
+                return;
+            }
+            setIsLoading(true);
+            setProgress(50);
 
-              const {
+            const {
+              token,
+              issuerId: issuer_id,
+              paymentMethodId: payment_method_id,
+              installments,
+            } = cardForm.getCardFormData();
+
+            try {
+              const result = await createUserSubscription({
                 token,
-                issuerId: issuer_id,
-                paymentMethodId: payment_method_id,
+                issuer_id,
+                payment_method_id,
                 installments,
-              } = cardForm.getCardFormData();
+                payer_email: user.email!,
+                userId: user.uid,
+              });
 
-              try {
-                const result = await createUserSubscription({
-                  token,
-                  issuer_id,
-                  payment_method_id,
-                  installments,
-                  payer_email: userEmail
-                });
-
-                if (result.success) {
-                  setProgress(100);
-                  toast({
-                    title: translate({ en: "Subscription Successful!", pt: "Assinatura Realizada com Sucesso!" }),
-                    description: translate({ en: "Welcome aboard!", pt: "Bem-vindo(a) a bordo!" }),
-                  });
-                  router.push('/');
-                } else {
-                  throw new Error(result.error || translate({ en: 'An unknown error occurred.', pt: 'Ocorreu um erro desconhecido.' }));
-                }
-              } catch (error: any) {
-                setProgress(0);
+              if (result.success && result.init_point) {
+                window.location.href = result.init_point;
+              } else if (result.success) {
+                setProgress(100);
                 toast({
-                  title: translate({ en: "Payment Failed", pt: "Falha no Pagamento" }),
-                  description: error.message,
-                  variant: "destructive",
+                  title: translate({ en: "Subscription Successful!", pt: "Assinatura Realizada com Sucesso!" }),
+                  description: translate({ en: "Welcome aboard!", pt: "Bem-vindo(a) a bordo!" }),
                 });
-                setIsLoading(false);
+                router.push('/');
+              } else {
+                throw new Error(result.error || translate({ en: 'An unknown error occurred.', pt: 'Ocorreu um erro desconhecido.' }));
               }
-            },
-            onFetching: (resource: any) => {
-              setProgress(prev => Math.max(prev, 25)); // Show some progress on fetch
-              return () => {
-                // Done fetching
-              };
+            } catch (error: any) {
+              setProgress(0);
+              toast({
+                title: translate({ en: "Payment Failed", pt: "Falha no Pagamento" }),
+                description: error.message,
+                variant: "destructive",
+              });
+              setIsLoading(false);
             }
           },
-        });
-      }
+          onFetching: (resource: any) => {
+            setProgress(prev => Math.max(prev, 25));
+            return () => {};
+          }
+        },
+      });
     };
 
-    // Ensure the script is loaded before initializing
     if (document.readyState === "complete" && window.MercadoPago) {
       initializeMercadoPago();
     } else {
       window.addEventListener('load', initializeMercadoPago);
       return () => window.removeEventListener('load', initializeMercadoPago);
     }
-  }, [publicKey, userEmail, translate, toast, router]);
+  }, [publicKey, user, translate, toast, router]);
 
   return (
     <>
@@ -151,10 +164,10 @@ export function MercadoPagoCardForm({ publicKey, userEmail }: MercadoPagoCardFor
             <select id="form-checkout__identificationType" className="input w-1/3"></select>
             <input type="text" id="form-checkout__identificationNumber" className="w-2/3" />
         </div>
-        <input type="email" id="form-checkout__cardholderEmail" defaultValue={userEmail} disabled />
+        <input type="email" id="form-checkout__cardholderEmail" defaultValue={user?.email || ""} disabled />
         
-        <Button type="submit" id="form-checkout__submit" className="w-full" disabled={isLoading}>
-          {isLoading ? translate({ en: 'Processing...', pt: 'Processando...' }) : translate({ en: 'Subscribe for R$39,90/month', pt: 'Assinar por R$39,90/mês' })}
+        <Button type="submit" id="form-checkout__submit" className="w-full" disabled={isLoading || !user}>
+          {isLoading ? translate({ en: 'Processing...', pt: 'Processando...' }) : translate({ en: 'Subscribe for R$19.99/month', pt: 'Assinar por R$19,99/mês' })}
         </Button>
         {isLoading && <Progress value={progress} className="w-full mt-4" />}
       </form>

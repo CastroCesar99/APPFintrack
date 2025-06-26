@@ -14,8 +14,6 @@ export default function SubscriptionPage() {
   const { user, loading: authLoading } = useAuth();
   const { translate } = useLanguage();
   
-  const publicKey = process.env.NEXT_PUBLIC_MERCADO_PAGO_PUBLIC_KEY;
-
   if (authLoading) {
     return (
       <AppLayout>
@@ -41,11 +39,11 @@ export default function SubscriptionPage() {
               <CardDescription>{translate({ en: 'Unlock all features with our monthly subscription.', pt: 'Desbloqueie todos os recursos com nossa assinatura mensal.' })}</CardDescription>
             </CardHeader>
             <CardContent>
-              {publicKey && user?.email ? (
-                  <MercadoPagoCardForm publicKey={publicKey} userEmail={user.email} />
+              {user?.email ? (
+                  <MercadoPagoCardForm />
               ) : (
                 <div className="text-center text-muted-foreground p-8">
-                  <p>{!publicKey ? translate({ en: 'Payment provider configuration is missing.', pt: 'A configuração do provedor de pagamento está ausente.' }) : translate({ en: 'Please log in to subscribe.', pt: 'Por favor, faça login para assinar.' })}</p>
+                  <p>{translate({ en: 'Please log in to subscribe.', pt: 'Por favor, faça login para assinar.' })}</p>
                 </div>
               )}
             </CardContent>
