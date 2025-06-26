@@ -60,11 +60,8 @@ export function SignupForm() {
       try {
         await updateProfile(user, { displayName: values.name });
 
-        // Create or merge user document in Firestore
+        // Create or merge user document in Firestore without trial period
         const userDocRef = doc(db, "users", user.uid);
-        const trialEndDate = new Date();
-        trialEndDate.setDate(trialEndDate.getDate() + 7);
-
         await setDoc(userDocRef, {
           uid: user.uid,
           name: values.name,
@@ -72,8 +69,7 @@ export function SignupForm() {
           createdAt: serverTimestamp(),
           onboardingComplete: false,
           emailVerified: false,
-          subscriptionStatus: 'trial',
-          trialEndDate: Timestamp.fromDate(trialEndDate),
+          subscriptionStatus: 'inactive', // User starts as inactive
         }, { merge: true });
 
         await sendEmailVerification(user);
