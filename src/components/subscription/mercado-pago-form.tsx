@@ -27,13 +27,16 @@ export function MercadoPagoCardForm() {
   const [initializationError, setInitializationError] = useState<string | null>(null);
   const cardFormRef = useRef<any>(null);
   const [isFormInitialized, setIsFormInitialized] = useState(false);
+  const formInitAttempted = useRef(false);
 
   // Chave pública de teste do Mercado Pago
   const publicKey = "TEST-2f341a85-9c17-4c58-bd7b-e2e3f9af5501"; 
 
   useEffect(() => {
-    if (isFormInitialized || typeof window === 'undefined' || !window.MercadoPago) {
-      console.log("Mercado Pago Form initialization skipped. Conditions: isFormInitialized=", isFormInitialized, "window.MercadoPago exists=", !!window.MercadoPago);
+    if (typeof window === 'undefined' || !window.MercadoPago || formInitAttempted.current) {
+        if (formInitAttempted.current) {
+            console.log("Mercado Pago Form initialization already attempted. Skipping.");
+        }
       return;
     }
     
@@ -43,18 +46,19 @@ export function MercadoPagoCardForm() {
       setInitializationError(errorMsg);
       return;
     }
+    
+    formInitAttempted.current = true; // Mark that we are attempting initialization
 
     try {
       console.log("Attempting to initialize Mercado Pago CardForm with locale 'pt-BR'...");
       const mp = new window.MercadoPago(publicKey, { locale: 'pt-BR' });
 
       const cardForm = mp.cardForm({
-        amount: "19.99",
         iframe: true,
         form: {
           id: "form-checkout",
           cardNumber: { id: "form-checkout__cardNumber", placeholder: translate({ en: "Card Number", pt: "Número do Cartão" }) },
-          expirationDate: { id: "form-checkout__expirationDate", placeholder: "MM/YY" },
+          expirationDate: { id: "form-checkout__expirationDate", placeholder: "MM/AA" },
           securityCode: { id: "form-checkout__securityCode", placeholder: translate({ en: "Security Code", pt: "Código de Segurança" }) },
           cardholderName: { id: "form-checkout__cardholderName", placeholder: translate({ en: "Cardholder Name", pt: "Nome do Titular" }) },
           identificationType: { id: "form-checkout__identificationType", placeholder: translate({ en: "Document Type", pt: "Tipo de Documento" }) },
@@ -126,14 +130,14 @@ export function MercadoPagoCardForm() {
           }
         },
       });
-      cardFormRef.current = cardForm; 
+      cardFormRef.current = cardForm;
       setIsFormInitialized(true);
     } catch(e: any) {
         console.error("Error initializing Mercado Pago CardForm:", e);
         const errorMessage = e.message || translate({ en: "An unknown error occurred during payment form setup.", pt: "Ocorreu um erro desconhecido durante a configuração do formulário de pagamento." });
         setInitializationError(errorMessage);
     }
-  }, [user, translate, toast, router, isFormInitialized]);
+  }, [user, translate, toast, router]);
 
   if (initializationError) {
     return <div className="text-center text-destructive p-4 font-medium">{initializationError}</div>;
