@@ -29,12 +29,9 @@ export function MercadoPagoCardForm() {
   const [isFormInitialized, setIsFormInitialized] = useState(false);
 
   // Chave pública de teste do Mercado Pago
-  // IMPORTANTE: Substitua o valor abaixo pela sua Public Key de teste.
   const publicKey = "TEST-2f341a85-9c17-4c58-bd7b-e2e3f9af5501"; 
 
   useEffect(() => {
-    // This effect should run only once to initialize the form.
-    // The key on the form component in the parent will handle re-renders if the user changes.
     if (isFormInitialized || typeof window === 'undefined' || !window.MercadoPago) {
       console.log("Mercado Pago Form initialization skipped. Conditions: isFormInitialized=", isFormInitialized, "window.MercadoPago exists=", !!window.MercadoPago);
       return;
@@ -47,14 +44,12 @@ export function MercadoPagoCardForm() {
       return;
     }
 
-    // Set a flag to prevent re-initialization
-    setIsFormInitialized(true); 
-    
     try {
       console.log("Attempting to initialize Mercado Pago CardForm with locale 'pt-BR'...");
       const mp = new window.MercadoPago(publicKey, { locale: 'pt-BR' });
 
       const cardForm = mp.cardForm({
+        amount: "19.99", // This field is required for CardForm to initialize correctly
         iframe: true,
         form: {
           id: "form-checkout",
@@ -131,7 +126,8 @@ export function MercadoPagoCardForm() {
           }
         },
       });
-      cardFormRef.current = cardForm; // Store the instance after successful initialization
+      cardFormRef.current = cardForm; 
+      setIsFormInitialized(true);
     } catch(e: any) {
         console.error("Error initializing Mercado Pago CardForm:", e);
         const errorMessage = e.message || translate({ en: "An unknown error occurred during payment form setup.", pt: "Ocorreu um erro desconhecido durante a configuração do formulário de pagamento." });
