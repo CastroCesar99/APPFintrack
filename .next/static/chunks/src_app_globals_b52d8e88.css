@@ -758,6 +758,10 @@ body {
   height: 15rem;
 }
 
+.h-64 {
+  height: 16rem;
+}
+
 .h-7 {
   height: 1.75rem;
 }
@@ -772,10 +776,6 @@ body {
 
 .h-9 {
   height: 2.25rem;
-}
-
-.h-96 {
-  height: 24rem;
 }
 
 .h-\[100px\] {
@@ -812,10 +812,6 @@ body {
 
 .h-svh {
   height: 100svh;
-}
-
-.h-64 {
-  height: 16rem;
 }
 
 .max-h-96 {
@@ -1688,6 +1684,11 @@ body {
   line-height: 2.25rem;
 }
 
+.text-4xl {
+  font-size: 2.25rem;
+  line-height: 2.5rem;
+}
+
 .text-\[0\.8rem\] {
   font-size: .8rem;
 }
@@ -1715,11 +1716,6 @@ body {
 .text-xs {
   font-size: .75rem;
   line-height: 1rem;
-}
-
-.text-4xl {
-  font-size: 2.25rem;
-  line-height: 2.5rem;
 }
 
 .font-bold {
