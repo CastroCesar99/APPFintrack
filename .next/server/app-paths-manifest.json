@@ -1,11 +1,4 @@
 {
-  "/budgets/page": "app/budgets/page.js",
-  "/expenses/page": "app/expenses/page.js",
-  "/login/page": "app/login/page.js",
-  "/onboarding/page": "app/onboarding/page.js",
   "/page": "app/page.js",
-  "/settings/page": "app/settings/page.js",
-  "/signup/page": "app/signup/page.js",
-  "/subscription/page": "app/subscription/page.js",
-  "/verify-email/page": "app/verify-email/page.js"
+  "/subscription/page": "app/subscription/page.js"
 }
