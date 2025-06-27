@@ -1,5 +1,5 @@
 
-"use client";
+"use server";
 
 import { NextRequest, NextResponse } from 'next/server';
 import { MercadoPagoConfig, PreApproval } from 'mercadopago';
@@ -58,15 +58,11 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ success: false, message: 'External reference (user ID) not found in subscription.' }, { status: 400 });
         }
 
-        let userId = externalReference;
-        // This handles both simple UIDs and the complex `fintrack-user-UID-TIMESTAMP` format.
-        if (userId.includes('-')) {
-            const parts = userId.split('-');
-            userId = parts[parts.length - 2]; // Assumes UID is the second to last part in complex references
-            console.log(`[WEBHOOK_INFO] Extracted clean userId '${userId}' from complex external_reference.`);
-        } else {
-            console.log(`[WEBHOOK_INFO] Using direct external_reference as userId: '${userId}'`);
-        }
+        // --- SIMPLIFIED LOGIC ---
+        // The external_reference should directly be the user's UID as sent from the subscription page.
+        const userId = externalReference;
+        console.log(`[WEBHOOK_INFO] Using external_reference directly as userId: '${userId}'`);
+        // --- END OF SIMPLIFIED LOGIC ---
 
         const db = adminApp.firestore();
         const userDocRef = db.collection('users').doc(userId);
@@ -84,7 +80,6 @@ export async function POST(request: NextRequest) {
 
         console.log(`[WEBHOOK_FIRESTORE] Attempting to update Firestore for user: ${userId} with data:`, JSON.stringify(subscriptionData, null, 2));
 
-        // Use set with merge:true for robustness. It will create or update the document.
         await userDocRef.set(subscriptionData, { merge: true });
         
         console.log(`[WEBHOOK_SUCCESS] Firestore updated successfully for user ${userId}. Subscription is now active.`);
