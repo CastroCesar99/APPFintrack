@@ -14,7 +14,7 @@ import {
 } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase'; 
 import { useRouter } from 'next/navigation';
-import { doc, onSnapshot } from 'firebase/firestore';
+import { doc, onSnapshot, Timestamp } from 'firebase/firestore';
 
 export type SubscriptionStatus = 'trial' | 'active' | 'inactive' | 'canceled' | 'expired';
 
@@ -41,6 +41,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, (currentUser) => {
+      console.log("AuthContext: Auth state changed. User:", currentUser?.uid);
       setUser(currentUser);
       if (!currentUser) {
         setIsSubscriptionActive(false);
@@ -53,38 +54,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!user) {
+      // If user logs out, ensure loading is false.
+      if (!loading) setLoading(true); // briefly set loading while we confirm state
+      setTimeout(() => setLoading(false), 50); // then turn it off
       return;
     }
 
+    console.log("AuthContext: User detected (",user.uid,"), setting up Firestore listener.");
     setLoading(true);
     const userDocRef = doc(db, 'users', user.uid);
     const unsubscribeDoc = onSnapshot(userDocRef, (docSnap) => {
+      console.log("AuthContext: Firestore snapshot received for user", user.uid);
       if (docSnap.exists()) {
         const data = docSnap.data();
-        let status: SubscriptionStatus = data.subscriptionStatus || 'inactive';
-        const trialEndDate = data.trialEndDate?.toDate();
-        const subscriptionEndDate = data.subscriptionEndDate?.toDate();
+        const status: SubscriptionStatus = data.subscriptionStatus || 'inactive';
+        const endDate: Date | null = data.subscriptionEndDate?.toDate() || null;
         const now = new Date();
+        
+        console.log(`AuthContext: Checking status. Read from DB -> Status: '${status}', EndDate:`, endDate);
 
         let isActive = false;
-        
-        if (status === 'trial' && trialEndDate && trialEndDate >= now) {
+        if (status === 'active' && endDate && endDate > now) {
           isActive = true;
-        } else if (status === 'active' && subscriptionEndDate && subscriptionEndDate >= now) {
-          isActive = true;
-        } else if (status === 'trial' && trialEndDate && trialEndDate < now) {
-          status = 'expired';
-        } else if (status === 'active' && subscriptionEndDate && subscriptionEndDate < now) {
-          status = 'expired';
         }
+        
+        console.log(`AuthContext: Final calculation -> isActive: ${isActive}`);
         
         setIsSubscriptionActive(isActive);
         setSubscriptionStatus(status);
       } else {
+        console.log("AuthContext: User document does not exist yet. Defaulting to inactive.");
         setIsSubscriptionActive(false);
         setSubscriptionStatus('inactive');
       }
       setLoading(false);
+      console.log("AuthContext: Loading set to false.");
     }, (error) => {
         console.error("AuthContext: Error listening to user document:", error);
         setIsSubscriptionActive(false);
@@ -97,24 +101,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
 
   const signUp = useCallback(async (email: string, pass: string): Promise<User | null> => {
-    console.log("AuthContext: signUp called. Setting loading to true.");
     setLoading(true);
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
-      console.log("AuthContext: signUp successful. User from credential:", userCredential.user);
       return userCredential.user;
     } catch (error) {
       console.error("AuthContext: Error signing up:", error);
+      setLoading(false);
       return null;
     }
   }, []);
 
   const logIn = useCallback(async (email: string, pass: string): Promise<User | null> => {
-    console.log("AuthContext: logIn called. Attempting login for email:", email); // Log do e-mail
     setLoading(true);
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, pass);
-      console.log("AuthContext: logIn successful. User from credential:", userCredential.user);
       return userCredential.user;
     } catch (error) {
       console.error("AuthContext: Error logging in:", error); 
@@ -124,10 +125,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const logOut = useCallback(async () => {
-    console.log("AuthContext: logOut called.");
     try {
       await signOut(auth);
-      console.log("AuthContext: logOut successful. User should be null now.");
       router.push('/login');
     } catch (error) {
       console.error("AuthContext: Error logging out:", error);
@@ -141,18 +140,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const reloadUser = useCallback(async (): Promise<void> => {
     const currentUser = auth.currentUser;
     if (currentUser) {
-      console.log("AuthContext: Reloading user data...");
-      try {
-        await currentUser.reload();
-        const reloadedUser = auth.currentUser; 
-        console.log("AuthContext: User reloaded. New emailVerified status:", reloadedUser?.emailVerified);
-        setUser(reloadedUser ? {...reloadedUser} : null); 
-      } catch (error) {
-        console.error("AuthContext: Error during user.reload():", error);
-        // Potentially handle specific errors here, e.g., user token expired
-      }
-    } else {
-      console.log("AuthContext: No current user to reload.");
+      await currentUser.reload();
+      setUser(auth.currentUser ? {...auth.currentUser} : null); 
     }
   }, []);
 

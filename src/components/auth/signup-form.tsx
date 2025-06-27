@@ -60,7 +60,7 @@ export function SignupForm() {
       try {
         await updateProfile(user, { displayName: values.name });
 
-        // Create or merge user document in Firestore without trial period
+        // Create or merge user document in Firestore with explicit inactive status
         const userDocRef = doc(db, "users", user.uid);
         await setDoc(userDocRef, {
           uid: user.uid,
@@ -69,7 +69,8 @@ export function SignupForm() {
           createdAt: serverTimestamp(),
           onboardingComplete: false,
           emailVerified: false,
-          subscriptionStatus: 'inactive', // User starts as inactive
+          subscriptionStatus: 'inactive', // Explicitly set status to inactive
+          subscriptionEndDate: Timestamp.fromDate(new Date(0)), // Set a past date
         }, { merge: true });
 
         await sendEmailVerification(user);

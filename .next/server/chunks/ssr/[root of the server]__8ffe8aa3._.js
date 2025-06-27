@@ -1756,6 +1756,7 @@ function AuthProvider({ children }) {
     const router = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$navigation$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useRouter"])();
     (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useEffect"])(()=>{
         const unsubscribeAuth = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$firebase$2f$node_modules$2f40$firebase$2f$auth$2f$dist$2f$node$2d$esm$2f$totp$2d$623ce67b$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__z__as__onAuthStateChanged$3e$__["onAuthStateChanged"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["auth"], (currentUser)=>{
+            console.log("AuthContext: Auth state changed. User:", currentUser?.uid);
             setUser(currentUser);
             if (!currentUser) {
                 setIsSubscriptionActive(false);
@@ -1767,34 +1768,36 @@ function AuthProvider({ children }) {
     }, []);
     (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useEffect"])(()=>{
         if (!user) {
+            // If user logs out, ensure loading is false.
+            if (!loading) setLoading(true); // briefly set loading while we confirm state
+            setTimeout(()=>setLoading(false), 50); // then turn it off
             return;
         }
+        console.log("AuthContext: User detected (", user.uid, "), setting up Firestore listener.");
         setLoading(true);
         const userDocRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["doc"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["db"], 'users', user.uid);
         const unsubscribeDoc = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["onSnapshot"])(userDocRef, (docSnap)=>{
+            console.log("AuthContext: Firestore snapshot received for user", user.uid);
             if (docSnap.exists()) {
                 const data = docSnap.data();
-                let status = data.subscriptionStatus || 'inactive';
-                const trialEndDate = data.trialEndDate?.toDate();
-                const subscriptionEndDate = data.subscriptionEndDate?.toDate();
+                const status = data.subscriptionStatus || 'inactive';
+                const endDate = data.subscriptionEndDate?.toDate() || null;
                 const now = new Date();
+                console.log(`AuthContext: Checking status. Read from DB -> Status: '${status}', EndDate:`, endDate);
                 let isActive = false;
-                if (status === 'trial' && trialEndDate && trialEndDate >= now) {
+                if (status === 'active' && endDate && endDate > now) {
                     isActive = true;
-                } else if (status === 'active' && subscriptionEndDate && subscriptionEndDate >= now) {
-                    isActive = true;
-                } else if (status === 'trial' && trialEndDate && trialEndDate < now) {
-                    status = 'expired';
-                } else if (status === 'active' && subscriptionEndDate && subscriptionEndDate < now) {
-                    status = 'expired';
                 }
+                console.log(`AuthContext: Final calculation -> isActive: ${isActive}`);
                 setIsSubscriptionActive(isActive);
                 setSubscriptionStatus(status);
             } else {
+                console.log("AuthContext: User document does not exist yet. Defaulting to inactive.");
                 setIsSubscriptionActive(false);
                 setSubscriptionStatus('inactive');
             }
             setLoading(false);
+            console.log("AuthContext: Loading set to false.");
         }, (error)=>{
             console.error("AuthContext: Error listening to user document:", error);
             setIsSubscriptionActive(false);
@@ -1806,23 +1809,20 @@ function AuthProvider({ children }) {
         user
     ]);
     const signUp = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useCallback"])(async (email, pass)=>{
-        console.log("AuthContext: signUp called. Setting loading to true.");
         setLoading(true);
         try {
             const userCredential = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$firebase$2f$node_modules$2f40$firebase$2f$auth$2f$dist$2f$node$2d$esm$2f$totp$2d$623ce67b$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__ab__as__createUserWithEmailAndPassword$3e$__["createUserWithEmailAndPassword"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["auth"], email, pass);
-            console.log("AuthContext: signUp successful. User from credential:", userCredential.user);
             return userCredential.user;
         } catch (error) {
             console.error("AuthContext: Error signing up:", error);
+            setLoading(false);
             return null;
         }
     }, []);
     const logIn = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useCallback"])(async (email, pass)=>{
-        console.log("AuthContext: logIn called. Attempting login for email:", email); // Log do e-mail
         setLoading(true);
         try {
             const userCredential = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$firebase$2f$node_modules$2f40$firebase$2f$auth$2f$dist$2f$node$2d$esm$2f$totp$2d$623ce67b$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__ac__as__signInWithEmailAndPassword$3e$__["signInWithEmailAndPassword"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["auth"], email, pass);
-            console.log("AuthContext: logIn successful. User from credential:", userCredential.user);
             return userCredential.user;
         } catch (error) {
             console.error("AuthContext: Error logging in:", error);
@@ -1831,10 +1831,8 @@ function AuthProvider({ children }) {
         }
     }, []);
     const logOut = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useCallback"])(async ()=>{
-        console.log("AuthContext: logOut called.");
         try {
             await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$firebase$2f$node_modules$2f40$firebase$2f$auth$2f$dist$2f$node$2d$esm$2f$totp$2d$623ce67b$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__D__as__signOut$3e$__["signOut"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["auth"]);
-            console.log("AuthContext: logOut successful. User should be null now.");
             router.push('/login');
         } catch (error) {
             console.error("AuthContext: Error logging out:", error);
@@ -1848,20 +1846,10 @@ function AuthProvider({ children }) {
     const reloadUser = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useCallback"])(async ()=>{
         const currentUser = __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["auth"].currentUser;
         if (currentUser) {
-            console.log("AuthContext: Reloading user data...");
-            try {
-                await currentUser.reload();
-                const reloadedUser = __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["auth"].currentUser;
-                console.log("AuthContext: User reloaded. New emailVerified status:", reloadedUser?.emailVerified);
-                setUser(reloadedUser ? {
-                    ...reloadedUser
-                } : null);
-            } catch (error) {
-                console.error("AuthContext: Error during user.reload():", error);
-            // Potentially handle specific errors here, e.g., user token expired
-            }
-        } else {
-            console.log("AuthContext: No current user to reload.");
+            await currentUser.reload();
+            setUser(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["auth"].currentUser ? {
+                ...__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["auth"].currentUser
+            } : null);
         }
     }, []);
     const value = {
@@ -1880,7 +1868,7 @@ function AuthProvider({ children }) {
         children: children
     }, void 0, false, {
         fileName: "[project]/src/context/auth-context.tsx",
-        lineNumber: 171,
+        lineNumber: 160,
         columnNumber: 10
     }, this);
 }
