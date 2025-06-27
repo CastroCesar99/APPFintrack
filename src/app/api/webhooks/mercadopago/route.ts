@@ -1,6 +1,4 @@
 
-"use server";
-
 import { NextRequest, NextResponse } from 'next/server';
 import { MercadoPagoConfig, PreApproval } from 'mercadopago';
 import { adminApp } from '@/lib/firebase-admin';
