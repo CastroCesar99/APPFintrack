@@ -12,7 +12,7 @@ export default function SubscriptionPage() {
   const { user, loading: authLoading } = useAuth();
   const { translate } = useLanguage();
   
-  const planId = "2c9380849783ce770197addd014510cf";
+  const planId = "2c938084979341770197aedb92ad0b27";
 
   // Dynamically generate the checkout URL with the user's ID
   const checkoutUrl = useMemo(() => {
@@ -20,7 +20,7 @@ export default function SubscriptionPage() {
       return `https://www.mercadopago.com.br/subscriptions/checkout?preapproval_plan_id=${planId}&external_reference=${user.uid}`;
     }
     return `https://www.mercadopago.com.br/subscriptions/checkout?preapproval_plan_id=${planId}`;
-  }, [user?.uid]);
+  }, [user?.uid, planId]);
 
   const openCheckoutPopup = () => {
     if (!user) {
