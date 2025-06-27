@@ -14,9 +14,8 @@ const preapprovalClient = new PreApproval(client);
 async function updateUserSubscription(userId: string, preapprovalId: string, status: string, nextPaymentDateStr?: string | null) {
     console.log(`[WEBHOOK_ACTION_START] Attempting subscription update for user: ${userId}`);
     
-    // CRITICAL CHECK: Verify that Firebase Admin SDK is initialized.
     if (!adminApp) {
-        console.error("[WEBHOOK_ERROR] CRITICAL: Firebase Admin SDK is not initialized. This is likely due to a missing or invalid FIREBASE_SERVICE_ACCOUNT_KEY environment variable. Cannot update subscription.");
+        console.error("[WEBHOOK_ERROR] CRITICAL: Firebase Admin SDK is not initialized. Cannot update subscription.");
         throw new Error("Server configuration error: Firebase Admin SDK not available.");
     }
 
@@ -24,17 +23,23 @@ async function updateUserSubscription(userId: string, preapprovalId: string, sta
         const db = getFirestore(adminApp);
         const userDocRef = db.collection('users').doc(userId);
 
+        // Default end date is 1 month from now
         let subscriptionEndDate = new Date();
         subscriptionEndDate.setMonth(subscriptionEndDate.getMonth() + 1);
         
+        // If Mercado Pago provides a next payment date, use it as the end date
         if (nextPaymentDateStr) {
             try {
+                // Adjust date format if needed, assuming YYYY/MM/DD or YYYY-MM-DD
                 const parsedDate = new Date(nextPaymentDateStr.replace(/\//g, '-'));
                 if (!isNaN(parsedDate.getTime())) {
                     subscriptionEndDate = parsedDate;
+                    console.log(`[WEBHOOK_DATE_PARSE] Successfully parsed next_payment_date: ${nextPaymentDateStr} to ${subscriptionEndDate.toISOString()}`);
+                } else {
+                     console.warn(`[WEBHOOK_WARN] Could not parse next_payment_date '${nextPaymentDateStr}' into a valid date. Defaulting to 1 month from now.`);
                 }
             } catch(e) {
-                console.warn(`[WEBHOOK_WARN] Could not parse next_payment_date '${nextPaymentDateStr}'. Defaulting to 1 month from now.`);
+                console.warn(`[WEBHOOK_WARN] Error parsing next_payment_date '${nextPaymentDateStr}'. Defaulting to 1 month from now. Error:`, e);
             }
         }
         
@@ -52,7 +57,7 @@ async function updateUserSubscription(userId: string, preapprovalId: string, sta
         console.log(`[WEBHOOK_SUCCESS] Firestore updated successfully for user ${userId}. Subscription is now active.`);
     } catch (dbError) {
         console.error(`[WEBHOOK_FIRESTORE_ERROR] Failed to write to Firestore for user ${userId}. Error:`, dbError);
-        throw dbError;
+        throw dbError; // Propagate the error to be caught by the main handler
     }
 }
 
@@ -64,7 +69,9 @@ export async function POST(request: NextRequest) {
     console.log("[WEBHOOK_INFO] Parsed Webhook Body:", JSON.stringify(body, null, 2));
 
     const dataId = body.data?.id;
-    if (dataId === "123456" || dataId === 123456) {
+
+    // Handle test notifications specifically and exit gracefully
+    if (String(dataId) === "123456") {
       console.log("[WEBHOOK_INFO] Test notification received and acknowledged. Returning 200 OK.");
       return NextResponse.json({ success: true, message: "Test notification received." }, { status: 200 });
     }
@@ -76,22 +83,35 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true, message: "Event ignored, missing type or data.id." });
     }
 
-    // Handle both preapproval and payment notifications to be safe
     if (topic === 'preapproval' || topic === 'subscription_preapproval') {
         console.log(`[WEBHOOK_PROCESS] Handling 'preapproval' event for ID: ${dataId}`);
-        const subscriptionDetails = await preapprovalClient.get({ id: dataId });
-        console.log("[WEBHOOK_FETCH_SUCCESS] Full Preapproval Details:", JSON.stringify(subscriptionDetails, null, 2));
+        let subscriptionDetails;
+
+        try {
+            console.log(`[WEBHOOK_API_CALL] Fetching details for preapproval ID: ${dataId}...`);
+            subscriptionDetails = await preapprovalClient.get({ id: dataId });
+            console.log("[WEBHOOK_API_SUCCESS] Full Preapproval Details:", JSON.stringify(subscriptionDetails, null, 2));
+        } catch (apiError: any) {
+            console.error(`[WEBHOOK_API_ERROR] Failed to fetch details for preapproval ID: ${dataId}. Error:`, apiError.message);
+            // It's a terminal error for this notification (e.g., ID not found), so we return 200 to prevent retries.
+            return NextResponse.json({ success: true, message: `Acknowledged. Could not fetch details for ID ${dataId}.` }, { status: 200 });
+        }
 
         const userId = subscriptionDetails?.external_reference;
         const finalStatus = subscriptionDetails?.status;
         const preapprovalId = subscriptionDetails?.id;
         const nextPaymentDate = subscriptionDetails?.next_payment_date;
 
-        if (userId && preapprovalId && (finalStatus === 'authorized' || finalStatus === 'pending')) {
+        if (!userId) {
+            console.log(`[WEBHOOK_IGNORE] UserID (external_reference) is missing in the subscription details for preapproval ID ${preapprovalId}. No action taken.`);
+            return NextResponse.json({ success: true, message: "Event ignored, missing external_reference." });
+        }
+
+        if (finalStatus === 'authorized' || finalStatus === 'pending') {
             console.log(`[WEBHOOK_DATA_POINTS] Status: ${finalStatus}, UserID from external_reference: ${userId}, PreapprovalID: ${preapprovalId}`);
             await updateUserSubscription(userId, preapprovalId, finalStatus, nextPaymentDate);
         } else {
-            console.log(`[WEBHOOK_IGNORE] Subscription status is '${finalStatus}' or UserID is missing. No action taken.`);
+            console.log(`[WEBHOOK_IGNORE] Subscription status is '${finalStatus}'. No activation action taken.`);
         }
     } else {
         console.log(`[WEBHOOK_IGNORE] Unhandled event type: '${topic}'. No action taken.`);
@@ -102,9 +122,7 @@ export async function POST(request: NextRequest) {
 
   } catch (error: any) {
     console.error("[WEBHOOK_ERROR] Unhandled error during webhook logic processing:", error);
-    const errorMessage = error.message || 'Internal Server Error';
-    // Log the error but return a 200 to Mercado Pago to prevent retries for unrecoverable errors.
-    // You might change this to 500 for specific, retryable errors.
-    return NextResponse.json({ success: false, message: "Error processed but acknowledged." }, { status: 200 });
+    // Return 200 to acknowledge receipt even if our internal processing fails, to prevent Mercado Pago from resending indefinitely.
+    return NextResponse.json({ success: false, message: "Internal server error occurred, but request was acknowledged." }, { status: 200 });
   }
 }
