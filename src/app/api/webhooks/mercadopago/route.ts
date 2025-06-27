@@ -68,13 +68,13 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     console.log("[WEBHOOK_INFO] Parsed Webhook Body:", JSON.stringify(body, null, 2));
 
-    if (body.data?.id === "123456") {
+    const dataId = body.data?.id;
+    if (dataId === "123456" || dataId === 123456) {
       console.log("[WEBHOOK_INFO] Test notification received and acknowledged.");
       return NextResponse.json({ success: true, message: "Test notification received." });
     }
-
+    
     const topic = body.topic || body.type;
-    const dataId = body.data?.id;
 
     if (!topic || !dataId) {
       console.log("[WEBHOOK_IGNORE] Event topic/type or data ID is missing. Ignoring.", { topic, dataId });

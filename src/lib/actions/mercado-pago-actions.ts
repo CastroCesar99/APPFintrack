@@ -39,7 +39,7 @@ export async function createUserSubscription(input: CreateUserSubscriptionInput)
     const payload = {
       preapproval_plan_id: planId,
       reason: "Assinatura Fintrack",
-      external_reference: input.userId, // SIMPLIFIED: Use only the user ID
+      external_reference: input.userId, // Use only the user ID as the reference
       payer_email: input.payer_email,
       card_token_id: input.token,
       back_url: "https://www.castromanagement.com", // A success URL
