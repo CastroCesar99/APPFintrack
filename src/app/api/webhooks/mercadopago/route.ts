@@ -6,8 +6,6 @@ import { MercadoPagoConfig, PreApproval } from 'mercadopago';
 import { adminApp } from '@/lib/firebase-admin';
 import { Timestamp } from 'firebase-admin/firestore';
 
-// Initialize Mercado Pago SDK
-// It's safer to check for the existence of the env var before initializing
 const accessToken = process.env.MERCADOPAGO_ACCESS_TOKEN;
 if (!accessToken) {
     console.error("CRITICAL: MERCADOPAGO_ACCESS_TOKEN is not defined.");
@@ -15,8 +13,6 @@ if (!accessToken) {
 const client = new MercadoPagoConfig({ accessToken: accessToken! });
 const preapproval = new PreApproval(client);
 
-// In a real production app, you would verify the webhook signature.
-// For this example, we assume it's valid.
 
 export async function POST(request: NextRequest) {
   console.log("----- [WEBHOOK_START] Mercado Pago Webhook Received -----");
@@ -35,7 +31,7 @@ export async function POST(request: NextRequest) {
 
     console.log(`[WEBHOOK_INFO] Event Topic: '${topic}', Preapproval ID: '${preapprovalId}'`);
 
-    if (topic !== 'preapproval' || !preapprovalId) {
+    if (topic !== 'preapproval' && topic !== 'subscription_preapproval' || !preapprovalId) {
         console.log("[WEBHOOK_IGNORE] Event is not a relevant preapproval event. Ignoring.");
         return NextResponse.json({ success: true, message: "Event ignored." });
     }
@@ -57,12 +53,21 @@ export async function POST(request: NextRequest) {
             console.error(`[WEBHOOK_ERROR] Fatal: external_reference is missing for preapproval ID: ${preapprovalId}. Cannot identify user.`);
             return NextResponse.json({ success: false, message: 'External reference (user ID) not found in subscription.' }, { status: 400 });
         }
+        
+        // --- ROBUST USER ID EXTRACTION ---
+        // Handles both plain UID and "fintrack-user-UID-timestamp" formats
+        let userId = externalReference;
+        if (externalReference.startsWith('fintrack-user-')) {
+            const parts = externalReference.split('-');
+            if (parts.length >= 3) {
+                userId = parts[2];
+                console.log(`[WEBHOOK_INFO] Extracted userId '${userId}' from composite external_reference.`);
+            }
+        } else {
+             console.log(`[WEBHOOK_INFO] Using external_reference directly as userId: '${userId}'`);
+        }
+        // --- END OF ROBUST USER ID EXTRACTION ---
 
-        // --- SIMPLIFIED LOGIC ---
-        // The external_reference should directly be the user's UID as sent from the subscription page.
-        const userId = externalReference;
-        console.log(`[WEBHOOK_INFO] Using external_reference directly as userId: '${userId}'`);
-        // --- END OF SIMPLIFIED LOGIC ---
 
         const db = adminApp.firestore();
         const userDocRef = db.collection('users').doc(userId);
@@ -78,7 +83,7 @@ export async function POST(request: NextRequest) {
             lastWebhookTimestamp: Timestamp.now(),
         };
 
-        console.log(`[WEBHOOK_FIRESTORE] Attempting to update Firestore for user: ${userId} with data:`, JSON.stringify(subscriptionData, null, 2));
+        console.log(`[WEBHOOK_FIRESTORE] Attempting to set Firestore for user: ${userId} with data:`, JSON.stringify(subscriptionData, null, 2));
 
         await userDocRef.set(subscriptionData, { merge: true });
         

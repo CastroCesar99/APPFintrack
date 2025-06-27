@@ -28,16 +28,21 @@ export type CreateUserSubscriptionOutput = z.infer<typeof CreateUserSubscription
 
 
 export async function createUserSubscription(input: CreateUserSubscriptionInput): Promise<CreateUserSubscriptionOutput> {
-    const accessToken = "TEST-4997780561675232-062608-6e8858e1e9c8d426726877731ec0dbe0-2519291532";
-    const planId = "2c938084979341770197acaba53a0a05";
+    const accessToken = process.env.MERCADOPAGO_ACCESS_TOKEN;
+    const planId = "2c938084979341770197aedb92ad0b27";
+
+    if (!accessToken) {
+        console.error("CRITICAL: MERCADOPAGO_ACCESS_TOKEN is not defined in the environment.");
+        return { success: false, error: "Server payment configuration is missing." };
+    }
 
     const payload = {
       preapproval_plan_id: planId,
       reason: "Assinatura Fintrack",
-      external_reference: `fintrack-user-${input.userId}-${Date.now()}`,
-      payer_email: input.payer_email, // Use the actual user's email from the input
+      external_reference: input.userId, // SIMPLIFIED: Use only the user ID
+      payer_email: input.payer_email,
       card_token_id: input.token,
-      back_url: "https://www.castromanagement.com",
+      back_url: "https://www.castromanagement.com", // A success URL
       status: "authorized"
     };
 
@@ -66,9 +71,6 @@ export async function createUserSubscription(input: CreateUserSubscriptionInput)
 
       const checkoutUrl = responseData.init_point;
       
-      // Firestore update logic would go here in a real scenario
-      // For now, the successful payment will redirect or return success.
-
       return { success: true, subscriptionId: responseData.id, init_point: checkoutUrl };
 
     } catch (error: any) {
