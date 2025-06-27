@@ -15,11 +15,10 @@ const paymentClient = new Payment(client);
 async function updateUserSubscription(userId: string, preapprovalId: string, status: string) {
     if (!adminApp) {
         console.error("[WEBHOOK_ERROR] CRITICAL: Firebase Admin SDK is not initialized.");
-        throw new Error("Server configuration error.");
+        throw new Error("Server configuration error: Firebase Admin SDK not available.");
     }
 
     const db = adminApp.firestore();
-    // Firebase Admin SDK uses a different syntax for document paths
     const userDocRef = db.collection('users').doc(userId);
 
     const subscriptionEndDate = new Date();
@@ -49,6 +48,12 @@ export async function POST(request: NextRequest) {
   } catch (e) {
     console.error("[WEBHOOK_ERROR] Failed to parse request body as JSON.", e);
     return NextResponse.json({ success: false, message: 'Invalid request body.' }, { status: 400 });
+  }
+  
+  // Handle Mercado Pago's test notification
+  if (body.data?.id === "123456") {
+    console.log("[WEBHOOK_INFO] Test notification received and acknowledged.");
+    return NextResponse.json({ success: true, message: "Test notification received." });
   }
 
   const eventType = body.type || body.topic;
