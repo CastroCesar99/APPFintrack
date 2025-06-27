@@ -1,4 +1,3 @@
-
 import { NextRequest, NextResponse } from 'next/server';
 import { MercadoPagoConfig, PreApproval } from 'mercadopago';
 import { adminApp } from '@/lib/firebase-admin';
@@ -24,7 +23,7 @@ async function updateUserSubscription(userId: string, preapprovalId: string, sta
 
         let subscriptionEndDate = new Date();
         subscriptionEndDate.setMonth(subscriptionEndDate.getMonth() + 1);
-        
+
         if (nextPaymentDateStr) {
             const parsedDate = parseISO(nextPaymentDateStr.replace(' ', 'T'));
             if (isValid(parsedDate)) {
@@ -34,7 +33,7 @@ async function updateUserSubscription(userId: string, preapprovalId: string, sta
                  console.warn(`[WEBHOOK_WARN] Não foi possível parsear a data '${nextPaymentDateStr}'. Usando data padrão (1 mês).`);
             }
         }
-        
+
         const subscriptionData = {
             subscriptionStatus: 'active' as const,
             subscriptionId: preapprovalId,
@@ -57,14 +56,14 @@ async function updateUserSubscription(userId: string, preapprovalId: string, sta
 
 export async function POST(request: NextRequest) {
   console.log("----- [WEBHOOK_START] Novo Webhook do Mercado Pago Recebido -----");
-  
+
   try {
     const accessToken = process.env.MERCADOPAGO_ACCESS_TOKEN;
     if (!accessToken) {
         console.error("CRITICAL_SERVER_ERROR: MERCADOPAGO_ACCESS_TOKEN não está definido no ambiente.");
         throw new Error("Configuração de pagamento do servidor está ausente.");
     }
-    
+
     if (!adminApp) {
         console.error("CRITICAL_SERVER_ERROR: Firebase Admin SDK não foi inicializado.");
         throw new Error("Configuração de banco de dados do servidor está ausente.");
@@ -78,12 +77,13 @@ export async function POST(request: NextRequest) {
 
     const topic = body.topic || body.type;
     const dataId = body.data?.id;
+    const webhookId = body.id; // Get the top-level ID
 
-    if (String(dataId) === "123456") {
+    if (String(webhookId) === "123456") { // Check the top-level ID for test notifications
       console.log("[WEBHOOK_INFO] Notificação de teste recebida e confirmada. Retornando 200 OK.");
       return NextResponse.json({ success: true, message: "Notificação de teste recebida." }, { status: 200 });
     }
-    
+
     if (!topic || !dataId) {
       console.log("[WEBHOOK_IGNORE] Tópico/tipo do evento ou ID dos dados ausente. Ignorando.", { topic, dataId });
       return NextResponse.json({ success: true, message: "Evento ignorado, tipo ou data.id ausente." });
