@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: false, message: 'Invalid request body.' }, { status: 400 });
   }
   
-  // Handle Mercado Pago's test notification
+  // Handle Mercado Pago's test notification first
   if (body.data?.id === "123456") {
     console.log("[WEBHOOK_INFO] Test notification received and acknowledged.");
     return NextResponse.json({ success: true, message: "Test notification received." });
@@ -65,50 +65,42 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    let userId: string | null = null;
-    let preapprovalId: string | null = null;
-    let finalStatus: string | null = null;
+    let subscriptionDetails: any = null;
 
     if (eventType === 'preapproval' || eventType === 'subscription_preapproval') {
         console.log(`[WEBHOOK_PROCESS] Handling 'preapproval' event for ID: ${dataId}`);
-        const subscription = await preapprovalClient.get({ id: dataId });
-        console.log("[WEBHOOK_FETCH_SUCCESS] Full Preapproval Details:", JSON.stringify(subscription, null, 2));
-
-        preapprovalId = dataId;
-        finalStatus = subscription.status;
-        // Prioritize the direct external_reference, which should be the clean userId
-        userId = subscription.external_reference || null; 
-
+        subscriptionDetails = await preapprovalClient.get({ id: dataId });
     } else if (eventType === 'payment') {
         console.log(`[WEBHOOK_PROCESS] Handling 'payment' event for ID: ${dataId}`);
         const payment = await paymentClient.get({ id: dataId });
         console.log("[WEBHOOK_FETCH_SUCCESS] Full Payment Details:", JSON.stringify(payment, null, 2));
         
-        if (payment.status === 'approved' && payment.preapproval_id) {
-            preapprovalId = payment.preapproval_id;
-            console.log(`[WEBHOOK_INFO] Payment approved. Fetching associated preapproval: ${preapprovalId}`);
-            const subscription = await preapprovalClient.get({ id: preapprovalId });
-            finalStatus = subscription.status;
-            
-            // Prioritize the direct external_reference from the subscription object
-            userId = subscription.external_reference || null;
+        if (payment.preapproval_id) {
+            console.log(`[WEBHOOK_INFO] Payment is linked to preapproval: ${payment.preapproval_id}. Fetching subscription details.`);
+            subscriptionDetails = await preapprovalClient.get({ id: payment.preapproval_id });
         } else {
-            console.log(`[WEBHOOK_IGNORE] Payment status is '${payment.status}' or it's not linked to a preapproval. No action taken.`);
+            console.log(`[WEBHOOK_IGNORE] Payment '${dataId}' is not associated with a subscription. No action taken.`);
         }
     } else {
         console.log(`[WEBHOOK_IGNORE] Unhandled event type: '${eventType}'.`);
     }
 
-    if (userId && preapprovalId && finalStatus) {
-        if (finalStatus === 'authorized' || finalStatus === 'pending') {
+    if (subscriptionDetails) {
+        console.log("[WEBHOOK_FETCH_SUCCESS] Full Subscription/Preapproval Details:", JSON.stringify(subscriptionDetails, null, 2));
+        const finalStatus = subscriptionDetails.status;
+        const userId = subscriptionDetails.external_reference || null; // This should be the clean UID
+        const preapprovalId = subscriptionDetails.id;
+
+        if (!userId) {
+            console.error(`[WEBHOOK_ERROR] Could not find a valid user ID (external_reference) in subscription details for preapproval ID ${preapprovalId}.`);
+        } else if (finalStatus === 'authorized' || finalStatus === 'pending') {
             await updateUserSubscription(userId, preapprovalId, finalStatus);
         } else {
-            console.log(`[WEBHOOK_IGNORE] Final subscription status is '${finalStatus}', not activating subscription.`);
+            console.log(`[WEBHOOK_IGNORE] Subscription status is '${finalStatus}', not activating subscription for user ${userId}.`);
         }
     } else {
-        console.warn(`[WEBHOOK_WARN] Could not update subscription. Missing required info. UserID: ${userId}, PreapprovalID: ${preapprovalId}, Status: ${finalStatus}`);
+        console.log(`[WEBHOOK_INFO] No subscription details found or processed for this event. No action taken.`);
     }
-
 
     console.log("----- [WEBHOOK_END] Processed successfully. -----");
     return NextResponse.json({ success: true, message: "Webhook processed." });
@@ -119,3 +111,5 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: false, message: errorMessage }, { status: 500 });
   }
 }
+
+    
