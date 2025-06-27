@@ -15,36 +15,36 @@ const preapproval = new PreApproval(client);
 export async function POST(request: NextRequest) {
   console.log("----- [WEBHOOK_START] Mercado Pago Webhook Received -----");
   console.log(`[WEBHOOK_INFO] Request received at: ${new Date().toISOString()}`);
-
+  console.log(`[WEBHOOK_INFO] Request URL: ${request.url}`);
+  
   if (!adminApp) {
     console.error("[WEBHOOK_ERROR] CRITICAL: Firebase Admin SDK is not initialized.");
     return NextResponse.json({ success: false, message: 'Server configuration error.' }, { status: 500 });
   }
   
-  let body;
+  let body: any = {};
+  let preapprovalId: string | null = null;
+  const searchParams = request.nextUrl.searchParams;
+
   try {
     const requestText = await request.text();
     console.log("[WEBHOOK_INFO] Raw request body (as text):", `"${requestText}"`);
-    if (!requestText) {
-        console.warn("[WEBHOOK_WARN] Request body is empty.");
-        return NextResponse.json({ success: false, message: 'Request body is empty.' }, { status: 400 });
+    if (requestText) {
+      body = JSON.parse(requestText);
+      console.log("[WEBHOOK_INFO] Parsed Webhook Body:", JSON.stringify(body, null, 2));
+    } else {
+      console.log("[WEBHOOK_INFO] Request body is empty.");
     }
-    body = JSON.parse(requestText);
-    console.log("[WEBHOOK_INFO] Parsed Webhook Body:", JSON.stringify(body, null, 2));
-  } catch (error) {
-    console.error("[WEBHOOK_ERROR] Failed to parse request body as JSON:", error);
-    return NextResponse.json({ success: false, message: 'Invalid JSON body.' }, { status: 400 });
-  }
 
-  try {
-    const topic = body.topic || body.type;
-    const preapprovalId = body.data?.id;
+    // Attempt to get ID from multiple possible locations
+    const topic = body.topic || body.type || searchParams.get('topic') || searchParams.get('type');
+    preapprovalId = body.data?.id || searchParams.get('data.id') || searchParams.get('id');
+    
+    console.log(`[WEBHOOK_DATA_EXTRACTION] Topic: '${topic}', Extracted Preapproval ID: '${preapprovalId}'`);
 
-    console.log(`[WEBHOOK_INFO] Event Topic: '${topic}', Preapproval ID: '${preapprovalId}'`);
-
-    if (topic !== 'preapproval' && topic !== 'subscription_preapproval' || !preapprovalId) {
-        console.log("[WEBHOOK_IGNORE] Event is not a relevant preapproval event. Ignoring.");
-        return NextResponse.json({ success: true, message: "Event ignored." });
+    if ( (topic !== 'preapproval' && topic !== 'subscription_preapproval') || !preapprovalId) {
+        console.log("[WEBHOOK_IGNORE] Event is not a relevant preapproval event or ID is missing. Ignoring.");
+        return NextResponse.json({ success: true, message: "Event ignored as it's not a relevant subscription approval." });
     }
 
     console.log(`[WEBHOOK_FETCH] Fetching subscription details for preapproval ID: ${preapprovalId}...`);
@@ -53,12 +53,12 @@ export async function POST(request: NextRequest) {
     console.log("[WEBHOOK_FETCH_SUCCESS] Full Subscription Details from MP:", JSON.stringify(subscription, null, 2));
     
     const status = subscription.status;
-    const userId = subscription.external_reference; // Directly use the external_reference as the userId
+    const userId = subscription.external_reference; 
 
-    console.log(`[WEBHOOK_DATA] Status: '${status}', User ID (from external_reference): '${userId}'`);
+    console.log(`[WEBHOOK_DATA_VALIDATION] Subscription Status: '${status}', User ID (from external_reference): '${userId}'`);
 
     if (status === 'authorized') {
-        console.log("[WEBHOOK_PROCESS] Status is 'authorized'. Proceeding to update user.");
+        console.log("[WEBHOOK_PROCESS] Status is 'authorized'. Proceeding to update user in Firestore.");
 
         if (!userId) {
             console.error(`[WEBHOOK_ERROR] Fatal: external_reference (userId) is missing for preapproval ID: ${preapprovalId}. Cannot identify user.`);
@@ -89,11 +89,11 @@ export async function POST(request: NextRequest) {
         console.log(`[WEBHOOK_IGNORE] Subscription status is '${status}', not 'authorized'. No Firestore action taken for preapproval ID: ${preapprovalId}.`);
     }
     
+    console.log("----- [WEBHOOK_END] Processed successfully. -----");
     return NextResponse.json({ success: true, message: "Webhook processed." });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error("[WEBHOOK_ERROR] Unhandled error during webhook logic processing:", error);
-    // @ts-ignore
     const errorMessage = error.message || 'Internal Server Error';
     return NextResponse.json({ success: false, message: errorMessage }, { status: 500 });
   }
