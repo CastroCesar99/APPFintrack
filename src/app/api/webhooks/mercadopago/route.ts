@@ -13,8 +13,9 @@ const preapprovalClient = new PreApproval(client);
 const paymentClient = new Payment(client);
 
 async function updateUserSubscription(userId: string, preapprovalId: string, status: string) {
+    console.log(`[WEBHOOK_ACTION_START] Starting subscription update for user: ${userId}`);
     if (!adminApp) {
-        console.error("[WEBHOOK_ERROR] CRITICAL: Firebase Admin SDK is not initialized.");
+        console.error("[WEBHOOK_ERROR] CRITICAL: Firebase Admin SDK is not initialized. Cannot update subscription.");
         throw new Error("Server configuration error: Firebase Admin SDK not available.");
     }
 
@@ -41,14 +42,8 @@ async function updateUserSubscription(userId: string, preapprovalId: string, sta
 export async function POST(request: NextRequest) {
   console.log("----- [WEBHOOK_START] Mercado Pago Webhook Received -----");
   
-  let body: any;
-  try {
-    body = await request.json();
-    console.log("[WEBHOOK_INFO] Parsed Webhook Body:", JSON.stringify(body, null, 2));
-  } catch (e) {
-    console.error("[WEBHOOK_ERROR] Failed to parse request body as JSON.", e);
-    return NextResponse.json({ success: false, message: 'Invalid request body.' }, { status: 400 });
-  }
+  const body = await request.json();
+  console.log("[WEBHOOK_INFO] Parsed Webhook Body:", JSON.stringify(body, null, 2));
   
   // Handle Mercado Pago's test notification first
   if (body.data?.id === "123456") {
@@ -56,21 +51,21 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true, message: "Test notification received." });
   }
 
-  const eventType = body.type || body.topic;
+  const topic = body.topic || body.type;
   const dataId = body.data?.id;
 
-  if (!eventType || !dataId) {
-    console.log("[WEBHOOK_IGNORE] Event type or data ID is missing. Ignoring.", {eventType, dataId});
+  if (!topic || !dataId) {
+    console.log("[WEBHOOK_IGNORE] Event topic/type or data ID is missing. Ignoring.", {topic, dataId});
     return NextResponse.json({ success: true, message: "Event ignored, missing type or data.id." });
   }
 
   try {
     let subscriptionDetails: any = null;
 
-    if (eventType === 'preapproval' || eventType === 'subscription_preapproval') {
+    if (topic === 'preapproval' || topic === 'subscription_preapproval') {
         console.log(`[WEBHOOK_PROCESS] Handling 'preapproval' event for ID: ${dataId}`);
         subscriptionDetails = await preapprovalClient.get({ id: dataId });
-    } else if (eventType === 'payment') {
+    } else if (topic === 'payment') {
         console.log(`[WEBHOOK_PROCESS] Handling 'payment' event for ID: ${dataId}`);
         const payment = await paymentClient.get({ id: dataId });
         console.log("[WEBHOOK_FETCH_SUCCESS] Full Payment Details:", JSON.stringify(payment, null, 2));
@@ -82,24 +77,27 @@ export async function POST(request: NextRequest) {
             console.log(`[WEBHOOK_IGNORE] Payment '${dataId}' is not associated with a subscription. No action taken.`);
         }
     } else {
-        console.log(`[WEBHOOK_IGNORE] Unhandled event type: '${eventType}'.`);
+        console.log(`[WEBHOOK_IGNORE] Unhandled event type: '${topic}'.`);
     }
 
     if (subscriptionDetails) {
-        console.log("[WEBHOOK_FETCH_SUCCESS] Full Subscription/Preapproval Details:", JSON.stringify(subscriptionDetails, null, 2));
+        console.log("[WEBHOOK_DATA] Full Subscription/Preapproval Details:", JSON.stringify(subscriptionDetails, null, 2));
         const finalStatus = subscriptionDetails.status;
-        const userId = subscriptionDetails.external_reference || null; // This should be the clean UID
+        const externalRef = subscriptionDetails.external_reference;
         const preapprovalId = subscriptionDetails.id;
+        
+        console.log(`[WEBHOOK_DATA_POINTS] Status: ${finalStatus}, ExternalRef: ${externalRef}, PreapprovalID: ${preapprovalId}`);
 
-        if (!userId) {
-            console.error(`[WEBHOOK_ERROR] Could not find a valid user ID (external_reference) in subscription details for preapproval ID ${preapprovalId}.`);
+        if (!externalRef) {
+            console.error(`[WEBHOOK_ERROR] External reference is missing or empty for preapproval ID ${preapprovalId}. Cannot identify user.`);
         } else if (finalStatus === 'authorized' || finalStatus === 'pending') {
-            await updateUserSubscription(userId, preapprovalId, finalStatus);
+            console.log(`[WEBHOOK_ACTION] Status is '${finalStatus}'. Proceeding to update user subscription for user ID: ${externalRef}`);
+            await updateUserSubscription(externalRef, preapprovalId, finalStatus);
         } else {
-            console.log(`[WEBHOOK_IGNORE] Subscription status is '${finalStatus}', not activating subscription for user ${userId}.`);
+            console.log(`[WEBHOOK_IGNORE] Subscription status is '${finalStatus}', which is not 'authorized' or 'pending'. No action taken for user ID: ${externalRef}.`);
         }
     } else {
-        console.log(`[WEBHOOK_INFO] No subscription details found or processed for this event. No action taken.`);
+        console.log(`[WEBHOOK_INFO] No subscription details could be fetched for this event. No action taken.`);
     }
 
     console.log("----- [WEBHOOK_END] Processed successfully. -----");
@@ -111,5 +109,3 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: false, message: errorMessage }, { status: 500 });
   }
 }
-
-    
