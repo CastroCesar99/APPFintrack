@@ -28,8 +28,13 @@ export type CreateUserSubscriptionOutput = z.infer<typeof CreateUserSubscription
 
 
 export async function createUserSubscription(input: CreateUserSubscriptionInput): Promise<CreateUserSubscriptionOutput> {
-    const accessToken = "TEST-4997780561675232-062608-6e8858e1e9c8d426726877731ec0dbe0-2519291532";
+    const accessToken = process.env.MERCADOPAGO_ACCESS_TOKEN;
     const planId = "2c938084979341770197acaba53a0a05";
+
+    if (!accessToken) {
+        console.error("CRITICAL: MERCADOPAGO_ACCESS_TOKEN is not defined in the environment.");
+        return { success: false, error: "Server payment configuration is missing." };
+    }
 
     const startDate = new Date();
     const endDate = new Date();
