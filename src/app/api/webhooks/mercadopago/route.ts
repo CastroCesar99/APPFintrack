@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { MercadoPagoConfig, PreApproval, Payment } from 'mercadopago';
 import { adminApp } from '@/lib/firebase-admin';
-import { Timestamp, getFirestore, query, collection, where, getDocs } from 'firebase-admin/firestore';
+import { Timestamp, getFirestore } from 'firebase-admin/firestore';
 
 const accessToken = process.env.MERCADOPAGO_ACCESS_TOKEN;
 if (!accessToken) {
@@ -11,31 +11,6 @@ if (!accessToken) {
 const client = new MercadoPagoConfig({ accessToken: accessToken! });
 const preapprovalClient = new PreApproval(client);
 const paymentClient = new Payment(client);
-
-async function findUserIdByEmail(email: string): Promise<string | null> {
-    if (!adminApp) {
-        console.error("[WEBHOOK_ERROR] findUserIdByEmail: Firebase Admin SDK not initialized.");
-        return null;
-    }
-    const db = getFirestore(adminApp);
-    const usersRef = collection(db, 'users');
-    const q = query(usersRef, where('email', '==', email));
-    
-    try {
-        const querySnapshot = await getDocs(q);
-        if (querySnapshot.empty) {
-            console.warn(`[WEBHOOK_WARN] findUserIdByEmail: No user found with email: ${email}`);
-            return null;
-        }
-        const userDoc = querySnapshot.docs[0];
-        console.log(`[WEBHOOK_INFO] findUserIdByEmail: Found user ${userDoc.id} for email ${email}`);
-        return userDoc.id;
-    } catch (error) {
-        console.error(`[WEBHOOK_ERROR] findUserIdByEmail: Error querying for user by email ${email}:`, error);
-        return null;
-    }
-}
-
 
 async function updateUserSubscription(userId: string, preapprovalId: string, status: string) {
     if (!adminApp) {
@@ -101,12 +76,8 @@ export async function POST(request: NextRequest) {
 
         preapprovalId = dataId;
         finalStatus = subscription.status;
-        userId = subscription.external_reference;
-
-        if (!userId && subscription.payer_email) {
-            console.warn(`[WEBHOOK_WARN] external_reference is missing. Falling back to find user by payer_email: ${subscription.payer_email}`);
-            userId = await findUserIdByEmail(subscription.payer_email);
-        }
+        // Prioritize the direct external_reference, which should be the clean userId
+        userId = subscription.external_reference || null; 
 
     } else if (eventType === 'payment') {
         console.log(`[WEBHOOK_PROCESS] Handling 'payment' event for ID: ${dataId}`);
@@ -119,11 +90,8 @@ export async function POST(request: NextRequest) {
             const subscription = await preapprovalClient.get({ id: preapprovalId });
             finalStatus = subscription.status;
             
-            userId = subscription.external_reference;
-            if (!userId && subscription.payer_email) {
-                console.warn(`[WEBHOOK_WARN] external_reference is missing on preapproval. Falling back to find user by payer_email: ${subscription.payer_email}`);
-                userId = await findUserIdByEmail(subscription.payer_email);
-            }
+            // Prioritize the direct external_reference from the subscription object
+            userId = subscription.external_reference || null;
         } else {
             console.log(`[WEBHOOK_IGNORE] Payment status is '${payment.status}' or it's not linked to a preapproval. No action taken.`);
         }
