@@ -57,8 +57,9 @@ export async function POST(request: NextRequest) {
 
     console.log(`[WEBHOOK_DATA_VALIDATION] Subscription Status: '${status}', User ID (from external_reference): '${userId}'`);
 
-    if (status === 'authorized') {
-        console.log("[WEBHOOK_PROCESS] Status is 'authorized'. Proceeding to update user in Firestore.");
+    // MODIFICATION: Accept 'pending' as a valid status to activate the subscription, as it's often the initial state.
+    if (status === 'authorized' || status === 'pending') {
+        console.log(`[WEBHOOK_PROCESS] Status is '${status}'. Proceeding to update user in Firestore.`);
 
         if (!userId) {
             console.error(`[WEBHOOK_ERROR] Fatal: external_reference (userId) is missing for preapproval ID: ${preapprovalId}. Cannot identify user.`);
@@ -86,7 +87,7 @@ export async function POST(request: NextRequest) {
         console.log(`[WEBHOOK_SUCCESS] Firestore updated successfully for user ${userId}. Subscription is now active.`);
 
     } else {
-        console.log(`[WEBHOOK_IGNORE] Subscription status is '${status}', not 'authorized'. No Firestore action taken for preapproval ID: ${preapprovalId}.`);
+        console.log(`[WEBHOOK_IGNORE] Subscription status is '${status}', not 'authorized' or 'pending'. No Firestore action taken for preapproval ID: ${preapprovalId}.`);
     }
     
     console.log("----- [WEBHOOK_END] Processed successfully. -----");
