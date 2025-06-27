@@ -16,16 +16,29 @@ const preapproval = new PreApproval(client);
 
 export async function POST(request: NextRequest) {
   console.log("----- [WEBHOOK_START] Mercado Pago Webhook Received -----");
+  console.log(`[WEBHOOK_INFO] Request received at: ${new Date().toISOString()}`);
 
   if (!adminApp) {
-    console.error("[WEBHOOK_ERROR] CRITICAL: Firebase Admin SDK is not initialized. Cannot process webhook.");
+    console.error("[WEBHOOK_ERROR] CRITICAL: Firebase Admin SDK is not initialized.");
     return NextResponse.json({ success: false, message: 'Server configuration error.' }, { status: 500 });
+  }
+  
+  let body;
+  try {
+    const requestText = await request.text();
+    console.log("[WEBHOOK_INFO] Raw request body (as text):", `"${requestText}"`);
+    if (!requestText) {
+        console.warn("[WEBHOOK_WARN] Request body is empty.");
+        return NextResponse.json({ success: false, message: 'Request body is empty.' }, { status: 400 });
+    }
+    body = JSON.parse(requestText);
+    console.log("[WEBHOOK_INFO] Parsed Webhook Body:", JSON.stringify(body, null, 2));
+  } catch (error) {
+    console.error("[WEBHOOK_ERROR] Failed to parse request body as JSON:", error);
+    return NextResponse.json({ success: false, message: 'Invalid JSON body.' }, { status: 400 });
   }
 
   try {
-    const body = await request.json();
-    console.log("[WEBHOOK_INFO] Raw Webhook Body:", JSON.stringify(body, null, 2));
-
     const topic = body.topic || body.type;
     const preapprovalId = body.data?.id;
 
@@ -42,38 +55,23 @@ export async function POST(request: NextRequest) {
     console.log("[WEBHOOK_FETCH_SUCCESS] Full Subscription Details from MP:", JSON.stringify(subscription, null, 2));
     
     const status = subscription.status;
-    const externalReference = subscription.external_reference;
+    const userId = subscription.external_reference; // Directly use the external_reference as the userId
 
-    console.log(`[WEBHOOK_DATA] Status: '${status}', External Reference: '${externalReference}'`);
+    console.log(`[WEBHOOK_DATA] Status: '${status}', User ID (from external_reference): '${userId}'`);
 
     if (status === 'authorized') {
         console.log("[WEBHOOK_PROCESS] Status is 'authorized'. Proceeding to update user.");
 
-        if (!externalReference) {
-            console.error(`[WEBHOOK_ERROR] Fatal: external_reference is missing for preapproval ID: ${preapprovalId}. Cannot identify user.`);
+        if (!userId) {
+            console.error(`[WEBHOOK_ERROR] Fatal: external_reference (userId) is missing for preapproval ID: ${preapprovalId}. Cannot identify user.`);
             return NextResponse.json({ success: false, message: 'External reference (user ID) not found in subscription.' }, { status: 400 });
         }
-        
-        // --- ROBUST USER ID EXTRACTION ---
-        // Handles both plain UID and "fintrack-user-UID-timestamp" formats
-        let userId = externalReference;
-        if (externalReference.startsWith('fintrack-user-')) {
-            const parts = externalReference.split('-');
-            if (parts.length >= 3) {
-                userId = parts[2];
-                console.log(`[WEBHOOK_INFO] Extracted userId '${userId}' from composite external_reference.`);
-            }
-        } else {
-             console.log(`[WEBHOOK_INFO] Using external_reference directly as userId: '${userId}'`);
-        }
-        // --- END OF ROBUST USER ID EXTRACTION ---
-
 
         const db = adminApp.firestore();
         const userDocRef = db.collection('users').doc(userId);
 
         const subscriptionEndDate = new Date();
-        subscriptionEndDate.setMonth(subscriptionEndDate.getMonth() + 1); // Set subscription for 1 month
+        subscriptionEndDate.setMonth(subscriptionEndDate.getMonth() + 1);
 
         const subscriptionData = {
             subscriptionStatus: 'active' as const,
@@ -96,7 +94,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true, message: "Webhook processed." });
 
   } catch (error) {
-    console.error("[WEBHOOK_ERROR] Unhandled error in webhook processing:", error);
+    console.error("[WEBHOOK_ERROR] Unhandled error during webhook logic processing:", error);
     // @ts-ignore
     const errorMessage = error.message || 'Internal Server Error';
     return NextResponse.json({ success: false, message: errorMessage }, { status: 500 });
