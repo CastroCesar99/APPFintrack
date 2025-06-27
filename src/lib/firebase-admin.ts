@@ -1,51 +1,45 @@
 
 import * as admin from 'firebase-admin';
 
-// Ensure the service account key is available as an environment variable
-const serviceAccountString = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
-
-if (!serviceAccountString) {
-  // In a production/deployed environment, this should be a hard error.
-  // In development, you might see this if the .env.local is not set up.
-  console.error('CRITICAL: FIREBASE_SERVICE_ACCOUNT_KEY environment variable is not set.');
-}
-
-let serviceAccount;
-if (serviceAccountString) {
-  try {
-      // Attempt to parse the JSON string from the environment variable
-      serviceAccount = JSON.parse(serviceAccountString);
-  } catch (error) {
-      console.error('CRITICAL: Could not parse FIREBASE_SERVICE_ACCOUNT_KEY. Ensure it is a valid JSON string without extra quotes.');
-      // If parsing fails, we cannot initialize admin, so we throw an error or handle it gracefully.
-      // For this app, we'll let it fail loudly during server startup if misconfigured.
-      throw new Error('Failed to parse Firebase service account key.');
+// This function will be responsible for initializing the admin app
+// to ensure it's only called once and handles errors gracefully.
+const initializeAdminApp = () => {
+  // If the app is already initialized, return the existing instance
+  if (admin.apps.length > 0) {
+    console.log("Firebase Admin SDK already initialized.");
+    return admin.app();
   }
-}
 
-let adminApp: admin.app.App;
+  // Ensure the service account key is available as an environment variable
+  const serviceAccountString = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
 
-// Initialize the Admin SDK only if it hasn't been initialized yet
-if (!admin.apps.length && serviceAccount) {
+  if (!serviceAccountString) {
+    console.error('CRITICAL_ERROR: FIREBASE_SERVICE_ACCOUNT_KEY environment variable is not set. The Admin SDK cannot be initialized.');
+    return null; // Return null if the key is missing
+  }
+
+  let serviceAccount;
   try {
-    adminApp = admin.initializeApp({
+    serviceAccount = JSON.parse(serviceAccountString);
+  } catch (error) {
+    console.error('CRITICAL_ERROR: Could not parse FIREBASE_SERVICE_ACCOUNT_KEY. Ensure it is a valid JSON string. The Admin SDK cannot be initialized.', error);
+    return null; // Return null if parsing fails
+  }
+
+  try {
+    const app = admin.initializeApp({
       credential: admin.credential.cert(serviceAccount),
     });
     console.log("Firebase Admin SDK initialized successfully.");
-  } catch(error) {
+    return app;
+  } catch (error) {
     console.error("Firebase Admin SDK initialization error:", error);
+    return null; // Return null on initialization failure
   }
-} else if (admin.apps.length > 0) {
-  adminApp = admin.app(); // Use the already initialized app
-} else {
-  // This case is reached if serviceAccount is undefined.
-  // We need a placeholder or a way to handle this to avoid crashing server-side components that import this.
-  console.warn("Firebase Admin SDK not initialized because service account key is missing.");
-  // A "dummy" app could be created, but it's better to ensure the key is present.
-  // For now, we'll let adminApp be undefined, and flows that need it will fail with a clear error.
-  // @ts-ignore
-  adminApp = undefined;
-}
+};
 
+// Call the initialization function and export the app instance.
+// It will be null if initialization fails.
+const adminApp = initializeAdminApp();
 
 export { adminApp };

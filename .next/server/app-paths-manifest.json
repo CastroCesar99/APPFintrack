@@ -1,4 +1,6 @@
 {
   "/page": "app/page.js",
+  "/settings/page": "app/settings/page.js",
+  "/settings/payment-methods/page": "app/settings/payment-methods/page.js",
   "/subscription/page": "app/subscription/page.js"
 }
