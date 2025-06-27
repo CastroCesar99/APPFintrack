@@ -428,7 +428,7 @@ function SignupForm() {
                 await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$firebase$2f$node_modules$2f40$firebase$2f$auth$2f$dist$2f$node$2d$esm$2f$totp$2d$623ce67b$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__al__as__updateProfile$3e$__["updateProfile"])(user, {
                     displayName: values.name
                 });
-                // Create or merge user document in Firestore
+                // Create or merge user document in Firestore without trial period
                 const userDocRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["doc"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["db"], "users", user.uid);
                 await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["setDoc"])(userDocRef, {
                     uid: user.uid,
@@ -436,10 +436,11 @@ function SignupForm() {
                     email: values.email,
                     createdAt: (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["serverTimestamp"])(),
                     onboardingComplete: false,
-                    emailVerified: false
+                    emailVerified: false,
+                    subscriptionStatus: 'inactive'
                 }, {
                     merge: true
-                }); // Use merge: true to prevent overwriting existing data
+                });
                 await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$firebase$2f$node_modules$2f40$firebase$2f$auth$2f$dist$2f$node$2d$esm$2f$totp$2d$623ce67b$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__ah__as__sendEmailVerification$3e$__["sendEmailVerification"])(user);
                 toast({
                     title: translate({
@@ -451,7 +452,7 @@ function SignupForm() {
                         pt: "Sua conta foi criada com sucesso. Por favor, verifique seu e-mail para ativar sua conta antes de prosseguir."
                     })
                 });
-                localStorage.removeItem('onboardingComplete'); // Clear any stale local flag
+                localStorage.removeItem('onboardingComplete');
                 router.push("/verify-email");
             } catch (error) {
                 console.error("Error during signup post-processing:", error);
@@ -480,7 +481,6 @@ function SignupForm() {
                 });
             }
         } else {
-            // This block is typically for when signUp itself fails (e.g., email already in use if not caught by specific code above)
             toast({
                 title: translate({
                     en: "Signup Error",
