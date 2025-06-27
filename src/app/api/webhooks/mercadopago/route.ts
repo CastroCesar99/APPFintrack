@@ -12,24 +12,7 @@ const client = new MercadoPagoConfig({ accessToken: accessToken! });
 const preapprovalClient = new PreApproval(client);
 const paymentClient = new Payment(client);
 
-async function findUserIdByEmail(email: string): Promise<string | null> {
-    if (!adminApp) {
-        console.error("[WEBHOOK_ERROR] Firebase Admin SDK not initialized, cannot search for user by email.");
-        return null;
-    }
-    const db = getFirestore(adminApp);
-    const usersRef = db.collection('users');
-    const snapshot = await usersRef.where('email', '==', email).limit(1).get();
-    if (snapshot.empty) {
-        console.log(`[WEBHOOK_INFO] No user found with email: ${email}`);
-        return null;
-    }
-    const userId = snapshot.docs[0].id;
-    console.log(`[WEBHOOK_INFO] Found user ID ${userId} for email ${email}`);
-    return userId;
-}
-
-async function updateUserSubscription(userId: string, preapprovalId: string, status: string) {
+async function updateUserSubscription(userId: string, preapprovalId: string, status: string, nextPaymentDateStr?: string | null) {
     console.log(`[WEBHOOK_ACTION_START] Attempting subscription update for user: ${userId}`);
     if (!adminApp) {
         console.error("[WEBHOOK_ERROR] CRITICAL: Firebase Admin SDK is not initialized. Cannot update subscription.");
@@ -40,9 +23,23 @@ async function updateUserSubscription(userId: string, preapprovalId: string, sta
         const db = getFirestore(adminApp);
         const userDocRef = db.collection('users').doc(userId);
 
-        const subscriptionEndDate = new Date();
+        // Set a default end date of 1 month from now if nextPaymentDate is not available or invalid
+        let subscriptionEndDate = new Date();
         subscriptionEndDate.setMonth(subscriptionEndDate.getMonth() + 1);
-
+        
+        // Try to parse the next payment date from Mercado Pago if it exists
+        if (nextPaymentDateStr) {
+            try {
+                // MP sometimes sends YYYY/MM/DD, sometimes ISO. Be flexible.
+                const parsedDate = new Date(nextPaymentDateStr.replace(/\//g, '-'));
+                if (!isNaN(parsedDate.getTime())) {
+                    subscriptionEndDate = parsedDate;
+                }
+            } catch(e) {
+                console.warn(`Could not parse next_payment_date '${nextPaymentDateStr}'. Defaulting to 1 month from now.`);
+            }
+        }
+        
         const subscriptionData = {
             subscriptionStatus: 'active' as const,
             subscriptionId: preapprovalId,
@@ -53,7 +50,7 @@ async function updateUserSubscription(userId: string, preapprovalId: string, sta
         };
 
         console.log(`[WEBHOOK_FIRESTORE] Attempting to set Firestore for user: ${userId} with data:`, JSON.stringify(subscriptionData, null, 2));
-        await userDocRef.set(subscriptionData, { merge: true });
+        await userDocRef.set({ ...subscriptionData }, { merge: true });
         console.log(`[WEBHOOK_SUCCESS] Firestore updated successfully for user ${userId}. Subscription is now active.`);
     } catch (dbError) {
         console.error(`[WEBHOOK_FIRESTORE_ERROR] Failed to update Firestore for user ${userId}. Error:`, dbError);
@@ -83,15 +80,17 @@ export async function POST(request: NextRequest) {
 
     let subscriptionDetails: any = null;
     let userId: string | null = null;
+    let finalStatus: string | null = null;
+    let preapprovalId: string | null = null;
+    let nextPaymentDate: string | null = null;
 
     if (topic === 'preapproval' || topic === 'subscription_preapproval') {
         console.log(`[WEBHOOK_PROCESS] Handling 'preapproval' event for ID: ${dataId}`);
         subscriptionDetails = await preapprovalClient.get({ id: dataId });
         userId = subscriptionDetails?.external_reference || null;
-        if (!userId && subscriptionDetails?.payer_email) {
-            console.log("[WEBHOOK_INFO] No external_reference found, attempting fallback to payer_email.");
-            userId = await findUserIdByEmail(subscriptionDetails.payer_email);
-        }
+        finalStatus = subscriptionDetails?.status || null;
+        preapprovalId = subscriptionDetails?.id || null;
+        nextPaymentDate = subscriptionDetails?.next_payment_date || null;
     } else if (topic === 'payment') {
         console.log(`[WEBHOOK_PROCESS] Handling 'payment' event for ID: ${dataId}`);
         const payment = await paymentClient.get({ id: dataId });
@@ -101,10 +100,9 @@ export async function POST(request: NextRequest) {
             console.log(`[WEBHOOK_INFO] Payment is linked to preapproval: ${payment.preapproval_id}. Fetching subscription details.`);
             subscriptionDetails = await preapprovalClient.get({ id: payment.preapproval_id });
             userId = subscriptionDetails?.external_reference || null;
-            if (!userId && subscriptionDetails?.payer_email) {
-              console.log("[WEBHOOK_INFO] No external_reference in subscription, attempting fallback to payer_email.");
-              userId = await findUserIdByEmail(subscriptionDetails.payer_email);
-            }
+            finalStatus = subscriptionDetails?.status || null;
+            preapprovalId = subscriptionDetails?.id || null;
+            nextPaymentDate = subscriptionDetails?.next_payment_date || null;
         } else {
             console.log(`[WEBHOOK_IGNORE] Payment '${dataId}' is not associated with a subscription. No action taken.`);
         }
@@ -112,20 +110,17 @@ export async function POST(request: NextRequest) {
         console.log(`[WEBHOOK_IGNORE] Unhandled event type: '${topic}'.`);
     }
 
-    if (subscriptionDetails && userId) {
+    if (preapprovalId && userId && finalStatus) {
         console.log("[WEBHOOK_DATA] Full Subscription/Preapproval Details:", JSON.stringify(subscriptionDetails, null, 2));
-        const finalStatus = subscriptionDetails.status;
-        const preapprovalId = subscriptionDetails.id;
-        
         console.log(`[WEBHOOK_DATA_POINTS] Status: ${finalStatus}, Identified UserID: ${userId}, PreapprovalID: ${preapprovalId}`);
 
         if (finalStatus === 'authorized' || finalStatus === 'pending') {
-            await updateUserSubscription(userId, preapprovalId, finalStatus);
+            await updateUserSubscription(userId, preapprovalId, finalStatus, nextPaymentDate);
         } else {
             console.log(`[WEBHOOK_IGNORE] Subscription status is '${finalStatus}', which is not 'authorized' or 'pending'. No action taken for user ID: ${userId}.`);
         }
     } else {
-        console.log(`[WEBHOOK_INFO] Could not process event. Subscription Details Found: ${!!subscriptionDetails}, User ID Found: ${!!userId}. No action taken.`);
+        console.log(`[WEBHOOK_INFO] Could not process event. PreapprovalID: ${preapprovalId}, UserID: ${userId}, Status: ${finalStatus}. No action taken.`);
     }
 
     console.log("----- [WEBHOOK_END] Processed successfully. -----");

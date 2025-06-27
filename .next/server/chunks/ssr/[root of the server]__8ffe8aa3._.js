@@ -1768,13 +1768,10 @@ function AuthProvider({ children }) {
     }, []);
     (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useEffect"])(()=>{
         if (!user) {
-            // If user logs out, ensure loading is false.
-            if (!loading) setLoading(true); // briefly set loading while we confirm state
-            setTimeout(()=>setLoading(false), 50); // then turn it off
+            if (loading) setLoading(false);
             return;
         }
-        console.log("AuthContext: User detected (", user.uid, "), setting up Firestore listener.");
-        setLoading(true);
+        console.log("AuthContext: User detected (", user.uid, "), setting up Firestore listener for subscription status.");
         const userDocRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["doc"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["db"], 'users', user.uid);
         const unsubscribeDoc = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["onSnapshot"])(userDocRef, (docSnap)=>{
             console.log("AuthContext: Firestore snapshot received for user", user.uid);
@@ -1797,7 +1794,7 @@ function AuthProvider({ children }) {
                 setSubscriptionStatus('inactive');
             }
             setLoading(false);
-            console.log("AuthContext: Loading set to false.");
+            console.log("AuthContext: Loading set to false after reading user doc.");
         }, (error)=>{
             console.error("AuthContext: Error listening to user document:", error);
             setIsSubscriptionActive(false);
@@ -1868,7 +1865,7 @@ function AuthProvider({ children }) {
         children: children
     }, void 0, false, {
         fileName: "[project]/src/context/auth-context.tsx",
-        lineNumber: 160,
+        lineNumber: 157,
         columnNumber: 10
     }, this);
 }

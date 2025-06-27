@@ -54,14 +54,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!user) {
-      // If user logs out, ensure loading is false.
-      if (!loading) setLoading(true); // briefly set loading while we confirm state
-      setTimeout(() => setLoading(false), 50); // then turn it off
+      if (loading) setLoading(false);
       return;
     }
 
-    console.log("AuthContext: User detected (",user.uid,"), setting up Firestore listener.");
-    setLoading(true);
+    console.log("AuthContext: User detected (",user.uid,"), setting up Firestore listener for subscription status.");
     const userDocRef = doc(db, 'users', user.uid);
     const unsubscribeDoc = onSnapshot(userDocRef, (docSnap) => {
       console.log("AuthContext: Firestore snapshot received for user", user.uid);
@@ -88,7 +85,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setSubscriptionStatus('inactive');
       }
       setLoading(false);
-      console.log("AuthContext: Loading set to false.");
+      console.log("AuthContext: Loading set to false after reading user doc.");
     }, (error) => {
         console.error("AuthContext: Error listening to user document:", error);
         setIsSubscriptionActive(false);
