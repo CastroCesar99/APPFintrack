@@ -28,6 +28,7 @@ import { useLanguage } from "@/context/language-context";
 import { Calendar } from "@/components/ui/calendar";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
+
 const formInputSchema = z.object({
   description: z.string().min(2, { message: "A descrição deve ter pelo menos 2 caracteres." }).max(100, {message: "A descrição não pode exceder 100 caracteres."}),
   amount: z.string().optional(), 
@@ -91,6 +92,7 @@ const formOutputSchema = z.object({
     path: ["installments"],
 });
 
+
 type TransactionFormInputValues = z.infer<typeof formInputSchema>;
 type TransactionFormOutputValues = z.infer<typeof formOutputSchema>;
 
@@ -128,14 +130,14 @@ export function TransactionForm({
   const watchedExpenseType = form.watch('expenseType');
 
   const availableCategories = useMemo(() => {
-    const categoriesToFilter = Array.isArray(userCategories) ? userCategories : [];
-    return categoriesToFilter.filter(cat => cat.type === initialType);
+    return userCategories.filter(cat => cat.type === initialType);
   }, [userCategories, initialType]);
-
-  // Effect to populate the form for editing
+  
+  // This effect now correctly handles both adding a new transaction and editing an existing one,
+  // ensuring that the form is only populated when all necessary data (like categories) is available.
   useEffect(() => {
-    if (transactionToEdit) {
-      console.log("TransactionForm: Populating form for editing transaction:", transactionToEdit.id);
+    // If we're editing, wait for categories to be loaded before resetting the form.
+    if (transactionToEdit && userCategories.length > 0) {
       const parsedDate = transactionToEdit.date ? parseDateFns(transactionToEdit.date, "yyyy-MM-dd", new Date(0)) : (defaultDate || new Date());
       const parsedRecurrenceEndDate = transactionToEdit.recurrenceEndDate ? parseDateFns(transactionToEdit.recurrenceEndDate, "yyyy-MM-dd", new Date(0)) : undefined;
       
@@ -151,21 +153,23 @@ export function TransactionForm({
         expenseNature: transactionToEdit.expenseNature || undefined,
         recurrenceEndDate: parsedRecurrenceEndDate,
       });
-    } else {
-        form.reset({
-            description: "",
-            amount: "",
-            category: "",
-            date: defaultDate || new Date(),
-            expenseType: initialType === 'expense' ? 'upfront' : undefined,
-            paymentMethod: undefined,
-            installments: "",
-            isRecurring: initialType === 'income' ? false : (form.getValues('expenseType') === 'recurring'),
-            expenseNature: undefined,
-            recurrenceEndDate: undefined,
-        });
+    } else if (!transactionToEdit) {
+      // If adding a new item, reset to default values based on the initial type.
+      form.reset({
+        description: "",
+        amount: "",
+        category: "",
+        date: defaultDate || new Date(),
+        expenseType: initialType === 'expense' ? 'upfront' : undefined,
+        paymentMethod: undefined,
+        installments: "",
+        isRecurring: initialType === 'income' ? false : (form.getValues('expenseType') === 'recurring'),
+        expenseNature: undefined,
+        recurrenceEndDate: undefined,
+      });
     }
-  }, [transactionToEdit, initialType, defaultDate, form.reset, userCategories, userPaymentMethods]); // Key change: depend on categories/methods
+  }, [transactionToEdit, initialType, defaultDate, form, userCategories, userPaymentMethods]);
+
 
   // Syncs the "isRecurring" checkbox based on the selected expense type
   useEffect(() => {
@@ -574,5 +578,3 @@ export function TransactionForm({
     </Form>
   );
 }
-
-    
