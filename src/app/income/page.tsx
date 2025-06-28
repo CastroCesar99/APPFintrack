@@ -1,4 +1,3 @@
-
 "use client";
 
 import type React from 'react';
@@ -353,27 +352,22 @@ export default function IncomePage() {
       return;
     }
     
-    const effectiveMonthForSave = formatDateFns(displayedDate, "yyyy-MM");
-
-    const payload = { 
-      ...formData, 
-      type: 'income' as 'income', 
-      effectiveMonth: effectiveMonthForSave, 
-      userId 
-    };
-    
-    const dataToSave = Object.fromEntries(
-        Object.entries(payload).filter(([_, value]) => value !== undefined)
-    ) as Partial<Transaction & { createdAt?: any; updatedAt?: any; userId: string; effectiveMonth: string }>;
-
-    if (dataToSave.isRecurring === undefined) {
-      dataToSave.isRecurring = false;
-    }
-
-
     if (idToUpdate) { 
-      const transactionDocRef = doc(db, "users", userId, "transactions", idToUpdate);
+      // UPDATE LOGIC
+      const payload = { ...formData, type: 'income' as 'income', userId };
+      const dataToSave = Object.fromEntries(
+        Object.entries(payload).filter(([_, value]) => value !== undefined)
+      ) as Partial<Transaction & { updatedAt?: any; userId: string }>;
+
+      // Ensure effectiveMonth is NOT updated for existing recurring transactions
+      delete (dataToSave as Partial<Transaction>).effectiveMonth;
+
+      if (dataToSave.isRecurring === undefined) {
+        dataToSave.isRecurring = false;
+      }
       dataToSave.updatedAt = serverTimestamp();
+
+      const transactionDocRef = doc(db, "users", userId, "transactions", idToUpdate);
       try {
         await updateDoc(transactionDocRef, dataToSave);
         toast({ title: translate({ en: "Income Updated", pt: "Receita Atualizada" }), description: formData.description + " " + translate({ en: "has been successfully updated.", pt: "foi atualizada com sucesso." }) });
@@ -384,6 +378,26 @@ export default function IncomePage() {
         toast({ title: translate({ en: "Error Updating Income", pt: "Erro ao Atualizar Receita" }), description: (error.message || translate({ en: "Could not update income.", pt: "Não foi possível atualizar a receita." })) + (error.code ? " (Code: " + error.code + ")" : ''), variant: "destructive" });
       }
     } else { 
+      // ADD LOGIC
+      // Derive effectiveMonth from the transaction's own date
+      const transactionDate = parseDateFns(formData.date, "yyyy-MM-dd", new Date(0));
+      const effectiveMonthForSave = formatDateFns(transactionDate, "yyyy-MM");
+
+      const payload = { 
+        ...formData, 
+        type: 'income' as 'income', 
+        effectiveMonth: effectiveMonthForSave, 
+        userId 
+      };
+      
+      const dataToSave = Object.fromEntries(
+          Object.entries(payload).filter(([_, value]) => value !== undefined)
+      ) as Partial<Transaction & { createdAt?: any; userId: string; effectiveMonth: string }>;
+
+      if (dataToSave.isRecurring === undefined) {
+        dataToSave.isRecurring = false;
+      }
+
       dataToSave.createdAt = serverTimestamp();
       try {
         const transactionsColRef = collection(db, "users", userId, "transactions");

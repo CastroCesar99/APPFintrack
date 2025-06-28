@@ -1,4 +1,3 @@
-
 "use client";
 
 import type React from 'react';
@@ -373,53 +372,66 @@ export default function ExpensesPage() {
       return;
     }
 
-    const effectiveMonthForSave = formatDateFns(displayedDate, "yyyy-MM");
-    
-    const payload = { 
-      ...formData, 
-      type: 'expense' as 'expense', 
-      effectiveMonth: effectiveMonthForSave, 
-      userId 
-    };
-    
-    const dataToSave = Object.fromEntries(
-        Object.entries(payload).filter(([_, value]) => value !== undefined)
-    ) as Partial<Transaction & { createdAt?: any; updatedAt?: any; userId: string; effectiveMonth: string }>;
-    
-    if (dataToSave.type === 'expense') {
-      if (dataToSave.expenseType === 'recurring') {
-        dataToSave.isRecurring = true;
-      } else {
-        dataToSave.isRecurring = false; 
-      }
-    } else { 
-      dataToSave.isRecurring = dataToSave.isRecurring ?? false;
-    }
+    if (idToUpdate) {
+        // UPDATE LOGIC
+        const payload = { ...formData, type: 'expense' as 'expense', userId };
+        const dataToSave = Object.fromEntries(
+            Object.entries(payload).filter(([_, value]) => value !== undefined)
+        ) as Partial<Transaction & { updatedAt?: any; userId: string }>;
+        
+        // Ensure effectiveMonth is NOT updated for existing transactions
+        delete (dataToSave as Partial<Transaction>).effectiveMonth;
 
+        if (dataToSave.type === 'expense') {
+            dataToSave.isRecurring = dataToSave.expenseType === 'recurring';
+        } else {
+            dataToSave.isRecurring = dataToSave.isRecurring ?? false;
+        }
 
-    if (idToUpdate) { 
-      dataToSave.updatedAt = serverTimestamp();
-      const transactionDocRef = doc(db, "users", userId, "transactions", idToUpdate);
-      try {
-        await updateDoc(transactionDocRef, dataToSave);
-        toast({ title: translate({ en: "Expense Updated", pt: "Despesa Atualizada" }), description: formData.description + " " + translate({ en: "has been successfully updated.", pt: "foi atualizada com sucesso." })});
-        setIsEditFormOpen(false);
-        setTransactionToEdit(null);
-      } catch (error: any) {
-        console.error("ExpensesPage: Error updating expense:", error);
-        toast({ title: translate({ en: "Error Updating Expense", pt: "Erro ao Atualizar Despesa" }), description: (error.message || translate({ en: "Could not update expense.", pt: "Não foi possível atualizar a despesa." })) + (error.code ? " (Code: " + error.code + ")" : ''), variant: "destructive" });
-      }
-    } else { 
-      dataToSave.createdAt = serverTimestamp();
-      try {
-        const transactionsColRef = collection(db, "users", userId, "transactions");
-        await addDoc(transactionsColRef, dataToSave);
-        toast({ title: translate({ en: "Expense Added", pt: "Despesa Adicionada" }), description: formData.description + " " + translate({ en: "has been successfully added.", pt: "foi adicionada com sucesso." })});
-        setIsAddFormOpen(false);
-      } catch (error: any) {
-        console.error("ExpensesPage: Error adding expense:", error);
-        toast({ title: translate({ en: "Error Adding Expense", pt: "Erro ao Adicionar Despesa" }), description: (error.message || translate({ en: "Could not add expense.", pt: "Não foi possível adicionar a despesa." })) + (error.code ? " (Code: " + error.code + ")" : ''), variant: "destructive" });
-      }
+        dataToSave.updatedAt = serverTimestamp();
+        const transactionDocRef = doc(db, "users", userId, "transactions", idToUpdate);
+        try {
+            await updateDoc(transactionDocRef, dataToSave);
+            toast({ title: translate({ en: "Expense Updated", pt: "Despesa Atualizada" }), description: formData.description + " " + translate({ en: "has been successfully updated.", pt: "foi atualizada com sucesso." })});
+            setIsEditFormOpen(false);
+            setTransactionToEdit(null);
+        } catch (error: any) {
+            console.error("ExpensesPage: Error updating expense:", error);
+            toast({ title: translate({ en: "Error Updating Expense", pt: "Erro ao Atualizar Despesa" }), description: (error.message || translate({ en: "Could not update expense.", pt: "Não foi possível atualizar a despesa." })) + (error.code ? " (Code: " + error.code + ")" : ''), variant: "destructive" });
+        }
+    } else {
+        // ADD LOGIC
+        // Derive effectiveMonth from the transaction's own date
+        const transactionDate = parseDateFns(formData.date, "yyyy-MM-dd", new Date(0));
+        const effectiveMonthForSave = formatDateFns(transactionDate, "yyyy-MM");
+
+        const payload = { 
+            ...formData, 
+            type: 'expense' as 'expense', 
+            effectiveMonth: effectiveMonthForSave, 
+            userId 
+        };
+
+        const dataToSave = Object.fromEntries(
+            Object.entries(payload).filter(([_, value]) => value !== undefined)
+        ) as Partial<Transaction & { createdAt?: any; userId: string; effectiveMonth: string }>;
+        
+        if (dataToSave.type === 'expense') {
+            dataToSave.isRecurring = dataToSave.expenseType === 'recurring';
+        } else {
+            dataToSave.isRecurring = dataToSave.isRecurring ?? false;
+        }
+
+        dataToSave.createdAt = serverTimestamp();
+        try {
+            const transactionsColRef = collection(db, "users", userId, "transactions");
+            await addDoc(transactionsColRef, dataToSave);
+            toast({ title: translate({ en: "Expense Added", pt: "Despesa Adicionada" }), description: formData.description + " " + translate({ en: "has been successfully added.", pt: "foi adicionada com sucesso." })});
+            setIsAddFormOpen(false);
+        } catch (error: any) {
+            console.error("ExpensesPage: Error adding expense:", error);
+            toast({ title: translate({ en: "Error Adding Expense", pt: "Erro ao Adicionar Despesa" }), description: (error.message || translate({ en: "Could not add expense.", pt: "Não foi possível adicionar a despesa." })) + (error.code ? " (Code: " + error.code + ")" : ''), variant: "destructive" });
+        }
     }
   };
 
@@ -619,6 +631,3 @@ export default function ExpensesPage() {
     </AppLayout>
   );
 }
-
-
-    
