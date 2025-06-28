@@ -14,6 +14,7 @@ export interface Transaction {
   paymentMethod?: string;
   installments?: number;
   isRecurring?: boolean;
+  recurrenceEndDate?: string; // YYYY-MM-DD string
   expenseNature?: ExpenseNature;
   expenseType?: ExpenseType;
   userId?: string;
@@ -130,5 +131,3 @@ export interface UserPreferences {
   deselectedPredefinedPaymentMethods?: string[];
   updatedAt?: any;
 }
-
-    

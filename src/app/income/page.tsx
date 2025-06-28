@@ -1,3 +1,4 @@
+
 "use client";
 
 import type React from 'react';
@@ -28,7 +29,7 @@ import { useLanguage } from '@/context/language-context';
 import { useDateNavigation } from '@/context/date-navigation-context';
 import { useToast } from "@/hooks/use-toast";
 import { db } from '@/lib/firebase';
-import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, serverTimestamp, Timestamp, doc, deleteDoc, getDoc, type Unsubscribe } from "firebase/firestore";
+import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, serverTimestamp, Timestamp, doc, deleteDoc, getDoc, type Unsubscribe, writeBatch } from "firebase/firestore";
 import { 
   format as formatDateFns, 
   parseISO as parseISODateFns, 
@@ -38,7 +39,9 @@ import {
   startOfMonth,
   getDate as getDateFns,
   setDate as setDateFnsDate,
-  lastDayOfMonth
+  lastDayOfMonth,
+  endOfMonth,
+  subMonths
 } from 'date-fns';
 import { formatCurrency } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -237,6 +240,7 @@ export default function IncomePage() {
           date: dateString,
           effectiveMonth: effectiveMonthString,
           isRecurring: data.isRecurring === true,
+          recurrenceEndDate: data.recurrenceEndDate,
         } as Transaction;
       });
       setAllTransactions(fetchedTransactions);
@@ -276,11 +280,14 @@ export default function IncomePage() {
       if (t.isRecurring) {
         reason = "Recurring Check";
         const recurrenceEffectiveStartDate = parseDateFns(t.effectiveMonth + "-01", "yyyy-MM-dd", new Date(0));
-        if (startOfMonth(recurrenceEffectiveStartDate) <= firstDayOfDisplayedMonth) {
+        const hasEnded = t.recurrenceEndDate && firstDayOfDisplayedMonth > parseDateFns(t.recurrenceEndDate, 'yyyy-MM-dd', new Date(0));
+        
+        if (startOfMonth(recurrenceEffectiveStartDate) <= firstDayOfDisplayedMonth && !hasEnded) {
           includeTransaction = true;
           const originalTransactionDate = parseDateFns(t.date, "yyyy-MM-dd", new Date(0));
           const projectedDateDay = getDateFns(originalTransactionDate);
           let projectedDate = setDateFnsDate(firstDayOfDisplayedMonth, projectedDateDay);
+          
           const lastDayOfCurrentMonth = lastDayOfMonth(displayedDate);
           if (getDateFns(projectedDate) !== projectedDateDay || getMonthFns(projectedDate) !== getMonthFns(displayedDate)) {
                projectedDate = setDateFnsDate(firstDayOfDisplayedMonth, Math.min(projectedDateDay, getDateFns(lastDayOfCurrentMonth)));
@@ -352,62 +359,70 @@ export default function IncomePage() {
       return;
     }
     
-    if (idToUpdate) { 
-      // UPDATE LOGIC
-      const payload = { ...formData, type: 'income' as 'income', userId };
-      const dataToSave = Object.fromEntries(
-        Object.entries(payload).filter(([_, value]) => value !== undefined)
-      ) as Partial<Transaction & { updatedAt?: any; userId: string }>;
-
-      // Ensure effectiveMonth is NOT updated for existing recurring transactions
-      delete (dataToSave as Partial<Transaction>).effectiveMonth;
-
-      if (dataToSave.isRecurring === undefined) {
-        dataToSave.isRecurring = false;
-      }
-      dataToSave.updatedAt = serverTimestamp();
-
-      const transactionDocRef = doc(db, "users", userId, "transactions", idToUpdate);
-      try {
-        await updateDoc(transactionDocRef, dataToSave);
-        toast({ title: translate({ en: "Income Updated", pt: "Receita Atualizada" }), description: formData.description + " " + translate({ en: "has been successfully updated.", pt: "foi atualizada com sucesso." }) });
-        setIsEditFormOpen(false);
-        setTransactionToEdit(null);
-      } catch (error: any) {
-        console.error("IncomePage: Error updating income:", error);
-        toast({ title: translate({ en: "Error Updating Income", pt: "Erro ao Atualizar Receita" }), description: (error.message || translate({ en: "Could not update income.", pt: "Não foi possível atualizar a receita." })) + (error.code ? " (Code: " + error.code + ")" : ''), variant: "destructive" });
-      }
-    } else { 
-      // ADD LOGIC
-      // Derive effectiveMonth from the transaction's own date
-      const transactionDate = parseDateFns(formData.date, "yyyy-MM-dd", new Date(0));
-      const effectiveMonthForSave = formatDateFns(transactionDate, "yyyy-MM");
-
-      const payload = { 
-        ...formData, 
-        type: 'income' as 'income', 
-        effectiveMonth: effectiveMonthForSave, 
-        userId 
-      };
-      
-      const dataToSave = Object.fromEntries(
-          Object.entries(payload).filter(([_, value]) => value !== undefined)
-      ) as Partial<Transaction & { createdAt?: any; userId: string; effectiveMonth: string }>;
-
-      if (dataToSave.isRecurring === undefined) {
-        dataToSave.isRecurring = false;
-      }
-
-      dataToSave.createdAt = serverTimestamp();
-      try {
-        const transactionsColRef = collection(db, "users", userId, "transactions");
-        await addDoc(transactionsColRef, dataToSave);
-        toast({ title: translate({ en: "Income Added", pt: "Receita Adicionada" }), description: formData.description + " " + translate({ en: "has been successfully added.", pt: "foi adicionada com sucesso." }) });
-        setIsAddFormOpen(false);
-      } catch (error: any) {
-        console.error("IncomePage: Error adding income:", error);
-        toast({ title: translate({ en: "Error Adding Income", pt: "Erro ao Adicionar Receita" }), description: (error.message || translate({ en: "Could not add income.", pt: "Não foi possível adicionar a receita." })) + (error.code ? " (Code: " + error.code + ")" : ''), variant: "destructive" });
-      }
+    const transactionToEdit = idToUpdate ? allTransactions.find(t => t.id === idToUpdate) : null;
+    const viewEffectiveMonth = formatDateFns(displayedDate, "yyyy-MM");
+    
+    if (idToUpdate && transactionToEdit && transactionToEdit.isRecurring && transactionToEdit.effectiveMonth < viewEffectiveMonth) {
+        // --- Perform SPLIT operation ---
+        try {
+            const batch = writeBatch(db);
+    
+            // 1. End the old recurring transaction
+            const originalDocRef = doc(db, "users", userId, "transactions", idToUpdate);
+            const newEndDate = endOfMonth(subMonths(displayedDate, 1));
+            batch.update(originalDocRef, { recurrenceEndDate: formatDateFns(newEndDate, "yyyy-MM-dd") });
+    
+            // 2. Create the new recurring transaction with the edits
+            const payload = { ...formData, effectiveMonth: viewEffectiveMonth, userId, createdAt: serverTimestamp() };
+            const dataToSave = Object.fromEntries(
+                Object.entries(payload).filter(([_, value]) => value !== undefined)
+            ) as Partial<Transaction & { createdAt: any; userId: string; effectiveMonth: string }>;
+            dataToSave.isRecurring = true; // New part of the split is always recurring
+            
+            const newDocRef = doc(collection(db, "users", userId, "transactions"));
+            batch.set(newDocRef, dataToSave);
+    
+            await batch.commit();
+    
+            toast({ title: translate({en: "Recurring Income Updated", pt:"Receita Recorrente Atualizada"}), description: translate({en: "Changes will apply from this month forward.", pt: "As alterações serão aplicadas a partir deste mês."}) });
+            setIsEditFormOpen(false);
+            setTransactionToEdit(null);
+        } catch (error: any) {
+            console.error("IncomePage: Error splitting recurring income:", error);
+            toast({ title: translate({en: "Error", pt: "Erro"}), description: translate({en:"Could not update recurring income.", pt: "Não foi possível atualizar a receita recorrente."}), variant: "destructive" });
+        }
+    } else if (idToUpdate) {
+        // --- Perform NORMAL UPDATE operation ---
+        const payload = { ...formData, updatedAt: serverTimestamp() };
+        const dataToSave = Object.fromEntries(Object.entries(payload).filter(([_, v]) => v !== undefined));
+        if (dataToSave.isRecurring === undefined) { dataToSave.isRecurring = false; }
+        
+        const docRef = doc(db, "users", userId, "transactions", idToUpdate);
+        try {
+            await updateDoc(docRef, dataToSave);
+            toast({ title: translate({en: "Income Updated", pt: "Receita Atualizada"}), description: `${formData.description} ${translate({en:"has been updated.", pt: "foi atualizada."})}`});
+            setIsEditFormOpen(false);
+            setTransactionToEdit(null);
+        } catch (error: any) {
+            console.error("IncomePage: Error updating income:", error);
+            toast({ title: translate({en:"Error Updating Income", pt:"Erro ao Atualizar Receita"}), description: error.message, variant: "destructive" });
+        }
+    } else {
+        // --- Perform ADD operation ---
+        const transactionDate = parseDateFns(formData.date, "yyyy-MM-dd", new Date(0));
+        const effectiveMonthForSave = formatDateFns(transactionDate, "yyyy-MM");
+        const payload = { ...formData, effectiveMonth: effectiveMonthForSave, userId, createdAt: serverTimestamp() };
+        const dataToSave = Object.fromEntries(Object.entries(payload).filter(([_, v]) => v !== undefined));
+        if (dataToSave.isRecurring === undefined) { dataToSave.isRecurring = false; }
+        
+        try {
+            await addDoc(collection(db, "users", userId, "transactions"), dataToSave);
+            toast({ title: translate({en: "Income Added", pt: "Receita Adicionada"}), description: `${formData.description} ${translate({en: "has been added.", pt: "foi adicionada."})}` });
+            setIsAddFormOpen(false);
+        } catch (error: any) {
+            console.error("IncomePage: Error adding income:", error);
+            toast({ title: translate({en: "Error Adding Income", pt: "Erro ao Adicionar Receita"}), description: error.message, variant: "destructive" });
+        }
     }
   };
 
@@ -566,7 +581,7 @@ export default function IncomePage() {
           </CardContent>
         </Card>
       </div>
-
+      
       <AlertDialog open={showSubscriptionAlert} onOpenChange={setShowSubscriptionAlert}>
         <AlertDialogContent>
           <AlertDialogHeader>

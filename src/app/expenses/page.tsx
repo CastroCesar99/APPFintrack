@@ -1,3 +1,4 @@
+
 "use client";
 
 import type React from 'react';
@@ -28,7 +29,7 @@ import { useLanguage } from '@/context/language-context';
 import { useDateNavigation } from '@/context/date-navigation-context';
 import { useToast } from "@/hooks/use-toast";
 import { db } from '@/lib/firebase';
-import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, serverTimestamp, Timestamp, doc, deleteDoc, getDoc, type Unsubscribe } from "firebase/firestore";
+import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, serverTimestamp, Timestamp, doc, deleteDoc, getDoc, type Unsubscribe, writeBatch } from "firebase/firestore";
 import { 
   format as formatDateFns, 
   parseISO as parseISODateFns, 
@@ -39,7 +40,9 @@ import {
   getDate as getDateFns,
   setDate as setDateFnsDate,
   lastDayOfMonth,
-  differenceInCalendarMonths
+  differenceInCalendarMonths,
+  endOfMonth,
+  subMonths
 } from 'date-fns';
 import { formatCurrency } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -253,7 +256,8 @@ export default function ExpensesPage() {
           isRecurring: data.isRecurring === true,
           expenseType: data.expenseType,
           installments: data.installments,
-          expenseNature: data.expenseNature
+          expenseNature: data.expenseNature,
+          recurrenceEndDate: data.recurrenceEndDate,
         } as Transaction;
       });
       setAllTransactions(fetchedTransactions);
@@ -301,7 +305,9 @@ export default function ExpensesPage() {
         }
       } else if (t.isRecurring === true && t.expenseType !== 'installment') { 
         const recurrenceEffectiveStartDate = parseDateFns(t.effectiveMonth + "-01", "yyyy-MM-dd", new Date(0));
-        if (startOfMonth(recurrenceEffectiveStartDate) <= firstDayOfDisplayedMonth) {
+        const hasEnded = t.recurrenceEndDate && firstDayOfDisplayedMonth > parseDateFns(t.recurrenceEndDate, 'yyyy-MM-dd', new Date(0));
+        
+        if (startOfMonth(recurrenceEffectiveStartDate) <= firstDayOfDisplayedMonth && !hasEnded) {
           includeTransaction = true;
           displayDate = t.date; // Use original date for recurring items
         }
@@ -371,67 +377,81 @@ export default function ExpensesPage() {
       toast({ title: translate({ en: "Error", pt: "Erro" }), description: translate({ en: "User not authenticated.", pt: "Usuário não autenticado." }), variant: "destructive" });
       return;
     }
-
-    if (idToUpdate) {
-        // UPDATE LOGIC
-        const payload = { ...formData, type: 'expense' as 'expense', userId };
-        const dataToSave = Object.fromEntries(
-            Object.entries(payload).filter(([_, value]) => value !== undefined)
-        ) as Partial<Transaction & { updatedAt?: any; userId: string }>;
-        
-        // Ensure effectiveMonth is NOT updated for existing transactions
-        delete (dataToSave as Partial<Transaction>).effectiveMonth;
-
-        if (dataToSave.type === 'expense') {
-            dataToSave.isRecurring = dataToSave.expenseType === 'recurring';
-        } else {
-            dataToSave.isRecurring = dataToSave.isRecurring ?? false;
-        }
-
-        dataToSave.updatedAt = serverTimestamp();
-        const transactionDocRef = doc(db, "users", userId, "transactions", idToUpdate);
-        try {
-            await updateDoc(transactionDocRef, dataToSave);
-            toast({ title: translate({ en: "Expense Updated", pt: "Despesa Atualizada" }), description: formData.description + " " + translate({ en: "has been successfully updated.", pt: "foi atualizada com sucesso." })});
-            setIsEditFormOpen(false);
-            setTransactionToEdit(null);
-        } catch (error: any) {
-            console.error("ExpensesPage: Error updating expense:", error);
-            toast({ title: translate({ en: "Error Updating Expense", pt: "Erro ao Atualizar Despesa" }), description: (error.message || translate({ en: "Could not update expense.", pt: "Não foi possível atualizar a despesa." })) + (error.code ? " (Code: " + error.code + ")" : ''), variant: "destructive" });
-        }
-    } else {
-        // ADD LOGIC
-        // Derive effectiveMonth from the transaction's own date
-        const transactionDate = parseDateFns(formData.date, "yyyy-MM-dd", new Date(0));
-        const effectiveMonthForSave = formatDateFns(transactionDate, "yyyy-MM");
-
+  
+    const transactionToEdit = idToUpdate ? allTransactions.find(t => t.id === idToUpdate) : null;
+    const viewEffectiveMonth = formatDateFns(displayedDate, "yyyy-MM");
+  
+    // Check if it's an edit of a recurring item in a future month
+    if (idToUpdate && transactionToEdit && transactionToEdit.isRecurring && transactionToEdit.effectiveMonth < viewEffectiveMonth) {
+      // --- Perform SPLIT operation ---
+      try {
+        const batch = writeBatch(db);
+  
+        // 1. End the old recurring transaction
+        const originalDocRef = doc(db, "users", userId, "transactions", idToUpdate);
+        const newEndDate = endOfMonth(subMonths(displayedDate, 1));
+        batch.update(originalDocRef, { recurrenceEndDate: formatDateFns(newEndDate, "yyyy-MM-dd") });
+  
+        // 2. Create the new recurring transaction with the edits
         const payload = { 
-            ...formData, 
-            type: 'expense' as 'expense', 
-            effectiveMonth: effectiveMonthForSave, 
-            userId 
+          ...formData, 
+          type: 'expense' as 'expense', 
+          effectiveMonth: viewEffectiveMonth, // Starts from the current view month
+          userId, 
+          createdAt: serverTimestamp() 
         };
-
         const dataToSave = Object.fromEntries(
             Object.entries(payload).filter(([_, value]) => value !== undefined)
-        ) as Partial<Transaction & { createdAt?: any; userId: string; effectiveMonth: string }>;
+        ) as Partial<Transaction & { createdAt: any; userId: string; effectiveMonth: string }>;
         
-        if (dataToSave.type === 'expense') {
-            dataToSave.isRecurring = dataToSave.expenseType === 'recurring';
-        } else {
-            dataToSave.isRecurring = dataToSave.isRecurring ?? false;
-        }
-
-        dataToSave.createdAt = serverTimestamp();
-        try {
-            const transactionsColRef = collection(db, "users", userId, "transactions");
-            await addDoc(transactionsColRef, dataToSave);
-            toast({ title: translate({ en: "Expense Added", pt: "Despesa Adicionada" }), description: formData.description + " " + translate({ en: "has been successfully added.", pt: "foi adicionada com sucesso." })});
-            setIsAddFormOpen(false);
-        } catch (error: any) {
-            console.error("ExpensesPage: Error adding expense:", error);
-            toast({ title: translate({ en: "Error Adding Expense", pt: "Erro ao Adicionar Despesa" }), description: (error.message || translate({ en: "Could not add expense.", pt: "Não foi possível adicionar a despesa." })) + (error.code ? " (Code: " + error.code + ")" : ''), variant: "destructive" });
-        }
+        dataToSave.isRecurring = dataToSave.expenseType === 'recurring';
+        
+        const newDocRef = doc(collection(db, "users", userId, "transactions"));
+        batch.set(newDocRef, dataToSave);
+  
+        await batch.commit();
+  
+        toast({ title: translate({en: "Recurring Expense Updated", pt:"Despesa Recorrente Atualizada"}), description: translate({en: "Changes will apply from this month forward.", pt: "As alterações serão aplicadas a partir deste mês."}) });
+        setIsEditFormOpen(false);
+        setTransactionToEdit(null);
+      } catch (error: any) {
+        console.error("ExpensesPage: Error splitting recurring expense:", error);
+        toast({ title: translate({en: "Error", pt: "Erro"}), description: translate({en:"Could not update recurring expense.", pt: "Não foi possível atualizar a despesa recorrente."}), variant: "destructive" });
+      }
+    } else if (idToUpdate) {
+      // --- Perform NORMAL UPDATE operation ---
+      const payload = { ...formData, updatedAt: serverTimestamp() };
+      const dataToSave = Object.fromEntries(Object.entries(payload).filter(([_, v]) => v !== undefined));
+       if (dataToSave.type === 'expense') {
+        dataToSave.isRecurring = dataToSave.expenseType === 'recurring';
+      }
+      const docRef = doc(db, "users", userId, "transactions", idToUpdate);
+      try {
+        await updateDoc(docRef, dataToSave);
+        toast({ title: translate({en: "Expense Updated", pt: "Despesa Atualizada"}), description: `${formData.description} ${translate({en:"has been updated.", pt: "foi atualizada."})}`});
+        setIsEditFormOpen(false);
+        setTransactionToEdit(null);
+      } catch (error: any) {
+        console.error("ExpensesPage: Error updating expense:", error);
+        toast({ title: translate({en:"Error Updating Expense", pt:"Erro ao Atualizar Despesa"}), description: error.message, variant: "destructive" });
+      }
+    } else {
+      // --- Perform ADD operation ---
+      const transactionDate = parseDateFns(formData.date, "yyyy-MM-dd", new Date(0));
+      const effectiveMonthForSave = formatDateFns(transactionDate, "yyyy-MM");
+      const payload = { ...formData, effectiveMonth: effectiveMonthForSave, userId, createdAt: serverTimestamp() };
+      const dataToSave = Object.fromEntries(Object.entries(payload).filter(([_, v]) => v !== undefined));
+      if (dataToSave.type === 'expense') {
+        dataToSave.isRecurring = dataToSave.expenseType === 'recurring';
+      }
+      try {
+        await addDoc(collection(db, "users", userId, "transactions"), dataToSave);
+        toast({ title: translate({en: "Expense Added", pt: "Despesa Adicionada"}), description: `${formData.description} ${translate({en: "has been added.", pt: "foi adicionada."})}` });
+        setIsAddFormOpen(false);
+      } catch (error: any) {
+        console.error("ExpensesPage: Error adding expense:", error);
+        toast({ title: translate({en: "Error Adding Expense", pt: "Erro ao Adicionar Despesa"}), description: error.message, variant: "destructive" });
+      }
     }
   };
 
