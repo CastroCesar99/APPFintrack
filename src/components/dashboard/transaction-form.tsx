@@ -23,7 +23,7 @@ import { format as formatDateFns, parse as parseDateFns } from "date-fns";
 import { ptBR, enUS } from 'date-fns/locale';
 import { cn } from "@/lib/utils";
 import type { Transaction, TransactionType, ExpenseNature, CategoryName, DisplayCategory, DisplayPaymentMethod, ExpenseType } from "@/types";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useLanguage } from "@/context/language-context";
 import { Calendar } from "@/components/ui/calendar";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -112,7 +112,6 @@ export function TransactionForm({
   transactionToEdit = null,
 }: TransactionFormProps) {
   const { language, translate } = useLanguage();
-  const [availableCategories, setAvailableCategories] = useState<DisplayCategory[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const form = useForm<TransactionFormInputValues>({
@@ -128,16 +127,21 @@ export function TransactionForm({
 
   const watchedExpenseType = form.watch('expenseType');
 
-  // Effect to populate the form for editing, now also depends on userCategories
+  const availableCategories = useMemo(() => {
+    const categoriesToFilter = Array.isArray(userCategories) ? userCategories : [];
+    return categoriesToFilter.filter(cat => cat.type === initialType);
+  }, [userCategories, initialType]);
+
+  // Effect to populate the form for editing
   useEffect(() => {
-    // Only reset if we are editing AND the category list is ready.
     if (transactionToEdit) {
+      console.log("TransactionForm: Populating form for editing transaction:", transactionToEdit.id);
       const parsedDate = transactionToEdit.date ? parseDateFns(transactionToEdit.date, "yyyy-MM-dd", new Date(0)) : (defaultDate || new Date());
       const parsedRecurrenceEndDate = transactionToEdit.recurrenceEndDate ? parseDateFns(transactionToEdit.recurrenceEndDate, "yyyy-MM-dd", new Date(0)) : undefined;
       
       form.reset({
         description: transactionToEdit.description || "",
-        amount: transactionToEdit.amount !== undefined ? String(transactionToEdit.amount).replace('.', ',') : "",
+        amount: transactionToEdit.amount !== undefined ? String(transactionToEdit.amount) : "",
         category: transactionToEdit.category as string || "",
         date: parsedDate,
         expenseType: transactionToEdit.expenseType || (initialType === 'expense' ? 'upfront' : undefined),
@@ -148,28 +152,20 @@ export function TransactionForm({
         recurrenceEndDate: parsedRecurrenceEndDate,
       });
     } else {
-      // For adding new, reset to defaults
-      form.reset({
-        description: "",
-        amount: "",
-        category: "",
-        date: defaultDate || new Date(),
-        expenseType: initialType === 'expense' ? 'upfront' : undefined,
-        paymentMethod: undefined,
-        installments: "",
-        isRecurring: initialType === 'income' ? false : (form.getValues('expenseType') === 'recurring'),
-        expenseNature: undefined,
-        recurrenceEndDate: undefined,
-      });
+        form.reset({
+            description: "",
+            amount: "",
+            category: "",
+            date: defaultDate || new Date(),
+            expenseType: initialType === 'expense' ? 'upfront' : undefined,
+            paymentMethod: undefined,
+            installments: "",
+            isRecurring: initialType === 'income' ? false : (form.getValues('expenseType') === 'recurring'),
+            expenseNature: undefined,
+            recurrenceEndDate: undefined,
+        });
     }
-  }, [transactionToEdit, initialType, defaultDate, form.reset]);
-  
-  // Effect to filter available categories based on type
-  useEffect(() => {
-    const categoriesToFilter = Array.isArray(userCategories) ? userCategories : [];
-    const relevantUserCategories = categoriesToFilter.filter(cat => cat.type === initialType);
-    setAvailableCategories(relevantUserCategories);
-  }, [initialType, userCategories]);
+  }, [transactionToEdit, initialType, defaultDate, form.reset, userCategories, userPaymentMethods]); // Key change: depend on categories/methods
 
   // Syncs the "isRecurring" checkbox based on the selected expense type
   useEffect(() => {

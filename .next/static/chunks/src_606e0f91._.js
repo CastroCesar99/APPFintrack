@@ -2231,7 +2231,8 @@ const formInputSchema = __TURBOPACK__imported__module__$5b$project$5d2f$node_mod
     expenseNature: __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$lib$2f$index$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__["z"].enum([
         "fixed",
         "variable"
-    ]).optional()
+    ]).optional(),
+    recurrenceEndDate: __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$lib$2f$index$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__["z"].date().optional()
 });
 const formOutputSchema = __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$lib$2f$index$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__["z"].object({
     description: __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$lib$2f$index$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__["z"].string().min(2).max(100),
@@ -2291,7 +2292,8 @@ const formOutputSchema = __TURBOPACK__imported__module__$5b$project$5d2f$node_mo
     expenseNature: __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$lib$2f$index$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__["z"].enum([
         "fixed",
         "variable"
-    ]).optional()
+    ]).optional(),
+    recurrenceEndDate: __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$lib$2f$index$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__["z"].date().optional()
 }).refine((data)=>{
     if (data.expenseType === 'installment' && (data.installments === undefined || data.installments < 1)) {
         return false;
@@ -2315,37 +2317,57 @@ function TransactionForm({ onSave, initialType, defaultDate, userCategories = []
             amount: "",
             category: "",
             date: defaultDate || new Date(),
-            expenseType: initialType === 'expense' ? 'upfront' : undefined,
-            paymentMethod: undefined,
+            expenseType: 'upfront',
+            paymentMethod: "",
             installments: "",
-            isRecurring: initialType === 'income' ? false : initialType === 'expense' ? transactionToEdit?.expenseType === 'recurring' : undefined,
-            expenseNature: undefined
+            isRecurring: false,
+            expenseNature: undefined,
+            recurrenceEndDate: undefined
         }
     });
     const watchedExpenseType = form.watch('expenseType');
-    // Populates the form when it's for editing
+    // Effect to populate the form for editing, now also depends on userCategories
     (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useEffect"])({
         "TransactionForm.useEffect": ()=>{
+            // Only reset if we are editing AND the category list is ready.
             if (transactionToEdit) {
                 const parsedDate = transactionToEdit.date ? (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$parse$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$locals$3e$__["parse"])(transactionToEdit.date, "yyyy-MM-dd", new Date(0)) : defaultDate || new Date();
+                const parsedRecurrenceEndDate = transactionToEdit.recurrenceEndDate ? (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$parse$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$locals$3e$__["parse"])(transactionToEdit.recurrenceEndDate, "yyyy-MM-dd", new Date(0)) : undefined;
                 form.reset({
                     description: transactionToEdit.description || "",
-                    amount: transactionToEdit.amount !== undefined ? String(transactionToEdit.amount).replace(".", ",") : "",
+                    amount: transactionToEdit.amount !== undefined ? String(transactionToEdit.amount).replace('.', ',') : "",
                     category: transactionToEdit.category || "",
                     date: parsedDate,
                     expenseType: transactionToEdit.expenseType || (initialType === 'expense' ? 'upfront' : undefined),
                     paymentMethod: transactionToEdit.paymentMethod || undefined,
                     installments: transactionToEdit.installments !== undefined ? String(transactionToEdit.installments) : "",
                     isRecurring: transactionToEdit.isRecurring ?? (initialType === 'expense' ? transactionToEdit.expenseType === 'recurring' : false),
-                    expenseNature: transactionToEdit.expenseNature || undefined
+                    expenseNature: transactionToEdit.expenseNature || undefined,
+                    recurrenceEndDate: parsedRecurrenceEndDate
+                });
+            } else {
+                // For adding new, reset to defaults
+                form.reset({
+                    description: "",
+                    amount: "",
+                    category: "",
+                    date: defaultDate || new Date(),
+                    expenseType: initialType === 'expense' ? 'upfront' : undefined,
+                    paymentMethod: undefined,
+                    installments: "",
+                    isRecurring: initialType === 'income' ? false : form.getValues('expenseType') === 'recurring',
+                    expenseNature: undefined,
+                    recurrenceEndDate: undefined
                 });
             }
         }
     }["TransactionForm.useEffect"], [
         transactionToEdit,
-        form
+        initialType,
+        defaultDate,
+        form.reset
     ]);
-    // Filters the categories based on the transaction type and safely validates the current value
+    // Effect to filter available categories based on type
     (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useEffect"])({
         "TransactionForm.useEffect": ()=>{
             const categoriesToFilter = Array.isArray(userCategories) ? userCategories : [];
@@ -2353,32 +2375,10 @@ function TransactionForm({ onSave, initialType, defaultDate, userCategories = []
                 "TransactionForm.useEffect.relevantUserCategories": (cat)=>cat.type === initialType
             }["TransactionForm.useEffect.relevantUserCategories"]);
             setAvailableCategories(relevantUserCategories);
-            // Only run validation if the category list is loaded, to prevent race conditions.
-            if (relevantUserCategories.length > 0) {
-                const currentCategoryInForm = form.getValues("category");
-                if (currentCategoryInForm && !relevantUserCategories.some({
-                    "TransactionForm.useEffect": (cat)=>cat.name === currentCategoryInForm
-                }["TransactionForm.useEffect"])) {
-                    form.setValue("category", "", {
-                        shouldValidate: true
-                    });
-                }
-            }
-            if (initialType === 'income') {
-                form.setValue('expenseType', undefined);
-                form.setValue('paymentMethod', undefined);
-                form.setValue('installments', "");
-                form.setValue('expenseNature', undefined);
-                form.setValue('isRecurring', form.getValues('isRecurring') ?? false);
-            } else {
-                form.setValue('isRecurring', form.getValues('expenseType') === 'recurring');
-            }
         }
     }["TransactionForm.useEffect"], [
         initialType,
-        userCategories,
-        form,
-        language
+        userCategories
     ]);
     // Syncs the "isRecurring" checkbox based on the selected expense type
     (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useEffect"])({
@@ -2435,28 +2435,6 @@ function TransactionForm({ onSave, initialType, defaultDate, userCategories = []
         const finalAmount = validatedValues.amount;
         const finalInstallments = validatedValues.installments;
         const finalExpenseType = validatedValues.expenseType;
-        if (finalAmount === undefined) {
-            form.setError("amount", {
-                type: "manual",
-                message: translate({
-                    pt: "O valor é obrigatório e deve ser positivo.",
-                    en: "Amount is required and must be positive."
-                })
-            });
-            setIsSubmitting(false);
-            return;
-        }
-        if (initialType === 'expense' && finalExpenseType === 'installment' && (finalInstallments === undefined || finalInstallments < 1)) {
-            form.setError("installments", {
-                type: "manual",
-                message: translate({
-                    pt: "O número de parcelas é obrigatório para despesas parceladas e deve ser no mínimo 1.",
-                    en: "Number of installments is required for installment expenses and must be at least 1."
-                })
-            });
-            setIsSubmitting(false);
-            return;
-        }
         let finalIsRecurringForSave;
         if (initialType === 'expense') {
             finalIsRecurringForSave = finalExpenseType === 'recurring';
@@ -2473,23 +2451,11 @@ function TransactionForm({ onSave, initialType, defaultDate, userCategories = []
             installments: initialType === 'expense' && finalExpenseType === 'installment' ? finalInstallments : undefined,
             isRecurring: finalIsRecurringForSave,
             expenseNature: initialType === 'expense' ? validatedValues.expenseNature : undefined,
-            expenseType: initialType === 'expense' ? finalExpenseType : undefined
+            expenseType: initialType === 'expense' ? finalExpenseType : undefined,
+            recurrenceEndDate: finalIsRecurringForSave && validatedValues.recurrenceEndDate ? (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$format$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$locals$3e$__["format"])(validatedValues.recurrenceEndDate, "yyyy-MM-dd") : undefined
         };
         try {
             await onSave(transactionData, transactionToEdit?.id);
-            if (!transactionToEdit) {
-                form.reset({
-                    description: "",
-                    amount: "",
-                    category: "",
-                    date: defaultDate || new Date(),
-                    expenseType: initialType === 'expense' ? 'upfront' : undefined,
-                    paymentMethod: undefined,
-                    installments: "",
-                    isRecurring: initialType === 'income' ? false : initialType === 'expense' ? form.getValues('expenseType') === 'recurring' : undefined,
-                    expenseNature: undefined
-                });
-            }
         } catch (error) {
             console.error("TransactionForm: Error during onSave callback", error);
         } finally{
@@ -2579,6 +2545,10 @@ function TransactionForm({ onSave, initialType, defaultDate, userCategories = []
         en: "Variable",
         pt: "Variável"
     });
+    const recurrenceEndDateLabel = translate({
+        en: "End Recurrence On",
+        pt: "Encerrar Recorrência em"
+    });
     const submitButtonLabel = transactionToEdit ? isSubmitting ? translate({
         en: "Saving...",
         pt: "Salvando..."
@@ -2607,7 +2577,7 @@ function TransactionForm({ onSave, initialType, defaultDate, userCategories = []
                                     children: descriptionLabel
                                 }, void 0, false, {
                                     fileName: "[project]/src/components/dashboard/transaction-form.tsx",
-                                    lineNumber: 310,
+                                    lineNumber: 281,
                                     columnNumber: 15
                                 }, void 0),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormControl"], {
@@ -2616,28 +2586,28 @@ function TransactionForm({ onSave, initialType, defaultDate, userCategories = []
                                         ...field
                                     }, void 0, false, {
                                         fileName: "[project]/src/components/dashboard/transaction-form.tsx",
-                                        lineNumber: 312,
+                                        lineNumber: 283,
                                         columnNumber: 17
                                     }, void 0)
                                 }, void 0, false, {
                                     fileName: "[project]/src/components/dashboard/transaction-form.tsx",
-                                    lineNumber: 311,
+                                    lineNumber: 282,
                                     columnNumber: 15
                                 }, void 0),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormMessage"], {}, void 0, false, {
                                     fileName: "[project]/src/components/dashboard/transaction-form.tsx",
-                                    lineNumber: 314,
+                                    lineNumber: 285,
                                     columnNumber: 15
                                 }, void 0)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/src/components/dashboard/transaction-form.tsx",
-                            lineNumber: 309,
+                            lineNumber: 280,
                             columnNumber: 13
                         }, void 0)
                 }, void 0, false, {
                     fileName: "[project]/src/components/dashboard/transaction-form.tsx",
-                    lineNumber: 305,
+                    lineNumber: 276,
                     columnNumber: 9
                 }, this),
                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormField"], {
@@ -2649,7 +2619,7 @@ function TransactionForm({ onSave, initialType, defaultDate, userCategories = []
                                     children: amountLabel
                                 }, void 0, false, {
                                     fileName: "[project]/src/components/dashboard/transaction-form.tsx",
-                                    lineNumber: 323,
+                                    lineNumber: 294,
                                     columnNumber: 15
                                 }, void 0),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormControl"], {
@@ -2667,28 +2637,28 @@ function TransactionForm({ onSave, initialType, defaultDate, userCategories = []
                                         }
                                     }, void 0, false, {
                                         fileName: "[project]/src/components/dashboard/transaction-form.tsx",
-                                        lineNumber: 325,
+                                        lineNumber: 296,
                                         columnNumber: 17
                                     }, void 0)
                                 }, void 0, false, {
                                     fileName: "[project]/src/components/dashboard/transaction-form.tsx",
-                                    lineNumber: 324,
+                                    lineNumber: 295,
                                     columnNumber: 15
                                 }, void 0),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormMessage"], {}, void 0, false, {
                                     fileName: "[project]/src/components/dashboard/transaction-form.tsx",
-                                    lineNumber: 339,
+                                    lineNumber: 310,
                                     columnNumber: 15
                                 }, void 0)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/src/components/dashboard/transaction-form.tsx",
-                            lineNumber: 322,
+                            lineNumber: 293,
                             columnNumber: 13
                         }, void 0)
                 }, void 0, false, {
                     fileName: "[project]/src/components/dashboard/transaction-form.tsx",
-                    lineNumber: 318,
+                    lineNumber: 289,
                     columnNumber: 9
                 }, this),
                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormField"], {
@@ -2700,7 +2670,7 @@ function TransactionForm({ onSave, initialType, defaultDate, userCategories = []
                                     children: categoryLabel
                                 }, void 0, false, {
                                     fileName: "[project]/src/components/dashboard/transaction-form.tsx",
-                                    lineNumber: 348,
+                                    lineNumber: 319,
                                     columnNumber: 15
                                 }, void 0),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Select"], {
@@ -2714,17 +2684,17 @@ function TransactionForm({ onSave, initialType, defaultDate, userCategories = []
                                                     placeholder: categoryPlaceholder
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/components/dashboard/transaction-form.tsx",
-                                                    lineNumber: 356,
+                                                    lineNumber: 327,
                                                     columnNumber: 21
                                                 }, void 0)
                                             }, void 0, false, {
                                                 fileName: "[project]/src/components/dashboard/transaction-form.tsx",
-                                                lineNumber: 355,
+                                                lineNumber: 326,
                                                 columnNumber: 19
                                             }, void 0)
                                         }, void 0, false, {
                                             fileName: "[project]/src/components/dashboard/transaction-form.tsx",
-                                            lineNumber: 354,
+                                            lineNumber: 325,
                                             columnNumber: 17
                                         }, void 0),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["SelectContent"], {
@@ -2733,18 +2703,18 @@ function TransactionForm({ onSave, initialType, defaultDate, userCategories = []
                                                     children: language === 'pt' ? cat.label.pt : cat.label.en
                                                 }, cat.name, false, {
                                                     fileName: "[project]/src/components/dashboard/transaction-form.tsx",
-                                                    lineNumber: 361,
+                                                    lineNumber: 332,
                                                     columnNumber: 21
                                                 }, void 0))
                                         }, void 0, false, {
                                             fileName: "[project]/src/components/dashboard/transaction-form.tsx",
-                                            lineNumber: 359,
+                                            lineNumber: 330,
                                             columnNumber: 17
                                         }, void 0)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/src/components/dashboard/transaction-form.tsx",
-                                    lineNumber: 349,
+                                    lineNumber: 320,
                                     columnNumber: 15
                                 }, void 0),
                                 availableCategories.length === 0 && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -2758,23 +2728,23 @@ function TransactionForm({ onSave, initialType, defaultDate, userCategories = []
                                     })
                                 }, void 0, false, {
                                     fileName: "[project]/src/components/dashboard/transaction-form.tsx",
-                                    lineNumber: 368,
+                                    lineNumber: 339,
                                     columnNumber: 18
                                 }, void 0),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormMessage"], {}, void 0, false, {
                                     fileName: "[project]/src/components/dashboard/transaction-form.tsx",
-                                    lineNumber: 372,
+                                    lineNumber: 343,
                                     columnNumber: 15
                                 }, void 0)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/src/components/dashboard/transaction-form.tsx",
-                            lineNumber: 347,
+                            lineNumber: 318,
                             columnNumber: 13
                         }, void 0)
                 }, void 0, false, {
                     fileName: "[project]/src/components/dashboard/transaction-form.tsx",
-                    lineNumber: 343,
+                    lineNumber: 314,
                     columnNumber: 9
                 }, this),
                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormField"], {
@@ -2787,7 +2757,7 @@ function TransactionForm({ onSave, initialType, defaultDate, userCategories = []
                                     children: dateLabel
                                 }, void 0, false, {
                                     fileName: "[project]/src/components/dashboard/transaction-form.tsx",
-                                    lineNumber: 381,
+                                    lineNumber: 352,
                                     columnNumber: 15
                                 }, void 0),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$popover$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Popover"], {
@@ -2805,30 +2775,30 @@ function TransactionForm({ onSave, initialType, defaultDate, userCategories = []
                                                             children: pickDateLabel
                                                         }, void 0, false, {
                                                             fileName: "[project]/src/components/dashboard/transaction-form.tsx",
-                                                            lineNumber: 395,
+                                                            lineNumber: 366,
                                                             columnNumber: 25
                                                         }, void 0),
                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$calendar$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__CalendarIcon$3e$__["CalendarIcon"], {
                                                             className: "ml-auto h-4 w-4 opacity-50"
                                                         }, void 0, false, {
                                                             fileName: "[project]/src/components/dashboard/transaction-form.tsx",
-                                                            lineNumber: 397,
+                                                            lineNumber: 368,
                                                             columnNumber: 23
                                                         }, void 0)
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "[project]/src/components/dashboard/transaction-form.tsx",
-                                                    lineNumber: 385,
+                                                    lineNumber: 356,
                                                     columnNumber: 21
                                                 }, void 0)
                                             }, void 0, false, {
                                                 fileName: "[project]/src/components/dashboard/transaction-form.tsx",
-                                                lineNumber: 384,
+                                                lineNumber: 355,
                                                 columnNumber: 19
                                             }, void 0)
                                         }, void 0, false, {
                                             fileName: "[project]/src/components/dashboard/transaction-form.tsx",
-                                            lineNumber: 383,
+                                            lineNumber: 354,
                                             columnNumber: 17
                                         }, void 0),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$popover$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["PopoverContent"], {
@@ -2843,34 +2813,34 @@ function TransactionForm({ onSave, initialType, defaultDate, userCategories = []
                                                 initialFocus: true
                                             }, void 0, false, {
                                                 fileName: "[project]/src/components/dashboard/transaction-form.tsx",
-                                                lineNumber: 402,
+                                                lineNumber: 373,
                                                 columnNumber: 19
                                             }, void 0)
                                         }, void 0, false, {
                                             fileName: "[project]/src/components/dashboard/transaction-form.tsx",
-                                            lineNumber: 401,
+                                            lineNumber: 372,
                                             columnNumber: 17
                                         }, void 0)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/src/components/dashboard/transaction-form.tsx",
-                                    lineNumber: 382,
+                                    lineNumber: 353,
                                     columnNumber: 15
                                 }, void 0),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormMessage"], {}, void 0, false, {
                                     fileName: "[project]/src/components/dashboard/transaction-form.tsx",
-                                    lineNumber: 414,
+                                    lineNumber: 385,
                                     columnNumber: 15
                                 }, void 0)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/src/components/dashboard/transaction-form.tsx",
-                            lineNumber: 380,
+                            lineNumber: 351,
                             columnNumber: 13
                         }, void 0)
                 }, void 0, false, {
                     fileName: "[project]/src/components/dashboard/transaction-form.tsx",
-                    lineNumber: 376,
+                    lineNumber: 347,
                     columnNumber: 9
                 }, this),
                 initialType === "income" && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormField"], {
@@ -2886,12 +2856,12 @@ function TransactionForm({ onSave, initialType, defaultDate, userCategories = []
                                         id: "isRecurringIncome"
                                     }, void 0, false, {
                                         fileName: "[project]/src/components/dashboard/transaction-form.tsx",
-                                        lineNumber: 425,
+                                        lineNumber: 396,
                                         columnNumber: 17
                                     }, void 0)
                                 }, void 0, false, {
                                     fileName: "[project]/src/components/dashboard/transaction-form.tsx",
-                                    lineNumber: 424,
+                                    lineNumber: 395,
                                     columnNumber: 15
                                 }, void 0),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -2902,28 +2872,28 @@ function TransactionForm({ onSave, initialType, defaultDate, userCategories = []
                                         children: applyToAllMonthsLabel
                                     }, void 0, false, {
                                         fileName: "[project]/src/components/dashboard/transaction-form.tsx",
-                                        lineNumber: 432,
+                                        lineNumber: 403,
                                         columnNumber: 17
                                     }, void 0)
                                 }, void 0, false, {
                                     fileName: "[project]/src/components/dashboard/transaction-form.tsx",
-                                    lineNumber: 431,
+                                    lineNumber: 402,
                                     columnNumber: 15
                                 }, void 0),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormMessage"], {}, void 0, false, {
                                     fileName: "[project]/src/components/dashboard/transaction-form.tsx",
-                                    lineNumber: 434,
+                                    lineNumber: 405,
                                     columnNumber: 15
                                 }, void 0)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/src/components/dashboard/transaction-form.tsx",
-                            lineNumber: 423,
+                            lineNumber: 394,
                             columnNumber: 13
                         }, void 0)
                 }, void 0, false, {
                     fileName: "[project]/src/components/dashboard/transaction-form.tsx",
-                    lineNumber: 419,
+                    lineNumber: 390,
                     columnNumber: 11
                 }, this),
                 initialType === "expense" && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Fragment"], {
@@ -2937,7 +2907,7 @@ function TransactionForm({ onSave, initialType, defaultDate, userCategories = []
                                             children: paymentMethodLabel
                                         }, void 0, false, {
                                             fileName: "[project]/src/components/dashboard/transaction-form.tsx",
-                                            lineNumber: 445,
+                                            lineNumber: 416,
                                             columnNumber: 17
                                         }, void 0),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Select"], {
@@ -2951,17 +2921,17 @@ function TransactionForm({ onSave, initialType, defaultDate, userCategories = []
                                                             placeholder: paymentMethodPlaceholder
                                                         }, void 0, false, {
                                                             fileName: "[project]/src/components/dashboard/transaction-form.tsx",
-                                                            lineNumber: 453,
+                                                            lineNumber: 424,
                                                             columnNumber: 25
                                                         }, void 0)
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/components/dashboard/transaction-form.tsx",
-                                                        lineNumber: 452,
+                                                        lineNumber: 423,
                                                         columnNumber: 21
                                                     }, void 0)
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/components/dashboard/transaction-form.tsx",
-                                                    lineNumber: 451,
+                                                    lineNumber: 422,
                                                     columnNumber: 19
                                                 }, void 0),
                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["SelectContent"], {
@@ -2970,18 +2940,18 @@ function TransactionForm({ onSave, initialType, defaultDate, userCategories = []
                                                             children: language === 'pt' ? pm.label.pt : pm.label.en
                                                         }, pm.name, false, {
                                                             fileName: "[project]/src/components/dashboard/transaction-form.tsx",
-                                                            lineNumber: 458,
+                                                            lineNumber: 429,
                                                             columnNumber: 25
                                                         }, void 0))
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/components/dashboard/transaction-form.tsx",
-                                                    lineNumber: 456,
+                                                    lineNumber: 427,
                                                     columnNumber: 19
                                                 }, void 0)
                                             ]
                                         }, void 0, true, {
                                             fileName: "[project]/src/components/dashboard/transaction-form.tsx",
-                                            lineNumber: 446,
+                                            lineNumber: 417,
                                             columnNumber: 17
                                         }, void 0),
                                         userPaymentMethods.length === 0 && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -2992,23 +2962,23 @@ function TransactionForm({ onSave, initialType, defaultDate, userCategories = []
                                             })
                                         }, void 0, false, {
                                             fileName: "[project]/src/components/dashboard/transaction-form.tsx",
-                                            lineNumber: 465,
+                                            lineNumber: 436,
                                             columnNumber: 20
                                         }, void 0),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormMessage"], {}, void 0, false, {
                                             fileName: "[project]/src/components/dashboard/transaction-form.tsx",
-                                            lineNumber: 469,
+                                            lineNumber: 440,
                                             columnNumber: 17
                                         }, void 0)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/src/components/dashboard/transaction-form.tsx",
-                                    lineNumber: 444,
+                                    lineNumber: 415,
                                     columnNumber: 15
                                 }, void 0)
                         }, void 0, false, {
                             fileName: "[project]/src/components/dashboard/transaction-form.tsx",
-                            lineNumber: 440,
+                            lineNumber: 411,
                             columnNumber: 13
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormField"], {
@@ -3020,7 +2990,7 @@ function TransactionForm({ onSave, initialType, defaultDate, userCategories = []
                                             children: expenseTypeLabel
                                         }, void 0, false, {
                                             fileName: "[project]/src/components/dashboard/transaction-form.tsx",
-                                            lineNumber: 478,
+                                            lineNumber: 449,
                                             columnNumber: 19
                                         }, void 0),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Select"], {
@@ -3033,17 +3003,17 @@ function TransactionForm({ onSave, initialType, defaultDate, userCategories = []
                                                             placeholder: expenseTypePlaceholder
                                                         }, void 0, false, {
                                                             fileName: "[project]/src/components/dashboard/transaction-form.tsx",
-                                                            lineNumber: 485,
+                                                            lineNumber: 456,
                                                             columnNumber: 27
                                                         }, void 0)
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/components/dashboard/transaction-form.tsx",
-                                                        lineNumber: 484,
+                                                        lineNumber: 455,
                                                         columnNumber: 25
                                                     }, void 0)
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/components/dashboard/transaction-form.tsx",
-                                                    lineNumber: 483,
+                                                    lineNumber: 454,
                                                     columnNumber: 23
                                                 }, void 0),
                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["SelectContent"], {
@@ -3053,7 +3023,7 @@ function TransactionForm({ onSave, initialType, defaultDate, userCategories = []
                                                             children: upfrontLabel
                                                         }, void 0, false, {
                                                             fileName: "[project]/src/components/dashboard/transaction-form.tsx",
-                                                            lineNumber: 489,
+                                                            lineNumber: 460,
                                                             columnNumber: 25
                                                         }, void 0),
                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["SelectItem"], {
@@ -3061,7 +3031,7 @@ function TransactionForm({ onSave, initialType, defaultDate, userCategories = []
                                                             children: installmentLabel
                                                         }, void 0, false, {
                                                             fileName: "[project]/src/components/dashboard/transaction-form.tsx",
-                                                            lineNumber: 490,
+                                                            lineNumber: 461,
                                                             columnNumber: 25
                                                         }, void 0),
                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["SelectItem"], {
@@ -3069,35 +3039,35 @@ function TransactionForm({ onSave, initialType, defaultDate, userCategories = []
                                                             children: recurringLabel
                                                         }, void 0, false, {
                                                             fileName: "[project]/src/components/dashboard/transaction-form.tsx",
-                                                            lineNumber: 491,
+                                                            lineNumber: 462,
                                                             columnNumber: 25
                                                         }, void 0)
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "[project]/src/components/dashboard/transaction-form.tsx",
-                                                    lineNumber: 488,
+                                                    lineNumber: 459,
                                                     columnNumber: 23
                                                 }, void 0)
                                             ]
                                         }, void 0, true, {
                                             fileName: "[project]/src/components/dashboard/transaction-form.tsx",
-                                            lineNumber: 479,
+                                            lineNumber: 450,
                                             columnNumber: 21
                                         }, void 0),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormMessage"], {}, void 0, false, {
                                             fileName: "[project]/src/components/dashboard/transaction-form.tsx",
-                                            lineNumber: 494,
+                                            lineNumber: 465,
                                             columnNumber: 21
                                         }, void 0)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/src/components/dashboard/transaction-form.tsx",
-                                    lineNumber: 477,
+                                    lineNumber: 448,
                                     columnNumber: 17
                                 }, void 0)
                         }, void 0, false, {
                             fileName: "[project]/src/components/dashboard/transaction-form.tsx",
-                            lineNumber: 473,
+                            lineNumber: 444,
                             columnNumber: 13
                         }, this),
                         form.watch('expenseType') === "installment" && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormField"], {
@@ -3109,7 +3079,7 @@ function TransactionForm({ onSave, initialType, defaultDate, userCategories = []
                                             children: installmentsNumberLabel
                                         }, void 0, false, {
                                             fileName: "[project]/src/components/dashboard/transaction-form.tsx",
-                                            lineNumber: 504,
+                                            lineNumber: 475,
                                             columnNumber: 21
                                         }, void 0),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormControl"], {
@@ -3127,28 +3097,28 @@ function TransactionForm({ onSave, initialType, defaultDate, userCategories = []
                                                 }
                                             }, void 0, false, {
                                                 fileName: "[project]/src/components/dashboard/transaction-form.tsx",
-                                                lineNumber: 506,
+                                                lineNumber: 477,
                                                 columnNumber: 23
                                             }, void 0)
                                         }, void 0, false, {
                                             fileName: "[project]/src/components/dashboard/transaction-form.tsx",
-                                            lineNumber: 505,
+                                            lineNumber: 476,
                                             columnNumber: 21
                                         }, void 0),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormMessage"], {}, void 0, false, {
                                             fileName: "[project]/src/components/dashboard/transaction-form.tsx",
-                                            lineNumber: 520,
+                                            lineNumber: 491,
                                             columnNumber: 21
                                         }, void 0)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/src/components/dashboard/transaction-form.tsx",
-                                    lineNumber: 503,
+                                    lineNumber: 474,
                                     columnNumber: 19
                                 }, void 0)
                         }, void 0, false, {
                             fileName: "[project]/src/components/dashboard/transaction-form.tsx",
-                            lineNumber: 499,
+                            lineNumber: 470,
                             columnNumber: 15
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormField"], {
@@ -3161,7 +3131,7 @@ function TransactionForm({ onSave, initialType, defaultDate, userCategories = []
                                             children: expenseNatureLabel
                                         }, void 0, false, {
                                             fileName: "[project]/src/components/dashboard/transaction-form.tsx",
-                                            lineNumber: 530,
+                                            lineNumber: 501,
                                             columnNumber: 19
                                         }, void 0),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormControl"], {
@@ -3179,12 +3149,12 @@ function TransactionForm({ onSave, initialType, defaultDate, userCategories = []
                                                                     id: `nature-fixed-${transactionToEdit?.id || 'add'}`
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/components/dashboard/transaction-form.tsx",
-                                                                    lineNumber: 539,
+                                                                    lineNumber: 510,
                                                                     columnNumber: 27
                                                                 }, void 0)
                                                             }, void 0, false, {
                                                                 fileName: "[project]/src/components/dashboard/transaction-form.tsx",
-                                                                lineNumber: 538,
+                                                                lineNumber: 509,
                                                                 columnNumber: 25
                                                             }, void 0),
                                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$label$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Label"], {
@@ -3193,13 +3163,13 @@ function TransactionForm({ onSave, initialType, defaultDate, userCategories = []
                                                                 children: fixedLabel
                                                             }, void 0, false, {
                                                                 fileName: "[project]/src/components/dashboard/transaction-form.tsx",
-                                                                lineNumber: 541,
+                                                                lineNumber: 512,
                                                                 columnNumber: 25
                                                             }, void 0)
                                                         ]
                                                     }, void 0, true, {
                                                         fileName: "[project]/src/components/dashboard/transaction-form.tsx",
-                                                        lineNumber: 537,
+                                                        lineNumber: 508,
                                                         columnNumber: 23
                                                     }, void 0),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormItem"], {
@@ -3211,12 +3181,12 @@ function TransactionForm({ onSave, initialType, defaultDate, userCategories = []
                                                                     id: `nature-variable-${transactionToEdit?.id || 'add'}`
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/components/dashboard/transaction-form.tsx",
-                                                                    lineNumber: 547,
+                                                                    lineNumber: 518,
                                                                     columnNumber: 27
                                                                 }, void 0)
                                                             }, void 0, false, {
                                                                 fileName: "[project]/src/components/dashboard/transaction-form.tsx",
-                                                                lineNumber: 546,
+                                                                lineNumber: 517,
                                                                 columnNumber: 25
                                                             }, void 0),
                                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$label$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Label"], {
@@ -3225,44 +3195,146 @@ function TransactionForm({ onSave, initialType, defaultDate, userCategories = []
                                                                 children: variableLabel
                                                             }, void 0, false, {
                                                                 fileName: "[project]/src/components/dashboard/transaction-form.tsx",
-                                                                lineNumber: 549,
+                                                                lineNumber: 520,
                                                                 columnNumber: 25
                                                             }, void 0)
                                                         ]
                                                     }, void 0, true, {
                                                         fileName: "[project]/src/components/dashboard/transaction-form.tsx",
-                                                        lineNumber: 545,
+                                                        lineNumber: 516,
                                                         columnNumber: 23
                                                     }, void 0)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/src/components/dashboard/transaction-form.tsx",
-                                                lineNumber: 532,
+                                                lineNumber: 503,
                                                 columnNumber: 21
                                             }, void 0)
                                         }, void 0, false, {
                                             fileName: "[project]/src/components/dashboard/transaction-form.tsx",
-                                            lineNumber: 531,
+                                            lineNumber: 502,
                                             columnNumber: 19
                                         }, void 0),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormMessage"], {}, void 0, false, {
                                             fileName: "[project]/src/components/dashboard/transaction-form.tsx",
-                                            lineNumber: 555,
+                                            lineNumber: 526,
                                             columnNumber: 19
                                         }, void 0)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/src/components/dashboard/transaction-form.tsx",
-                                    lineNumber: 529,
+                                    lineNumber: 500,
                                     columnNumber: 17
                                 }, void 0)
                         }, void 0, false, {
                             fileName: "[project]/src/components/dashboard/transaction-form.tsx",
-                            lineNumber: 525,
+                            lineNumber: 496,
                             columnNumber: 14
                         }, this)
                     ]
                 }, void 0, true),
+                (form.watch('isRecurring') || false) && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormField"], {
+                    control: form.control,
+                    name: "recurrenceEndDate",
+                    render: ({ field })=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormItem"], {
+                            className: "flex flex-col",
+                            children: [
+                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormLabel"], {
+                                    children: [
+                                        recurrenceEndDateLabel,
+                                        " ",
+                                        translate({
+                                            en: '(Optional)',
+                                            pt: '(Opcional)'
+                                        })
+                                    ]
+                                }, void 0, true, {
+                                    fileName: "[project]/src/components/dashboard/transaction-form.tsx",
+                                    lineNumber: 539,
+                                    columnNumber: 17
+                                }, void 0),
+                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$popover$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Popover"], {
+                                    children: [
+                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$popover$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["PopoverTrigger"], {
+                                            asChild: true,
+                                            children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormControl"], {
+                                                children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$button$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Button"], {
+                                                    variant: "outline",
+                                                    className: (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$utils$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["cn"])("w-full pl-3 text-left font-normal", !field.value && "text-muted-foreground"),
+                                                    children: [
+                                                        field.value ? (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$format$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$locals$3e$__["format"])(field.value, "PPP", {
+                                                            locale: language === 'pt' ? __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$locale$2f$pt$2d$BR$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__["ptBR"] : __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$locale$2f$en$2d$US$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__["enUS"]
+                                                        }) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
+                                                            children: pickDateLabel
+                                                        }, void 0, false, {
+                                                            fileName: "[project]/src/components/dashboard/transaction-form.tsx",
+                                                            lineNumber: 553,
+                                                            columnNumber: 29
+                                                        }, void 0),
+                                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$calendar$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__CalendarIcon$3e$__["CalendarIcon"], {
+                                                            className: "ml-auto h-4 w-4 opacity-50"
+                                                        }, void 0, false, {
+                                                            fileName: "[project]/src/components/dashboard/transaction-form.tsx",
+                                                            lineNumber: 555,
+                                                            columnNumber: 25
+                                                        }, void 0)
+                                                    ]
+                                                }, void 0, true, {
+                                                    fileName: "[project]/src/components/dashboard/transaction-form.tsx",
+                                                    lineNumber: 543,
+                                                    columnNumber: 25
+                                                }, void 0)
+                                            }, void 0, false, {
+                                                fileName: "[project]/src/components/dashboard/transaction-form.tsx",
+                                                lineNumber: 542,
+                                                columnNumber: 21
+                                            }, void 0)
+                                        }, void 0, false, {
+                                            fileName: "[project]/src/components/dashboard/transaction-form.tsx",
+                                            lineNumber: 541,
+                                            columnNumber: 21
+                                        }, void 0),
+                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$popover$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["PopoverContent"], {
+                                            className: "w-auto p-0",
+                                            align: "start",
+                                            children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$calendar$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Calendar"], {
+                                                mode: "single",
+                                                selected: field.value,
+                                                onSelect: field.onChange,
+                                                defaultMonth: field.value || defaultDate || new Date(),
+                                                initialFocus: true
+                                            }, void 0, false, {
+                                                fileName: "[project]/src/components/dashboard/transaction-form.tsx",
+                                                lineNumber: 560,
+                                                columnNumber: 21
+                                            }, void 0)
+                                        }, void 0, false, {
+                                            fileName: "[project]/src/components/dashboard/transaction-form.tsx",
+                                            lineNumber: 559,
+                                            columnNumber: 21
+                                        }, void 0)
+                                    ]
+                                }, void 0, true, {
+                                    fileName: "[project]/src/components/dashboard/transaction-form.tsx",
+                                    lineNumber: 540,
+                                    columnNumber: 17
+                                }, void 0),
+                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormMessage"], {}, void 0, false, {
+                                    fileName: "[project]/src/components/dashboard/transaction-form.tsx",
+                                    lineNumber: 569,
+                                    columnNumber: 17
+                                }, void 0)
+                            ]
+                        }, void 0, true, {
+                            fileName: "[project]/src/components/dashboard/transaction-form.tsx",
+                            lineNumber: 538,
+                            columnNumber: 17
+                        }, void 0)
+                }, void 0, false, {
+                    fileName: "[project]/src/components/dashboard/transaction-form.tsx",
+                    lineNumber: 534,
+                    columnNumber: 13
+                }, this),
                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$button$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Button"], {
                     type: "submit",
                     className: "w-full bg-primary hover:bg-primary/90",
@@ -3270,18 +3342,18 @@ function TransactionForm({ onSave, initialType, defaultDate, userCategories = []
                     children: submitButtonLabel
                 }, void 0, false, {
                     fileName: "[project]/src/components/dashboard/transaction-form.tsx",
-                    lineNumber: 561,
+                    lineNumber: 574,
                     columnNumber: 9
                 }, this)
             ]
         }, void 0, true, {
             fileName: "[project]/src/components/dashboard/transaction-form.tsx",
-            lineNumber: 304,
+            lineNumber: 275,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "[project]/src/components/dashboard/transaction-form.tsx",
-        lineNumber: 303,
+        lineNumber: 274,
         columnNumber: 5
     }, this);
 }
