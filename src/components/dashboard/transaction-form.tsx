@@ -2,7 +2,7 @@
 "use client";
 import type React from 'react';
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm, Controller } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import {
@@ -23,11 +23,10 @@ import { format as formatDateFns, parse as parseDateFns } from "date-fns";
 import { ptBR, enUS } from 'date-fns/locale';
 import { cn } from "@/lib/utils";
 import type { Transaction, TransactionType, ExpenseNature, CategoryName, DisplayCategory, DisplayPaymentMethod, ExpenseType } from "@/types";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useLanguage } from "@/context/language-context";
 import { Calendar } from "@/components/ui/calendar";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-
 
 const formInputSchema = z.object({
   description: z.string().min(2, { message: "A descrição deve ter pelo menos 2 caracteres." }).max(100, {message: "A descrição não pode exceder 100 caracteres."}),
@@ -39,6 +38,7 @@ const formInputSchema = z.object({
   installments: z.string().optional(),
   isRecurring: z.boolean().optional(),
   expenseNature: z.enum(["fixed", "variable"] as [ExpenseNature, ...ExpenseNature[]]).optional(),
+  recurrenceEndDate: z.date().optional(),
 });
 
 const formOutputSchema = z.object({
@@ -80,6 +80,7 @@ const formOutputSchema = z.object({
     }),
   isRecurring: z.boolean().optional(),
   expenseNature: z.enum(["fixed", "variable"] as [ExpenseNature, ...ExpenseNature[]]).optional(),
+  recurrenceEndDate: z.date().optional(),
 }).refine(data => {
     if (data.expenseType === 'installment' && (data.installments === undefined || data.installments < 1)) {
         return false;
@@ -89,7 +90,6 @@ const formOutputSchema = z.object({
     message: "O número de parcelas é obrigatório para despesas parceladas e deve ser no mínimo 1.",
     path: ["installments"],
 });
-
 
 type TransactionFormInputValues = z.infer<typeof formInputSchema>;
 type TransactionFormOutputValues = z.infer<typeof formOutputSchema>;
@@ -118,27 +118,26 @@ export function TransactionForm({
   const form = useForm<TransactionFormInputValues>({
     resolver: zodResolver(formInputSchema),
     defaultValues: {
-      description: "",
-      amount: "",
-      category: "",
+      description: "", amount: "", category: "",
       date: defaultDate || new Date(),
-      expenseType: initialType === 'expense' ? 'upfront' : undefined,
-      paymentMethod: undefined,
-      installments: "",
-      isRecurring: initialType === 'income' ? false : (initialType === 'expense' ? (transactionToEdit?.expenseType === 'recurring') : undefined),
-      expenseNature: undefined,
+      expenseType: 'upfront', paymentMethod: "", installments: "",
+      isRecurring: false, expenseNature: undefined,
+      recurrenceEndDate: undefined,
     },
   });
 
   const watchedExpenseType = form.watch('expenseType');
-  
-  // Populates the form when it's for editing
+
+  // Effect to populate the form for editing, now also depends on userCategories
   useEffect(() => {
+    // Only reset if we are editing AND the category list is ready.
     if (transactionToEdit) {
       const parsedDate = transactionToEdit.date ? parseDateFns(transactionToEdit.date, "yyyy-MM-dd", new Date(0)) : (defaultDate || new Date());
+      const parsedRecurrenceEndDate = transactionToEdit.recurrenceEndDate ? parseDateFns(transactionToEdit.recurrenceEndDate, "yyyy-MM-dd", new Date(0)) : undefined;
+      
       form.reset({
         description: transactionToEdit.description || "",
-        amount: transactionToEdit.amount !== undefined ? String(transactionToEdit.amount).replace(".", ",") : "",
+        amount: transactionToEdit.amount !== undefined ? String(transactionToEdit.amount).replace('.', ',') : "",
         category: transactionToEdit.category as string || "",
         date: parsedDate,
         expenseType: transactionToEdit.expenseType || (initialType === 'expense' ? 'upfront' : undefined),
@@ -146,35 +145,31 @@ export function TransactionForm({
         installments: transactionToEdit.installments !== undefined ? String(transactionToEdit.installments) : "",
         isRecurring: transactionToEdit.isRecurring ?? (initialType === 'expense' ? transactionToEdit.expenseType === 'recurring' : false),
         expenseNature: transactionToEdit.expenseNature || undefined,
+        recurrenceEndDate: parsedRecurrenceEndDate,
+      });
+    } else {
+      // For adding new, reset to defaults
+      form.reset({
+        description: "",
+        amount: "",
+        category: "",
+        date: defaultDate || new Date(),
+        expenseType: initialType === 'expense' ? 'upfront' : undefined,
+        paymentMethod: undefined,
+        installments: "",
+        isRecurring: initialType === 'income' ? false : (form.getValues('expenseType') === 'recurring'),
+        expenseNature: undefined,
+        recurrenceEndDate: undefined,
       });
     }
-  }, [transactionToEdit, form]);
-
-
-  // Filters the categories based on the transaction type and safely validates the current value
+  }, [transactionToEdit, initialType, defaultDate, form.reset]);
+  
+  // Effect to filter available categories based on type
   useEffect(() => {
     const categoriesToFilter = Array.isArray(userCategories) ? userCategories : [];
     const relevantUserCategories = categoriesToFilter.filter(cat => cat.type === initialType);
     setAvailableCategories(relevantUserCategories);
-
-    // Only run validation if the category list is loaded, to prevent race conditions.
-    if (relevantUserCategories.length > 0) {
-      const currentCategoryInForm = form.getValues("category");
-      if (currentCategoryInForm && !relevantUserCategories.some(cat => cat.name === currentCategoryInForm)) {
-        form.setValue("category", "", { shouldValidate: true });
-      }
-    }
-    
-    if (initialType === 'income') {
-      form.setValue('expenseType', undefined);
-      form.setValue('paymentMethod', undefined);
-      form.setValue('installments', "");
-      form.setValue('expenseNature', undefined);
-      form.setValue('isRecurring', form.getValues('isRecurring') ?? false);
-    } else { // expense
-      form.setValue('isRecurring', form.getValues('expenseType') === 'recurring');
-    }
-  }, [initialType, userCategories, form, language]);
+  }, [initialType, userCategories]);
 
   // Syncs the "isRecurring" checkbox based on the selected expense type
   useEffect(() => {
@@ -220,19 +215,6 @@ export function TransactionForm({
     const finalAmount = validatedValues.amount; 
     const finalInstallments = validatedValues.installments;
     const finalExpenseType = validatedValues.expenseType;
-
-    if (finalAmount === undefined) {
-        form.setError("amount", { type: "manual", message: translate({pt: "O valor é obrigatório e deve ser positivo.", en: "Amount is required and must be positive."}) });
-        setIsSubmitting(false);
-        return;
-    }
-
-    if (initialType === 'expense' && finalExpenseType === 'installment' && (finalInstallments === undefined || finalInstallments < 1)) {
-        form.setError("installments", { type: "manual", message: translate({pt: "O número de parcelas é obrigatório para despesas parceladas e deve ser no mínimo 1.", en: "Number of installments is required for installment expenses and must be at least 1."}) });
-        setIsSubmitting(false);
-        return;
-    }
-    
     let finalIsRecurringForSave: boolean;
     if (initialType === 'expense') {
       finalIsRecurringForSave = finalExpenseType === 'recurring';
@@ -251,22 +233,10 @@ export function TransactionForm({
       isRecurring: finalIsRecurringForSave,
       expenseNature: initialType === 'expense' ? validatedValues.expenseNature : undefined,
       expenseType: initialType === 'expense' ? finalExpenseType : undefined,
+      recurrenceEndDate: finalIsRecurringForSave && validatedValues.recurrenceEndDate ? formatDateFns(validatedValues.recurrenceEndDate, "yyyy-MM-dd") : undefined,
     };
     try {
       await onSave(transactionData, transactionToEdit?.id);
-      if (!transactionToEdit) {
-        form.reset({
-          description: "",
-          amount: "",
-          category: "",
-          date: defaultDate || new Date(),
-          expenseType: initialType === 'expense' ? 'upfront' : undefined,
-          paymentMethod: undefined,
-          installments: "",
-          isRecurring: initialType === 'income' ? false : (initialType === 'expense' ? (form.getValues('expenseType') === 'recurring') : undefined),
-          expenseNature: undefined,
-        });
-      }
     } catch (error) {
       console.error("TransactionForm: Error during onSave callback", error);
     } finally {
@@ -294,6 +264,7 @@ export function TransactionForm({
   const expenseNatureLabel = translate({ en: "Expense Nature", pt: "Natureza da Despesa" });
   const fixedLabel = translate({ en: "Fixed", pt: "Fixo" });
   const variableLabel = translate({ en: "Variable", pt: "Variável" });
+  const recurrenceEndDateLabel = translate({ en: "End Recurrence On", pt: "Encerrar Recorrência em" });
 
   const submitButtonLabel = transactionToEdit
     ? (isSubmitting ? translate({ en: "Saving...", pt: "Salvando..." }) : translate({ en: "Save Changes", pt: "Salvar Alterações" }))
@@ -558,6 +529,48 @@ export function TransactionForm({
             />
           </>
         )}
+
+        {(form.watch('isRecurring') || false) && (
+            <FormField
+            control={form.control}
+            name="recurrenceEndDate"
+            render={({ field }) => (
+                <FormItem className="flex flex-col">
+                <FormLabel>{recurrenceEndDateLabel} {translate({en: '(Optional)', pt: '(Opcional)'})}</FormLabel>
+                <Popover>
+                    <PopoverTrigger asChild>
+                    <FormControl>
+                        <Button
+                        variant={"outline"}
+                        className={cn(
+                            "w-full pl-3 text-left font-normal",
+                            !field.value && "text-muted-foreground"
+                        )}
+                        >
+                        {field.value ? (
+                            formatDateFns(field.value, "PPP", { locale: language === 'pt' ? ptBR : enUS})
+                        ) : (
+                            <span>{pickDateLabel}</span>
+                        )}
+                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                        </Button>
+                    </FormControl>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                        mode="single"
+                        selected={field.value}
+                        onSelect={field.onChange}
+                        defaultMonth={field.value || defaultDate || new Date()}
+                        initialFocus
+                    />
+                    </PopoverContent>
+                </Popover>
+                <FormMessage />
+                </FormItem>
+            )}
+            />
+        )}
         <Button type="submit" className="w-full bg-primary hover:bg-primary/90" disabled={isSubmitting}>
           {submitButtonLabel}
         </Button>
@@ -565,3 +578,5 @@ export function TransactionForm({
     </Form>
   );
 }
+
+    
