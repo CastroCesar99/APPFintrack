@@ -330,10 +330,10 @@ export default function IncomePage() {
     }
 
     return monthlyDisplayTransactions;
-  }, [allTransactions, displayedDate, sortOption, language, getCategoryObjectByName, translate]);
+  }, [allTransactions, displayedDate, sortOption, language, getCategoryObjectByName, translate]); // Added translate for description modification
 
   const handleOpenAddDialog = () => {
-     if (!isSubscriptionActive) {
+    if (!isSubscriptionActive) {
       setShowSubscriptionAlert(true);
       return;
     }
@@ -388,8 +388,6 @@ export default function IncomePage() {
         const payload = { ...formData, updatedAt: serverTimestamp() };
         const dataToSave = Object.fromEntries(Object.entries(payload).filter(([_, v]) => v !== undefined));
         if (dataToSave.isRecurring === undefined) { dataToSave.isRecurring = false; }
-        // Keep original effective month on edit
-        if (transactionToEdit) { dataToSave.effectiveMonth = transactionToEdit.effectiveMonth; }
         
         const docRef = doc(db, "users", userId, "transactions", idToUpdate);
         try {
@@ -614,3 +612,5 @@ export default function IncomePage() {
     </AppLayout>
   );
 }
+
+    

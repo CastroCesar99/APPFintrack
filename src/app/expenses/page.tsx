@@ -405,8 +405,6 @@ export default function ExpensesPage() {
       const payload = { ...formData, updatedAt: serverTimestamp() };
       const dataToSave = Object.fromEntries(Object.entries(payload).filter(([_, v]) => v !== undefined));
        if (dataToSave.type === 'expense') { dataToSave.isRecurring = dataToSave.expenseType === 'recurring'; }
-       // Keep original effective month on edit
-       if (originalTransaction) { dataToSave.effectiveMonth = originalTransaction.effectiveMonth; }
 
       const docRef = doc(db, "users", userId, "transactions", idToUpdate);
       try {
@@ -632,3 +630,5 @@ export default function ExpensesPage() {
     </AppLayout>
   );
 }
+
+    
