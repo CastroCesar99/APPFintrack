@@ -2,7 +2,7 @@
 "use client";
 import type React from 'react';
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/form";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Label } from "@/components/ui/label"; // Added import
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { CalendarIcon } from "lucide-react";
@@ -23,12 +23,13 @@ import { format as formatDateFns, parse as parseDateFns, addMonths, subMonths } 
 import { ptBR, enUS } from 'date-fns/locale';
 import { cn } from "@/lib/utils";
 import type { Transaction, TransactionType, ExpenseNature, CategoryName, DisplayCategory, DisplayPaymentMethod, ExpenseType } from "@/types";
-import { useState, useEffect, useMemo } from "react";
+// getCategoryDisplayLabel and getPaymentMethodDisplayLabel are not used here, they are used by parent.
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useLanguage } from "@/context/language-context";
 import { Calendar } from "@/components/ui/calendar";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
-// --- Zod Schemas (No Change) ---
+
 const formInputSchema = z.object({
   description: z.string().min(2, { message: "A descrição deve ter pelo menos 2 caracteres." }).max(100, {message: "A descrição não pode exceder 100 caracteres."}),
   amount: z.string().optional(), 
@@ -94,6 +95,7 @@ const formOutputSchema = z.object({
     path: ["installments"],
 });
 
+
 type TransactionFormInputValues = z.infer<typeof formInputSchema>;
 type TransactionFormOutputValues = z.infer<typeof formOutputSchema>;
 
@@ -116,10 +118,10 @@ export function TransactionForm({
 }: TransactionFormProps) {
   const { language, translate } = useLanguage();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const formKey = useMemo(() => transactionToEdit?.id || 'new-transaction', [transactionToEdit]);
 
   const form = useForm<TransactionFormInputValues>({
     resolver: zodResolver(formInputSchema),
-    // This is the key change: Set defaultValues directly based on props
     defaultValues: useMemo(() => {
         if (transactionToEdit) {
             const parsedDate = transactionToEdit.date ? parseDateFns(transactionToEdit.date, "yyyy-MM-dd", new Date(0)) : defaultDate;
@@ -139,7 +141,6 @@ export function TransactionForm({
                 recurrenceEndDate: parsedRecurrenceEndDate,
             };
         }
-        // Default values for a new transaction
         return {
             description: "", amount: "", category: "",
             date: defaultDate,
@@ -153,12 +154,6 @@ export function TransactionForm({
 
   const watchedExpenseType = form.watch('expenseType');
 
-  // Filter available categories based on the initialType prop
-  const availableCategories = useMemo(() => {
-    return userCategories.filter(cat => cat.type === initialType);
-  }, [userCategories, initialType]);
-  
-  // This effect synchronizes the 'isRecurring' checkbox with the 'expenseType' select dropdown
   useEffect(() => {
     if (initialType === 'expense') {
       form.setValue('isRecurring', watchedExpenseType === 'recurring');
@@ -168,6 +163,10 @@ export function TransactionForm({
     }
   }, [watchedExpenseType, initialType, form]);
 
+  const availableCategories = useMemo(() => {
+    return userCategories.filter(cat => cat.type === initialType);
+  }, [userCategories, initialType]);
+  
   const monthOptions = useMemo(() => {
     const locale = language === 'pt' ? ptBR : enUS;
     const baseDate = defaultDate || new Date();
@@ -183,7 +182,6 @@ export function TransactionForm({
 
   async function onSubmit(data: TransactionFormInputValues) {
     setIsSubmitting(true);
-    // ... (rest of onSubmit logic remains the same)
     const dataToParse = { ...data };
     
     let validatedValues: TransactionFormOutputValues;
@@ -237,7 +235,6 @@ export function TransactionForm({
     }
   }
 
-  // --- Labels and placeholders (No Change) ---
   const descriptionLabel = translate({ en: "Description", pt: "Descrição" });
   const descriptionPlaceholder = translate({ en: "e.g., Coffee, Salary", pt: "ex: Café, Salário" });
   const amountLabel = watchedExpenseType === "installment" ? translate({ en: "Installment Amount", pt: "Valor da Parcela" }) : translate({ en: "Amount", pt: "Valor" });
@@ -266,7 +263,7 @@ export function TransactionForm({
 
  return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 md:space-y-6">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 md:space-y-6" key={formKey}>
         <FormField
           control={form.control}
           name="effectiveMonth"
@@ -275,7 +272,7 @@ export function TransactionForm({
               <FormLabel>{effectiveMonthLabel}</FormLabel>
               <Select onValueChange={field.onChange} value={field.value} >
                 <FormControl>
-                  <SelectTrigger disabled={!!transactionToEdit}>
+                  <SelectTrigger>
                     <SelectValue placeholder={translate({ en: "Select entry month", pt: "Selecione o mês de lançamento" })} />
                   </SelectTrigger>
                 </FormControl>
@@ -291,7 +288,7 @@ export function TransactionForm({
             </FormItem>
           )}
         />
-        {/* --- Other FormFields (No Change) --- */}
+        
         <FormField
           control={form.control}
           name="description"
