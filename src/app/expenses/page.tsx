@@ -405,6 +405,7 @@ export default function ExpensesPage() {
       const payload = { ...formData, updatedAt: serverTimestamp() };
       const dataToSave = Object.fromEntries(Object.entries(payload).filter(([_, v]) => v !== undefined));
        if (dataToSave.type === 'expense') { dataToSave.isRecurring = dataToSave.expenseType === 'recurring'; }
+       // Keep original effective month on edit
        if (originalTransaction) { dataToSave.effectiveMonth = originalTransaction.effectiveMonth; }
 
       const docRef = doc(db, "users", userId, "transactions", idToUpdate);
@@ -419,7 +420,9 @@ export default function ExpensesPage() {
       const payload = { ...formData, userId, createdAt: serverTimestamp() };
       const dataToSave = Object.fromEntries(Object.entries(payload).filter(([_, v]) => v !== undefined));
       if (dataToSave.type === 'expense') { dataToSave.isRecurring = dataToSave.expenseType === 'recurring'; }
-      
+      // For new transactions, effectiveMonth is taken from the form
+      dataToSave.effectiveMonth = formData.effectiveMonth;
+
       try {
         await addDoc(collection(db, "users", userId, "transactions"), dataToSave);
         toast({ title: translate({en: "Expense Added", pt: "Despesa Adicionada"}), description: `${formData.description} ${translate({en: "has been added.", pt: "foi adicionada."})}` });
@@ -499,7 +502,7 @@ export default function ExpensesPage() {
         </div>
 
         <Dialog open={isAddFormOpen} onOpenChange={setIsAddFormOpen}>
-          <DialogContent className="sm:max-w-[425px]">
+          <DialogContent>
             <DialogHeader>
               <DialogTitle>{translate({ en: "New Expense", pt: "Nova Despesa" })}</DialogTitle>
               <DialogDescription>
@@ -519,14 +522,14 @@ export default function ExpensesPage() {
         </Dialog>
 
         <Dialog open={isEditFormOpen} onOpenChange={setIsEditFormOpen}>
-          <DialogContent className="sm:max-w-[425px]">
+          <DialogContent>
             <DialogHeader>
               <DialogTitle>{translate({ en: "Edit Expense", pt: "Editar Despesa" })}</DialogTitle>
               <DialogDescription>
                 {translate({ en: "Update the details of your expense.", pt: "Atualize os detalhes da sua despesa." })}
               </DialogDescription>
             </DialogHeader>
-            {transactionToEdit && (
+            {isEditFormOpen && transactionToEdit && (
               <TransactionForm
                 onSave={handleSaveTransaction}
                 initialType="expense"
@@ -534,7 +537,7 @@ export default function ExpensesPage() {
                 defaultDate={displayedDate} 
                 userCategories={userCategories}
                 userPaymentMethods={userPaymentMethods}
-                key={"edit-expense-" + transactionToEdit.id + "-" + displayedDate.toISOString()}
+                key={"edit-expense-" + transactionToEdit.id}
               />
             )}
           </DialogContent>

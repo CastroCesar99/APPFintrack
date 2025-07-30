@@ -274,7 +274,7 @@ export default function IncomePage() {
       if (t.type !== 'income') return;
 
       let includeTransaction = false;
-      let projectedDateForDisplayString = t.date; // Default to original date
+      let projectedDateForDisplayString = t.date;
       let reason = "";
 
       if (t.isRecurring) {
@@ -333,7 +333,7 @@ export default function IncomePage() {
   }, [allTransactions, displayedDate, sortOption, language, getCategoryObjectByName, translate]);
 
   const handleOpenAddDialog = () => {
-    if (!isSubscriptionActive) {
+     if (!isSubscriptionActive) {
       setShowSubscriptionAlert(true);
       return;
     }
@@ -388,6 +388,7 @@ export default function IncomePage() {
         const payload = { ...formData, updatedAt: serverTimestamp() };
         const dataToSave = Object.fromEntries(Object.entries(payload).filter(([_, v]) => v !== undefined));
         if (dataToSave.isRecurring === undefined) { dataToSave.isRecurring = false; }
+        // Keep original effective month on edit
         if (transactionToEdit) { dataToSave.effectiveMonth = transactionToEdit.effectiveMonth; }
         
         const docRef = doc(db, "users", userId, "transactions", idToUpdate);
@@ -402,6 +403,7 @@ export default function IncomePage() {
         const payload = { ...formData, userId, createdAt: serverTimestamp() };
         const dataToSave = Object.fromEntries(Object.entries(payload).filter(([_, v]) => v !== undefined));
         if (dataToSave.isRecurring === undefined) { dataToSave.isRecurring = false; }
+        dataToSave.effectiveMonth = formData.effectiveMonth;
         
         try {
             await addDoc(collection(db, "users", userId, "transactions"), dataToSave);
@@ -482,7 +484,7 @@ export default function IncomePage() {
         </div>
 
         <Dialog open={isAddFormOpen} onOpenChange={setIsAddFormOpen}>
-          <DialogContent className="sm:max-w-[425px]">
+          <DialogContent>
             <DialogHeader>
               <DialogTitle>{translate({ en: "New Income", pt: "Nova Receita" })}</DialogTitle>
               <DialogDescription>
@@ -502,14 +504,14 @@ export default function IncomePage() {
         </Dialog>
 
         <Dialog open={isEditFormOpen} onOpenChange={setIsEditFormOpen}>
-          <DialogContent className="sm:max-w-[425px]">
+          <DialogContent>
             <DialogHeader>
               <DialogTitle>{translate({ en: "Edit Income", pt: "Editar Receita" })}</DialogTitle>
               <DialogDescription>
                 {translate({ en: "Update the details of your income.", pt: "Atualize os detalhes da sua receita." })}
               </DialogDescription>
             </DialogHeader>
-            {transactionToEdit && (
+            {isEditFormOpen && transactionToEdit && (
               <TransactionForm
                 onSave={handleSaveTransaction}
                 initialType="income"
@@ -517,7 +519,7 @@ export default function IncomePage() {
                 defaultDate={displayedDate} 
                 userCategories={userCategories}
                 userPaymentMethods={userPaymentMethods}
-                key={"edit-income-" + transactionToEdit.id + "-" + displayedDate.toISOString()}
+                key={"edit-income-" + transactionToEdit.id}
               />
             )}
           </DialogContent>
@@ -571,8 +573,8 @@ export default function IncomePage() {
           </CardContent>
         </Card>
       </div>
-
-      <AlertDialog open={showSubscriptionAlert} onOpenChange={setShowSubscriptionAlert}>
+      
+       <AlertDialog open={showSubscriptionAlert} onOpenChange={setShowSubscriptionAlert}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{translate({ en: "Subscription Required", pt: "Assinatura Necessária" })}</AlertDialogTitle>
@@ -588,7 +590,7 @@ export default function IncomePage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-      
+
        {transactionToDelete && (
         <AlertDialog open={!!transactionToDelete} onOpenChange={(open) => !open && setTransactionToDelete(null)}>
           <AlertDialogContent>
