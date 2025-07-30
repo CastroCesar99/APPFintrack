@@ -15,6 +15,7 @@ import {
 import { auth, db } from '@/lib/firebase'; 
 import { useRouter } from 'next/navigation';
 import { doc, onSnapshot, Timestamp } from 'firebase/firestore';
+import { whitelistedEmails } from '@/lib/whitelist';
 
 export type SubscriptionStatus = 'trial' | 'active' | 'inactive' | 'canceled' | 'expired';
 
@@ -56,6 +57,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!user) {
       if (loading) setLoading(false);
       return;
+    }
+
+    // Whitelist check
+    if (user.email && whitelistedEmails.includes(user.email)) {
+      console.log(`AuthContext: User ${user.email} is whitelisted. Granting subscription access.`);
+      setIsSubscriptionActive(true);
+      setSubscriptionStatus('active');
+      setLoading(false);
+      return; // Skip Firestore check
     }
 
     console.log("AuthContext: User detected (",user.uid,"), setting up Firestore listener for subscription status.");
