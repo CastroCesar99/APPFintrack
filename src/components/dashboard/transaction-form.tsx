@@ -281,32 +281,30 @@ export function TransactionForm({
  return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 md:space-y-6">
-        {!transactionToEdit && (
-          <FormField
-            control={form.control}
-            name="effectiveMonth"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>{effectiveMonthLabel}</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder={translate({ en: "Select entry month", pt: "Selecione o mês de lançamento" })} />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {monthOptions.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        )}
+        <FormField
+          control={form.control}
+          name="effectiveMonth"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>{effectiveMonthLabel}</FormLabel>
+              <Select onValueChange={field.onChange} value={field.value} disabled={!!transactionToEdit}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder={translate({ en: "Select entry month", pt: "Selecione o mês de lançamento" })} />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {monthOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
         <FormField
           control={form.control}
           name="description"
