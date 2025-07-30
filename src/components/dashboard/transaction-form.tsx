@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/form";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label"; // Added import
+import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { CalendarIcon } from "lucide-react";
@@ -23,7 +23,6 @@ import { format as formatDateFns, parse as parseDateFns, addMonths, subMonths } 
 import { ptBR, enUS } from 'date-fns/locale';
 import { cn } from "@/lib/utils";
 import type { Transaction, TransactionType, ExpenseNature, CategoryName, DisplayCategory, DisplayPaymentMethod, ExpenseType } from "@/types";
-// getCategoryDisplayLabel and getPaymentMethodDisplayLabel are not used here, they are used by parent.
 import { useState, useEffect, useMemo } from "react";
 import { useLanguage } from "@/context/language-context";
 import { Calendar } from "@/components/ui/calendar";
@@ -282,14 +281,14 @@ export function TransactionForm({
 
  return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 md:space-y-6">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 md:space-y-6" key={transactionToEdit?.id || 'add-form'}>
         <FormField
           control={form.control}
           name="effectiveMonth"
           render={({ field }) => (
             <FormItem>
               <FormLabel>{effectiveMonthLabel}</FormLabel>
-              <Select onValueChange={field.onChange} value={field.value}>
+              <Select onValueChange={field.onChange} value={field.value} disabled={!!transactionToEdit}>
                 <FormControl>
                   <SelectTrigger>
                     <SelectValue placeholder={translate({ en: "Select entry month", pt: "Selecione o mês de lançamento" })} />
@@ -612,3 +611,5 @@ export function TransactionForm({
     </Form>
   );
 }
+
+    
