@@ -1,16 +1,4 @@
 {
-  "node": {
-    "40588ecb0c7228f1f063c5c7e3de4829d2268df774": {
-      "workers": {
-        "app/reports/page": {
-          "moduleId": "[project]/.next-internal/server/app/reports/page/actions.js { ACTIONS_MODULE0 => \"[project]/src/ai/flows/financial-summary-flow.ts [app-rsc] (ecmascript)\" } [app-rsc] (server actions loader, ecmascript)",
-          "async": false
-        }
-      },
-      "layer": {
-        "app/reports/page": "action-browser"
-      }
-    }
-  },
+  "node": {},
   "edge": {}
 }
