@@ -2,7 +2,7 @@
 "use client";
 import type React from 'react';
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/form";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Label } from "@/components/ui/label"; // Added import
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { CalendarIcon } from "lucide-react";
@@ -23,10 +23,12 @@ import { format as formatDateFns, parse as parseDateFns, addMonths, subMonths } 
 import { ptBR, enUS } from 'date-fns/locale';
 import { cn } from "@/lib/utils";
 import type { Transaction, TransactionType, ExpenseNature, CategoryName, DisplayCategory, DisplayPaymentMethod, ExpenseType } from "@/types";
+// getCategoryDisplayLabel and getPaymentMethodDisplayLabel are not used here, they are used by parent.
 import { useState, useEffect, useMemo } from "react";
 import { useLanguage } from "@/context/language-context";
 import { Calendar } from "@/components/ui/calendar";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+
 
 const formInputSchema = z.object({
   description: z.string().min(2, { message: "A descrição deve ter pelo menos 2 caracteres." }).max(100, {message: "A descrição não pode exceder 100 caracteres."}),
@@ -234,7 +236,7 @@ export function TransactionForm({
       type: initialType,
       category: validatedValues.category as CategoryName,
       date: formatDateFns(validatedValues.date, "yyyy-MM-dd"),
-      effectiveMonth: transactionToEdit ? (transactionToEdit.effectiveMonth || validatedValues.effectiveMonth) : validatedValues.effectiveMonth, // Preserve original effectiveMonth on edit
+      effectiveMonth: validatedValues.effectiveMonth,
       paymentMethod: initialType === 'expense' ? validatedValues.paymentMethod : undefined,
       installments: initialType === 'expense' && finalExpenseType === 'installment' ? finalInstallments : undefined,
       isRecurring: finalIsRecurringForSave,
@@ -287,7 +289,7 @@ export function TransactionForm({
           render={({ field }) => (
             <FormItem>
               <FormLabel>{effectiveMonthLabel}</FormLabel>
-              <Select onValueChange={field.onChange} value={field.value} disabled={!!transactionToEdit}>
+              <Select onValueChange={field.onChange} value={field.value}>
                 <FormControl>
                   <SelectTrigger>
                     <SelectValue placeholder={translate({ en: "Select entry month", pt: "Selecione o mês de lançamento" })} />
