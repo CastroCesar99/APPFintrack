@@ -409,8 +409,7 @@ export default function IncomePage() {
         }
     } else {
         // --- Perform ADD operation ---
-        const transactionDate = parseDateFns(formData.date, "yyyy-MM-dd", new Date(0));
-        const effectiveMonthForSave = formatDateFns(transactionDate, "yyyy-MM");
+        const effectiveMonthForSave = formatDateFns(displayedDate, "yyyy-MM");
         const payload = { ...formData, effectiveMonth: effectiveMonthForSave, userId, createdAt: serverTimestamp() };
         const dataToSave = Object.fromEntries(Object.entries(payload).filter(([_, v]) => v !== undefined));
         if (dataToSave.isRecurring === undefined) { dataToSave.isRecurring = false; }
@@ -622,3 +621,4 @@ export default function IncomePage() {
     </AppLayout>
   );
 }
+

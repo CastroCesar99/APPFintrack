@@ -133,40 +133,39 @@ export function TransactionForm({
     return userCategories.filter(cat => cat.type === initialType);
   }, [userCategories, initialType]);
   
-  // This effect now correctly handles both adding a new transaction and editing an existing one,
-  // ensuring that the form is only populated when all necessary data (like categories) is available.
   useEffect(() => {
-    // If we're editing, wait for categories to be loaded before resetting the form.
-    if (transactionToEdit && userCategories.length > 0) {
-      const parsedDate = transactionToEdit.date ? parseDateFns(transactionToEdit.date, "yyyy-MM-dd", new Date(0)) : (defaultDate || new Date());
-      const parsedRecurrenceEndDate = transactionToEdit.recurrenceEndDate ? parseDateFns(transactionToEdit.recurrenceEndDate, "yyyy-MM-dd", new Date(0)) : undefined;
-      
-      form.reset({
-        description: transactionToEdit.description || "",
-        amount: transactionToEdit.amount !== undefined ? String(transactionToEdit.amount) : "",
-        category: transactionToEdit.category as string || "",
-        date: parsedDate,
-        expenseType: transactionToEdit.expenseType || (initialType === 'expense' ? 'upfront' : undefined),
-        paymentMethod: transactionToEdit.paymentMethod || undefined,
-        installments: transactionToEdit.installments !== undefined ? String(transactionToEdit.installments) : "",
-        isRecurring: transactionToEdit.isRecurring ?? (initialType === 'expense' ? transactionToEdit.expenseType === 'recurring' : false),
-        expenseNature: transactionToEdit.expenseNature || undefined,
-        recurrenceEndDate: parsedRecurrenceEndDate,
-      });
+    // This effect now correctly handles both adding a new transaction and editing an existing one,
+    // ensuring that the form is only populated when all necessary data (like categories) is available.
+    if (transactionToEdit && userCategories.length > 0 && userPaymentMethods.length > 0) {
+        const parsedDate = transactionToEdit.date ? parseDateFns(transactionToEdit.date, "yyyy-MM-dd", new Date(0)) : (defaultDate || new Date());
+        const parsedRecurrenceEndDate = transactionToEdit.recurrenceEndDate ? parseDateFns(transactionToEdit.recurrenceEndDate, "yyyy-MM-dd", new Date(0)) : undefined;
+
+        form.reset({
+            description: transactionToEdit.description || "",
+            amount: transactionToEdit.amount !== undefined ? String(transactionToEdit.amount) : "",
+            category: transactionToEdit.category as string || "",
+            date: parsedDate,
+            expenseType: transactionToEdit.expenseType || (initialType === 'expense' ? 'upfront' : undefined),
+            paymentMethod: transactionToEdit.paymentMethod || undefined,
+            installments: transactionToEdit.installments !== undefined ? String(transactionToEdit.installments) : "",
+            isRecurring: transactionToEdit.isRecurring ?? (initialType === 'expense' ? transactionToEdit.expenseType === 'recurring' : false),
+            expenseNature: transactionToEdit.expenseNature || undefined,
+            recurrenceEndDate: parsedRecurrenceEndDate,
+        });
     } else if (!transactionToEdit) {
-      // If adding a new item, reset to default values based on the initial type.
-      form.reset({
-        description: "",
-        amount: "",
-        category: "",
-        date: defaultDate || new Date(),
-        expenseType: initialType === 'expense' ? 'upfront' : undefined,
-        paymentMethod: undefined,
-        installments: "",
-        isRecurring: initialType === 'income' ? false : (form.getValues('expenseType') === 'recurring'),
-        expenseNature: undefined,
-        recurrenceEndDate: undefined,
-      });
+        // If adding a new item, reset to default values based on the initial type.
+        form.reset({
+            description: "",
+            amount: "",
+            category: "",
+            date: defaultDate || new Date(),
+            expenseType: initialType === 'expense' ? 'upfront' : undefined,
+            paymentMethod: undefined,
+            installments: "",
+            isRecurring: initialType === 'income' ? false : (form.getValues('expenseType') === 'recurring'),
+            expenseNature: undefined,
+            recurrenceEndDate: undefined,
+        });
     }
   }, [transactionToEdit, initialType, defaultDate, form, userCategories, userPaymentMethods]);
 

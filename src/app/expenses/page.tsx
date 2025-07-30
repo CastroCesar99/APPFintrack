@@ -378,11 +378,11 @@ export default function ExpensesPage() {
       return;
     }
   
-    const transactionToEdit = idToUpdate ? allTransactions.find(t => t.id === idToUpdate) : null;
+    const originalTransaction = idToUpdate ? allTransactions.find(t => t.id === idToUpdate) : null;
     const viewEffectiveMonth = formatDateFns(displayedDate, "yyyy-MM");
   
     // Check if it's an edit of a recurring item in a future month
-    if (idToUpdate && transactionToEdit && transactionToEdit.isRecurring && transactionToEdit.effectiveMonth < viewEffectiveMonth) {
+    if (idToUpdate && originalTransaction && originalTransaction.isRecurring && originalTransaction.effectiveMonth < viewEffectiveMonth) {
       // --- Perform SPLIT operation ---
       try {
         const batch = writeBatch(db);
@@ -420,6 +420,7 @@ export default function ExpensesPage() {
       }
     } else if (idToUpdate) {
       // --- Perform NORMAL UPDATE operation ---
+      // For updates, the effectiveMonth should NOT change.
       const payload = { ...formData, updatedAt: serverTimestamp() };
       const dataToSave = Object.fromEntries(Object.entries(payload).filter(([_, v]) => v !== undefined));
        if (dataToSave.type === 'expense') {
@@ -437,8 +438,8 @@ export default function ExpensesPage() {
       }
     } else {
       // --- Perform ADD operation ---
-      const transactionDate = parseDateFns(formData.date, "yyyy-MM-dd", new Date(0));
-      const effectiveMonthForSave = formatDateFns(transactionDate, "yyyy-MM");
+      // For new transactions, effectiveMonth is the month being viewed.
+      const effectiveMonthForSave = formatDateFns(displayedDate, "yyyy-MM");
       const payload = { ...formData, effectiveMonth: effectiveMonthForSave, userId, createdAt: serverTimestamp() };
       const dataToSave = Object.fromEntries(Object.entries(payload).filter(([_, v]) => v !== undefined));
       if (dataToSave.type === 'expense') {
@@ -651,3 +652,4 @@ export default function ExpensesPage() {
     </AppLayout>
   );
 }
+
