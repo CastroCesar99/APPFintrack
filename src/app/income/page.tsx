@@ -309,7 +309,6 @@ export default function IncomePage() {
       }
     });
 
-    // Sorting logic
     if (sortOption === 'dateAsc') {
       monthlyDisplayTransactions.sort((a, b) => parseDateFns(a.date, "yyyy-MM-dd", new Date(0)).getTime() - parseDateFns(b.date, "yyyy-MM-dd", new Date(0)).getTime());
     } else if (sortOption === 'dateDesc') {
@@ -331,7 +330,7 @@ export default function IncomePage() {
     }
 
     return monthlyDisplayTransactions;
-  }, [allTransactions, displayedDate, sortOption, language, getCategoryObjectByName, translate]); // Added translate for description modification
+  }, [allTransactions, displayedDate, sortOption, language, getCategoryObjectByName, translate]);
 
   const handleOpenAddDialog = () => {
     if (!isSubscriptionActive) {
@@ -361,23 +360,19 @@ export default function IncomePage() {
     
     const transactionToEdit = idToUpdate ? allTransactions.find(t => t.id === idToUpdate) : null;
     const viewEffectiveMonth = formatDateFns(displayedDate, "yyyy-MM");
+    const isEditingFutureRecurring = idToUpdate && transactionToEdit?.isRecurring && transactionToEdit.effectiveMonth < viewEffectiveMonth;
     
-    if (idToUpdate && transactionToEdit && transactionToEdit.isRecurring && transactionToEdit.effectiveMonth < viewEffectiveMonth) {
-        // --- Perform SPLIT operation ---
+    if (isEditingFutureRecurring) {
         try {
             const batch = writeBatch(db);
     
-            // 1. End the old recurring transaction
             const originalDocRef = doc(db, "users", userId, "transactions", idToUpdate);
             const newEndDate = endOfMonth(subMonths(displayedDate, 1));
             batch.update(originalDocRef, { recurrenceEndDate: formatDateFns(newEndDate, "yyyy-MM-dd") });
     
-            // 2. Create the new recurring transaction with the edits
             const payload = { ...formData, effectiveMonth: viewEffectiveMonth, userId, createdAt: serverTimestamp() };
-            const dataToSave = Object.fromEntries(
-                Object.entries(payload).filter(([_, value]) => value !== undefined)
-            ) as Partial<Transaction & { createdAt: any; userId: string; effectiveMonth: string }>;
-            dataToSave.isRecurring = true; // New part of the split is always recurring
+            const dataToSave = Object.fromEntries(Object.entries(payload).filter(([_, value]) => value !== undefined)) as Partial<Transaction & { createdAt: any; userId: string; effectiveMonth: string }>;
+            dataToSave.isRecurring = true;
             
             const newDocRef = doc(collection(db, "users", userId, "transactions"));
             batch.set(newDocRef, dataToSave);
@@ -385,44 +380,40 @@ export default function IncomePage() {
             await batch.commit();
     
             toast({ title: translate({en: "Recurring Income Updated", pt:"Receita Recorrente Atualizada"}), description: translate({en: "Changes will apply from this month forward.", pt: "As alterações serão aplicadas a partir deste mês."}) });
-            setIsEditFormOpen(false);
-            setTransactionToEdit(null);
         } catch (error: any) {
             console.error("IncomePage: Error splitting recurring income:", error);
             toast({ title: translate({en: "Error", pt: "Erro"}), description: translate({en:"Could not update recurring income.", pt: "Não foi possível atualizar a receita recorrente."}), variant: "destructive" });
         }
     } else if (idToUpdate) {
-        // --- Perform NORMAL UPDATE operation ---
         const payload = { ...formData, updatedAt: serverTimestamp() };
         const dataToSave = Object.fromEntries(Object.entries(payload).filter(([_, v]) => v !== undefined));
         if (dataToSave.isRecurring === undefined) { dataToSave.isRecurring = false; }
+        if (transactionToEdit) { dataToSave.effectiveMonth = transactionToEdit.effectiveMonth; }
         
         const docRef = doc(db, "users", userId, "transactions", idToUpdate);
         try {
             await updateDoc(docRef, dataToSave);
             toast({ title: translate({en: "Income Updated", pt: "Receita Atualizada"}), description: `${formData.description} ${translate({en:"has been updated.", pt: "foi atualizada."})}`});
-            setIsEditFormOpen(false);
-            setTransactionToEdit(null);
         } catch (error: any) {
             console.error("IncomePage: Error updating income:", error);
             toast({ title: translate({en:"Error Updating Income", pt:"Erro ao Atualizar Receita"}), description: error.message, variant: "destructive" });
         }
     } else {
-        // --- Perform ADD operation ---
-        const effectiveMonthForSave = formatDateFns(displayedDate, "yyyy-MM");
-        const payload = { ...formData, effectiveMonth: effectiveMonthForSave, userId, createdAt: serverTimestamp() };
+        const payload = { ...formData, userId, createdAt: serverTimestamp() };
         const dataToSave = Object.fromEntries(Object.entries(payload).filter(([_, v]) => v !== undefined));
         if (dataToSave.isRecurring === undefined) { dataToSave.isRecurring = false; }
         
         try {
             await addDoc(collection(db, "users", userId, "transactions"), dataToSave);
             toast({ title: translate({en: "Income Added", pt: "Receita Adicionada"}), description: `${formData.description} ${translate({en: "has been added.", pt: "foi adicionada."})}` });
-            setIsAddFormOpen(false);
         } catch (error: any) {
             console.error("IncomePage: Error adding income:", error);
             toast({ title: translate({en: "Error Adding Income", pt: "Erro ao Adicionar Receita"}), description: error.message, variant: "destructive" });
         }
     }
+    setIsAddFormOpen(false);
+    setIsEditFormOpen(false);
+    setTransactionToEdit(null);
   };
 
   const openDeleteConfirmation = (transactionId: string) => {
@@ -580,7 +571,7 @@ export default function IncomePage() {
           </CardContent>
         </Card>
       </div>
-      
+
       <AlertDialog open={showSubscriptionAlert} onOpenChange={setShowSubscriptionAlert}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -597,7 +588,7 @@ export default function IncomePage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
+      
        {transactionToDelete && (
         <AlertDialog open={!!transactionToDelete} onOpenChange={(open) => !open && setTransactionToDelete(null)}>
           <AlertDialogContent>
@@ -621,4 +612,3 @@ export default function IncomePage() {
     </AppLayout>
   );
 }
-

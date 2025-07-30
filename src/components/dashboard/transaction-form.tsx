@@ -19,7 +19,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { CalendarIcon } from "lucide-react";
-import { format as formatDateFns, parse as parseDateFns } from "date-fns";
+import { format as formatDateFns, parse as parseDateFns, addMonths, subMonths } from "date-fns";
 import { ptBR, enUS } from 'date-fns/locale';
 import { cn } from "@/lib/utils";
 import type { Transaction, TransactionType, ExpenseNature, CategoryName, DisplayCategory, DisplayPaymentMethod, ExpenseType } from "@/types";
@@ -28,12 +28,12 @@ import { useLanguage } from "@/context/language-context";
 import { Calendar } from "@/components/ui/calendar";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
-
 const formInputSchema = z.object({
   description: z.string().min(2, { message: "A descrição deve ter pelo menos 2 caracteres." }).max(100, {message: "A descrição não pode exceder 100 caracteres."}),
   amount: z.string().optional(), 
   category: z.string().min(1, { message: "A categoria é obrigatória." }),
   date: z.date({ required_error: "Data é obrigatória."}),
+  effectiveMonth: z.string().min(7, { message: "O mês de lançamento é obrigatório."}), // YYYY-MM
   expenseType: z.enum(["upfront", "installment", "recurring"] as [ExpenseType, ...ExpenseType[]]).optional(),
   paymentMethod: z.string().optional(),
   installments: z.string().optional(),
@@ -63,6 +63,7 @@ const formOutputSchema = z.object({
     }),
   category: z.string().min(1),
   date: z.date(),
+  effectiveMonth: z.string().min(7),
   expenseType: z.enum(["upfront", "installment", "recurring"] as [ExpenseType, ...ExpenseType[]]).optional(),
   paymentMethod: z.string().optional(),
   installments: z.string().optional()
@@ -108,7 +109,7 @@ interface TransactionFormProps {
 export function TransactionForm({
   onSave,
   initialType,
-  defaultDate,
+  defaultDate = new Date(),
   userCategories = [],
   userPaymentMethods = [],
   transactionToEdit = null,
@@ -120,7 +121,8 @@ export function TransactionForm({
     resolver: zodResolver(formInputSchema),
     defaultValues: {
       description: "", amount: "", category: "",
-      date: defaultDate || new Date(),
+      date: defaultDate,
+      effectiveMonth: formatDateFns(defaultDate, "yyyy-MM"),
       expenseType: 'upfront', paymentMethod: "", installments: "",
       isRecurring: false, expenseNature: undefined,
       recurrenceEndDate: undefined,
@@ -134,10 +136,8 @@ export function TransactionForm({
   }, [userCategories, initialType]);
   
   useEffect(() => {
-    // This effect now correctly handles both adding a new transaction and editing an existing one,
-    // ensuring that the form is only populated when all necessary data (like categories) is available.
     if (transactionToEdit && userCategories.length > 0 && userPaymentMethods.length > 0) {
-        const parsedDate = transactionToEdit.date ? parseDateFns(transactionToEdit.date, "yyyy-MM-dd", new Date(0)) : (defaultDate || new Date());
+        const parsedDate = transactionToEdit.date ? parseDateFns(transactionToEdit.date, "yyyy-MM-dd", new Date(0)) : defaultDate;
         const parsedRecurrenceEndDate = transactionToEdit.recurrenceEndDate ? parseDateFns(transactionToEdit.recurrenceEndDate, "yyyy-MM-dd", new Date(0)) : undefined;
 
         form.reset({
@@ -145,6 +145,7 @@ export function TransactionForm({
             amount: transactionToEdit.amount !== undefined ? String(transactionToEdit.amount) : "",
             category: transactionToEdit.category as string || "",
             date: parsedDate,
+            effectiveMonth: transactionToEdit.effectiveMonth || formatDateFns(defaultDate, "yyyy-MM"),
             expenseType: transactionToEdit.expenseType || (initialType === 'expense' ? 'upfront' : undefined),
             paymentMethod: transactionToEdit.paymentMethod || undefined,
             installments: transactionToEdit.installments !== undefined ? String(transactionToEdit.installments) : "",
@@ -153,12 +154,10 @@ export function TransactionForm({
             recurrenceEndDate: parsedRecurrenceEndDate,
         });
     } else if (!transactionToEdit) {
-        // If adding a new item, reset to default values based on the initial type.
         form.reset({
-            description: "",
-            amount: "",
-            category: "",
-            date: defaultDate || new Date(),
+            description: "", amount: "", category: "",
+            date: defaultDate,
+            effectiveMonth: formatDateFns(defaultDate, "yyyy-MM"),
             expenseType: initialType === 'expense' ? 'upfront' : undefined,
             paymentMethod: undefined,
             installments: "",
@@ -170,7 +169,6 @@ export function TransactionForm({
   }, [transactionToEdit, initialType, defaultDate, form, userCategories, userPaymentMethods]);
 
 
-  // Syncs the "isRecurring" checkbox based on the selected expense type
   useEffect(() => {
     if (initialType === 'expense') {
       form.setValue('isRecurring', watchedExpenseType === 'recurring');
@@ -180,16 +178,25 @@ export function TransactionForm({
     }
   }, [watchedExpenseType, initialType, form]);
 
+  const monthOptions = useMemo(() => {
+    const locale = language === 'pt' ? ptBR : enUS;
+    const baseDate = defaultDate || new Date();
+    return [
+      { value: formatDateFns(subMonths(baseDate, 2), "yyyy-MM"), label: formatDateFns(subMonths(baseDate, 2), "MMMM yyyy", { locale }) },
+      { value: formatDateFns(subMonths(baseDate, 1), "yyyy-MM"), label: formatDateFns(subMonths(baseDate, 1), "MMMM yyyy", { locale }) },
+      { value: formatDateFns(baseDate, "yyyy-MM"), label: formatDateFns(baseDate, "MMMM yyyy", { locale }) },
+      { value: formatDateFns(addMonths(baseDate, 1), "yyyy-MM"), label: formatDateFns(addMonths(baseDate, 1), "MMMM yyyy", { locale }) },
+      { value: formatDateFns(addMonths(baseDate, 2), "yyyy-MM"), label: formatDateFns(addMonths(baseDate, 2), "MMMM yyyy", { locale }) },
+    ];
+  }, [defaultDate, language]);
+
+
   async function onSubmit(data: TransactionFormInputValues) {
     setIsSubmitting(true);
     const dataToParse = {
       ...data,
-      amount: (data.amount === undefined || data.amount === null || String(data.amount).trim() === "") 
-                ? undefined 
-                : String(data.amount).trim(),
-      installments: (data.installments === undefined || data.installments === null || String(data.installments).trim() === "") 
-                      ? undefined 
-                      : String(data.installments).trim(),
+      amount: (data.amount === undefined || data.amount === null || String(data.amount).trim() === "") ? undefined : String(data.amount).trim(),
+      installments: (data.installments === undefined || data.installments === null || String(data.installments).trim() === "") ? undefined : String(data.installments).trim(),
       date: data.date instanceof Date ? data.date : new Date(),
     };
     
@@ -227,6 +234,7 @@ export function TransactionForm({
       type: initialType,
       category: validatedValues.category as CategoryName,
       date: formatDateFns(validatedValues.date, "yyyy-MM-dd"),
+      effectiveMonth: transactionToEdit ? (transactionToEdit.effectiveMonth || validatedValues.effectiveMonth) : validatedValues.effectiveMonth, // Preserve original effectiveMonth on edit
       paymentMethod: initialType === 'expense' ? validatedValues.paymentMethod : undefined,
       installments: initialType === 'expense' && finalExpenseType === 'installment' ? finalInstallments : undefined,
       isRecurring: finalIsRecurringForSave,
@@ -248,7 +256,8 @@ export function TransactionForm({
   const amountLabel = watchedExpenseType === "installment" ? translate({ en: "Installment Amount", pt: "Valor da Parcela" }) : translate({ en: "Amount", pt: "Valor" });
   const categoryLabel = translate({ en: "Category", pt: "Categoria" });
   const categoryPlaceholder = translate({ en: "Select a category", pt: "Selecione uma categoria" });
-  const dateLabel = translate({ en: "Date", pt: "Data" });
+  const dateLabel = translate({ en: "Transaction Date", pt: "Data da Transação" });
+  const effectiveMonthLabel = translate({ en: "Entry Month", pt: "Mês de Lançamento" });
   const pickDateLabel = translate({ en: "Pick a date", pt: "Escolha uma data" });
   const paymentMethodLabel = translate({ en: "Payment Method", pt: "Forma de Pagamento" });
   const paymentMethodPlaceholder = translate({ en: "Select payment method", pt: "Selecione a forma de pagamento" });
@@ -272,6 +281,32 @@ export function TransactionForm({
  return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 md:space-y-6">
+        {!transactionToEdit && (
+          <FormField
+            control={form.control}
+            name="effectiveMonth"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{effectiveMonthLabel}</FormLabel>
+                <Select onValueChange={field.onChange} value={field.value}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder={translate({ en: "Select entry month", pt: "Selecione o mês de lançamento" })} />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {monthOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        )}
         <FormField
           control={form.control}
           name="description"
