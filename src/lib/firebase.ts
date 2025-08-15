@@ -47,29 +47,26 @@ let app: FirebaseApp;
 let db: Firestore;
 let auth: Auth;
 
-// Define the specific database ID you want to use
-const databaseId = "fintrackdatabase";
-
 if (!getApps().length) {
   try {
     app = initializeApp(firebaseConfig);
     // Initialize Firestore with the specific database ID
-    db = getFirestore(app, databaseId);
+    db = getFirestore(app);
     auth = getAuth(app);
     if (typeof window !== 'undefined') { // Ensure this only runs on the client
       enableIndexedDbPersistence(db, { // Pass the specific db instance here
-          cacheSizeBytes: CACHE_SIZE_UNLIMITED
+ cacheSizeBytes: CACHE_SIZE_UNLIMITED
         })
         .then(() => {
-          console.log(`Firestore offline persistence enabled successfully for database '${databaseId}'.`);
+          console.log(`Firestore offline persistence enabled successfully.`);
         })
         .catch((err) => {
           if (err.code === 'failed-precondition') {
-            console.warn(`Firestore offline persistence for database '${databaseId}' failed: Multiple tabs open or other precondition not met. Data will not be synced offline across tabs.`);
+            console.warn(`Firestore offline persistence failed: Multiple tabs open or other precondition not met. Data will not be synced offline across tabs.`);
           } else if (err.code === 'unimplemented') {
-            console.warn(`Firestore offline persistence for database '${databaseId}' failed: The current browser does not support all of the features required to enable persistence.`);
+            console.warn(`Firestore offline persistence failed: The current browser does not support all of the features required to enable persistence.`);
           } else {
-            console.error(`Firestore offline persistence for database '${databaseId}' failed with error: `, err);
+            console.error(`Firestore offline persistence failed with error: `, err);
           }
         }
       );
