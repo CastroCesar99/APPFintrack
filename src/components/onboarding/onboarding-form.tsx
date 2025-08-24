@@ -163,6 +163,7 @@ export function OnboardingForm() {
   };
 
   const handleSubmit = async () => {
+    console.log("handleSubmit function called");
     if (!user) {
       toast({ title: translate({en: "Error", pt: "Erro"}), description: translate({en: "User not authenticated.", pt: "Usuário não autenticado."}), variant: "destructive" });
       return;
@@ -179,6 +180,7 @@ export function OnboardingForm() {
     setIsSaving(true);
 
     try {
+ console.log("User object:", user);
       const preferencesData: UserPreferences = {
         language,
         selectedCategories: Array.from(selectedCategories),
@@ -189,7 +191,9 @@ export function OnboardingForm() {
       };
 
       const preferencesDocRef = doc(db, `users/${user.uid}/preferences`, "userPreferences");
-      await setDoc(preferencesDocRef, preferencesData, { merge: true });
+ console.log("Saving preferencesData:", preferencesData);
+ const preferencesResult = await setDoc(preferencesDocRef, preferencesData, { merge: true });
+ console.log("Preferences setDoc result:", preferencesResult);
 
       const finalBudgetGoalsToSave: Record<string, number> = {};
       let hasBudgetGoals = false;
@@ -206,16 +210,22 @@ export function OnboardingForm() {
       if (hasBudgetGoals) {
         const currentMonthYearKey = formatDateFns(new Date(), 'yyyy-MM');
         const budgetDocRef = doc(db, `users/${user.uid}/budgets/${currentMonthYearKey}`);
-        await setDoc(budgetDocRef, { ...finalBudgetGoalsToSave, lastUpdated: serverTimestamp() }, { merge: true });
+ console.log("Saving budgetGoalsToSave:", finalBudgetGoalsToSave);
+ console.log("Budget Doc Ref:", `users/${user.uid}/budgets/${currentMonthYearKey}`);
+ const budgetResult = await setDoc(budgetDocRef, { ...finalBudgetGoalsToSave, lastUpdated: serverTimestamp() }, { merge: true });
+ console.log("Budget setDoc result:", budgetResult);
       }
 
       const userDocRef = doc(db, "users", user.uid);
-      await setDoc(userDocRef, {
+ console.log("Updating user document:", user.uid);
+ const userDocResult = await setDoc(userDocRef, {
         onboardingComplete: true,
         onboardedAt: serverTimestamp()
       }, { merge: true });
+ console.log("User document setDoc result:", userDocResult);
 
       localStorage.setItem('onboardingComplete', 'true');
+ console.log("Onboarding complete flag set in localStorage.");
       localStorage.setItem('userLanguage', language);
 
       toast({ title: translate({en: "Setup Saved!", pt: "Configuração Salva!"}), description: translate({en: "Welcome to FinTrack!", pt: "Bem-vindo(a) ao FinTrack!"}) });

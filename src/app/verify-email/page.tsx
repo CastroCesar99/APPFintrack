@@ -60,8 +60,16 @@ export default function VerifyEmailPage() {
   };
 
   const handleResendVerification = async () => {
-    if (!user) return;
+    // Get the current user directly from Firebase Auth
+    const currentUser = auth.currentUser;
+
+    if (!currentUser) {
+      // Handle the case where there is no authenticated user
+      toast({ title: translate({en: "Error", pt: "Erro"}), description: translate({en: "No authenticated user found.", pt: "Nenhum usuário autenticado encontrado."}), variant: "destructive" });
+      return;
+    }
     setIsResending(true);
+
     try {
       await sendEmailVerification(user);
       toast({

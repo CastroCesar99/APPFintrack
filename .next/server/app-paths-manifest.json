@@ -1,8 +1,8 @@
 {
+  "/favicon.ico/route": "app/favicon.ico/route.js",
   "/login/page": "app/login/page.js",
   "/onboarding/page": "app/onboarding/page.js",
   "/page": "app/page.js",
-  "/reports/page": "app/reports/page.js",
   "/settings/page": "app/settings/page.js",
   "/settings/payment-methods/page": "app/settings/payment-methods/page.js"
 }

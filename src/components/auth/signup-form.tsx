@@ -17,7 +17,7 @@ import { Input } from "@/components/ui/input";
 import { useAuth } from "@/context/auth-context";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { updateProfile, sendEmailVerification } from "firebase/auth";
 import { useLanguage } from '@/context/language-context';
 import { db } from "@/lib/firebase";
