@@ -620,7 +620,7 @@ export default function ManagePaymentMethodsPage() {
                   ? translate({en: "This is a predefined method. Editing it will create a custom version. Deleting it will hide it from selection.", pt: "Este é um método pré-definido. Editá-lo criará uma versão personalizada. Excluí-lo irá ocultá-la da seleção."})
                   : translate({en: "This action might affect existing transactions if the name changes.", pt: "Esta ação pode afetar transações existentes se o nome mudar."})
                 }
-                 {isTrulyPredefinedMethod(methodToDelete.name as string) && !userDefinedPaymentMethods.find(pm => pm.name === methodToDelete.name) ? 
+                 {isTrulyPredefinedMethod(methodToDelete.name as string) && !displayPaymentMethods.find(pm => pm.name === methodToDelete.name) ? 
                     translate({ en: " Deleting a predefined method will hide it from future selections.", pt: " Excluir um método pré-definido o ocultará de seleções futuras."})
                     : translate({ en: " Deleting a custom method will remove it permanently.", pt: " Excluir um método personalizado o removerá permanentemente."})
                  }

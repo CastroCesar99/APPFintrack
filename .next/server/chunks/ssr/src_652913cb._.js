@@ -3134,7 +3134,7 @@ function ManagePaymentMethodsPage() {
                                             en: "This action might affect existing transactions if the name changes.",
                                             pt: "Esta ação pode afetar transações existentes se o nome mudar."
                                         }),
-                                        isTrulyPredefinedMethod(methodToDelete.name) && !userDefinedPaymentMethods.find((pm)=>pm.name === methodToDelete.name) ? translate({
+                                        isTrulyPredefinedMethod(methodToDelete.name) && !displayPaymentMethods.find((pm)=>pm.name === methodToDelete.name) ? translate({
                                             en: " Deleting a predefined method will hide it from future selections.",
                                             pt: " Excluir um método pré-definido o ocultará de seleções futuras."
                                         }) : translate({
