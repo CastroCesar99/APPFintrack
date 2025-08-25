@@ -6,5 +6,6 @@
  */
 export const whitelistedEmails: string[] = [
   "cesar@castromanagement.com",
+  "cesar.castro2020@icloud.com",
   // Add other admin or special user emails here
 ];

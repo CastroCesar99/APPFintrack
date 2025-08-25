@@ -5,31 +5,16 @@
  * This flow wraps the createUserSubscription server action.
  */
 
-import { ai } from '@/ai/genkit';
-import {
-  createUserSubscription,
-  CreateUserSubscriptionInputSchema,
-  CreateUserSubscriptionOutputSchema,
-  type CreateUserSubscriptionInput,
-  type CreateUserSubscriptionOutput,
-} from './create-mercadopago-subscription';
-
-const createSubscriptionFlow = ai.defineFlow(
-  {
-    name: 'createSubscriptionFlow',
-    inputSchema: CreateUserSubscriptionInputSchema,
-    outputSchema: CreateUserSubscriptionOutputSchema,
-  },
-  async (input) => {
-    // This flow acts as a wrapper around the existing server action.
-    // This allows it to be potentially chained with other AI-related steps in the future.
-    return await createUserSubscription(input);
-  }
-);
+// This file is no longer used as Mercado Pago subscription creation
+// has been removed.
 
 /**
- * An exported function that can be called from client components to invoke the flow.
+ * This function is no longer used as Mercado Pago subscription creation
+ * has been removed.
+ *
+ * @deprecated
  */
-export async function createSubscription(input: CreateUserSubscriptionInput): Promise<CreateUserSubscriptionOutput> {
-  return createSubscriptionFlow(input);
+export async function createSubscription(...args: any[]): Promise<any> {
+  console.warn("createSubscription function called, but Mercado Pago subscription is removed. This function is deprecated.");
+  return { success: false, message: "Mercado Pago subscription functionality has been removed." };
 }
