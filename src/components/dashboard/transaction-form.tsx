@@ -2,7 +2,7 @@
 "use client";
 import type React from 'react';
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm, Controller } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/form";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label"; // Added import
+import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { CalendarIcon } from "lucide-react";
@@ -23,13 +23,12 @@ import { format as formatDateFns, parse as parseDateFns, addMonths, subMonths } 
 import { ptBR, enUS } from 'date-fns/locale';
 import { cn } from "@/lib/utils";
 import type { Transaction, TransactionType, ExpenseNature, CategoryName, DisplayCategory, DisplayPaymentMethod, ExpenseType } from "@/types";
-// getCategoryDisplayLabel and getPaymentMethodDisplayLabel are not used here, they are used by parent.
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useLanguage } from "@/context/language-context";
 import { Calendar } from "@/components/ui/calendar";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
-
+// Form Schemas (Input and Output with validation)
 const formInputSchema = z.object({
   description: z.string().min(2, { message: "A descrição deve ter pelo menos 2 caracteres." }).max(100, {message: "A descrição não pode exceder 100 caracteres."}),
   amount: z.string().optional(), 
@@ -95,60 +94,63 @@ const formOutputSchema = z.object({
     path: ["installments"],
 });
 
-
+// Type definitions for form values
 type TransactionFormInputValues = z.infer<typeof formInputSchema>;
 type TransactionFormOutputValues = z.infer<typeof formOutputSchema>;
 
+// Component Props Interface
 interface TransactionFormProps {
   onSave: (data: Omit<Transaction, "id" | "userId" | "createdAt" | "updatedAt">, id?: string) => Promise<void>;
   initialType: TransactionType;
   defaultDate?: Date;
-  userCategories?: DisplayCategory[];
-  userPaymentMethods?: DisplayPaymentMethod[];
+  userCategories: DisplayCategory[];
+  userPaymentMethods: DisplayPaymentMethod[];
   transactionToEdit?: Transaction | null;
 }
 
+// The form component
 export function TransactionForm({
   onSave,
   initialType,
   defaultDate = new Date(),
-  userCategories = [],
-  userPaymentMethods = [],
+  userCategories,
+  userPaymentMethods,
   transactionToEdit = null,
 }: TransactionFormProps) {
   const { language, translate } = useLanguage();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const formKey = useMemo(() => transactionToEdit?.id || 'new-transaction', [transactionToEdit]);
+
+  // Correctly filter categories: include categories that match the type OR have no type defined.
+  const availableCategories = userCategories.filter(cat => cat.type === initialType || !cat.type);
 
   const form = useForm<TransactionFormInputValues>({
     resolver: zodResolver(formInputSchema),
     defaultValues: useMemo(() => {
-        if (transactionToEdit) {
-            const parsedDate = transactionToEdit.date ? parseDateFns(transactionToEdit.date, "yyyy-MM-dd", new Date(0)) : defaultDate;
-            const parsedRecurrenceEndDate = transactionToEdit.recurrenceEndDate ? parseDateFns(transactionToEdit.recurrenceEndDate, "yyyy-MM-dd", new Date(0)) : undefined;
-
-            return {
-                description: transactionToEdit.description || "",
-                amount: transactionToEdit.amount !== undefined ? String(transactionToEdit.amount) : "",
-                category: transactionToEdit.category as string || "",
-                date: parsedDate,
-                effectiveMonth: transactionToEdit.effectiveMonth || formatDateFns(defaultDate, "yyyy-MM"),
-                expenseType: transactionToEdit.expenseType || (initialType === 'expense' ? 'upfront' : undefined),
-                paymentMethod: transactionToEdit.paymentMethod || undefined,
-                installments: transactionToEdit.installments !== undefined ? String(transactionToEdit.installments) : "",
-                isRecurring: transactionToEdit.isRecurring ?? (initialType === 'expense' ? transactionToEdit.expenseType === 'recurring' : false),
-                expenseNature: transactionToEdit.expenseNature || undefined,
-                recurrenceEndDate: parsedRecurrenceEndDate,
-            };
-        }
+      if (transactionToEdit) {
+        const parsedDate = transactionToEdit.date ? parseDateFns(transactionToEdit.date, "yyyy-MM-dd", new Date(0)) : defaultDate;
+        const parsedRecurrenceEndDate = transactionToEdit.recurrenceEndDate ? parseDateFns(transactionToEdit.recurrenceEndDate, "yyyy-MM-dd", new Date(0)) : undefined;
         return {
-            description: "", amount: "", category: "",
-            date: defaultDate,
-            effectiveMonth: formatDateFns(defaultDate, "yyyy-MM"),
-            expenseType: 'upfront', paymentMethod: "", installments: "",
-            isRecurring: false, expenseNature: undefined,
-            recurrenceEndDate: undefined,
+          description: transactionToEdit.description || "",
+          amount: transactionToEdit.amount !== undefined ? String(transactionToEdit.amount) : "",
+          category: transactionToEdit.category as string || "",
+          date: parsedDate,
+          effectiveMonth: transactionToEdit.effectiveMonth || formatDateFns(defaultDate, "yyyy-MM"),
+          expenseType: transactionToEdit.expenseType || (initialType === 'expense' ? 'upfront' : undefined),
+          paymentMethod: transactionToEdit.paymentMethod || undefined,
+          installments: transactionToEdit.installments !== undefined ? String(transactionToEdit.installments) : "",
+          isRecurring: transactionToEdit.isRecurring ?? (initialType === 'expense' ? transactionToEdit.expenseType === 'recurring' : false),
+          expenseNature: transactionToEdit.expenseNature || undefined,
+          recurrenceEndDate: parsedRecurrenceEndDate,
         };
+      }
+      return {
+        description: "", amount: "", category: "",
+        date: defaultDate,
+        effectiveMonth: formatDateFns(defaultDate, "yyyy-MM"),
+        expenseType: 'upfront', paymentMethod: "", installments: "",
+        isRecurring: false, expenseNature: undefined,
+        recurrenceEndDate: undefined,
+      };
     }, [transactionToEdit, defaultDate, initialType]),
   });
 
@@ -162,10 +164,6 @@ export function TransactionForm({
       }
     }
   }, [watchedExpenseType, initialType, form]);
-
-  const availableCategories = useMemo(() => {
-    return userCategories.filter(cat => cat.type === initialType);
-  }, [userCategories, initialType]);
   
   const monthOptions = useMemo(() => {
     const locale = language === 'pt' ? ptBR : enUS;
@@ -179,53 +177,37 @@ export function TransactionForm({
     ];
   }, [defaultDate, language]);
 
-
   async function onSubmit(data: TransactionFormInputValues) {
     setIsSubmitting(true);
-    const dataToParse = { ...data };
-    
     let validatedValues: TransactionFormOutputValues;
     try {
-      validatedValues = formOutputSchema.parse(dataToParse);
+      validatedValues = formOutputSchema.parse(data);
     } catch (error) {
       if (error instanceof z.ZodError) {
         error.errors.forEach(err => {
-          if (err.path.length > 0) {
-            const fieldName = err.path[0] as keyof TransactionFormInputValues;
-            form.setError(fieldName, { type: "manual", message: err.message });
-          } else {
-             form.setError("description", { type: "manual", message: translate({en: "Invalid data submitted.", pt: "Dados inválidos enviados."}) + ` (${err.message})` });
-          }
+          const fieldName = err.path[0] as keyof TransactionFormInputValues;
+          form.setError(fieldName, { type: "manual", message: err.message });
         });
       }
       setIsSubmitting(false);
       return;
     }
 
-    const finalAmount = validatedValues.amount; 
-    const finalInstallments = validatedValues.installments;
-    const finalExpenseType = validatedValues.expenseType;
-    let finalIsRecurringForSave: boolean;
-    if (initialType === 'expense') {
-      finalIsRecurringForSave = finalExpenseType === 'recurring';
-    } else {
-      finalIsRecurringForSave = data.isRecurring ?? false;
-    }
-
     const transactionData: Omit<Transaction, "id" | "userId" | "createdAt" | "updatedAt"> = {
       description: validatedValues.description,
-      amount: finalAmount,
+      amount: validatedValues.amount,
       type: initialType,
       category: validatedValues.category as CategoryName,
       date: formatDateFns(validatedValues.date, "yyyy-MM-dd"),
       effectiveMonth: validatedValues.effectiveMonth,
       paymentMethod: initialType === 'expense' ? validatedValues.paymentMethod : undefined,
-      installments: initialType === 'expense' && finalExpenseType === 'installment' ? finalInstallments : undefined,
-      isRecurring: finalIsRecurringForSave,
+      installments: initialType === 'expense' && validatedValues.expenseType === 'installment' ? validatedValues.installments : undefined,
+      isRecurring: initialType === 'income' ? data.isRecurring ?? false : validatedValues.expenseType === 'recurring',
       expenseNature: initialType === 'expense' ? validatedValues.expenseNature : undefined,
-      expenseType: initialType === 'expense' ? finalExpenseType : undefined,
-      recurrenceEndDate: finalIsRecurringForSave && validatedValues.recurrenceEndDate ? formatDateFns(validatedValues.recurrenceEndDate, "yyyy-MM-dd") : undefined,
+      expenseType: initialType === 'expense' ? validatedValues.expenseType : undefined,
+      recurrenceEndDate: (initialType === 'income' ? data.isRecurring : validatedValues.expenseType === 'recurring') && validatedValues.recurrenceEndDate ? formatDateFns(validatedValues.recurrenceEndDate, "yyyy-MM-dd") : undefined,
     };
+    
     try {
       await onSave(transactionData, transactionToEdit?.id);
     } catch (error) {
@@ -235,6 +217,7 @@ export function TransactionForm({
     }
   }
 
+  // Translation constants
   const descriptionLabel = translate({ en: "Description", pt: "Descrição" });
   const descriptionPlaceholder = translate({ en: "e.g., Coffee, Salary", pt: "ex: Café, Salário" });
   const amountLabel = watchedExpenseType === "installment" ? translate({ en: "Installment Amount", pt: "Valor da Parcela" }) : translate({ en: "Amount", pt: "Valor" });
@@ -263,215 +246,84 @@ export function TransactionForm({
 
  return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 md:space-y-6" key={formKey}>
-        <FormField
-          control={form.control}
-          name="effectiveMonth"
-          render={({ field }) => (
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 md:space-y-6">
+        <FormField control={form.control} name="effectiveMonth" render={({ field }) => (
             <FormItem>
               <FormLabel>{effectiveMonthLabel}</FormLabel>
-              <Select onValueChange={field.onChange} value={field.value} >
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder={translate({ en: "Select entry month", pt: "Selecione o mês de lançamento" })} />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {monthOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
+              <Select onValueChange={field.onChange} value={field.value}>
+                <FormControl><SelectTrigger><SelectValue placeholder={translate({ en: "Select entry month", pt: "Selecione o mês de lançamento" })} /></SelectTrigger></FormControl>
+                <SelectContent>{monthOptions.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
               </Select>
               <FormMessage />
             </FormItem>
-          )}
-        />
-        
-        <FormField
-          control={form.control}
-          name="description"
-          render={({ field }) => (
+        )}/>
+        <FormField control={form.control} name="description" render={({ field }) => (
             <FormItem>
               <FormLabel>{descriptionLabel}</FormLabel>
-              <FormControl>
-                <Input placeholder={descriptionPlaceholder} {...field} />
-              </FormControl>
+              <FormControl><Input placeholder={descriptionPlaceholder} {...field} /></FormControl>
               <FormMessage />
             </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="amount"
-          render={({ field }) => (
+        )}/>
+        <FormField control={form.control} name="amount" render={({ field }) => (
             <FormItem>
               <FormLabel>{amountLabel}</FormLabel>
-              <FormControl>
-                <Input
-                  type="text"
-                  inputMode="decimal"
-                  placeholder="0,00"
-                  {...field}
-                  value={field.value || ""}
-                  onChange={(e) => {
-                    const inputValue = e.target.value;
-                    if (/^[0-9]*([,.][0-9]{0,2})?$/.test(inputValue) || inputValue === "") {
-                       field.onChange(inputValue);
-                    }
-                  }}
-                />
-              </FormControl>
+              <FormControl><Input type="text" inputMode="decimal" placeholder="0,00" {...field} value={field.value || ""} onChange={e => /^[0-9]*([,.][0-9]{0,2})?$/.test(e.target.value) && field.onChange(e.target.value)} /></FormControl>
               <FormMessage />
             </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="category"
-          render={({ field }) => (
+        )}/>
+        <FormField control={form.control} name="category" render={({ field }) => (
             <FormItem>
               <FormLabel>{categoryLabel}</FormLabel>
-              <Select
-                onValueChange={field.onChange}
-                value={field.value}
-                disabled={availableCategories.length === 0}
-              >
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder={categoryPlaceholder} />
-                  </SelectTrigger>
-                </FormControl>
+              <Select onValueChange={field.onChange} value={field.value} disabled={availableCategories.length === 0}>
+                <FormControl><SelectTrigger><SelectValue placeholder={categoryPlaceholder} /></SelectTrigger></FormControl>
                 <SelectContent>
-                  {availableCategories.map((cat) => (
+                  {availableCategories.map(cat => (
                     <SelectItem key={cat.name} value={cat.name}>
                       {language === 'pt' ? cat.label.pt : cat.label.en}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              {availableCategories.length === 0 && (
-                 <p className="text-xs text-muted-foreground mt-1">
-                  {initialType === 'income' ? translate({pt: "Nenhuma categoria de receita disponível.", en: "No income categories available."}) : translate({pt: "Nenhuma categoria de despesa disponível.", en: "No expense categories available."})}
-                </p>
-              )}
+              {availableCategories.length === 0 && <p className="text-xs text-muted-foreground mt-1">{initialType === 'income' ? translate({pt: "Nenhuma categoria de receita disponível.", en: "No income categories available."}) : translate({pt: "Nenhuma categoria de despesa disponível.", en: "No expense categories available."})}</p>}
               <FormMessage />
             </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="date"
-          render={({ field }) => (
+        )}/>
+        <FormField control={form.control} name="date" render={({ field }) => (
             <FormItem className="flex flex-col">
               <FormLabel>{dateLabel}</FormLabel>
               <Popover>
-                <PopoverTrigger asChild>
-                  <FormControl>
-                    <Button
-                      variant={"outline"}
-                      className={cn(
-                        "w-full pl-3 text-left font-normal",
-                        !field.value && "text-muted-foreground"
-                      )}
-                    >
-                      {field.value ? (
-                        formatDateFns(field.value, "PPP", { locale: language === 'pt' ? ptBR : enUS})
-                      ) : (
-                        <span>{pickDateLabel}</span>
-                      )}
-                      <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                    </Button>
-                  </FormControl>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={field.value}
-                    onSelect={field.onChange}
-                    defaultMonth={field.value || defaultDate || new Date()}
-                    disabled={(date) =>
-                      date > new Date(new Date().setFullYear(new Date().getFullYear() + 5)) || date < new Date("1900-01-01")
-                    }
-                    initialFocus
-                  />
-                </PopoverContent>
+                <PopoverTrigger asChild><FormControl><Button variant={"outline"} className={cn("w-full pl-3 text-left font-normal", !field.value && "text-muted-foreground")} >{field.value ? formatDateFns(field.value, "PPP", { locale: language === 'pt' ? ptBR : enUS}) : <span>{pickDateLabel}</span>}<CalendarIcon className="ml-auto h-4 w-4 opacity-50" /></Button></FormControl></PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value} onSelect={field.onChange} defaultMonth={field.value || defaultDate} disabled={(date) => date > new Date(new Date().setFullYear(new Date().getFullYear() + 5)) || date < new Date("1900-01-01")} initialFocus /></PopoverContent>
               </Popover>
               <FormMessage />
             </FormItem>
-          )}
-        />
+        )}/>
         {initialType === "income" && (
-          <FormField
-            control={form.control}
-            name="isRecurring"
-            render={({ field }) => (
+          <FormField control={form.control} name="isRecurring" render={({ field }) => (
             <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-3">
-              <FormControl>
-                <Checkbox
-                  checked={field.value || false}
-                  onCheckedChange={field.onChange}
-                  id="isRecurringIncome"
-                />
-              </FormControl>
-              <div className="space-y-1 leading-none">
-                <Label htmlFor="isRecurringIncome" className="font-normal">{applyToAllMonthsLabel}</Label>
-              </div>
+              <FormControl><Checkbox checked={field.value || false} onCheckedChange={field.onChange} id="isRecurringIncome" /></FormControl>
+              <div className="space-y-1 leading-none"><Label htmlFor="isRecurringIncome" className="font-normal">{applyToAllMonthsLabel}</Label></div>
               <FormMessage />
-            </FormItem>)}
-          />
+            </FormItem>)}/>
         )}
         {initialType === "expense" && (
           <>
-            <FormField
-              control={form.control}
-              name="paymentMethod"
-              render={({ field }) => (
+            <FormField control={form.control} name="paymentMethod" render={({ field }) => (
               <FormItem>
                 <FormLabel>{paymentMethodLabel}</FormLabel>
-                <Select
-                  onValueChange={field.onChange}
-                  value={field.value || ""}
-                  disabled={userPaymentMethods.length === 0}
-                >
-                  <FormControl>
-                    <SelectTrigger>
-                        <SelectValue placeholder={paymentMethodPlaceholder} />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {userPaymentMethods.map((pm) => (
-                        <SelectItem key={pm.name} value={pm.name}>
-                           {language === 'pt' ? pm.label.pt : pm.label.en}
-                        </SelectItem>
-                    ))}
-                  </SelectContent>
+                <Select onValueChange={field.onChange} value={field.value || ""} disabled={userPaymentMethods.length === 0}>
+                  <FormControl><SelectTrigger><SelectValue placeholder={paymentMethodPlaceholder} /></SelectTrigger></FormControl>
+                  <SelectContent>{userPaymentMethods.map(pm => <SelectItem key={pm.name} value={pm.name}>{language === 'pt' ? pm.label.pt : pm.label.en}</SelectItem>)}</SelectContent>
                 </Select>
-                {userPaymentMethods.length === 0 && (
-                   <p className="text-xs text-muted-foreground mt-1">
-                    {translate({pt: "Nenhum método de pagamento disponível.", en: "No payment methods available."})}
-                  </p>
-                )}
+                {userPaymentMethods.length === 0 && <p className="text-xs text-muted-foreground mt-1">{translate({pt: "Nenhum método de pagamento disponível.", en: "No payment methods available."})}</p>}
                 <FormMessage />
               </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="expenseType"
-              render={({ field }) => (
+            )}/>
+            <FormField control={form.control} name="expenseType" render={({ field }) => (
                 <FormItem>
                   <FormLabel>{expenseTypeLabel}</FormLabel>
-                    <Select
-                      onValueChange={(value) => field.onChange(value as ExpenseType | undefined)}
-                      value={field.value || "upfront"}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder={expenseTypePlaceholder} />
-                        </SelectTrigger>
-                      </FormControl>
+                    <Select onValueChange={(value) => field.onChange(value as ExpenseType | undefined)} value={field.value || "upfront"}>
+                      <FormControl><SelectTrigger><SelectValue placeholder={expenseTypePlaceholder} /></SelectTrigger></FormControl>
                       <SelectContent>
                         <SelectItem value="upfront">{upfrontLabel}</SelectItem>
                         <SelectItem value="installment">{installmentLabel}</SelectItem>
@@ -479,117 +331,50 @@ export function TransactionForm({
                       </SelectContent>
                     </Select>
                     <FormMessage />
-                  </FormItem>
-              )}
-            />
-            {form.watch('expenseType') === "installment" && (
-              <FormField
-                control={form.control}
-                name="installments"
-                render={({ field }) => (
+                </FormItem>
+            )}/>
+            {watchedExpenseType === "installment" && (
+              <FormField control={form.control} name="installments" render={({ field }) => (
                   <FormItem>
                     <FormLabel>{installmentsNumberLabel}</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="text"
-                        inputMode="numeric"
-                        placeholder={installmentsNumberPlaceholder}
-                        {...field}
-                        value={field.value || ""}
-                        onChange={(e) => {
-                          const inputValue = e.target.value;
-                          if (/^[0-9]*$/.test(inputValue) || inputValue === "") {
-                            field.onChange(inputValue);
-                          }
-                        }}
-                      />
-                    </FormControl>
+                    <FormControl><Input type="text" inputMode="numeric" placeholder={installmentsNumberPlaceholder} {...field} value={field.value || ""} onChange={e => /^[0-9]*$/.test(e.target.value) && field.onChange(e.target.value)} /></FormControl>
                     <FormMessage />
                   </FormItem>
-                )}
-              />
+              )}/>
             )}
-             <FormField
-              control={form.control}
-              name="expenseNature"
-              render={({ field }) => (
+             <FormField control={form.control} name="expenseNature" render={({ field }) => (
                 <FormItem className="space-y-2">
                   <FormLabel>{expenseNatureLabel}</FormLabel>
                   <FormControl>
-                    <RadioGroup
-                      onValueChange={field.onChange}
-                      value={field.value || undefined}
-                      className="flex flex-row items-center space-x-3 pt-1"
-                    >
+                    <RadioGroup onValueChange={field.onChange} value={field.value || undefined} className="flex flex-row items-center space-x-3 pt-1">
                       <FormItem className="flex items-center space-x-1.5">
-                        <FormControl>
-                          <RadioGroupItem value="fixed" id={`nature-fixed-${transactionToEdit?.id || 'add'}`}/>
-                        </FormControl>
-                        <Label htmlFor={`nature-fixed-${transactionToEdit?.id || 'add'}`} className="font-normal">
-                          {fixedLabel}
-                        </Label>
+                        <FormControl><RadioGroupItem value="fixed" id={`nature-fixed-${transactionToEdit?.id || 'add'}`}/></FormControl>
+                        <Label htmlFor={`nature-fixed-${transactionToEdit?.id || 'add'}`} className="font-normal">{fixedLabel}</Label>
                       </FormItem>
                       <FormItem className="flex items-center space-x-1.5">
-                        <FormControl>
-                          <RadioGroupItem value="variable" id={`nature-variable-${transactionToEdit?.id || 'add'}`}/>
-                        </FormControl>
-                        <Label htmlFor={`nature-variable-${transactionToEdit?.id || 'add'}`} className="font-normal">
-                          {variableLabel}
-                        </Label>
+                        <FormControl><RadioGroupItem value="variable" id={`nature-variable-${transactionToEdit?.id || 'add'}`}/></FormControl>
+                        <Label htmlFor={`nature-variable-${transactionToEdit?.id || 'add'}`} className="font-normal">{variableLabel}</Label>
                       </FormItem>
                     </RadioGroup>
                   </FormControl>
                   <FormMessage />
                 </FormItem>
-              )}
-            />
+            )}/>
           </>
         )}
-
         {(form.watch('isRecurring') || false) && (
-            <FormField
-            control={form.control}
-            name="recurrenceEndDate"
-            render={({ field }) => (
+            <FormField control={form.control} name="recurrenceEndDate" render={({ field }) => (
                 <FormItem className="flex flex-col">
                 <FormLabel>{recurrenceEndDateLabel} {translate({en: '(Optional)', pt: '(Opcional)'})}</FormLabel>
                 <Popover>
-                    <PopoverTrigger asChild>
-                    <FormControl>
-                        <Button
-                        variant={"outline"}
-                        className={cn(
-                            "w-full pl-3 text-left font-normal",
-                            !field.value && "text-muted-foreground"
-                        )}
-                        >
-                        {field.value ? (
-                            formatDateFns(field.value, "PPP", { locale: language === 'pt' ? ptBR : enUS})
-                        ) : (
-                            <span>{pickDateLabel}</span>
-                        )}
-                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                        </Button>
-                    </FormControl>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                        mode="single"
-                        selected={field.value}
-                        onSelect={field.onChange}
-                        defaultMonth={field.value || defaultDate || new Date()}
-                        initialFocus
-                    />
-                    </PopoverContent>
+                    <PopoverTrigger asChild><FormControl><Button variant={"outline"} className={cn("w-full pl-3 text-left font-normal", !field.value && "text-muted-foreground")} >{field.value ? formatDateFns(field.value, "PPP", { locale: language === 'pt' ? ptBR : enUS}) : <span>{pickDateLabel}</span>}<CalendarIcon className="ml-auto h-4 w-4 opacity-50" /></Button></FormControl></PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value} onSelect={field.onChange} defaultMonth={field.value || defaultDate} initialFocus /></PopoverContent>
                 </Popover>
                 <FormMessage />
                 </FormItem>
-            )}
-            />
+            )}/>
         )}
-        <Button type="submit" className="w-full bg-primary hover:bg-primary/90" disabled={isSubmitting}>
-          {submitButtonLabel}
-        </Button>
+        <Button type="submit" className="w-full bg-primary hover:bg-primary/90" disabled={isSubmitting}>{submitButtonLabel}</Button>
       </form>
     </Form>
   );

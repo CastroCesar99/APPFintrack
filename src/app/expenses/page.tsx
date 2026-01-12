@@ -184,8 +184,8 @@ export default function ExpensesPage() {
   }, [userId, isClient, authLoading, language, toast, translate]);
 
 
-  // Fetch all transactions
-  useEffect(() => {
+   // Fetch all transactions
+   useEffect(() => {
     if (!userId || authLoading || !isClient) {
       if (!authLoading && !userId && isClient) router.push('/login');
       setAllTransactions([]);
@@ -202,6 +202,12 @@ export default function ExpensesPage() {
         const data = docSnap.data();
         let dateString = data.date; 
         let effectiveMonthString = data.effectiveMonth;
+        let recurrenceEndDateString = data.recurrenceEndDate;
+
+// Ensure recurrenceEndDate is a string if it's a Timestamp
+if (data.recurrenceEndDate && data.recurrenceEndDate instanceof Timestamp) {
+  recurrenceEndDateString = formatDateFns(data.recurrenceEndDate.toDate(), "yyyy-MM-dd");
+}
 
         if (data.date && typeof data.date === 'object' && data.date instanceof Timestamp) {
           dateString = formatDateFns(data.date.toDate(), "yyyy-MM-dd");
@@ -257,7 +263,7 @@ export default function ExpensesPage() {
           expenseType: data.expenseType,
           installments: data.installments,
           expenseNature: data.expenseNature,
-          recurrenceEndDate: data.recurrenceEndDate,
+          recurrenceEndDate: recurrenceEndDateString, // Use the processed string
         } as Transaction;
       });
       setAllTransactions(fetchedTransactions);

@@ -49,12 +49,12 @@ export function QuickActionsSection({
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [showSubscriptionAlert, setShowSubscriptionAlert] = useState(false);
   const [formInitialType, setFormInitialType] = useState<TransactionType>("expense");
-  
   const [dateForForm, setDateForForm] = useState<Date>(currentDisplayedDate);
+  // Add a counter to force re-render
+  const [formRenderKey, setFormRenderKey] = useState(0);
 
   useEffect(() => {
     if (!isFormOpen) {
-      console.log("QuickActionsSection TRACER --- Dialog closed or currentDisplayedDate changed while closed. Syncing dateForForm:", currentDisplayedDate.toISOString());
       setDateForForm(currentDisplayedDate);
     }
   }, [currentDisplayedDate, isFormOpen]);
@@ -64,9 +64,10 @@ export function QuickActionsSection({
       setShowSubscriptionAlert(true);
       return;
     }
-    console.log("QuickActionsSection TRACER --- handleOpenDialog. Type:", type, "currentDisplayedDate prop:", currentDisplayedDate.toISOString());
     setFormInitialType(type);
-    setDateForForm(currentDisplayedDate); 
+    setDateForForm(currentDisplayedDate);
+    // Increment key to force complete re-mount of the form component
+    setFormRenderKey(prev => prev + 1);
     setIsFormOpen(true);
   };
 
@@ -86,9 +87,6 @@ export function QuickActionsSection({
   const newTransactionTitle = translate({ en: "New Transaction", pt: "Nova Transação" });
   const newTransactionDescription = translate({ en: "Fill in the details for your new transaction.", pt: "Preencha os detalhes da sua nova transação." });
 
-  const formKey = dateForForm.toISOString() + formInitialType;
-  console.log(`QuickActionsSection TRACER --- Rendering TransactionForm with formInitialType: '${formInitialType}', defaultDate: '${dateForForm.toISOString()}', userCategories length: ${userCategories?.length}, First category type if exists: ${userCategories?.[0]?.type}, Form key: ${formKey}`);
-  
   return (
     <Card className="shadow-md bg-muted/50">
       <CardHeader>
@@ -118,13 +116,13 @@ export function QuickActionsSection({
             </DialogHeader>
             {isFormOpen && (
               <TransactionForm
+                key={formRenderKey} // Unique key forces re-mount every time dialog opens
                 onSave={handleFormSubmit}
                 initialType={formInitialType}
                 defaultDate={dateForForm} 
                 userCategories={userCategories} 
                 userPaymentMethods={userPaymentMethods} 
                 transactionToEdit={null}
-                key={formKey} 
               />
             )}
           </DialogContent>
