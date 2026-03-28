@@ -763,9 +763,11 @@ export default function ReportsPage() {
           <CardHeader className="flex flex-row items-start gap-4 space-y-0">
             <Sparkles className="h-8 w-8 text-primary flex-shrink-0 mt-1" />
             <div className="flex-grow">
-              <CardTitle>{translate({ en: "Financial Insights by AI", pt: "Insights Financeiros por IA" })}</CardTitle>
+              <CardTitle>
+                {translate({ en: "Arya — AI Financial Insights", pt: "Arya — Insights Financeiros" })}
+              </CardTitle>
               <CardDescription className="text-wrap">
-                {translate({ en: "AI-generated summary and advice for", pt: "Resumo e conselhos gerados por IA para" })} {displayedMonthYearLabel}.
+                {translate({ en: "Personalized summary and advice for", pt: "Resumo e conselhos personalizados para" })} {displayedMonthYearLabel}.
               </CardDescription>
             </div>
             <Button
@@ -828,8 +830,8 @@ export default function ReportsPage() {
                 <Sparkles className="h-10 w-10 text-muted-foreground/50" />
                 <p className="text-sm text-muted-foreground">
                   {transactionsForDisplayedPeriod.length === 0
-                    ? translate({ en: 'Add transactions this month to generate AI insights.', pt: 'Adicione transações neste mês para gerar insights de IA.' })
-                    : translate({ en: 'Click "Generate" to get personalized financial insights powered by Gemini AI.', pt: 'Clique em "Gerar" para obter insights financeiros personalizados com Gemini AI.' })
+                    ? translate({ en: 'Add transactions this month so Arya can analyze them.', pt: 'Adicione transações neste mês para que a Arya possa analisá-las.' })
+                    : translate({ en: 'Click "Generate" to get personalized financial insights from Arya.', pt: 'Clique em "Gerar" para obter insights financeiros personalizados da Arya.' })
                   }
                 </p>
               </div>

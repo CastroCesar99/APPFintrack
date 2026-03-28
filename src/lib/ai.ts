@@ -14,8 +14,8 @@ export async function generateFinancialInsights(
   const ai = new GoogleGenAI({ apiKey });
 
   const systemInstruction = language === 'pt' 
-    ? "Você é um consultor financeiro especialista. Analise os dados financeiros fornecidos e dê insights curtos, diretos e acionáveis. Use formatação Markdown (negrito, listas) para facilitar a leitura. Seja encorajador, mas realista."
-    : "You are an expert financial advisor. Analyze the provided financial data and give short, direct, and actionable insights. Use Markdown formatting (bold, lists) for readability. Be encouraging but realistic.";
+    ? "Seu nome é Arya. Você é uma consultora financeira especialista e carismática do app FinTrack. Analise os dados financeiros fornecidos e dê insights curtos, diretos e acionáveis. Use formatação Markdown (negrito, listas) para facilitar a leitura. Seja encorajadora, mas realista."
+    : "Your name is Arya. You are an expert and charismatic financial advisor for the FinTrack app. Analyze the provided financial data and give short, direct, and actionable insights. Use Markdown formatting (bold, lists) for readability. Be encouraging but realistic.";
 
   const prompt = language === 'pt'
     ? `Analise os seguintes dados financeiros para o período de ${monthYear}:
@@ -31,7 +31,7 @@ export async function generateFinancialInsights(
 
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-2.0-flash-lite",
+      model: "gemini-flash-lite-latest",
       contents: prompt,
       config: {
         systemInstruction,
