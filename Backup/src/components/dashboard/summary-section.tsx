@@ -1,4 +1,3 @@
-
 "use client";
 import type { Transaction } from "@/types";
 import { SummaryCard } from "./summary-card";
@@ -6,7 +5,7 @@ import { BudgetSummaryCard } from "./budget-summary-card";
 import { formatCurrency } from "@/lib/utils";
 import { DollarSign, TrendingUp, TrendingDown, ListChecks } from "lucide-react";
 import { useLanguage } from "@/context/language-context";
-import { useMemo } from 'react'; // Import useMemo
+import { useMemo } from 'react';
 
 interface SummarySectionProps {
   transactionsForDisplayedPeriod: Transaction[];
@@ -14,7 +13,11 @@ interface SummarySectionProps {
   displayedMonthYearLabel: string;
 }
 
-export function SummarySection({ transactionsForDisplayedPeriod, monthlyBudget, displayedMonthYearLabel }: SummarySectionProps) {
+export function SummarySection({ 
+  transactionsForDisplayedPeriod = [], // Added default value here
+  monthlyBudget, 
+  displayedMonthYearLabel 
+}: SummarySectionProps) {
   const { translate } = useLanguage();
   console.log("SummarySection: TRACER --- Received props: displayedMonthYearLabel:", displayedMonthYearLabel, "transactionsForDisplayedPeriod.length:", transactionsForDisplayedPeriod.length);
 
@@ -33,8 +36,9 @@ export function SummarySection({ transactionsForDisplayedPeriod, monthlyBudget, 
   const netCashFlowThisPeriod = totalIncomeThisPeriod - totalExpensesThisPeriod;
   console.log("SummarySection: TRACER --- Calculated totals: totalIncomeThisPeriod:", totalIncomeThisPeriod, "totalExpensesThisPeriod:", totalExpensesThisPeriod);
 
+
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-4">
       <SummaryCard
         title={`${translate({ en: "Total Income", pt: "Receita Total" })}`}
         value={formatCurrency(totalIncomeThisPeriod)}

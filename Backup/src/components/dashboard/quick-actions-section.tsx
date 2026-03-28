@@ -2,6 +2,7 @@
 "use client";
 import type React from 'react';
 import { useState, useEffect } from "react";
+import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { PlusCircle, SlidersHorizontal } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,48 +13,67 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { TransactionForm } from "./transaction-form"; 
 import type { Transaction, TransactionType, DisplayCategory, DisplayPaymentMethod } from "@/types"; 
 import { useLanguage } from "@/context/language-context";
 import Link from "next/link"; 
 
 interface QuickActionsSectionProps {
-  onSave: (transactionData: Omit<Transaction, "id" | "userId" | "createdAt" | "updatedAt">, id?:string) => Promise<void>; // Renamed from onAddTransaction
+  onSave: (transactionData: Omit<Transaction, "id" | "userId" | "createdAt" | "updatedAt">, id?:string) => Promise<void>;
   currentDisplayedDate: Date;
   userCategories: DisplayCategory[];
   userPaymentMethods: DisplayPaymentMethod[];
+  isSubscriptionActive: boolean;
 }
 
 export function QuickActionsSection({ 
-  onSave, // Renamed from onAddTransaction
+  onSave,
   currentDisplayedDate,
   userCategories,
-  userPaymentMethods 
+  userPaymentMethods,
+  isSubscriptionActive,
 }: QuickActionsSectionProps) {
   const { translate } = useLanguage();
+  const router = useRouter();
 
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [showSubscriptionAlert, setShowSubscriptionAlert] = useState(false);
   const [formInitialType, setFormInitialType] = useState<TransactionType>("expense");
-  
   const [dateForForm, setDateForForm] = useState<Date>(currentDisplayedDate);
+  // Add a counter to force re-render
+  const [formRenderKey, setFormRenderKey] = useState(0);
 
   useEffect(() => {
     if (!isFormOpen) {
-      console.log("QuickActionsSection TRACER --- Dialog closed or currentDisplayedDate changed while closed. Syncing dateForForm:", currentDisplayedDate.toISOString());
       setDateForForm(currentDisplayedDate);
     }
   }, [currentDisplayedDate, isFormOpen]);
 
   const handleOpenDialog = (type: TransactionType) => {
-    console.log("QuickActionsSection TRACER --- handleOpenDialog. Type:", type, "currentDisplayedDate prop:", currentDisplayedDate.toISOString());
+    if (!isSubscriptionActive) {
+      setShowSubscriptionAlert(true);
+      return;
+    }
     setFormInitialType(type);
-    setDateForForm(currentDisplayedDate); 
+    setDateForForm(currentDisplayedDate);
+    // Increment key to force complete re-mount of the form component
+    setFormRenderKey(prev => prev + 1);
     setIsFormOpen(true);
   };
 
   const handleFormSubmit = async (transactionData: Omit<Transaction, "id" | "userId" | "createdAt" | "updatedAt">) => {
     try {
-      await onSave(transactionData); // Using the onSave prop from parent
+      await onSave(transactionData);
       setIsFormOpen(false); 
     } catch (error) {
       console.error("Error submitting transaction from QuickActionsSection:", error);
@@ -67,10 +87,6 @@ export function QuickActionsSection({
   const newTransactionTitle = translate({ en: "New Transaction", pt: "Nova Transação" });
   const newTransactionDescription = translate({ en: "Fill in the details for your new transaction.", pt: "Preencha os detalhes da sua nova transação." });
 
-  // Forcing re-render of TransactionForm when dateForForm changes by using it in the key
-  const formKey = dateForForm.toISOString() + formInitialType;
-  console.log(`QuickActionsSection TRACER --- Rendering TransactionForm with formInitialType: '${formInitialType}', defaultDate: '${dateForForm.toISOString()}', userCategories length: ${userCategories?.length}, First category type if exists: ${userCategories?.[0]?.type}, Form key: ${formKey}`);
-  
   return (
     <Card className="shadow-md bg-muted/50">
       <CardHeader>
@@ -100,17 +116,33 @@ export function QuickActionsSection({
             </DialogHeader>
             {isFormOpen && (
               <TransactionForm
-                onSave={handleFormSubmit} // Changed from onAddTransaction to onSave
+                key={formRenderKey} // Unique key forces re-mount every time dialog opens
+                onSave={handleFormSubmit}
                 initialType={formInitialType}
                 defaultDate={dateForForm} 
                 userCategories={userCategories} 
                 userPaymentMethods={userPaymentMethods} 
-                transactionToEdit={null} // Explicitly null for adding
-                key={formKey} 
+                transactionToEdit={null}
               />
             )}
           </DialogContent>
         </Dialog>
+        <AlertDialog open={showSubscriptionAlert} onOpenChange={setShowSubscriptionAlert}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>{translate({ en: "Subscription Required", pt: "Assinatura Necessária" })}</AlertDialogTitle>
+              <AlertDialogDescription>
+                {translate({ en: "You need an active subscription to add new transactions. Please renew your subscription to continue.", pt: "Você precisa de uma assinatura ativa para adicionar novas transações. Por favor, renove sua assinatura para continuar." })}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>{translate({ en: "Cancel", pt: "Cancelar" })}</AlertDialogCancel>
+              <AlertDialogAction onClick={() => router.push('/subscription')}>
+                {translate({ en: "Go to Subscription", pt: "Ir para Assinatura" })}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </CardContent>
     </Card>
   );

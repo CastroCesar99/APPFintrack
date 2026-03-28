@@ -35,10 +35,12 @@ export function BudgetSummaryCard({
         <Icon className={cn("h-5 w-5 text-muted-foreground", iconClassName)} />
       </CardHeader>
       <CardContent>
-        <div className="text-2xl font-bold">
-          {formatCurrency(spentAmount)} / <span className="text-base text-muted-foreground">{formatCurrency(totalBudget)}</span>
+        <div className="flex flex-wrap items-baseline gap-x-2 text-lg font-bold sm:text-2xl">
+          <span>{formatCurrency(spentAmount)}</span>
+          <span className="font-normal text-muted-foreground">/</span>
+          <span className="font-normal text-base text-muted-foreground">{formatCurrency(totalBudget)}</span>
         </div>
-        {description && <p className="text-xs text-muted-foreground">{description}</p>}
+        {description && <p className="truncate text-xs text-muted-foreground">{description}</p>}
         <Progress value={percentageUsed} className="mt-2 h-2" />
         <p className="text-xs text-muted-foreground mt-1">
           {percentageUsed}% {translate({ en: "of total budget used", pt: "do orçamento total utilizado" })}

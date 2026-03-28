@@ -6,9 +6,9 @@ import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { AppLayout } from "@/components/layout/app-layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Terminal, Package, Wallet, FileText, DollarSign, Target, TrendingUp, TrendingDown } from "lucide-react";
+import { Terminal, Package, Wallet, FileText, DollarSign, Target, TrendingUp, TrendingDown, Sparkles, ListChecks } from "lucide-react";
 import type { Transaction, DisplayCategory, UserPreferences, CustomCategoryData, Category, CategoryName } from "@/types";
-import { CATEGORIES, getCategoryDisplayLabel, getPaymentMethodDisplayLabel } from "@/types"; // PAYMENT_METHODS might not be needed here
+import { CATEGORIES, getCategoryDisplayLabel } from "@/types";
 import { useAuth } from '@/context/auth-context';
 import { useLanguage } from '@/context/language-context';
 import { useDateNavigation } from '@/context/date-navigation-context';
@@ -74,19 +74,22 @@ export default function ReportsPage() {
     setIsClient(true);
     effectMountedRef.current = true;
     console.log("ReportsPage: Component mounted, effectMountedRef set to true");
+    const currentUserIdForCleanup = userId; 
     return () => {
       effectMountedRef.current = false;
-      console.log("ReportsPage: Component unmounting, effectMountedRef set to false. Cleaning up listeners.");
+      console.log("ReportsPage: Component unmounting, effectMountedRef set to false. Cleaning up listeners for UserID:", currentUserIdForCleanup);
       if (unsubscribeTransactionsRef.current) {
-        console.log("ReportsPage: Unsubscribing transaction listener on unmount for UserID:", userId);
+        console.log("ReportsPage: Unsubscribing transaction listener on unmount for UserID:", currentUserIdForCleanup);
         unsubscribeTransactionsRef.current();
+        unsubscribeTransactionsRef.current = null;
       }
       if (unsubscribePreferencesRef.current) {
-        console.log("ReportsPage: Unsubscribing preferences listener on unmount for UserID:", userId);
+        console.log("ReportsPage: Unsubscribing preferences listener on unmount for UserID:", currentUserIdForCleanup);
         unsubscribePreferencesRef.current();
+        unsubscribePreferencesRef.current = null;
       }
     };
-  }, [userId]); // Added userId to re-evaluate mounted state if user changes, though primary cleanup is still component unmount
+  }, [userId]);
 
   // Fetch All Transactions
   useEffect(() => {
@@ -106,10 +109,10 @@ export default function ReportsPage() {
     if (effectMountedRef.current) setIsLoadingTransactions(true);
     console.log("ReportsPage (TX Effect): Setting up transaction listener for UserID:", userId);
 
-    // Clean up previous listener before setting a new one
     if (unsubscribeTransactionsRef.current) {
         unsubscribeTransactionsRef.current();
         unsubscribeTransactionsRef.current = null;
+        console.log("ReportsPage (TX Effect): Cleaned up previous transaction listener before setting new one for UserID:", userId);
     }
     
     const transactionsColRef = collection(db, 'users', userId, 'transactions');
@@ -132,12 +135,16 @@ export default function ReportsPage() {
           } else if (typeof data.date === 'string') {
             if (/^\d{4}-\d{2}-\d{2}$/.test(data.date)) {
               dateString = data.date;
-            } else if (data.date.includes('T')) {
+            } else if (data.date.includes('T')) { // Handles YYYY-MM-DDTHH:mm:ss.sssZ or YYYY-MM-DDTHH:mm:ssZ
               try {
                 dateString = formatDateFns(parseISODateFns(data.date), "yyyy-MM-dd");
-              } catch (e) {
-                console.warn("ReportsPage: Failed to parse ISO date string: " + String(data.date), e);
-                dateString = formatDateFns(new Date(), "yyyy-MM-dd");
+              } catch (e1){
+                  try {
+                     dateString = formatDateFns(new Date(data.date), "yyyy-MM-dd"); // General ISO parse
+                  } catch (e2) {
+                     console.warn("ReportsPage TX Date Parse (string T general for " + String(docSnap.id) + "): Failed for date '" + String(data.date) + "'. Error: " + String(e2) + ". Fallback to current date.");
+                     dateString = formatDateFns(new Date(), "yyyy-MM-dd");
+                  }
               }
             } else {
                  console.warn("ReportsPage TX Date Parse (string other): Unhandled format for tx " + String(docSnap.id) + ": " + String(data.date) + ". Attempting general parse.");
@@ -152,6 +159,9 @@ export default function ReportsPage() {
             console.warn("ReportsPage TX Date Parse (missing/invalid): Missing or invalid date for tx " + String(docSnap.id) + ": " + String(data.date) + ". Fallback to current date.");
             dateString = formatDateFns(new Date(), "yyyy-MM-dd");
           }
+        } else {
+             console.warn("ReportsPage TX Date Parse (missing): Date field is missing for tx " + String(docSnap.id) + ". Fallback to current date.");
+             dateString = formatDateFns(new Date(), "yyyy-MM-dd");
         }
 
         if (!effectiveMonthString || !/^\d{4}-\d{2}$/.test(effectiveMonthString)) {
@@ -180,6 +190,7 @@ export default function ReportsPage() {
       if (effectMountedRef.current) {
         setAllTransactions(fetchedTransactions);
         setIsLoadingTransactions(false);
+        console.log("ReportsPage (TX Snapshot): allTransactions set, isLoadingTransactions set to false. Count:", fetchedTransactions.length);
       }
     }, (error) => {
       if (!effectMountedRef.current) {
@@ -205,7 +216,7 @@ export default function ReportsPage() {
         unsubscribeTransactionsRef.current = null;
       }
     };
-  }, [userId, authLoading, isClient, toast, translate]); // Removed effectMountedRef as it is a ref
+  }, [userId, authLoading, isClient, toast, translate]);
 
   // Fetch User Preferences for Categories
   useEffect(() => {
@@ -214,8 +225,8 @@ export default function ReportsPage() {
         setUserDisplayCategories([...CATEGORIES].sort((a, b) => getCategoryDisplayLabel(a, language).localeCompare(getCategoryDisplayLabel(b, language))));
         setIsLoadingPreferences(false);
       }
-      if (unsubscribePreferencesRef.current) {
-        console.log("ReportsPage (Prefs Effect): Cleaning up stale preferences listener for UserID:", userId);
+       if (unsubscribePreferencesRef.current) {
+        console.log("ReportsPage (Prefs Effect): Cleaning up stale preferences listener (no user/auth/client) for UserID:", userId);
         unsubscribePreferencesRef.current();
         unsubscribePreferencesRef.current = null;
       }
@@ -225,10 +236,10 @@ export default function ReportsPage() {
     if (effectMountedRef.current) setIsLoadingPreferences(true);
     console.log("ReportsPage (Prefs Effect): Setting up preferences listener for UserID:", userId);
 
-    // Clean up previous listener
     if (unsubscribePreferencesRef.current) {
         unsubscribePreferencesRef.current();
         unsubscribePreferencesRef.current = null;
+        console.log("ReportsPage (Prefs Effect): Cleaned up previous preferences listener before setting new one for UserID:", userId);
     }
 
     const preferencesDocRef = doc(db, "users", userId, "preferences/userPreferences");
@@ -248,7 +259,6 @@ export default function ReportsPage() {
         const customCategoriesMap = new Map<string, CustomCategoryData>();
         userDefinedCategoriesFromPrefs.forEach(cc => customCategoriesMap.set(cc.name.toLowerCase(), cc));
 
-        // Start with predefined categories that are not deselected
         finalCategories = CATEGORIES
           .filter(predefCat => !deselectedPredefinedCatNames.has(predefCat.name.toLowerCase()))
           .map(predefCat => {
@@ -299,7 +309,7 @@ export default function ReportsPage() {
         unsubscribePreferencesRef.current = null;
       }
     };
-  }, [userId, isClient, authLoading, language, toast, translate]); // Removed effectMountedRef
+  }, [userId, isClient, authLoading, language, toast, translate]);
 
   const fetchBudgetsInternal = useCallback(async () => {
     if (!effectMountedRef.current || !userId || !isClient || authLoading ) {
@@ -352,7 +362,7 @@ export default function ReportsPage() {
         setIsLoadingBudgets(false);
       }
     }
-  }, [userId, isClient, authLoading, displayedDate, toast, translate]); // Removed effectMountedRef, setIsLoadingBudgets, setLoadedBudgets
+  }, [userId, isClient, authLoading, displayedDate, toast, translate]); 
 
   useEffect(() => {
     if (userId && isClient && !authLoading) {
@@ -361,16 +371,13 @@ export default function ReportsPage() {
       setLoadedBudgets(null);
       setIsLoadingBudgets(false); 
     }
-  }, [userId, isClient, authLoading, displayedDate, fetchBudgetsInternal]); // Added displayedDate to re-fetch budgets when month changes
+  }, [userId, isClient, authLoading, displayedDate, fetchBudgetsInternal]);
 
 
   const transactionsForDisplayedPeriod = useMemo(() => {
-    const targetYear = getYearFns(displayedDate);
-    const targetMonth = getMonthFns(displayedDate); 
     const targetEffectiveMonth = formatDateFns(displayedDate, "yyyy-MM");
     const firstDayOfTargetMonth = startOfMonth(displayedDate);
-
-    console.log("ReportsPage: TRACER --- transactionsForDisplayedPeriod: Recalculating for Year: " + targetYear + " Month: " + targetMonth + " (0-indexed for " + displayedMonthYearLabel + " ), TargetEffMonth: " + targetEffectiveMonth + " All transactions count: " + allTransactions.length);
+    console.log("ReportsPage: TRACER --- transactionsForDisplayedPeriod: Recalculating for Year: " + getYearFns(displayedDate) + " Month: " + getMonthFns(displayedDate) + " (0-indexed for " + displayedMonthYearLabel + " ), TargetEffMonth: " + targetEffectiveMonth + " All transactions count: " + allTransactions.length);
 
     if (allTransactions.length === 0) {
       console.log("ReportsPage: TRACER --- transactionsForDisplayedPeriod: No transactions in allTransactions, returning empty.");
@@ -380,7 +387,7 @@ export default function ReportsPage() {
     const filtered: Transaction[] = [];
     allTransactions.forEach(t => {
       let includeTransaction = false;
-      let reason = "";
+      let reason = "N/A";
       let originalTransactionDate: Date;
 
       try {
@@ -390,33 +397,29 @@ export default function ReportsPage() {
         return; 
       }
       
-      const originalTxYear = getYearFns(originalTransactionDate);
-      const originalTxMonth = getMonthFns(originalTransactionDate);
-
       if (t.type === 'expense' && t.expenseType === 'installment' && t.installments && t.installments > 0) {
         reason = "Installment Check";
-        const installmentSeriesStartDate = startOfMonth(originalTransactionDate);
-        const monthDiff = differenceInCalendarMonths(firstDayOfTargetMonth, installmentSeriesStartDate);
-        const isInstallmentActiveThisMonth = monthDiff >= 0 && monthDiff < t.installments;
-        if (isInstallmentActiveThisMonth) includeTransaction = true;
+        const installmentSeriesEffectiveStartDate = parseDateFns(t.effectiveMonth + "-01", "yyyy-MM-dd", new Date(0));
+        const monthDiff = differenceInCalendarMonths(firstDayOfTargetMonth, startOfMonth(installmentSeriesEffectiveStartDate));
+        const isActive = monthDiff >= 0 && monthDiff < t.installments;
+        if (isActive) includeTransaction = true;
       } else if (t.isRecurring === true && t.expenseType !== 'installment') { 
         reason = "Recurring Check";
-        const isRecurringActiveThisMonth = originalTxYear < targetYear || (originalTxYear === targetYear && originalTxMonth <= targetMonth);
-        if (isRecurringActiveThisMonth) includeTransaction = true;
-      } else if ((!t.isRecurring || t.isRecurring === false) && t.expenseType !== 'installment') { 
-        reason = "Non-Recurring Check";
-        if (t.effectiveMonth === targetEffectiveMonth) {
+        const recurrenceEffectiveStartDate = parseDateFns(t.effectiveMonth + "-01", "yyyy-MM-dd", new Date(0));
+        if (startOfMonth(recurrenceEffectiveStartDate) <= firstDayOfTargetMonth) {
           includeTransaction = true;
         }
+      } else if (t.effectiveMonth === targetEffectiveMonth) { 
+        reason = "Non-Recurring Check";
+        includeTransaction = true;
       }
-      console.log("ReportsPage TX Filter: ID: " + t.id + " Date: " + t.date + " EffMonth: " + t.effectiveMonth + " Type: " + t.type + " ExpType: " + t.expenseType + " isRec: " + t.isRecurring + " Inst: " + t.installments + " Amount: " + t.amount + " Included: " + includeTransaction + " Reason: " + reason + " Target: " + targetEffectiveMonth);
       if (includeTransaction) {
         filtered.push(t);
       }
     });
     console.log("ReportsPage: TRACER --- transactionsForDisplayedPeriod: Found " + filtered.length + " transactions for the period.");
     return filtered;
-  }, [allTransactions, displayedDate, displayedMonthYearLabel]); // displayedMonthYearLabel only for logging
+  }, [allTransactions, displayedDate, displayedMonthYearLabel]);
 
   const totalIncomeForPeriod = useMemo(() =>
     transactionsForDisplayedPeriod
@@ -443,6 +446,46 @@ export default function ReportsPage() {
       .filter(t => t.type === 'expense' && t.expenseNature === 'variable')
       .reduce((sum, t) => sum + t.amount, 0),
   [transactionsForDisplayedPeriod]);
+
+  const totalBudgetForPeriod = useMemo(() => {
+    if (!loadedBudgets) return 0;
+    return Object.values(loadedBudgets).reduce((sum, budget) => sum + (budget || 0), 0);
+  }, [loadedBudgets]);
+
+  const largestExpenseCategoryForDisplayedPeriod = useMemo(() => {
+    const expensesThisPeriod = transactionsForDisplayedPeriod.filter(t => t.type === 'expense');
+    if (expensesThisPeriod.length === 0) return null;
+
+    const expensesByCategory: Record<string, number> = {};
+    expensesThisPeriod.forEach(tx => {
+      const categoryName = tx.category as string;
+      expensesByCategory[categoryName] = (expensesByCategory[categoryName] || 0) + tx.amount;
+    });
+
+    let maxAmount = 0;
+    let largestCategoryKey: string | null = null;
+    for (const key in expensesByCategory) {
+      if (expensesByCategory[key] > maxAmount) {
+        maxAmount = expensesByCategory[key];
+        largestCategoryKey = key;
+      }
+    }
+
+    if (largestCategoryKey) {
+      let categoryDetail: DisplayCategory | undefined = userDisplayCategories.find(cat => cat.name.toLowerCase() === largestCategoryKey!.toLowerCase());
+      if (!categoryDetail) { 
+          categoryDetail = CATEGORIES.find(cat => cat.name.toLowerCase() === largestCategoryKey!.toLowerCase()) ||
+                           {
+                             name: largestCategoryKey!,
+                             type: 'expense',
+                             icon: 'CircleHelp',
+                             label: { en: largestCategoryKey!, pt: largestCategoryKey! }
+                           };
+      }
+      return { ...categoryDetail, amount: maxAmount } as DisplayCategory & { amount: number };
+    }
+    return null;
+  }, [transactionsForDisplayedPeriod, userDisplayCategories, language]);
 
   const budgetVsActualData = useMemo<BudgetComparisonItem[]>(() => {
     console.log("ReportsPage: budgetVsActualData - Recalculating. isLoadingBudgets:", isLoadingBudgets, "isLoadingPrefs:", isLoadingPreferences, "loadedBudgets empty:", !loadedBudgets || Object.keys(loadedBudgets).length === 0, "userDisplayCategories empty:", userDisplayCategories.length === 0);
@@ -474,9 +517,9 @@ export default function ReportsPage() {
       const difference = budgeted - actual;
       let percentage = 0;
       if (budgeted > 0) {
-        percentage = Math.min(Math.round((actual / budgeted) * 100), 1000); 
+        percentage = (actual / budgeted) * 100;
       } else if (actual > 0) { 
-        percentage = 1000; 
+        percentage = 100; 
       }
       return { categoryInternalName: internalName, categoryName: displayName, icon: icon, budgeted, actual, difference, percentage };
     }).filter(item => item.budgeted > 0 || item.actual > 0) 
@@ -526,12 +569,12 @@ export default function ReportsPage() {
             <Skeleton className="h-9 w-1/3 mb-4 sm:mb-0" />
             <Skeleton className="h-9 w-full sm:w-32" />
           </div>
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-4 mb-8">
             <Skeleton className="h-24 w-full" />
             <Skeleton className="h-24 w-full" />
             <Skeleton className="h-24 w-full" />
           </div>
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
             <Skeleton className="h-24 w-full" />
             <Skeleton className="h-24 w-full" />
           </div>
@@ -573,63 +616,142 @@ export default function ReportsPage() {
     <AppLayout>
       <div className="space-y-6">
         <div className="flex flex-col items-stretch gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <h1 className="text-3xl font-bold tracking-tight text-foreground mb-4 sm:mb-0">
+          <h1 className="text-3xl font-bold tracking-tight text-foreground break-words">
             {pageTitle} - {displayedMonthYearLabel}
           </h1>
           <ExportData transactions={transactionsForDisplayedPeriod} />
         </div>
-
-        <div className="grid gap-4 md:grid-cols-3">
-          <Card className="shadow-lg">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">{translate({ en: "Total Income", pt: "Receita Total" })}</CardTitle>
-              <TrendingUp className="h-4 w-4 text-green-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{formatCurrency(totalIncomeForPeriod)}</div>
-            </CardContent>
-          </Card>
-          <Card className="shadow-lg">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">{translate({ en: "Total Expenses", pt: "Despesa Total" })}</CardTitle>
-              <TrendingDown className="h-4 w-4 text-red-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{formatCurrency(totalExpensesForPeriod)}</div>
-            </CardContent>
-          </Card>
-          <Card className="shadow-lg">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">{translate({ en: "Net Cash Flow", pt: "Fluxo de Caixa Líquido" })}</CardTitle>
-              <DollarSign className={cn("h-4 w-4 ", netFlowForPeriod >= 0 ? 'text-green-500' : 'text-red-500')} />
-            </CardHeader>
-            <CardContent>
-              <div className={cn("text-2xl font-bold ", netFlowForPeriod >= 0 ? 'text-green-500' : 'text-red-500')}>{formatCurrency(netFlowForPeriod)}</div>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="grid gap-4 md:grid-cols-2">
-          <Card className="shadow-lg">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">{translate({ en: "Total Fixed Expenses", pt: "Despesas Fixas Totais" })}</CardTitle>
-              <Package className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{formatCurrency(totalFixedExpensesForPeriod)}</div>
-            </CardContent>
-          </Card>
-          <Card className="shadow-lg">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">{translate({ en: "Total Variable Expenses", pt: "Despesas Variáveis Totais" })}</CardTitle>
-              <Wallet className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{formatCurrency(totalVariableExpensesForPeriod)}</div>
-            </CardContent>
-          </Card>
-        </div>
         
+        <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-4 mb-8">
+          <Card className="shadow-lg bg-background dark:bg-card rounded-lg">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4">
+              <CardTitle className="text-sm font-medium truncate">{translate({ en: "Total Income", pt: "Receita Total" })}</CardTitle>
+              <TrendingUp className="h-4 w-4 text-green-500 flex-shrink-0" />
+            </CardHeader>
+            <CardContent className="px-4 pb-4 pt-2">
+              <div className="text-2xl font-bold">{formatCurrency(totalIncomeForPeriod)}</div>
+              <p className="text-xs text-muted-foreground">{displayedMonthYearLabel}</p>
+            </CardContent>
+          </Card>
+          <Card className="shadow-lg bg-background dark:bg-card rounded-lg">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4">
+              <CardTitle className="text-sm font-medium truncate">{translate({ en: "Total Expenses", pt: "Despesa Total" })}</CardTitle>
+              <TrendingDown className="h-4 w-4 text-red-500 flex-shrink-0" />
+            </CardHeader>
+            <CardContent className="px-4 pb-4 pt-2">
+              <div className="text-2xl font-bold">{formatCurrency(totalExpensesForPeriod)}</div>
+              <p className="text-xs text-muted-foreground">{displayedMonthYearLabel}</p>
+            </CardContent>
+          </Card>
+          <Card className="shadow-lg bg-background dark:bg-card rounded-lg">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4">
+              <CardTitle className="text-sm font-medium truncate">{translate({ en: "Net Cash Flow", pt: "Fluxo de Caixa Líquido" })}</CardTitle>
+              <DollarSign className={cn("h-4 w-4 flex-shrink-0", netFlowForPeriod >= 0 ? 'text-green-500' : 'text-red-500')} />
+            </CardHeader>
+            <CardContent className="px-4 pb-4 pt-2">
+              <div className={cn("text-2xl font-bold", netFlowForPeriod >= 0 ? 'text-green-500' : 'text-red-500')}>{formatCurrency(netFlowForPeriod)}</div>
+              <p className="text-xs text-muted-foreground">{translate({ en: "For", pt: "Para" })} {displayedMonthYearLabel}</p>
+            </CardContent>
+          </Card>
+          <Card className="shadow-lg bg-background dark:bg-card rounded-lg">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4">
+              <CardTitle className="text-sm font-medium truncate">{translate({ en: "Monthly Budget Status", pt: "Status do Orçamento Mensal" })}</CardTitle>
+              <ListChecks className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+            </CardHeader>
+            <CardContent className="px-4 pb-4 pt-2">
+              <div className="text-lg font-bold">
+                {formatCurrency(totalExpensesForPeriod)}
+                {totalBudgetForPeriod > 0 ? ` / ${formatCurrency(totalBudgetForPeriod)}` : ''}
+              </div>
+              <p className="text-xs text-muted-foreground">{displayedMonthYearLabel}</p>
+              {totalBudgetForPeriod > 0 && (
+                <>
+                  <Progress value={(totalExpensesForPeriod / totalBudgetForPeriod) * 100} className="mt-2 h-2" />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {Math.round((totalExpensesForPeriod / totalBudgetForPeriod) * 100)}% {translate({ en: "of budget used", pt: "do orçamento utilizado" })}
+                  </p>
+                </>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        <Card className="shadow-lg bg-background dark:bg-card rounded-lg">
+           <CardHeader className="p-4 md:p-6">
+             <CardTitle className="text-xl font-medium leading-none tracking-tight text-foreground">
+               {translate({ en: "Spending Summary", pt: "Resumo de Gastos" })}
+             </CardTitle>
+             <CardDescription className="mt-1">
+               {translate({ en: "Your spending breakdown for", pt: "Seu detalhamento de gastos em" })} {displayedMonthYearLabel}
+             </CardDescription>
+           </CardHeader>
+           <CardContent className="p-4 md:p-6 pt-0">
+            {transactionsForDisplayedPeriod.filter(t => t.type === 'expense').length > 0 ? (
+               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                 <div className="p-4 rounded-lg bg-muted/50 dark:bg-card flex flex-col items-center text-center shadow-inner border">
+                  <p className="text-sm font-medium text-foreground mb-1 break-words">
+                    {translate({ en: "Largest Expense Category", pt: "Principal Categoria de Gasto" })}
+                  </p>
+                  {largestExpenseCategoryForDisplayedPeriod ? (
+                    <>
+                      <div className="flex items-center gap-2 mt-1">
+                        <CategoryIcon iconName={largestExpenseCategoryForDisplayedPeriod.icon} className="h-7 w-7 text-primary" />
+                        <span className="font-semibold text-lg text-foreground break-words">
+                           {getCategoryDisplayLabel(largestExpenseCategoryForDisplayedPeriod, language)}
+                        </span>
+                      </div>
+                      <p className="text-xl font-bold text-primary mt-1">
+                        {formatCurrency(largestExpenseCategoryForDisplayedPeriod.amount)}
+                      </p>
+                    </>
+                  ) : (
+                    <p className="text-sm text-muted-foreground mt-2">{translate({ en: "N/A", pt: "N/D"})}</p>
+                  )}
+                </div>
+
+                <div className="p-4 rounded-lg bg-muted/50 dark:bg-card flex flex-col items-center text-center shadow-inner border">
+                   <p className="text-sm font-medium text-foreground mb-1">
+                     {translate({ en: "Total Expenses", pt: "Total de Gastos" })}
+                   </p>
+                    <div className="flex items-center gap-2 mt-1">
+                        <Package className="h-7 w-7 text-primary" />
+                        <span className="font-semibold text-lg text-foreground">
+                            {translate({ en: "Fixed", pt: "Fixos" })}
+                        </span>
+                    </div>
+                   <p className="text-xl font-bold text-primary mt-1">
+                     {formatCurrency(totalFixedExpensesForPeriod)}
+                   </p>
+                 </div>
+
+                <div className="p-4 rounded-lg bg-muted/50 dark:bg-card flex flex-col items-center text-center shadow-inner border">
+                   <p className="text-sm font-medium text-foreground mb-1">
+                    {translate({ en: "Total Expenses", pt: "Total de Gastos" })}
+                  </p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <Wallet className="h-7 w-7 text-primary" />
+                    <span className="font-semibold text-lg text-foreground">
+                      {translate({ en: "Variable", pt: "Variáveis" })}
+                    </span>
+                  </div>
+                  <p className="text-xl font-bold text-primary mt-1">
+                    {formatCurrency(totalVariableExpensesForPeriod)}
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center justify-center h-[100px]">
+                <p className="text-muted-foreground">
+                  {translate({
+                    en: "No expense data for this period.",
+                    pt: "Sem dados de despesa para este período."
+                  })}
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
         <Card className="shadow-lg bg-muted/50 border-dashed">
           <CardHeader className="flex flex-row items-start gap-4 space-y-0">
             <Terminal className="h-8 w-8 text-primary flex-shrink-0 mt-1" />
@@ -657,43 +779,67 @@ export default function ReportsPage() {
           </CardHeader>
           <CardContent>
             {budgetVsActualData.length > 0 ? (
-              <div className="space-y-3">
-                {budgetVsActualData.map((item) => (
-                  <div key={item.categoryInternalName} className="p-3 rounded-md border bg-card hover:bg-accent/10 transition-colors">
-                    <div className="flex items-center justify-between mb-1">
-                      <div className="flex items-center gap-2">
-                        <CategoryIcon iconName={item.icon} className="h-5 w-5 text-muted-foreground" />
-                        <span className="font-medium text-sm">{item.categoryName}</span>
+              <div className="space-y-4">
+                {budgetVsActualData.map((item) => {
+                  const progressPercent = item.budgeted > 0 ? (item.actual / item.budgeted) * 100 : item.actual > 0 ? 100 : 0;
+                  
+                  return (
+                    <div key={item.categoryInternalName} className="space-y-2 rounded-lg border p-3 transition-colors hover:bg-muted/50">
+                      <div className="flex items-center gap-3">
+                        <CategoryIcon iconName={item.icon} className="h-6 w-6 flex-shrink-0 text-primary" />
+                        <p className="truncate font-semibold text-foreground" title={item.categoryName}>
+                          {item.categoryName}
+                        </p>
                       </div>
-                      {item.budgeted > 0 && ( 
-                        <span className={cn(
-                          "text-xs font-semibold px-2 py-0.5 rounded-full",
-                          item.difference >= 0 ? 'bg-green-100 text-green-700 dark:bg-green-900/70 dark:text-green-300' : 'bg-red-100 text-red-700 dark:bg-red-900/70 dark:text-red-300'
-                        )}>
-                          {formatCurrency(Math.abs(item.difference))} {' '}
-                          {item.difference >= 0
-                            ? translate({ en: "under budget", pt: "abaixo do orçamento" })
-                            : translate({ en: "over budget", pt: "acima do orçamento" })
-                          }
-                        </span>
-                      )}
+
+                      <Progress
+                        value={progressPercent}
+                        className="h-2"
+                        indicatorClassName={cn(
+                          item.budgeted === 0 && item.actual > 0
+                            ? 'bg-muted-foreground'
+                            : progressPercent > 100
+                              ? 'bg-destructive'
+                              : progressPercent > 80
+                                ? 'bg-accent'
+                                : 'bg-primary'
+                        )}
+                      />
+                      
+                      <div className="flex flex-col md:flex-row md:items-center md:justify-between text-sm gap-1 md:gap-4">
+                        <p className="text-muted-foreground truncate">
+                          {translate({ en: 'Spent:', pt: 'Gasto:' })}{' '}
+                          <span className="font-medium text-foreground">
+                            {formatCurrency(item.actual)}
+                          </span>
+                          {item.budgeted > 0 && (
+                            <span className="text-muted-foreground">
+                              {' '}/ {formatCurrency(item.budgeted)} ({Math.round(progressPercent)}%)
+                            </span>
+                          )}
+                        </p>
+                        
+                        {item.budgeted > 0 ? (
+                          <p className={cn(
+                            'font-medium text-left md:text-right',
+                            item.difference >= 0
+                              ? 'text-green-600 dark:text-green-500'
+                              : 'text-red-600 dark:text-red-500'
+                          )}>
+                            {formatCurrency(Math.abs(item.difference))}{' '}
+                            {item.difference >= 0
+                              ? translate({ en: 'left', pt: 'restante' })
+                              : translate({ en: 'over', pt: 'acima' })}
+                          </p>
+                        ) : (
+                          <p className="text-muted-foreground text-left md:text-right">
+                            {translate({ en: 'No budget', pt: 'Sem orçamento' })}
+                          </p>
+                        )}
+                      </div>
                     </div>
-                    <Progress
-                      value={item.budgeted > 0 ? Math.min(Math.round(item.percentage), 1000) : (item.actual > 0 ? 1000 : 0) }
-                      className="h-2 mb-1"
-                      indicatorClassName={cn(
-                         item.budgeted === 0 && item.actual > 0 ? "bg-muted-foreground" 
-                        : item.budgeted > 0 && item.actual > 0 && item.percentage > 100 ? "bg-destructive" 
-                        : item.budgeted > 0 && item.actual > 0 && item.percentage > 80 ? "bg-yellow-500 dark:bg-yellow-600" 
-                        : "bg-primary" 
-                      )}
-                    />
-                    <div className="flex justify-between text-xs text-muted-foreground">
-                      <span>{translate({ en: "Spent:", pt: "Gasto:" })} {formatCurrency(item.actual)}</span>
-                      <span>{translate({ en: "Budget:", pt: "Orçado:" })} {formatCurrency(item.budgeted)}</span>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center h-[150px] text-center">

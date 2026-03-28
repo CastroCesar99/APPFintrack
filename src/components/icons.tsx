@@ -53,13 +53,13 @@ export const CategoryIcon: React.FC<CategoryIconProps> = ({ categoryName, iconNa
       }
     }
   }
-  
+
   const IconComponent = iconNameToComponentMap[determinedIconName || ''] || CircleHelp;
   return <IconComponent {...props} />;
 };
 
 interface PaymentMethodIconProps extends LucideProps {
- iconName: string; 
+  iconName: string;
 }
 
 export const PaymentMethodIcon: React.FC<PaymentMethodIconProps> = ({ iconName, ...props }) => {
@@ -69,7 +69,7 @@ export const PaymentMethodIcon: React.FC<PaymentMethodIconProps> = ({ iconName, 
 
 export const AppLogoIcon = () => {
   const { theme } = useTheme();
-  const logoSrc = theme === 'dark' ? '/white fintrack logo.ico' : '/fintrack-logo.png';
+  const logoSrc = theme === 'dark' ? '/images/white fintrack logo.png' : '/images/fintrack-logo.png';
   const altText = theme === 'dark' ? 'FinTrack Logo (Dark Mode)' : 'FinTrack Logo (Light Mode)';
 
   return (

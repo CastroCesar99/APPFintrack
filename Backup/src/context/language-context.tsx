@@ -16,23 +16,23 @@ interface LanguageContextType {
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
-  // Initialize state directly from localStorage if available, otherwise default to 'pt'
-  const [language, setLanguageState] = useState<Language>(() => {
-    if (typeof window !== 'undefined') { // Ensure localStorage is available (client-side)
-      const storedLanguage = localStorage.getItem('userLanguage') as Language | null;
-      if (storedLanguage && ['en', 'pt'].includes(storedLanguage)) {
-        return storedLanguage;
-      }
+  const [language, setLanguageState] = useState<Language>('pt');
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    const storedLanguage = localStorage.getItem('userLanguage') as Language | null;
+    if (storedLanguage && ['en', 'pt'].includes(storedLanguage)) {
+      setLanguageState(storedLanguage);
     }
-    return 'pt'; // Default language
-  });
+  }, []);
 
   // Effect to update localStorage whenever the language state changes
   useEffect(() => {
-    if (typeof window !== 'undefined') {
+    if (mounted) {
       localStorage.setItem('userLanguage', language);
     }
-  }, [language]);
+  }, [language, mounted]);
 
   // Callback to set the language state
   const setLanguage = useCallback((lang: Language) => {

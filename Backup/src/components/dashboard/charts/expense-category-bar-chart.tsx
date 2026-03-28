@@ -1,3 +1,4 @@
+
 "use client";
 import type { Transaction, DisplayCategory } from "@/types";
 import {
@@ -19,6 +20,7 @@ import { useMemo } from "react";
 import { useLanguage } from "@/context/language-context";
 import { getCategoryDisplayLabel } from "@/types";
 import { formatCurrency } from "@/lib/utils";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface ExpenseCategoryBarChartProps {
   transactions: Transaction[];
@@ -37,6 +39,7 @@ const chartColors = [
 
 export function ExpenseCategoryBarChart({ transactions, userCategories }: ExpenseCategoryBarChartProps) {
   const { language, translate } = useLanguage();
+  const isMobile = useIsMobile();
 
   const expenseData = useMemo(() => {
     const expensesByCategory = transactions
@@ -82,12 +85,12 @@ export function ExpenseCategoryBarChart({ transactions, userCategories }: Expens
   }
 
   return (
-    <ChartContainer config={chartConfig} className="min-h-[300px] w-full">
-      <ResponsiveContainer width="100%" height={Math.max(300, expenseData.length * 40)}>
+    <ChartContainer config={chartConfig} className="min-h-[120px] w-full">
+      <ResponsiveContainer width="100%" height={Math.max(80, expenseData.length * 10)}>
         <BarChart
           data={expenseData}
           layout="vertical"
-          margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+          margin={{ top: 5, right: 20, left: isMobile ? -20 : 10, bottom: 5 }}
         >
           <CartesianGrid horizontal={false} strokeDasharray="3 3" />
           <XAxis type="number" tickFormatter={(value) => formatCurrency(value).replace(/\.\d{2}$/, '')}  fontSize={12} />
@@ -97,10 +100,12 @@ export function ExpenseCategoryBarChart({ transactions, userCategories }: Expens
             tickLine={false}
             axisLine={false}
             stroke="hsl(var(--foreground))"
-            fontSize={12}
-            tickMargin={8}
-            width={120} 
+            fontSize={10}
+            tickMargin={2}
+            width={isMobile ? 0 : 50} 
+            tick={!isMobile}
             interval={0} 
+            textAnchor="end"
           />
           <Tooltip
             cursor={{ fill: "hsl(var(--muted))" }}
@@ -116,7 +121,7 @@ export function ExpenseCategoryBarChart({ transactions, userCategories }: Expens
               />
             }
           />
-          <Bar dataKey="value" layout="vertical" radius={[0, 4, 4, 0]}>
+          <Bar dataKey="value" layout="vertical" radius={[0, 4, 4, 0]} barSize={6}>
             {expenseData.map((entry, index) => (
               <Cell
                 key={`cell-${index}`}

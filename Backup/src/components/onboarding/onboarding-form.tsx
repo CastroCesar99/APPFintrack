@@ -10,8 +10,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import type { Category, CategoryName, PaymentMethod, PaymentMethodName } from '@/types';
-import { CATEGORIES, PAYMENT_METHODS, getCategoryLabel, getPaymentMethodLabel } from '@/types';
+import type { Category, CategoryName, PaymentMethod, PaymentMethodName, DisplayCategory, DisplayPaymentMethod, CustomCategoryData, CustomPaymentMethodData, UserPreferences, TransactionType } from '@/types';
+import { CATEGORIES, PAYMENT_METHODS, getCategoryDisplayLabel, getPaymentMethodDisplayLabel } from '@/types';
 import { CategoryIcon, PaymentMethodIcon, getSelectableIcons, iconNameToComponentMap } from '@/components/icons';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
@@ -20,43 +20,9 @@ import { useLanguage } from '@/context/language-context';
 import { useAuth } from '@/context/auth-context';
 import { db } from '@/lib/firebase';
 import { doc, setDoc, serverTimestamp, getDoc } from "firebase/firestore";
-import { format as formatDateFns } from 'date-fns'; // For formatting the current month key
-
-const predefinedExpenseCategories = CATEGORIES.filter(cat => cat.type === 'expense');
-const predefinedPaymentMethods = PAYMENT_METHODS;
-
-interface CustomCategory {
-  name: CategoryName;
-  type: 'expense';
-  icon: string;
-  label: { en: string; pt: string };
-}
-
-interface CustomPaymentMethod {
-  name: PaymentMethodName;
-  icon: string;
-  label: { en: string; pt: string };
-}
-
-type DisplayCategory = Category | CustomCategory;
-type DisplayPaymentMethod = PaymentMethod | CustomPaymentMethod;
+import { format as formatDateFns } from 'date-fns';
 
 const selectableIconsList = getSelectableIcons();
-
-const getDisplayCategoryLabelFromList = (category: DisplayCategory, lang: 'en' | 'pt'): string => {
-  if ('label' in category && category.label && typeof category.label === 'object' && category.label[lang]) {
-    return category.label[lang];
-  }
-  return category.name;
-};
-
-const getDisplayPaymentMethodLabelFromList = (method: DisplayPaymentMethod, lang: 'en' | 'pt'): string => {
-   if ('label' in method && method.label && typeof method.label === 'object' && method.label[lang]) {
-    return method.label[lang];
-  }
-  return method.name;
-};
-
 
 export function OnboardingForm() {
   const router = useRouter();
@@ -69,22 +35,38 @@ export function OnboardingForm() {
   const [selectedCategories, setSelectedCategories] = useState<Set<CategoryName>>(new Set());
   const [customCategoryInput, setCustomCategoryInput] = useState('');
   const [selectedCustomCategoryIcon, setSelectedCustomCategoryIcon] = useState<string>(selectableIconsList.find(icon => icon.value === 'CircleHelp')?.value || selectableIconsList[0]?.value || '');
-  const [userDefinedCategories, setUserDefinedCategories] = useState<CustomCategory[]>([]);
+  const [userDefinedCategories, setUserDefinedCategories] = useState<CustomCategoryData[]>([]);
 
   const [selectedPaymentMethods, setSelectedPaymentMethods] = useState<Set<PaymentMethodName>>(new Set());
   const [customPaymentMethodInput, setCustomPaymentMethodInput] = useState('');
-  const [selectedCustomPaymentMethodIcon, setSelectedCustomPaymentMethodIcon] = useState<string>(selectableIconsList.find(icon => icon.value === 'CircleHelp')?.value || selectableIconsList[0]?.value || '');
-  const [userDefinedPaymentMethods, setUserDefinedPaymentMethods] = useState<CustomPaymentMethod[]>([]);
+  const [selectedCustomPaymentMethodIcon, setSelectedCustomPaymentMethodIcon] = useState<string>(selectableIconsList.find(icon => icon.value === 'Wallet')?.value || selectableIconsList[0]?.value || '');
+  const [userDefinedPaymentMethods, setUserDefinedPaymentMethods] = useState<CustomPaymentMethodData[]>([]);
 
-  const [budgetGoals, setBudgetGoals] = useState<Record<CategoryName, string>>({});
+  const [budgetGoals, setBudgetGoals] = useState<Record<string, string>>({});
+
+
+  // Initialize with all predefined expense categories selected by default
+  useEffect(() => {
+    const defaultSelectedExpenseCategories = new Set(
+      CATEGORIES.filter(cat => cat.type === 'expense').map(cat => cat.name)
+    );
+    setSelectedCategories(defaultSelectedExpenseCategories);
+
+    const defaultSelectedPaymentMethods = new Set(
+        PAYMENT_METHODS.map(pm => pm.name)
+    );
+    setSelectedPaymentMethods(defaultSelectedPaymentMethods);
+
+  }, []);
+
 
   const allDisplayCategories: DisplayCategory[] = [
-    ...predefinedExpenseCategories,
+    ...CATEGORIES.filter(cat => cat.type === 'expense'), // Only expense categories for selection
     ...userDefinedCategories
   ];
 
   const allDisplayPaymentMethods: DisplayPaymentMethod[] = [
-    ...predefinedPaymentMethods,
+    ...PAYMENT_METHODS,
     ...userDefinedPaymentMethods
   ];
 
@@ -114,22 +96,22 @@ export function OnboardingForm() {
       toast({ title: translate({en: "Icon Required", pt: "Ícone Necessário"}), description: translate({en: "Please select an icon for the category.", pt: "Por favor, selecione um ícone para a categoria."}), variant: "destructive" });
       return;
     }
-    const isDuplicate = allDisplayCategories.some(cat => getDisplayCategoryLabelFromList(cat, language).toLowerCase() === newCategoryName.toLowerCase() || cat.name.toLowerCase() === newCategoryName.toLowerCase());
+    const isDuplicate = allDisplayCategories.some(cat => getCategoryDisplayLabel(cat, language).toLowerCase() === newCategoryName.toLowerCase() || cat.name.toLowerCase() === newCategoryName.toLowerCase());
     if (isDuplicate) {
       toast({ title: translate({en: "Duplicate Category", pt: "Categoria Duplicada"}), description: translate({en: "This category already exists.", pt: "Essa categoria já existe."}), variant: "destructive" });
       return;
     }
-    const newCustomCategory: CustomCategory = {
-      name: newCategoryName as CategoryName,
-      type: 'expense',
+    const newCustomCategory: CustomCategoryData = {
+      name: newCategoryName,
+      type: 'expense', // Custom categories from onboarding are expenses
       icon: selectedCustomCategoryIcon,
       label: { en: newCategoryName, pt: newCategoryName }
     };
     setUserDefinedCategories(prev => [...prev, newCustomCategory]);
-    setSelectedCategories(prev => new Set(prev).add(newCustomCategory.name));
+    setSelectedCategories(prev => new Set(prev).add(newCustomCategory.name as CategoryName));
     setCustomCategoryInput('');
     setSelectedCustomCategoryIcon(selectableIconsList.find(icon => icon.value === 'CircleHelp')?.value || selectableIconsList[0]?.value || '');
-    toast({ title: translate({en: "Category Added", pt: "Categoria Adicionada"}), description: `${newCustomCategory.label[language]} ${translate({en: "has been added.", pt: "foi adicionada."})}` });
+    toast({ title: translate({en: "Category Added", pt: "Categoria Adicionada"}), description: `${getCategoryDisplayLabel(newCustomCategory, language)} ${translate({en: "has been added.", pt: "foi adicionada."})}` });
   };
 
   const handlePaymentMethodToggle = (methodName: PaymentMethodName) => {
@@ -154,24 +136,24 @@ export function OnboardingForm() {
       toast({ title: translate({en: "Icon Required", pt: "Ícone Necessário"}), description: translate({en: "Please select an icon for the method.", pt: "Por favor, selecione um ícone para o método."}), variant: "destructive" });
       return;
     }
-    const isDuplicate = allDisplayPaymentMethods.some(pm => getDisplayPaymentMethodLabelFromList(pm, language).toLowerCase() === newMethodName.toLowerCase() || pm.name.toLowerCase() === newMethodName.toLowerCase());
+    const isDuplicate = allDisplayPaymentMethods.some(pm => getPaymentMethodDisplayLabel(pm, language).toLowerCase() === newMethodName.toLowerCase() || pm.name.toLowerCase() === newMethodName.toLowerCase());
     if (isDuplicate) {
       toast({ title: translate({en: "Duplicate Method", pt: "Método Duplicado"}), description: translate({en: "This payment method already exists.", pt: "Esse método de pagamento já existe."}), variant: "destructive" });
       return;
     }
-    const newCustomMethod: CustomPaymentMethod = {
-      name: newMethodName as PaymentMethodName,
+    const newCustomMethod: CustomPaymentMethodData = {
+      name: newMethodName,
       icon: selectedCustomPaymentMethodIcon,
       label: { en: newMethodName, pt: newMethodName }
     };
     setUserDefinedPaymentMethods(prev => [...prev, newCustomMethod]);
-    setSelectedPaymentMethods(prev => new Set(prev).add(newCustomMethod.name));
+    setSelectedPaymentMethods(prev => new Set(prev).add(newCustomMethod.name as PaymentMethodName));
     setCustomPaymentMethodInput('');
-    setSelectedCustomPaymentMethodIcon(selectableIconsList.find(icon => icon.value === 'CircleHelp')?.value || selectableIconsList[0]?.value || '');
-    toast({ title: translate({en: "Method Added", pt: "Método Adicionado"}), description: `${newCustomMethod.label[language]} ${translate({en: "has been added.", pt: "foi adicionado."})}` });
+    setSelectedCustomPaymentMethodIcon(selectableIconsList.find(icon => icon.value === 'Wallet')?.value || selectableIconsList[0]?.value || '');
+    toast({ title: translate({en: "Method Added", pt: "Método Adicionado"}), description: `${getPaymentMethodDisplayLabel(newCustomMethod, language)} ${translate({en: "has been added.", pt: "foi adicionado."})}` });
   };
 
-  const handleBudgetChange = (categoryName: CategoryName, amount: string) => {
+  const handleBudgetChange = (categoryName: string, amount: string) => {
     if (amount === '' || /^\d*\.?\d*$/.test(amount)) {
       setBudgetGoals(prev => ({
         ...prev,
@@ -181,6 +163,7 @@ export function OnboardingForm() {
   };
 
   const handleSubmit = async () => {
+    console.log("handleSubmit function called");
     if (!user) {
       toast({ title: translate({en: "Error", pt: "Erro"}), description: translate({en: "User not authenticated.", pt: "Usuário não autenticado."}), variant: "destructive" });
       return;
@@ -197,27 +180,28 @@ export function OnboardingForm() {
     setIsSaving(true);
 
     try {
-      const preferencesData = {
+ console.log("User object:", user);
+      const preferencesData: UserPreferences = {
         language,
         selectedCategories: Array.from(selectedCategories),
         userDefinedCategories: userDefinedCategories.map(cat => ({ name: cat.name, icon: cat.icon, label: cat.label, type: cat.type })),
         selectedPaymentMethods: Array.from(selectedPaymentMethods),
         userDefinedPaymentMethods: userDefinedPaymentMethods.map(pm => ({ name: pm.name, icon: pm.icon, label: pm.label })),
-        // budgetGoals removed from here
         updatedAt: serverTimestamp(),
       };
 
       const preferencesDocRef = doc(db, `users/${user.uid}/preferences`, "userPreferences");
-      await setDoc(preferencesDocRef, preferencesData, { merge: true });
+ console.log("Saving preferencesData:", preferencesData);
+ const preferencesResult = await setDoc(preferencesDocRef, preferencesData, { merge: true });
+ console.log("Preferences setDoc result:", preferencesResult);
 
-      // Save initial budget goals to the current month's budget document
-      const finalBudgetGoalsToSave: Record<CategoryName, number> = {};
+      const finalBudgetGoalsToSave: Record<string, number> = {};
       let hasBudgetGoals = false;
       for (const [catName, amountStr] of Object.entries(budgetGoals)) {
         if (selectedCategories.has(catName as CategoryName) && amountStr && amountStr.trim() !== '') {
-          const amountNum = parseFloat(amountStr);
+          const amountNum = parseFloat(amountStr.replace(',', '.'));
           if (!isNaN(amountNum) && amountNum > 0) {
-            finalBudgetGoalsToSave[catName as CategoryName] = amountNum;
+            finalBudgetGoalsToSave[catName] = amountNum;
             hasBudgetGoals = true;
           }
         }
@@ -226,16 +210,22 @@ export function OnboardingForm() {
       if (hasBudgetGoals) {
         const currentMonthYearKey = formatDateFns(new Date(), 'yyyy-MM');
         const budgetDocRef = doc(db, `users/${user.uid}/budgets/${currentMonthYearKey}`);
-        await setDoc(budgetDocRef, { ...finalBudgetGoalsToSave, lastUpdated: serverTimestamp() }, { merge: true });
+ console.log("Saving budgetGoalsToSave:", finalBudgetGoalsToSave);
+ console.log("Budget Doc Ref:", `users/${user.uid}/budgets/${currentMonthYearKey}`);
+ const budgetResult = await setDoc(budgetDocRef, { ...finalBudgetGoalsToSave, lastUpdated: serverTimestamp() }, { merge: true });
+ console.log("Budget setDoc result:", budgetResult);
       }
 
       const userDocRef = doc(db, "users", user.uid);
-      await setDoc(userDocRef, {
+ console.log("Updating user document:", user.uid);
+ const userDocResult = await setDoc(userDocRef, {
         onboardingComplete: true,
         onboardedAt: serverTimestamp()
       }, { merge: true });
+ console.log("User document setDoc result:", userDocResult);
 
       localStorage.setItem('onboardingComplete', 'true');
+ console.log("Onboarding complete flag set in localStorage.");
       localStorage.setItem('userLanguage', language);
 
       toast({ title: translate({en: "Setup Saved!", pt: "Configuração Salva!"}), description: translate({en: "Welcome to FinTrack!", pt: "Bem-vindo(a) ao FinTrack!"}) });
@@ -254,27 +244,6 @@ export function OnboardingForm() {
       setIsSaving(false);
     }
   };
-
-  useEffect(() => {
-    if (user && !authLoading) {
-      const checkOnboardingStatus = async () => {
-        if (!user) return;
-        const userDocRef = doc(db, "users", user.uid);
-        try {
-          const userDocSnap = await getDoc(userDocRef);
-          if (userDocSnap.exists() && userDocSnap.data().onboardingComplete) {
-            localStorage.setItem('onboardingComplete', 'true');
-            router.push('/');
-          } else {
-            localStorage.removeItem('onboardingComplete');
-          }
-        } catch (error) {
-           console.error("OnboardingForm: Error checking onboarding status (getDoc failed):", error);
-        }
-      };
-      checkOnboardingStatus();
-    }
-  }, [user, authLoading, router]);
 
 
   return (
@@ -308,12 +277,12 @@ export function OnboardingForm() {
               <div key={category.name} className="flex items-center space-x-2 p-2 rounded-md hover:bg-muted/50 transition-colors">
                 <Checkbox
                   id={`category-${category.name}`}
-                  checked={selectedCategories.has(category.name)}
-                  onCheckedChange={() => handleCategoryToggle(category.name)}
+                  checked={selectedCategories.has(category.name as CategoryName)}
+                  onCheckedChange={() => handleCategoryToggle(category.name as CategoryName)}
                 />
                 <CategoryIcon iconName={category.icon} className="h-5 w-5 text-muted-foreground" />
                 <Label htmlFor={`category-${category.name}`} className="font-normal cursor-pointer">
-                  {getDisplayCategoryLabelFromList(category, language)}
+                  {getCategoryDisplayLabel(category, language)}
                 </Label>
               </div>
             ))}
@@ -332,12 +301,15 @@ export function OnboardingForm() {
               <Select value={selectedCustomCategoryIcon} onValueChange={setSelectedCustomCategoryIcon}>
                 <SelectTrigger className="w-full sm:w-[220px]">
                   <SelectValue placeholder={translate({ en: "Select an icon", pt: "Selecione um ícone" })}>
-                    {selectedCustomCategoryIcon && iconNameToComponentMap[selectedCustomCategoryIcon] ? (
-                      <div className="flex items-center gap-2">
-                        <CategoryIcon iconName={selectedCustomCategoryIcon} className="h-4 w-4" />
-                        <span>{selectableIconsList.find(i => i.value === selectedCustomCategoryIcon)?.label || selectedCustomCategoryIcon}</span>
-                      </div>
-                    ) : (translate({ en: "Select an icon", pt: "Selecione um ícone" }))}
+                    {(() => {
+                      const foundIconOption = selectableIconsList.find(i => i.value === selectedCustomCategoryIcon);
+                      return foundIconOption ? (
+                        <div className="flex items-center gap-2">
+                          <CategoryIcon iconName={selectedCustomCategoryIcon} className="h-4 w-4" />
+                          <span>{translate(foundIconOption.label)}</span>
+                        </div>
+                      ) : translate({ en: "Select an icon", pt: "Selecione um ícone" });
+                    })()}
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
@@ -345,7 +317,7 @@ export function OnboardingForm() {
                     <SelectItem key={iconOption.value} value={iconOption.value}>
                       <div className="flex items-center gap-2">
                         <iconOption.iconComponent className="h-4 w-4 text-muted-foreground" />
-                        <span>{iconOption.label}</span>
+                        <span>{translate(iconOption.label)}</span>
                       </div>
                     </SelectItem>
                   ))}
@@ -371,12 +343,12 @@ export function OnboardingForm() {
               <div key={method.name} className="flex items-center space-x-2 p-2 rounded-md hover:bg-muted/50 transition-colors">
                 <Checkbox
                   id={`payment-${method.name}`}
-                  checked={selectedPaymentMethods.has(method.name)}
-                  onCheckedChange={() => handlePaymentMethodToggle(method.name)}
+                  checked={selectedPaymentMethods.has(method.name as PaymentMethodName)}
+                  onCheckedChange={() => handlePaymentMethodToggle(method.name as PaymentMethodName)}
                 />
                 <PaymentMethodIcon iconName={method.icon} className="h-5 w-5 text-muted-foreground" />
                 <Label htmlFor={`payment-${method.name}`} className="font-normal cursor-pointer">
-                   {getDisplayPaymentMethodLabelFromList(method, language)}
+                   {getPaymentMethodDisplayLabel(method, language)}
                 </Label>
               </div>
             ))}
@@ -395,12 +367,15 @@ export function OnboardingForm() {
               <Select value={selectedCustomPaymentMethodIcon} onValueChange={setSelectedCustomPaymentMethodIcon}>
                 <SelectTrigger className="w-full sm:w-[220px]">
                    <SelectValue placeholder={translate({ en: "Select an icon", pt: "Selecione um ícone" })}>
-                    {selectedCustomPaymentMethodIcon && iconNameToComponentMap[selectedCustomPaymentMethodIcon] ? (
-                      <div className="flex items-center gap-2">
-                        <PaymentMethodIcon iconName={selectedCustomPaymentMethodIcon} className="h-4 w-4" />
-                        <span>{selectableIconsList.find(i => i.value === selectedCustomPaymentMethodIcon)?.label || selectedCustomPaymentMethodIcon}</span>
-                      </div>
-                    ) : (translate({ en: "Select an icon", pt: "Selecione um ícone" }))}
+                    {(() => {
+                        const foundIconOption = selectableIconsList.find(i => i.value === selectedCustomPaymentMethodIcon);
+                        return foundIconOption ? (
+                            <div className="flex items-center gap-2">
+                            <PaymentMethodIcon iconName={selectedCustomPaymentMethodIcon} className="h-4 w-4" />
+                            <span>{translate(foundIconOption.label)}</span>
+                            </div>
+                        ) : translate({ en: "Select an icon", pt: "Selecione um ícone" });
+                    })()}
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
@@ -408,7 +383,7 @@ export function OnboardingForm() {
                     <SelectItem key={iconOption.value} value={iconOption.value}>
                        <div className="flex items-center gap-2">
                         <iconOption.iconComponent className="h-4 w-4 text-muted-foreground" />
-                        <span>{iconOption.label}</span>
+                        <span>{translate(iconOption.label)}</span>
                       </div>
                     </SelectItem>
                   ))}
@@ -431,8 +406,8 @@ export function OnboardingForm() {
           </p>
           <div className="space-y-4">
             {Array.from(selectedCategories).map(categoryKey => {
-              const categoryDetails = allDisplayCategories.find(c => c.name === categoryKey);
-              if (!categoryDetails || categoryDetails.type !== 'expense') {
+              const categoryDetails = allDisplayCategories.find(c => c.name === categoryKey && c.type === 'expense');
+              if (!categoryDetails) {
                 return null;
               }
 
@@ -442,10 +417,11 @@ export function OnboardingForm() {
                 <div key={categoryKey} className="flex items-center space-x-3">
                   <IconComponent className="h-5 w-5 text-muted-foreground flex-shrink-0" />
                   <Label htmlFor={`budget-${categoryKey}`} className="w-40 truncate flex-shrink-0">
-                    {getDisplayCategoryLabelFromList(categoryDetails, language)}
+                    {getCategoryDisplayLabel(categoryDetails, language)}
                   </Label>
                   <Input
-                    type="number"
+                    type="number" // Changed to number for better mobile keyboard and validation, parsing handled in submit
+                    inputMode="decimal" // Hint for mobile keyboards
                     id={`budget-${categoryKey}`}
                     value={budgetGoals[categoryKey] || ''}
                     onChange={(e) => handleBudgetChange(categoryKey, e.target.value)}

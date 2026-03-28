@@ -17,11 +17,11 @@ import { Input } from "@/components/ui/input";
 import { useAuth } from "@/context/auth-context";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
-import { useState } from "react";
-import { updateProfile, sendEmailVerification } from "firebase/auth"; // Import sendEmailVerification
-import { useLanguage } from "@/context/language-context";
+import { useState, useEffect } from "react";
+import { updateProfile, sendEmailVerification } from "firebase/auth";
+import { useLanguage } from '@/context/language-context';
 import { db } from "@/lib/firebase";
-import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { doc, setDoc, serverTimestamp, Timestamp } from "firebase/firestore";
 
 const signupFormSchema = z.object({
   name: z.string().min(2, { message: "O nome deve ter pelo menos 2 caracteres." }),
@@ -60,6 +60,7 @@ export function SignupForm() {
       try {
         await updateProfile(user, { displayName: values.name });
 
+        // Create or merge user document in Firestore with explicit inactive status
         const userDocRef = doc(db, "users", user.uid);
         await setDoc(userDocRef, {
           uid: user.uid,
@@ -67,23 +68,29 @@ export function SignupForm() {
           email: values.email,
           createdAt: serverTimestamp(),
           onboardingComplete: false,
-        });
+          emailVerified: false,
+          subscriptionStatus: 'inactive', // Explicitly set status to inactive
+          subscriptionEndDate: Timestamp.fromDate(new Date(0)), // Set a past date
+        }, { merge: true });
 
         await sendEmailVerification(user);
+
         toast({
           title: translate({ en: "Signup successful!", pt: "Cadastro realizado!" }),
           description: translate({ 
-            en: "Your account has been created. Please check your email to verify your account.", 
-            pt: "Sua conta foi criada com sucesso. Por favor, verifique seu e-mail para verificar sua conta." 
+            en: "Your account has been created. Please check your email to verify your account before proceeding.", 
+            pt: "Sua conta foi criada com sucesso. Por favor, verifique seu e-mail para ativar sua conta antes de prosseguir." 
           })
         });
-        localStorage.removeItem('onboardingComplete'); // Ensure onboarding is triggered
-        router.push("/onboarding"); 
+        localStorage.removeItem('onboardingComplete'); 
+        router.push("/verify-email"); 
       } catch (error: any) {
         console.error("Error during signup post-processing:", error);
         let errorMessage = translate({ en: "An error occurred. Please try again.", pt: "Ocorreu um erro. Por favor, tente novamente." });
         if (error.code === 'auth/email-already-in-use') {
           errorMessage = translate({ en: "This email is already in use.", pt: "Este e-mail já está em uso." });
+        } else if (error.code) {
+          errorMessage = `${translate({ en: "Error:", pt: "Erro:" })} ${error.code} - ${error.message}`;
         }
         toast({
           title: translate({ en: "Signup Error", pt: "Erro no Cadastro" }),
@@ -92,7 +99,6 @@ export function SignupForm() {
         });
       }
     } else {
-      // signUp itself might fail (e.g. email already in use if not caught by FirebaseError code above)
       toast({
         title: translate({ en: "Signup Error", pt: "Erro no Cadastro" }),
         description: translate({ en: "Could not create your account. The email might already be in use or another error occurred.", pt: "Não foi possível criar sua conta. O e-mail já pode estar em uso ou ocorreu outro erro." }),

@@ -59,7 +59,7 @@ import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/context/auth-context';
 import { db } from '@/lib/firebase';
-import { doc, getDoc, updateDoc, setDoc, serverTimestamp, arrayUnion, arrayRemove } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, setDoc, serverTimestamp, arrayUnion, arrayRemove, collection, getDocs } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useForm, type SubmitHandler, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -129,6 +129,11 @@ export default function ManageCategoriesPage() {
       const preferencesDocRef = doc(db, `users/${user.uid}/preferences/userPreferences`);
       const preferencesDocSnap = await getDoc(preferencesDocRef);
       
+      // Fetch legacy categories
+      const legacyCategoriesColRef = collection(db, 'users', user.uid, 'categories');
+      const legacyCategoriesSnap = await getDocs(legacyCategoriesColRef);
+      const legacyCategories = legacyCategoriesSnap.docs.map(doc => ({ ...doc.data(), id: doc.id })) as DisplayCategory[];
+      
       let effectiveCategories: DisplayCategory[] = [];
 
       if (preferencesDocSnap.exists()) {
@@ -162,6 +167,50 @@ export default function ManageCategoriesPage() {
       } else {
         // No preferences doc, use all predefined
         effectiveCategories = [...CATEGORIES];
+      }
+      
+      // Merge legacy categories and migrate if necessary
+      let needsMigration = false;
+      const newCustomCategoriesToSave: CustomCategoryData[] = [];
+      
+      legacyCategories.forEach(legacyCat => {
+        if (!effectiveCategories.some(ec => ec.name.toLowerCase() === legacyCat.name.toLowerCase())) {
+          effectiveCategories.push(legacyCat);
+          needsMigration = true;
+          newCustomCategoriesToSave.push({
+            name: legacyCat.name,
+            icon: legacyCat.icon || 'CircleHelp',
+            type: legacyCat.type || 'expense',
+            label: legacyCat.label || { en: legacyCat.name, pt: legacyCat.name }
+          });
+        }
+      });
+      
+      if (needsMigration && preferencesDocSnap.exists()) {
+        try {
+          await updateDoc(preferencesDocRef, {
+            userDefinedCategories: arrayUnion(...newCustomCategoriesToSave),
+            selectedCategories: arrayUnion(...newCustomCategoriesToSave.map(c => c.name))
+          });
+          console.log("Migrated legacy categories to userPreferences");
+        } catch (e) {
+          console.error("Failed to migrate legacy categories", e);
+        }
+      } else if (needsMigration && !preferencesDocSnap.exists()) {
+        try {
+          await setDoc(preferencesDocRef, {
+            userDefinedCategories: newCustomCategoriesToSave,
+            selectedCategories: newCustomCategoriesToSave.map(c => c.name),
+            deselectedPredefinedCategories: [],
+            selectedPaymentMethods: PAYMENT_METHODS.map(p => p.name),
+            userDefinedPaymentMethods: [],
+            language: language,
+            updatedAt: serverTimestamp()
+          });
+          console.log("Created userPreferences with legacy categories");
+        } catch (e) {
+          console.error("Failed to create userPreferences with legacy categories", e);
+        }
       }
       
       setDisplayCategories(effectiveCategories.sort((a,b) => getCategoryDisplayLabel(a,language).localeCompare(getCategoryDisplayLabel(b,language))));

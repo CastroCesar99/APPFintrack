@@ -10,6 +10,7 @@ const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
 const storageBucket = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET;
 const messagingSenderId = process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID;
 const appId = process.env.NEXT_PUBLIC_FIREBASE_APP_ID;
+const databaseId = process.env.NEXT_PUBLIC_FIREBASE_DATABASE_ID;
 
 // Check if all required Firebase environment variables are set
 if (
@@ -47,32 +48,30 @@ let app: FirebaseApp;
 let db: Firestore;
 let auth: Auth;
 
-// Define the specific database ID you want to use
-const databaseId = "fintrackdatabase";
-
 if (!getApps().length) {
   try {
     app = initializeApp(firebaseConfig);
-    // Initialize Firestore with the specific database ID
-    db = getFirestore(app, databaseId);
+    // Initialize Firestore, potentially with a specific database ID
+    db = getFirestore(app);
     auth = getAuth(app);
     if (typeof window !== 'undefined') { // Ensure this only runs on the client
-      enableIndexedDbPersistence(db, { // Pass the specific db instance here
-          cacheSizeBytes: CACHE_SIZE_UNLIMITED
-        })
-        .then(() => {
-          console.log(`Firestore offline persistence enabled successfully for database '${databaseId}'.`);
-        })
-        .catch((err) => {
-          if (err.code === 'failed-precondition') {
-            console.warn(`Firestore offline persistence for database '${databaseId}' failed: Multiple tabs open or other precondition not met. Data will not be synced offline across tabs.`);
-          } else if (err.code === 'unimplemented') {
-            console.warn(`Firestore offline persistence for database '${databaseId}' failed: The current browser does not support all of the features required to enable persistence.`);
-          } else {
-            console.error(`Firestore offline persistence for database '${databaseId}' failed with error: `, err);
-          }
-        }
-      );
+      // Commenting out enableIndexedDbPersistence to debug potential issues with offline persistence
+      // enableIndexedDbPersistence(db, { // Pass the specific db instance here
+      //  cacheSizeBytes: CACHE_SIZE_UNLIMITED
+      // })
+      // .then(() => {
+      //   console.log(`Firestore offline persistence enabled successfully.`);
+      // })
+      // .catch((err) => {
+      //   if (err.code === 'failed-precondition') {
+      //     console.warn(`Firestore offline persistence failed: Multiple tabs open or other precondition not met. Data will not be synced offline across tabs.`);
+      //   } else if (err.code === 'unimplemented') {
+      //     console.warn(`Firestore offline persistence failed: The current browser does not support all of the features required to enable persistence.`);
+      //   } else {
+      //     console.error(`Firestore offline persistence failed with error: `, err);
+      //   }
+      // }
+      // );
     }
   } catch (error) {
     console.error("An error occurred during Firebase initialization:", error);
@@ -82,7 +81,7 @@ if (!getApps().length) {
 } else {
   app = getApps()[0];
   // Ensure db is initialized with the specific database ID in this path too
-  db = getFirestore(app, databaseId);
+  db = getFirestore(app, databaseId); // Use databaseId here as well
   auth = getAuth(app);
 }
 

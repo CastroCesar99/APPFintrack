@@ -9,17 +9,26 @@ import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   signOut,
-  type User
+  type User,
+  sendPasswordResetEmail as firebaseSendPasswordResetEmail
 } from 'firebase/auth';
-import { auth } from '@/lib/firebase'; // Using the initialized auth from firebase.ts
+import { auth, db } from '@/lib/firebase'; 
 import { useRouter } from 'next/navigation';
+import { doc, onSnapshot, Timestamp } from 'firebase/firestore';
+import { whitelistedEmails } from '@/lib/whitelist';
+
+export type SubscriptionStatus = 'trial' | 'active' | 'inactive' | 'canceled' | 'expired';
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
+  isSubscriptionActive: boolean;
+  subscriptionStatus: SubscriptionStatus | null;
   signUp: (email: string, pass: string) => Promise<User | null>;
   logIn: (email: string, pass: string) => Promise<User | null>;
   logOut: () => Promise<void>;
+  sendPasswordResetEmail: (email: string) => Promise<void>;
+  reloadUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -27,84 +36,134 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isSubscriptionActive, setIsSubscriptionActive] = useState(false);
+  const [subscriptionStatus, setSubscriptionStatus] = useState<SubscriptionStatus | null>(null);
   const router = useRouter();
 
   useEffect(() => {
-    console.log("AuthContext: useEffect for onAuthStateChanged, initial loading state:", loading);
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      console.log("AuthContext: onAuthStateChanged fired. User:", currentUser, "Setting loading to false.");
+    const unsubscribeAuth = onAuthStateChanged(auth, (currentUser) => {
+      console.log("AuthContext: Auth state changed. User:", currentUser?.uid);
       setUser(currentUser);
-      setLoading(false);
-    }, (error) => {
-      console.error("AuthContext: Error in onAuthStateChanged listener:", error);
-      setUser(null); // Ensure user is null on auth error
-      setLoading(false); // Ensure loading is false even on auth error
+      if (!currentUser) {
+        setIsSubscriptionActive(false);
+        setSubscriptionStatus(null);
+        setLoading(false);
+      }
     });
-    return () => {
-      console.log("AuthContext: Unsubscribing from onAuthStateChanged.");
-      unsubscribe();
+    return () => unsubscribeAuth();
+  }, []);
+
+  useEffect(() => {
+    if (!user) {
+      if (loading) setLoading(false);
+      return;
     }
-  }, []); // Empty dependency array means this runs once on mount and cleans up on unmount
+
+    // Whitelist check
+    if (user.email && whitelistedEmails.includes(user.email)) {
+      console.log(`AuthContext: User ${user.email} is whitelisted. Granting subscription access.`);
+      setIsSubscriptionActive(true);
+      setSubscriptionStatus('active');
+      setLoading(false);
+      return; // Skip Firestore check
+    }
+
+    console.log("AuthContext: User detected (",user.uid,"), setting up Firestore listener for subscription status.");
+    const userDocRef = doc(db, 'users', user.uid);
+    const unsubscribeDoc = onSnapshot(userDocRef, (docSnap) => {
+      console.log("AuthContext: Firestore snapshot received for user", user.uid);
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        const status: SubscriptionStatus = data.subscriptionStatus || 'inactive';
+        const endDate: Date | null = data.subscriptionEndDate?.toDate() || null;
+        const now = new Date();
+        
+        console.log(`AuthContext: Checking status. Read from DB -> Status: '${status}', EndDate:`, endDate);
+
+        let isActive = false;
+        if (status === 'active' && endDate && endDate > now) {
+          isActive = true;
+        }
+        
+        console.log(`AuthContext: Final calculation -> isActive: ${isActive}`);
+        
+        setIsSubscriptionActive(isActive);
+        setSubscriptionStatus(status);
+      } else {
+        console.log("AuthContext: User document does not exist yet. Defaulting to inactive.");
+        setIsSubscriptionActive(false);
+        setSubscriptionStatus('inactive');
+      }
+      setLoading(false);
+      console.log("AuthContext: Loading set to false after reading user doc.");
+    }, (error) => {
+        console.error("AuthContext: Error listening to user document:", error);
+        setIsSubscriptionActive(false);
+        setSubscriptionStatus(null);
+        setLoading(false);
+    });
+
+    return () => unsubscribeDoc();
+  }, [user]);
+
 
   const signUp = useCallback(async (email: string, pass: string): Promise<User | null> => {
-    console.log("AuthContext: signUp called. Setting loading to true.");
     setLoading(true);
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
-      setUser(userCredential.user);
-      console.log("AuthContext: signUp successful. User:", userCredential.user);
       return userCredential.user;
     } catch (error) {
       console.error("AuthContext: Error signing up:", error);
-      return null;
-    } finally {
-      console.log("AuthContext: signUp finished. Setting loading to false.");
       setLoading(false);
+      return null;
     }
   }, []);
 
   const logIn = useCallback(async (email: string, pass: string): Promise<User | null> => {
-    console.log("AuthContext: logIn called. Setting loading to true.");
     setLoading(true);
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, pass);
-      setUser(userCredential.user);
-      console.log("AuthContext: logIn successful. User:", userCredential.user);
       return userCredential.user;
     } catch (error) {
-      console.error("AuthContext: Error logging in:", error); // This is where "auth/invalid-credential" would be caught
+      console.error("AuthContext: Error logging in:", error); 
+      setLoading(false); 
       return null;
-    } finally {
-      console.log("AuthContext: logIn finished. Setting loading to false.");
-      setLoading(false);
     }
   }, []);
 
   const logOut = useCallback(async () => {
-    console.log("AuthContext: logOut called. Setting loading to true.");
-    setLoading(true);
     try {
       await signOut(auth);
-      setUser(null);
-      console.log("AuthContext: logOut successful. User set to null.");
       router.push('/login');
     } catch (error) {
       console.error("AuthContext: Error logging out:", error);
-    } finally {
-      console.log("AuthContext: logOut finished. Setting loading to false.");
-      setLoading(false);
     }
   }, [router]);
+
+  const sendPasswordResetEmail = useCallback(async (emailAddress: string) => {
+    return firebaseSendPasswordResetEmail(auth, emailAddress);
+  }, []);
+
+  const reloadUser = useCallback(async (): Promise<void> => {
+    const currentUser = auth.currentUser;
+    if (currentUser) {
+      await currentUser.reload();
+      setUser(auth.currentUser ? {...auth.currentUser} : null); 
+    }
+  }, []);
 
   const value = {
     user,
     loading,
+    isSubscriptionActive,
+    subscriptionStatus,
     signUp,
     logIn,
     logOut,
+    sendPasswordResetEmail,
+    reloadUser,
   };
 
-  // console.log("AuthContext: Provider rendering. Current loading state:", loading, "User:", user); // This log can be very noisy
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
@@ -115,5 +174,3 @@ export function useAuth(): AuthContextType {
   }
   return context;
 }
-
-    

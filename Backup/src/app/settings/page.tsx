@@ -1,4 +1,3 @@
-
 "use client";
 
 import type React from 'react';
@@ -8,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { ListChecks, CreditCard, Languages, Mail, Heart, Cog, Sun, Moon } from "lucide-react";
+import { ListChecks, CreditCard, Languages, Mail, Heart, Cog, Sun, Moon, Star } from "lucide-react";
 import { useLanguage } from "@/context/language-context";
 import { useToast } from "@/hooks/use-toast";
 import Link from 'next/link';
@@ -81,6 +80,29 @@ export default function SettingsPage() {
           </CardContent>
         </Card>
 
+        {/* Subscription */}
+        <Card className="shadow-lg">
+          <CardHeader className="flex flex-row items-start gap-4 space-y-0">
+            <Star className="h-8 w-8 text-primary flex-shrink-0 mt-1" />
+            <div className="flex-grow">
+              <CardTitle>{translate({ en: "Subscription", pt: "Assinatura" })}</CardTitle>
+              <CardDescription>
+                {translate({
+                  en: "Manage your subscription plan and billing details.",
+                  pt: "Gerencie seu plano de assinatura e detalhes de faturamento."
+                })}
+              </CardDescription>
+            </div>
+          </CardHeader>
+          <CardContent className="pt-4">
+            <Link href="/subscription">
+              <Button className="w-full sm:w-auto">
+                {translate({ en: "Manage Subscription", pt: "Gerenciar Assinatura" })}
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+        
         {/* Appearance / Theme Selection */}
         <Card className="shadow-lg">
           <CardHeader className="flex flex-row items-start gap-4 space-y-0">
