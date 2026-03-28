@@ -6,7 +6,7 @@ export async function generateFinancialInsights(
   language: 'en' | 'pt',
   monthYear: string
 ): Promise<string> {
-  const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+  const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     throw new Error("Gemini API key is not configured.");
   }
@@ -31,7 +31,7 @@ export async function generateFinancialInsights(
 
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: "gemini-2.0-flash-lite",
       contents: prompt,
       config: {
         systemInstruction,

@@ -3,10 +3,12 @@
 
 import type React from 'react';
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import ReactMarkdown from 'react-markdown';
 import { AppLayout } from "@/components/layout/app-layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Terminal, Package, Wallet, FileText, DollarSign, Target, TrendingUp, TrendingDown, Sparkles, ListChecks } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Terminal, Package, Wallet, FileText, DollarSign, Target, TrendingUp, TrendingDown, Sparkles, ListChecks, RefreshCw } from "lucide-react";
 import type { Transaction, DisplayCategory, UserPreferences, CustomCategoryData, Category, CategoryName } from "@/types";
 import { CATEGORIES, getCategoryDisplayLabel } from "@/types";
 import { useAuth } from '@/context/auth-context';
@@ -65,6 +67,11 @@ export default function ReportsPage() {
   const [isLoadingBudgets, setIsLoadingBudgets] = useState(true);
 
   const [isClient, setIsClient] = useState(false);
+
+  // AI Insights state
+  const [aiInsights, setAiInsights] = useState<string | null>(null);
+  const [isGeneratingInsights, setIsGeneratingInsights] = useState(false);
+  const [insightsError, setInsightsError] = useState<string | null>(null);
 
   const effectMountedRef = useRef(true);
   const unsubscribeTransactionsRef = useRef<(() => void) | null>(null);
@@ -752,21 +759,81 @@ export default function ReportsPage() {
           </CardContent>
         </Card>
 
-        <Card className="shadow-lg bg-muted/50 border-dashed">
+        <Card className="shadow-lg bg-muted/50 border border-primary/20">
           <CardHeader className="flex flex-row items-start gap-4 space-y-0">
-            <Terminal className="h-8 w-8 text-primary flex-shrink-0 mt-1" />
+            <Sparkles className="h-8 w-8 text-primary flex-shrink-0 mt-1" />
             <div className="flex-grow">
               <CardTitle>{translate({ en: "Financial Insights by AI", pt: "Insights Financeiros por IA" })}</CardTitle>
-              <CardDescription className="text-wrap"> {translate({ en: "AI-generated summary and advice for", pt: "Resumo e conselhos gerados por IA para" })} {displayedMonthYearLabel}.
-                <br />
-                {translate({ en: "This feature is in development. AI analysis will use transactions and defined budgets once fully integrated.", pt: "Esta funcionalidade está em desenvolvimento. A análise da IA usará transações e orçamentos definidos quando totalmente integrada." })}
+              <CardDescription className="text-wrap">
+                {translate({ en: "AI-generated summary and advice for", pt: "Resumo e conselhos gerados por IA para" })} {displayedMonthYearLabel}.
               </CardDescription>
             </div>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={isGeneratingInsights || transactionsForDisplayedPeriod.length === 0}
+              onClick={async () => {
+                setIsGeneratingInsights(true);
+                setInsightsError(null);
+                setAiInsights(null);
+                try {
+                  const res = await fetch('/api/insights', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      transactions: transactionsForDisplayedPeriod,
+                      budgets: loadedBudgets || {},
+                      language,
+                      monthYear: displayedMonthYearLabel,
+                    }),
+                  });
+                  const data = await res.json();
+                  if (!res.ok) throw new Error(data.error || 'Failed');
+                  setAiInsights(data.insights);
+                } catch (err: any) {
+                  setInsightsError(err.message || translate({ en: 'Could not generate insights. Please try again.', pt: 'Não foi possível gerar insights. Tente novamente.' }));
+                } finally {
+                  setIsGeneratingInsights(false);
+                }
+              }}
+              className="flex-shrink-0"
+            >
+              <RefreshCw className={cn("h-4 w-4 mr-2", isGeneratingInsights && "animate-spin")} />
+              {isGeneratingInsights
+                ? translate({ en: 'Generating...', pt: 'Gerando...' })
+                : aiInsights
+                  ? translate({ en: 'Regenerate', pt: 'Regenerar' })
+                  : translate({ en: 'Generate', pt: 'Gerar' })}
+            </Button>
           </CardHeader>
-          <CardContent className="pt-4">
-              <p className="text-muted-foreground text-center">
-                {translate({ en: "AI insights are coming soon!", pt: "Insights da IA em breve!" })}
-              </p>
+          <CardContent className="pt-2">
+            {isGeneratingInsights ? (
+              <div className="space-y-3 py-2">
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-5/6" />
+                <Skeleton className="h-4 w-4/6" />
+                <Skeleton className="h-4 w-full mt-4" />
+                <Skeleton className="h-4 w-3/4" />
+              </div>
+            ) : insightsError ? (
+              <div className="rounded-md bg-destructive/10 border border-destructive/30 p-4">
+                <p className="text-sm text-destructive">{insightsError}</p>
+              </div>
+            ) : aiInsights ? (
+              <div className="prose prose-sm dark:prose-invert max-w-none text-foreground">
+                <ReactMarkdown>{aiInsights}</ReactMarkdown>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-8 text-center gap-3">
+                <Sparkles className="h-10 w-10 text-muted-foreground/50" />
+                <p className="text-sm text-muted-foreground">
+                  {transactionsForDisplayedPeriod.length === 0
+                    ? translate({ en: 'Add transactions this month to generate AI insights.', pt: 'Adicione transações neste mês para gerar insights de IA.' })
+                    : translate({ en: 'Click "Generate" to get personalized financial insights powered by Gemini AI.', pt: 'Clique em "Gerar" para obter insights financeiros personalizados com Gemini AI.' })
+                  }
+                </p>
+              </div>
+            )}
           </CardContent>
         </Card>
 
