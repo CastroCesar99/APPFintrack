@@ -8,13 +8,15 @@ import { AppLayout } from "@/components/layout/app-layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Terminal, Package, Wallet, FileText, DollarSign, Target, TrendingUp, TrendingDown, Sparkles, ListChecks, RefreshCw } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Terminal, Package, Wallet, FileText, DollarSign, Target, TrendingUp, TrendingDown, Sparkles, ListChecks, RefreshCw, Mic, MicOff, ArrowRight } from "lucide-react";
 import type { Transaction, DisplayCategory, UserPreferences, CustomCategoryData, Category, CategoryName } from "@/types";
 import { CATEGORIES, getCategoryDisplayLabel } from "@/types";
 import { useAuth } from '@/context/auth-context';
 import { useLanguage } from '@/context/language-context';
 import { useDateNavigation } from '@/context/date-navigation-context';
 import { useToast } from "@/hooks/use-toast";
+import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 import { db } from '@/lib/firebase';
 import { collection, query, orderBy, onSnapshot, Timestamp, doc, getDoc } from "firebase/firestore";
 import {
@@ -72,6 +74,66 @@ export default function ReportsPage() {
   const [aiInsights, setAiInsights] = useState<string | null>(null);
   const [isGeneratingInsights, setIsGeneratingInsights] = useState(false);
   const [insightsError, setInsightsError] = useState<string | null>(null);
+  const [userQuestion, setUserQuestion] = useState("");
+  const [isAskingArya, setIsAskingArya] = useState(false);
+
+  const {
+    isListening,
+    transcript,
+    startListening,
+    stopListening,
+    browserSupportsSpeechRecognition
+  } = useSpeechRecognition();
+
+  // Update question when transcript changes
+  useEffect(() => {
+    if (transcript) {
+      setUserQuestion(transcript);
+    }
+  }, [transcript]);
+
+  // Handle auto-submit when user stops talking (if we have a question)
+  useEffect(() => {
+    if (!isListening && transcript && !isAskingArya) {
+      handleAskQuestion(transcript);
+    }
+  }, [isListening]);
+
+  const toggleListening = () => {
+    if (isListening) {
+      stopListening();
+    } else {
+      startListening(language === 'pt' ? 'pt-BR' : 'en-US');
+    }
+  };
+
+  const handleAskQuestion = async (questionToAsk: string) => {
+    if (!questionToAsk.trim()) return;
+    
+    setIsAskingArya(true);
+    setInsightsError(null);
+    setAiInsights(null);
+    try {
+      const res = await fetch('/api/ask', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          question: questionToAsk,
+          transactions: transactionsForDisplayedPeriod,
+          budgets: loadedBudgets || {},
+          language,
+          monthYear: displayedMonthYearLabel,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed');
+      setAiInsights(`**Pergunta:** ${questionToAsk}\n\n**Arya:** ${data.answer}`);
+    } catch (err: any) {
+      setInsightsError(err.message || translate({ en: 'Arya could not answer. Please try again.', pt: 'Arya não conseguiu responder. Tente novamente.' }));
+    } finally {
+      setIsAskingArya(false);
+    }
+  };
 
   const effectMountedRef = useRef(true);
   const unsubscribeTransactionsRef = useRef<(() => void) | null>(null);
@@ -770,46 +832,110 @@ export default function ReportsPage() {
                 {translate({ en: "Personalized summary and advice for", pt: "Resumo e conselhos personalizados para" })} {displayedMonthYearLabel}.
               </CardDescription>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={isGeneratingInsights || transactionsForDisplayedPeriod.length === 0}
-              onClick={async () => {
-                setIsGeneratingInsights(true);
-                setInsightsError(null);
-                setAiInsights(null);
-                try {
-                  const res = await fetch('/api/insights', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                      transactions: transactionsForDisplayedPeriod,
-                      budgets: loadedBudgets || {},
-                      language,
-                      monthYear: displayedMonthYearLabel,
-                    }),
-                  });
-                  const data = await res.json();
-                  if (!res.ok) throw new Error(data.error || 'Failed');
-                  setAiInsights(data.insights);
-                } catch (err: any) {
-                  setInsightsError(err.message || translate({ en: 'Could not generate insights. Please try again.', pt: 'Não foi possível gerar insights. Tente novamente.' }));
-                } finally {
-                  setIsGeneratingInsights(false);
-                }
-              }}
-              className="flex-shrink-0"
-            >
-              <RefreshCw className={cn("h-4 w-4 mr-2", isGeneratingInsights && "animate-spin")} />
-              {isGeneratingInsights
-                ? translate({ en: 'Generating...', pt: 'Gerando...' })
-                : aiInsights
-                  ? translate({ en: 'Regenerate', pt: 'Regenerar' })
-                  : translate({ en: 'Generate', pt: 'Gerar' })}
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={isGeneratingInsights || isAskingArya || transactionsForDisplayedPeriod.length === 0}
+                onClick={async () => {
+                  setIsGeneratingInsights(true);
+                  setInsightsError(null);
+                  setAiInsights(null);
+                  try {
+                    const res = await fetch('/api/insights', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        transactions: transactionsForDisplayedPeriod,
+                        budgets: loadedBudgets || {},
+                        language,
+                        monthYear: displayedMonthYearLabel,
+                      }),
+                    });
+                    const data = await res.json();
+                    if (!res.ok) throw new Error(data.error || 'Failed');
+                    setAiInsights(data.insights);
+                  } catch (err: any) {
+                    setInsightsError(err.message || translate({ en: 'Could not generate insights. Please try again.', pt: 'Não foi possível gerar insights. Tente novamente.' }));
+                  } finally {
+                    setIsGeneratingInsights(false);
+                  }
+                }}
+                className="flex-shrink-0"
+              >
+                <RefreshCw className={cn("h-4 w-4 mr-2", isGeneratingInsights && "animate-spin")} />
+                {isGeneratingInsights
+                  ? translate({ en: 'Generating...', pt: 'Gerando...' })
+                  : aiInsights
+                    ? translate({ en: 'Regenerate', pt: 'Regenerar' })
+                    : translate({ en: 'Generate', pt: 'Gerar' })}
+              </Button>
+            </div>
           </CardHeader>
-          <CardContent className="pt-2">
-            {isGeneratingInsights ? (
+          <CardContent className="pt-2 space-y-4">
+            {/* Ask Arya Input Section */}
+            <div className="relative group">
+              <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+                <Sparkles className="h-4 w-4 text-primary opacity-50 group-focus-within:opacity-100 transition-opacity" />
+              </div>
+              <input
+                type="text"
+                value={userQuestion}
+                onChange={(e) => setUserQuestion(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && userQuestion.trim() && !isAskingArya) {
+                    const question = userQuestion;
+                    setUserQuestion("");
+                    handleAskQuestion(question);
+                  }
+                }}
+                placeholder={isListening 
+                  ? translate({ en: "Listening...", pt: "Ouvindo..." })
+                  : translate({ en: "Ask Arya something about your expenses...", pt: "Pergunte algo à Arya sobre seus gastos..." })}
+                className={cn(
+                  "w-full pl-10 pr-20 py-2 bg-background/50 border border-primary/20 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 transition-all placeholder:text-muted-foreground/60",
+                  isListening && "text-primary font-medium animate-pulse border-primary/40 bg-primary/5"
+                )}
+                disabled={isAskingArya || transactionsForDisplayedPeriod.length === 0}
+              />
+              
+              <div className="absolute right-2 inset-y-0 flex items-center gap-1">
+                {browserSupportsSpeechRecognition && (
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className={cn(
+                      "h-8 w-8 rounded-full transition-all",
+                      isListening ? "bg-primary/20 text-primary animate-pulse" : "hover:bg-primary/10"
+                    )}
+                    onClick={toggleListening}
+                    disabled={isAskingArya || transactionsForDisplayedPeriod.length === 0}
+                  >
+                    <Mic className="h-4 w-4" />
+                  </Button>
+                )}
+
+                {isAskingArya ? (
+                  <RefreshCw className="h-4 w-4 text-primary animate-spin mr-2" />
+                ) : (
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-8 w-8 rounded-full hover:bg-primary/20 hover:text-primary"
+                    onClick={() => {
+                       const question = userQuestion;
+                       setUserQuestion("");
+                       handleAskQuestion(question);
+                    }}
+                    disabled={!userQuestion.trim() || isAskingArya || transactionsForDisplayedPeriod.length === 0}
+                  >
+                    <ArrowRight className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            {isGeneratingInsights || isAskingArya ? (
               <div className="space-y-3 py-2">
                 <Skeleton className="h-4 w-full" />
                 <Skeleton className="h-4 w-5/6" />

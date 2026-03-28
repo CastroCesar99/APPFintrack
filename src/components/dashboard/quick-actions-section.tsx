@@ -34,6 +34,8 @@ interface QuickActionsSectionProps {
   userCategories: DisplayCategory[];
   userPaymentMethods: DisplayPaymentMethod[];
   isSubscriptionActive: boolean;
+  preFilledTransaction?: any;
+  onClearPreFilled?: () => void;
 }
 
 export function QuickActionsSection({ 
@@ -42,6 +44,8 @@ export function QuickActionsSection({
   userCategories,
   userPaymentMethods,
   isSubscriptionActive,
+  preFilledTransaction,
+  onClearPreFilled,
 }: QuickActionsSectionProps) {
   const { translate } = useLanguage();
   const router = useRouter();
@@ -52,12 +56,39 @@ export function QuickActionsSection({
   const [dateForForm, setDateForForm] = useState<Date>(currentDisplayedDate);
   // Add a counter to force re-render
   const [formRenderKey, setFormRenderKey] = useState(0);
+  const [localPreFilledData, setLocalPreFilledData] = useState<any>(null);
 
   useEffect(() => {
     if (!isFormOpen) {
       setDateForForm(currentDisplayedDate);
     }
   }, [currentDisplayedDate, isFormOpen]);
+
+  useEffect(() => {
+    if (preFilledTransaction) {
+      if (!isSubscriptionActive) {
+        setShowSubscriptionAlert(true);
+        onClearPreFilled?.();
+        return;
+      }
+      
+      setFormInitialType(preFilledTransaction.type || "expense");
+      
+      if (preFilledTransaction.date) {
+        try {
+          setDateForForm(new Date(preFilledTransaction.date + "T12:00:00"));
+        } catch {
+          setDateForForm(currentDisplayedDate);
+        }
+      }
+      
+      setLocalPreFilledData(preFilledTransaction);
+      setFormRenderKey(prev => prev + 1);
+      setIsFormOpen(true);
+      // Clear parent state so it doesn't trigger again
+      onClearPreFilled?.();
+    }
+  }, [preFilledTransaction, isSubscriptionActive, currentDisplayedDate, onClearPreFilled]);
 
   const handleOpenDialog = (type: TransactionType) => {
     if (!isSubscriptionActive) {
@@ -66,6 +97,7 @@ export function QuickActionsSection({
     }
     setFormInitialType(type);
     setDateForForm(currentDisplayedDate);
+    setLocalPreFilledData(null); // Clear any pre-filled data when opening manually
     // Increment key to force complete re-mount of the form component
     setFormRenderKey(prev => prev + 1);
     setIsFormOpen(true);
@@ -93,7 +125,10 @@ export function QuickActionsSection({
         <CardTitle className="text-base font-semibold">{quickActionsTitle}</CardTitle>
       </CardHeader>
       <CardContent>
-        <Dialog open={isFormOpen} onOpenChange={setIsFormOpen} modal={false}> 
+        <Dialog open={isFormOpen} onOpenChange={(open) => {
+          setIsFormOpen(open);
+          if (!open) setLocalPreFilledData(null);
+        }} modal={false}> 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <Button onClick={() => handleOpenDialog("expense")} variant="outline" className="w-full">
               <PlusCircle className="mr-2 h-4 w-4" /> {addExpenseLabel}
@@ -120,9 +155,10 @@ export function QuickActionsSection({
                 onSave={handleFormSubmit}
                 initialType={formInitialType}
                 defaultDate={dateForForm} 
-                userCategories={userCategories} 
+                userCategories={userCategories}
                 userPaymentMethods={userPaymentMethods} 
                 transactionToEdit={null}
+                preFilledData={localPreFilledData}
               />
             )}
           </DialogContent>
