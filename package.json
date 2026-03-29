@@ -9,9 +9,17 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "mobile:sync": "next build && npx cap sync",
+    "mobile:android": "npx cap open android",
+    "mobile:ios": "npx cap open ios"
   },
   "dependencies": {
+    "@capacitor/android": "^8.3.0",
+    "@capacitor/cli": "^8.3.0",
+    "@capacitor/core": "^8.3.0",
+    "@capacitor/ios": "^8.3.0",
+    "@codetrix-studio/capacitor-google-auth": "^3.4.0-rc.4",
     "@genkit-ai/googleai": "^1.28.0",
     "@genkit-ai/next": "^1.31.0",
     "@google/genai": "^1.46.0",

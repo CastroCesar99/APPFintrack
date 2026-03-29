@@ -27,8 +27,8 @@ import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
 import { useLanguage } from "@/context/language-context";
-// import { sendPasswordResetEmail as firebaseSendPasswordResetEmail } from "firebase/auth"; // Now using from context
-// import { auth as firebaseAuth } from "@/lib/firebase"; // Now using from context
+import { Chrome } from "lucide-react"; // Using Chrome icon as a proxy for Google or just generic
+import { Separator } from "@/components/ui/separator";
 
 const loginFormSchema = z.object({
   email: z.string().email({ message: "Por favor, insira um email válido." }),
@@ -44,10 +44,11 @@ type ForgotPasswordFormValues = z.infer<typeof forgotPasswordSchema>;
 
 
 export function LoginForm() {
-  const { logIn, sendPasswordResetEmail } = useAuth(); // Use sendPasswordResetEmail from context
+  const { logIn, signInWithGoogle, sendPasswordResetEmail } = useAuth(); // Use new method
   const router = useRouter();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [isForgotPasswordOpen, setIsForgotPasswordOpen] = useState(false);
   const [isSendingResetEmail, setIsSendingResetEmail] = useState(false);
   const { translate } = useLanguage();
@@ -94,6 +95,29 @@ export function LoginForm() {
         description: translate({ en: "Invalid email or password. Please try again.", pt: "Email ou senha inválidos. Por favor, tente novamente." }),
         variant: "destructive",
       });
+    }
+  }
+
+  async function handleGoogleLogin() {
+    setIsGoogleLoading(true);
+    try {
+      const user = await signInWithGoogle();
+      if (user) {
+        toast({
+          title: translate({ en: "Login successful!", pt: "Login bem-sucedido!" }),
+          description: translate({ en: "Welcome back with Google.", pt: "Bem-vindo(a) de volta com o Google." })
+        });
+        router.push("/");
+      }
+    } catch (error) {
+      console.error("Google login error:", error);
+      toast({
+        title: translate({ en: "Login Error", pt: "Erro no Login" }),
+        description: translate({ en: "Could not sign in with Google. Please try again.", pt: "Não foi possível entrar com o Google. Tente novamente." }),
+        variant: "destructive",
+      });
+    } finally {
+      setIsGoogleLoading(false);
     }
   }
 
@@ -161,8 +185,36 @@ export function LoginForm() {
               {translate({ en: "Forgot password?", pt: "Esqueci minha senha?" })}
             </Button>
           </div>
-          <Button type="submit" className="w-full bg-primary hover:bg-primary/90" disabled={isLoading}>
+          <Button type="submit" className="w-full bg-primary hover:bg-primary/90" disabled={isLoading || isGoogleLoading}>
             {isLoading ? translate({ en: "Signing in...", pt: "Entrando..." }) : translate({ en: "Sign In", pt: "Entrar" })}
+          </Button>
+
+          <div className="relative my-4">
+            <div className="absolute inset-0 flex items-center">
+              <Separator />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-background px-2 text-muted-foreground">
+                {translate({ en: "Or continue with", pt: "Ou continue com" })}
+              </span>
+            </div>
+          </div>
+
+          <Button 
+            type="button" 
+            variant="outline" 
+            className="w-full" 
+            onClick={handleGoogleLogin} 
+            disabled={isLoading || isGoogleLoading}
+          >
+            {isGoogleLoading ? (
+              <Chrome className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <svg className="mr-2 h-4 w-4" aria-hidden="true" focusable="false" data-prefix="fab" data-icon="google" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 488 512">
+                <path fill="currentColor" d="M488 261.8C488 403.3 391.1 504 248 504 110.8 504 0 393.2 0 256S110.8 8 248 8c66.8 0 123 24.5 166.3 64.9l-67.5 64.9C258.5 52.6 94.3 116.6 94.3 256c0 86.5 69.1 156.6 153.7 156.6 98.2 0 135-70.4 140.8-106.9H248v-85.3h236.1c2.3 12.7 3.9 24.9 3.9 41.4z"></path>
+              </svg>
+            )}
+            {translate({ en: "Login with Google", pt: "Entrar com Google" })}
           </Button>
         </form>
       </Form>

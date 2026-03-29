@@ -10,8 +10,13 @@ import {
   signInWithEmailAndPassword,
   signOut,
   type User,
-  sendPasswordResetEmail as firebaseSendPasswordResetEmail
+  sendPasswordResetEmail as firebaseSendPasswordResetEmail,
+  GoogleAuthProvider,
+  signInWithPopup,
+  signInWithCredential
 } from 'firebase/auth';
+import { Capacitor } from '@capacitor/core';
+import { GoogleAuth } from '@codetrix-studio/capacitor-google-auth';
 import { auth, db } from '@/lib/firebase'; 
 import { useRouter } from 'next/navigation';
 import { doc, onSnapshot, Timestamp } from 'firebase/firestore';
@@ -26,6 +31,7 @@ interface AuthContextType {
   subscriptionStatus: SubscriptionStatus | null;
   signUp: (email: string, pass: string) => Promise<User | null>;
   logIn: (email: string, pass: string) => Promise<User | null>;
+  signInWithGoogle: () => Promise<User | null>;
   logOut: () => Promise<void>;
   sendPasswordResetEmail: (email: string) => Promise<void>;
   reloadUser: () => Promise<void>;
@@ -131,6 +137,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const signInWithGoogle = useCallback(async (): Promise<User | null> => {
+    setLoading(true);
+    try {
+      let userCredential;
+
+      if (Capacitor.isNativePlatform()) {
+        // Native Capacitor Login
+        const googleUser = await GoogleAuth.signIn();
+        const credential = GoogleAuthProvider.credential(googleUser.authentication.idToken);
+        userCredential = await signInWithCredential(auth, credential);
+      } else {
+        // Standard Web Popup Login
+        const provider = new GoogleAuthProvider();
+        userCredential = await signInWithPopup(auth, provider);
+      }
+
+      return userCredential.user;
+    } catch (error) {
+      console.error("AuthContext: Error with Google login:", error);
+      setLoading(false);
+      return null;
+    }
+  }, []);
+
   const logOut = useCallback(async () => {
     try {
       await signOut(auth);
@@ -159,6 +189,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     subscriptionStatus,
     signUp,
     logIn,
+    signInWithGoogle,
     logOut,
     sendPasswordResetEmail,
     reloadUser,
