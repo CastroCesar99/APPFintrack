@@ -44,6 +44,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [isSubscriptionActive, setIsSubscriptionActive] = useState(false);
   const [subscriptionStatus, setSubscriptionStatus] = useState<SubscriptionStatus | null>(null);
+  const [isSocialInitialized, setIsSocialInitialized] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -59,16 +60,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => unsubscribeAuth();
   }, []);
 
-  // Initialize Social Login for Capacitor
-  useEffect(() => {
-    if (Capacitor.isNativePlatform()) {
-      SocialLogin.initialize({
+  // Helper to initialize Social Login
+  const handleInitializeSocial = useCallback(async () => {
+    if (!Capacitor.isNativePlatform() || isSocialInitialized) return;
+    
+    try {
+      console.log("AuthContext: Initializing SocialLogin...");
+      await SocialLogin.initialize({
         google: {
           webClientId: '627912670361-hcsfl4egpoeli1e8o2j8sqks6qmk7fn3.apps.googleusercontent.com',
         },
       });
+      setIsSocialInitialized(true);
+      console.log("AuthContext: SocialLogin initialized successfully.");
+    } catch (error) {
+      console.error("AuthContext: Error initializing SocialLogin:", error);
     }
-  }, []);
+  }, [isSocialInitialized]);
+
+  // Initialize on mount if native
+  useEffect(() => {
+    handleInitializeSocial();
+  }, [handleInitializeSocial]);
 
   useEffect(() => {
     if (!user) {
@@ -154,6 +167,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       let userCredential;
 
       if (Capacitor.isNativePlatform()) {
+        // Ensure initialized
+        if (!isSocialInitialized) {
+          await handleInitializeSocial();
+        }
+
         // Native Capacitor Login via Capgo Social Login
         const response = await SocialLogin.login({
           provider: 'google',

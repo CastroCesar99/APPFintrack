@@ -1,7 +1,7 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.fintrack.app',
+  appId: 'com.fintrackcastromanagement.app',
   appName: 'FinTrack',
   webDir: 'out',
   plugins: {

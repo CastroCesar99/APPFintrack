@@ -4,6 +4,3 @@ project(':capacitor-android').projectDir = new File('../node_modules/@capacitor/
 
 include ':capgo-capacitor-social-login'
 project(':capgo-capacitor-social-login').projectDir = new File('../node_modules/@capgo/capacitor-social-login/android')
-
-include ':southdevs-capacitor-google-auth'
-project(':southdevs-capacitor-google-auth').projectDir = new File('../node_modules/@southdevs/capacitor-google-auth/android')
