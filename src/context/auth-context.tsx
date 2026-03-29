@@ -24,6 +24,15 @@ import { whitelistedEmails } from '@/lib/whitelist';
 
 export type SubscriptionStatus = 'trial' | 'active' | 'inactive' | 'canceled' | 'expired';
 
+// Pre-load auth module for Web to prevent popup blocking
+let webAuthModule: any = null;
+if (typeof window !== 'undefined' && !Capacitor.isNativePlatform()) {
+  import('firebase/auth').then(m => {
+    webAuthModule = m;
+    console.log("AuthContext: Web Auth module pre-loaded.");
+  }).catch(err => console.error("AuthContext: Error pre-loading web auth:", err));
+}
+
 interface AuthContextType {
   user: User | null;
   loading: boolean;
@@ -216,10 +225,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } else {
         // Standard Web Popup Login
         console.log("AuthContext: Starting web signInWithPopup...");
-        // Dynamic import to avoid loading gapi on mobile
-        const { signInWithPopup } = await import('firebase/auth');
+        
+        let signInWithPopupFunc;
+        if (webAuthModule) {
+          signInWithPopupFunc = webAuthModule.signInWithPopup;
+        } else {
+          // Fallback if not pre-loaded yet
+          const { signInWithPopup } = await import('firebase/auth');
+          signInWithPopupFunc = signInWithPopup;
+        }
+
         const provider = new GoogleAuthProvider();
-        userCredential = await signInWithPopup(auth, provider);
+        userCredential = await signInWithPopupFunc(auth, provider);
       }
 
       setLoading(false);

@@ -44,7 +44,8 @@ if (
 
 const firebaseConfig = {
   apiKey: apiKey,
-  authDomain: authDomain,
+  // Ensure the authDomain is correct for both dev and prod
+  authDomain: authDomain || `${projectId}.firebaseapp.com`,
   projectId: projectId,
   storageBucket: storageBucket,
   messagingSenderId: messagingSenderId,
