@@ -16,7 +16,7 @@ import {
   signInWithCredential
 } from 'firebase/auth';
 import { Capacitor } from '@capacitor/core';
-import { GoogleAuth } from '@codetrix-studio/capacitor-google-auth';
+import { SocialLogin } from '@capgo/capacitor-social-login';
 import { auth, db } from '@/lib/firebase'; 
 import { useRouter } from 'next/navigation';
 import { doc, onSnapshot, Timestamp } from 'firebase/firestore';
@@ -57,6 +57,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     });
     return () => unsubscribeAuth();
+  }, []);
+
+  // Initialize Social Login for Capacitor
+  useEffect(() => {
+    if (Capacitor.isNativePlatform()) {
+      SocialLogin.initialize({
+        google: {
+          webClientId: '627912670361-hcsfl4egpoeli1e8o2j8sqks6qmk7fn3.apps.googleusercontent.com',
+        },
+      });
+    }
   }, []);
 
   useEffect(() => {
@@ -143,10 +154,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       let userCredential;
 
       if (Capacitor.isNativePlatform()) {
-        // Native Capacitor Login
-        const googleUser = await GoogleAuth.signIn();
-        const credential = GoogleAuthProvider.credential(googleUser.authentication.idToken);
-        userCredential = await signInWithCredential(auth, credential);
+        // Native Capacitor Login via Capgo Social Login
+        const response = await SocialLogin.login({
+          provider: 'google',
+          options: {
+            scopes: ['email', 'profile'],
+          },
+        });
+
+        // Use type assertion to handle the union type correctly
+        const result = response.result as any;
+        const idToken = result.idToken || result.token;
+
+        if (idToken) {
+           const credential = GoogleAuthProvider.credential(idToken);
+           userCredential = await signInWithCredential(auth, credential);
+        } else {
+          throw new Error("No token received from Google Login");
+        }
       } else {
         // Standard Web Popup Login
         const provider = new GoogleAuthProvider();

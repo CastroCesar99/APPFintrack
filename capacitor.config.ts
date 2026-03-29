@@ -5,10 +5,10 @@ const config: CapacitorConfig = {
   appName: 'FinTrack',
   webDir: 'out',
   plugins: {
-    GoogleAuth: {
-      scopes: ['profile', 'email'],
-      serverClientId: '627912670361-hcsfl4egpoeli1e8o2j8sqks6qmk7fn3.apps.googleusercontent.com',
-      forceCodeForRefreshToken: true,
+    SocialLogin: {
+      providers: {
+        google: true,
+      },
     },
   },
 };
