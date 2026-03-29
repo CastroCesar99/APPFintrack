@@ -66,9 +66,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     
     try {
       console.log("AuthContext: Initializing SocialLogin...");
+      const googleClientId = '627912670361-hcsfl4egpoeli1e8o2j8sqks6qmk7fn3.apps.googleusercontent.com';
       await SocialLogin.initialize({
         google: {
-          webClientId: '627912670361-hcsfl4egpoeli1e8o2j8sqks6qmk7fn3.apps.googleusercontent.com',
+          webClientId: googleClientId,
+          iOSClientId: googleClientId,
+          iOSServerClientId: googleClientId,
         },
       });
       setIsSocialInitialized(true);
@@ -169,10 +172,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (Capacitor.isNativePlatform()) {
         // Ensure initialized
         if (!isSocialInitialized) {
+          console.log("AuthContext: SocialLogin not initialized yet, forcing it now.");
           await handleInitializeSocial();
         }
 
         // Native Capacitor Login via Capgo Social Login
+        console.log("AuthContext: Starting native SocialLogin.login...");
         const response = await SocialLogin.login({
           provider: 'google',
           options: {
@@ -180,11 +185,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           },
         });
 
-        // Use type assertion to handle the union type correctly
         const result = response.result as any;
         const idToken = result.idToken || result.token;
 
         if (idToken) {
+           console.log("AuthContext: Native token received, signing in with Firebase credential.");
            const credential = GoogleAuthProvider.credential(idToken);
            userCredential = await signInWithCredential(auth, credential);
         } else {
@@ -192,6 +197,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       } else {
         // Standard Web Popup Login
+        console.log("AuthContext: Starting web signInWithPopup...");
         const provider = new GoogleAuthProvider();
         userCredential = await signInWithPopup(auth, provider);
       }
