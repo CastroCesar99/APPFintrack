@@ -14,6 +14,7 @@ import { SummarySection } from "@/components/dashboard/summary-section";
 import { RecentTransactionsSection } from "@/components/dashboard/recent-transactions-section";
 import { QuickActionsSection } from '@/components/dashboard/quick-actions-section';
 import { ExpenseCategoryChart } from '@/components/dashboard/charts/expense-category-chart';
+import { AryaQuickAdd } from '@/components/dashboard/arya-quick-add';
 
 // Types & Data
 import type { Transaction, DisplayCategory, DisplayPaymentMethod } from "@/types";
@@ -57,6 +58,9 @@ export default function DashboardPage() {
   
   const [isIncomeExpanded, setIsIncomeExpanded] = useState(false);
   const [isExpenseExpanded, setIsExpenseExpanded] = useState(false);
+  
+  // Extracted transaction from Arya Quick Add
+  const [extractedTransaction, setExtractedTransaction] = useState<any>(null);
 
   useEffect(() => {
     setIsClient(true);
@@ -178,10 +182,10 @@ export default function DashboardPage() {
         // Migration logic: if userPreferences doesn't exist, fetch legacy data and create it
         try {
           const legacyCategoriesSnap = await getDocs(collection(db, 'users', userId, 'categories'));
-          const legacyCategories = legacyCategoriesSnap.docs.map(doc => ({ ...doc.data(), id: doc.id })) as DisplayCategory[];
+          const legacyCategories = legacyCategoriesSnap.docs.map(doc => ({ ...doc.data(), id: doc.id })) as unknown as DisplayCategory[];
           
           const legacyPaymentMethodsSnap = await getDocs(collection(db, 'users', userId, 'paymentMethods'));
-          const legacyPaymentMethods = legacyPaymentMethodsSnap.docs.map(doc => ({ ...doc.data(), id: doc.id })) as DisplayPaymentMethod[];
+          const legacyPaymentMethods = legacyPaymentMethodsSnap.docs.map(doc => ({ ...doc.data(), id: doc.id })) as unknown as DisplayPaymentMethod[];
           
           const newPrefs = {
             userDefinedCategories: legacyCategories,
@@ -202,8 +206,8 @@ export default function DashboardPage() {
       }
     }, (error) => {
         console.error("Error fetching preferences:", error);
-        setAllUserCategories(defaultCategories);
-        setAllUserPaymentMethods(defaultPaymentMethods);
+        setAllUserCategories([...defaultCategories]);
+        setAllUserPaymentMethods([...defaultPaymentMethods]);
     }));
 
     // Set loading to false after a delay
@@ -231,7 +235,16 @@ export default function DashboardPage() {
   // Save Transaction Handler for QuickActions
   const handleSaveTransaction = useCallback(async (transactionData: Omit<Transaction, "id" | "userId" | "createdAt" | "updatedAt">, id?:string) => {
       if (!userId) throw new Error("User not authenticated");
-      const docData = { ...transactionData, userId, updatedAt: serverTimestamp() };
+      
+      // Sanitize data: Firestore does not support 'undefined' values
+      const sanitizedData = { ...transactionData };
+      Object.keys(sanitizedData).forEach(key => {
+        if ((sanitizedData as any)[key] === undefined) {
+          delete (sanitizedData as any)[key];
+        }
+      });
+
+      const docData = { ...sanitizedData, userId, updatedAt: serverTimestamp() };
 
       try {
           await runTransaction(db, async (transaction) => {
@@ -298,6 +311,13 @@ export default function DashboardPage() {
           monthlyBudget={monthlyBudget}
           displayedMonthYearLabel={displayedMonthYearLabel}
         />
+        <AryaQuickAdd 
+          onQuickAdd={(data) => setExtractedTransaction(data)} 
+          disabled={!isSubscriptionActive}
+          userCategories={allUserCategories}
+          userPaymentMethods={allUserPaymentMethods}
+          recentTransactions={transactionsForDisplayedPeriod}
+        />
         
         <QuickActionsSection 
           onSave={handleSaveTransaction}
@@ -305,6 +325,8 @@ export default function DashboardPage() {
           userCategories={allUserCategories}
           userPaymentMethods={allUserPaymentMethods}
           isSubscriptionActive={isSubscriptionActive}
+          preFilledTransaction={extractedTransaction}
+          onClearPreFilled={() => setExtractedTransaction(null)}
         />
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">

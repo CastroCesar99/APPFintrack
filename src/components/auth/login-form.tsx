@@ -78,7 +78,8 @@ export function LoginForm() {
         title: translate({ en: "Login successful!", pt: "Login bem-sucedido!" }),
         description: translate({ en: "Welcome back.", pt: "Bem-vindo(a) de volta." })
       });
-      // Redirection is now handled globally by AuthGuard
+      // Navegação nativa para forçar limpeza de cache do Next.js
+      window.location.href = '/dashboard';
     } else {
       toast({
         title: translate({ en: "Login Error", pt: "Erro no Login" }),
@@ -97,7 +98,8 @@ export function LoginForm() {
           title: translate({ en: "Login successful!", pt: "Login bem-sucedido!" }),
           description: translate({ en: "Welcome back with Google.", pt: "Bem-vindo(a) de volta com o Google." })
         });
-        // Redirection is now handled globally by AuthGuard
+        // Navegação nativa para forçar limpeza de cache do Next.js
+        window.location.href = '/dashboard';
       }
     } catch (error) {
       console.error("Google login error:", error);

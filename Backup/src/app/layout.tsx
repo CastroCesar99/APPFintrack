@@ -1,11 +1,12 @@
 
-import type {Metadata} from 'next';
+import type {Metadata, Viewport} from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { LanguageProvider } from '@/context/language-context';
 import { AuthProvider } from '@/context/auth-context';
+import { AuthGuard } from '@/components/auth/auth-guard';
 import { DateNavigationProvider } from '@/context/date-navigation-context';
 import { ThemeProvider } from '@/context/theme-context';
 
@@ -20,8 +21,16 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'FinTrack',
+  title: 'Athena',
   description: 'Track your finances with ease.',
+};
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: 'cover',
 };
 
 export default function RootLayout({
@@ -31,16 +40,18 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning={true}>
-      <body suppressHydrationWarning={true} className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+      <body suppressHydrationWarning={true} className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-[100dvh] flex flex-col w-full overflow-y-auto overflow-x-hidden pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]`}>
         <ThemeProvider>
           <AuthProvider>
-            <LanguageProvider>
-              <DateNavigationProvider>
-                <SidebarProvider defaultOpen={true}>
-                  {children}
-                </SidebarProvider>
-              </DateNavigationProvider>
-            </LanguageProvider>
+            <AuthGuard>
+              <LanguageProvider>
+                <DateNavigationProvider>
+                  <SidebarProvider defaultOpen={true}>
+                    {children}
+                  </SidebarProvider>
+                </DateNavigationProvider>
+              </LanguageProvider>
+            </AuthGuard>
           </AuthProvider>
           <Toaster />
         </ThemeProvider>

@@ -186,14 +186,14 @@ export default function SettingsPage() {
           </CardContent>
         </Card>
 
-        {/* Contribute to FinTrack */}
+        {/* Contribute to Athena */}
         <Card className="shadow-lg">
           <CardHeader className="flex flex-row items-start gap-4 space-y-0">
             <Heart className="h-8 w-8 text-primary flex-shrink-0 mt-1" />
             <div className="flex-grow">
-              <CardTitle>{translate({ en: "Contribute to FinTrack", pt: "Contribua com o FinTrack" })}</CardTitle>
+              <CardTitle>{translate({ en: "Contribute to Athena", pt: "Contribua com o Athena" })}</CardTitle>
               <CardDescription>
-                {translate({ en: "Want to help improve FinTrack?", pt: "Quer ajudar a melhorar o FinTrack?" })}
+                {translate({ en: "Want to help improve Athena?", pt: "Quer ajudar a melhorar o Athena?" })}
               </CardDescription>
             </div>
           </CardHeader>

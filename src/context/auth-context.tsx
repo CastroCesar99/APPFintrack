@@ -40,6 +40,7 @@ interface AuthContextType {
   isSubscriptionActive: boolean;
   subscriptionStatus: SubscriptionStatus | null;
   isOnboarded: boolean;
+  fallbackTriggered: boolean;
   signUp: (email: string, pass: string) => Promise<User | null>;
   logIn: (email: string, pass: string) => Promise<User | null>;
   signInWithGoogle: () => Promise<User | null>;
@@ -58,6 +59,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [subscriptionStatus, setSubscriptionStatus] = useState<SubscriptionStatus | null>(null);
   const [isOnboarded, setIsOnboarded] = useState(false);
   const [isSocialInitialized, setIsSocialInitialized] = useState(false);
+  const [fallbackTriggered, setFallbackTriggered] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -123,97 +125,135 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [handleInitializeSocial]);
 
   useEffect(() => {
-    if (!user) {
-      if (loading) setLoading(false);
+    if (!user?.uid) {
+      // Reset completo de estado quando não há usuário
+      setIsFetchingProfile(false);
+      setLoading(false);
+      setIsOnboarded(false);
+      setIsSubscriptionActive(false);
+      setSubscriptionStatus(null);
+      setFallbackTriggered(false);
       return;
     }
 
-    // Whitelist check
-    if (user.email && whitelistedEmails.includes(user.email)) {
-      console.log(`AuthContext: User ${user.email} is whitelisted. Granting subscription access.`);
-      setIsSubscriptionActive(true);
-      setSubscriptionStatus('active');
-      setIsOnboarded(true); // Grant onboarding bypass immediately for whitelisted users
-    }
-
-    console.log("AuthContext: User detected (",user.uid,"), setting up Firestore listener for subscription/onboarding status.");
-    const userDocRef = doc(db, 'users', user.uid);
-    const unsubscribeDoc = onSnapshot(userDocRef, async (docSnap) => {
-      console.log("AuthContext: Firestore snapshot received for user", user.uid);
-      
-      if (!docSnap.exists() && user) {
-         // Auto-provision user doc for new social logins
-         console.log("AuthContext: User document does not exist yet. Creating basic doc for social user...");
-         const { setDoc, serverTimestamp, Timestamp } = await import('firebase/firestore');
-         await setDoc(userDocRef, {
-           uid: user.uid,
-           name: user.displayName || "",
-           email: user.email,
-           createdAt: serverTimestamp(),
-           onboardingComplete: false,
-           subscriptionStatus: 'inactive',
-           subscriptionEndDate: Timestamp.fromDate(new Date(0)),
-         }, { merge: true });
-         // The listener will re-fire once the doc is created
-         setIsFetchingProfile(false);
-         setLoading(false); // <--- INSERIDO CONFORME ORDEM: Libera o lock se o Doc do usuário é novo
-         return;
-      }
-
-      const data = docSnap.data();
-      if (data) {
-        let onboarded = data.onboardingComplete === true;
+    // Função assíncrona para buscar perfil com getDoc
+    const fetchUserProfile = async () => {
+      try {
+        console.log("AuthContext: Buscando perfil do usuário com getDoc para", user.uid);
         
-        // Force onboarded = true for whitelisted users (stable identity)
+        // Whitelist check
         if (user.email && whitelistedEmails.includes(user.email)) {
-          console.log("AuthContext: Whitelisted user detected in snapshot. Forcing onboarded=true.");
-          onboarded = true;
+          console.log(`AuthContext: User ${user.email} is whitelisted. Granting subscription access.`);
+          setIsSubscriptionActive(true);
+          setSubscriptionStatus('active');
+          setIsOnboarded(true);
         }
 
-        const status: SubscriptionStatus = data.subscriptionStatus || 'inactive';
-        const endDate: Date | null = data.subscriptionEndDate?.toDate() || null;
-        const now = new Date();
+        const { doc, getDoc, setDoc, serverTimestamp, Timestamp } = await import('firebase/firestore');
+        const userDocRef = doc(db, 'users', user.uid);
+        const docSnap = await getDoc(userDocRef);
         
-        console.log(`AuthContext: Checking. Onboarded: ${onboarded}, Status: '${status}', EndDate:`, endDate);
+        if (!docSnap.exists()) {
+          // Auto-provision user doc for new social logins
+          console.log("AuthContext: User document does not exist yet. Creating basic doc for social user...");
+          await setDoc(userDocRef, {
+            uid: user.uid,
+            name: user.displayName || "",
+            email: user.email,
+            createdAt: serverTimestamp(),
+            onboardingComplete: false,
+            subscriptionStatus: 'inactive',
+            subscriptionEndDate: Timestamp.fromDate(new Date(0)),
+          }, { merge: true });
+          
+          // Para novos usuários, assume valores padrão
+          const onboarded = !!(user.email && whitelistedEmails.includes(user.email));
+          setIsOnboarded(onboarded);
+          setIsSubscriptionActive(onboarded);
+          setSubscriptionStatus(onboarded ? 'active' : 'inactive');
+        } else {
+          const data = docSnap.data();
+          let onboarded = data.onboardingComplete === true;
+          
+          // Force onboarded = true for whitelisted users (stable identity)
+          if (user.email && whitelistedEmails.includes(user.email)) {
+            console.log("AuthContext: Whitelisted user detected in snapshot. Forcing onboarded=true.");
+            onboarded = true;
+          }
 
-        let isActive = false;
-        // Whitelist also overrides subscription activity check
-        if ((status === 'active' && endDate && endDate > now) || (user.email && whitelistedEmails.includes(user.email))) {
-          isActive = true;
+          const status: SubscriptionStatus = data.subscriptionStatus || 'inactive';
+          const endDate: Date | null = data.subscriptionEndDate?.toDate() || null;
+          const now = new Date();
+          
+          console.log(`AuthContext: Checking. Onboarded: ${onboarded}, Status: '${status}', EndDate:`, endDate);
+
+          let isActive = false;
+          // Whitelist also overrides subscription activity check
+          if ((status === 'active' && endDate && endDate > now) || (user.email && whitelistedEmails.includes(user.email))) {
+            isActive = true;
+          }
+          
+          // Aplicar estados de forma síncrona
+          setIsOnboarded(onboarded);
+          setIsSubscriptionActive(isActive);
+          setSubscriptionStatus(status);
         }
+
+        console.log("AuthContext: Perfil carregado com sucesso usando getDoc");
+      } catch (error) {
+        console.error("AuthContext: Erro ao buscar perfil do usuário com getDoc:", error);
         
-        // As regras de negócio avaliadas, aplicamos o state
-        setIsOnboarded(onboarded);
-        setIsSubscriptionActive(isActive);
-        setSubscriptionStatus(status);
-
-        // GARANTIA: Resolução Imediata do Loading (Conforme Ouro)
-        setIsFetchingProfile(false);
-        setLoading(false);
-      } else {
-        // Se `docSnap.data()` vier vazio, destrava.
-        setIsFetchingProfile(false);
-        setLoading(false);
-      }
-
-    }, (error) => {
-        console.error("AuthContext: Error listening to user document:", error);
-        // Fallback for whitelisted users to avoid redirect loops on connectivity/permission errors
+        // Fallback para usuários whitelist em caso de erro
         if (user.email && whitelistedEmails.includes(user.email)) {
-          console.warn("AuthContext: Firestore error for whitelisted user. Using fallback states.");
+          console.warn("AuthContext: Erro no Firestore para usuário whitelist. Usando fallback.");
           setIsOnboarded(true);
           setIsSubscriptionActive(true);
+          setSubscriptionStatus('active');
         } else {
-          setIsSubscriptionActive(false);
-          setSubscriptionStatus(null);
+          // Para usuários não whitelist, assume padrão gratuito
           setIsOnboarded(false);
+          setIsSubscriptionActive(false);
+          setSubscriptionStatus('inactive');
         }
+        
+        // Marcar fallback como triggered
+        setFallbackTriggered(true);
+      } finally {
+        // OBRIGATÓRIO: Sempre liberar o loading
         setIsFetchingProfile(false);
         setLoading(false);
-    });
+      }
+    };
 
-    return () => unsubscribeDoc();
-  }, [user]);
+    // Timeout para fallback de 5 segundos
+    const fallbackTimer = setTimeout(() => {
+      if (isFetchingProfile) {
+        console.warn("AuthContext: Timeout de 5s alcançado. Ativando fallback.");
+        setFallbackTriggered(true);
+        
+        // Assume valores padrão para liberar o app
+        if (user.email && whitelistedEmails.includes(user.email)) {
+          setIsOnboarded(true);
+          setIsSubscriptionActive(true);
+          setSubscriptionStatus('active');
+        } else {
+          setIsOnboarded(false);
+          setIsSubscriptionActive(false);
+          setSubscriptionStatus('inactive');
+        }
+        
+        setIsFetchingProfile(false);
+        setLoading(false);
+      }
+    }, 5000);
+
+    // Executa a busca
+    fetchUserProfile();
+
+    return () => {
+      clearTimeout(fallbackTimer);
+    };
+  }, [user?.uid, user?.email]);
 
 
   const signUp = useCallback(async (email: string, pass: string): Promise<User | null> => {
@@ -328,6 +368,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isSubscriptionActive,
     subscriptionStatus,
     isOnboarded,
+    fallbackTriggered,
     signUp,
     logIn,
     signInWithGoogle,

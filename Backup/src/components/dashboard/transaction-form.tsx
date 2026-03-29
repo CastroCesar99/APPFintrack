@@ -106,6 +106,7 @@ interface TransactionFormProps {
   userCategories: DisplayCategory[];
   userPaymentMethods: DisplayPaymentMethod[];
   transactionToEdit?: Transaction | null;
+  preFilledData?: any;
 }
 
 // The form component
@@ -116,6 +117,7 @@ export function TransactionForm({
   userCategories,
   userPaymentMethods,
   transactionToEdit = null,
+  preFilledData = null,
 }: TransactionFormProps) {
   const { language, translate } = useLanguage();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -143,6 +145,37 @@ export function TransactionForm({
           recurrenceEndDate: parsedRecurrenceEndDate,
         };
       }
+
+      // Pre-filled data from Arya
+      if (preFilledData) {
+        const parsedDate = preFilledData.date ? new Date(preFilledData.date + "T12:00:00") : defaultDate;
+        
+        // Find best match for category and payment method
+        const matchedCategory = userCategories.find(c => 
+          c.name.toLowerCase() === preFilledData.category?.toLowerCase() || 
+          (c.label && (c.label.pt.toLowerCase() === preFilledData.category?.toLowerCase() || c.label.en.toLowerCase() === preFilledData.category?.toLowerCase()))
+        )?.name || "";
+
+        const matchedPayment = userPaymentMethods.find(p => 
+          p.name.toLowerCase() === preFilledData.paymentMethod?.toLowerCase() ||
+          (p.label && (p.label.pt.toLowerCase() === preFilledData.paymentMethod?.toLowerCase() || p.label.en.toLowerCase() === preFilledData.paymentMethod?.toLowerCase()))
+        )?.name || "";
+
+        return {
+          description: preFilledData.description || "",
+          amount: preFilledData.amount !== undefined ? String(preFilledData.amount) : "",
+          category: matchedCategory,
+          date: parsedDate,
+          effectiveMonth: formatDateFns(parsedDate, "yyyy-MM"),
+          expenseType: 'upfront',
+          paymentMethod: matchedPayment,
+          installments: "",
+          isRecurring: false,
+          expenseNature: preFilledData.expenseNature || undefined,
+          recurrenceEndDate: undefined,
+        };
+      }
+
       return {
         description: "", amount: "", category: "",
         date: defaultDate,
@@ -151,7 +184,7 @@ export function TransactionForm({
         isRecurring: false, expenseNature: undefined,
         recurrenceEndDate: undefined,
       };
-    }, [transactionToEdit, defaultDate, initialType]),
+    }, [transactionToEdit, defaultDate, initialType, preFilledData, userCategories, userPaymentMethods]),
   });
 
   const watchedExpenseType = form.watch('expenseType');

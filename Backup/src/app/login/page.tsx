@@ -31,7 +31,7 @@ export default function LoginPage() {
   }
 
   const pageTitle = translate({ en: "Welcome Back!", pt: "Bem-vindo(a) de Volta!" });
-  const pageDescription = translate({ en: "Log in to access your FinTrack dashboard.", pt: "Faça login para acessar seu painel FinTrack." });
+  const pageDescription = translate({ en: "Log in to access your Athena dashboard.", pt: "Faça login para acessar seu painel Athena." });
   const footerSignUpText = translate({ en: "Sign up", pt: "Cadastre-se" });
   const footerPromptText = translate({ en: "Don't have an account?", pt: "Não tem uma conta?" });
 

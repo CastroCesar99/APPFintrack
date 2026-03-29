@@ -3,16 +3,20 @@
 
 import type React from 'react';
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import ReactMarkdown from 'react-markdown';
 import { AppLayout } from "@/components/layout/app-layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Terminal, Package, Wallet, FileText, DollarSign, Target, TrendingUp, TrendingDown, Sparkles, ListChecks } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Terminal, Package, Wallet, FileText, DollarSign, Target, TrendingUp, TrendingDown, Sparkles, ListChecks, RefreshCw, Mic, MicOff, ArrowRight } from "lucide-react";
 import type { Transaction, DisplayCategory, UserPreferences, CustomCategoryData, Category, CategoryName } from "@/types";
 import { CATEGORIES, getCategoryDisplayLabel } from "@/types";
 import { useAuth } from '@/context/auth-context';
 import { useLanguage } from '@/context/language-context';
 import { useDateNavigation } from '@/context/date-navigation-context';
 import { useToast } from "@/hooks/use-toast";
+import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 import { db } from '@/lib/firebase';
 import { collection, query, orderBy, onSnapshot, Timestamp, doc, getDoc } from "firebase/firestore";
 import {
@@ -65,6 +69,71 @@ export default function ReportsPage() {
   const [isLoadingBudgets, setIsLoadingBudgets] = useState(true);
 
   const [isClient, setIsClient] = useState(false);
+
+  // AI Insights state
+  const [aiInsights, setAiInsights] = useState<string | null>(null);
+  const [isGeneratingInsights, setIsGeneratingInsights] = useState(false);
+  const [insightsError, setInsightsError] = useState<string | null>(null);
+  const [userQuestion, setUserQuestion] = useState("");
+  const [isAskingArya, setIsAskingArya] = useState(false);
+
+  const {
+    isListening,
+    transcript,
+    startListening,
+    stopListening,
+    browserSupportsSpeechRecognition
+  } = useSpeechRecognition();
+
+  // Update question when transcript changes
+  useEffect(() => {
+    if (transcript) {
+      setUserQuestion(transcript);
+    }
+  }, [transcript]);
+
+  // Handle auto-submit when user stops talking (if we have a question)
+  useEffect(() => {
+    if (!isListening && transcript && !isAskingArya) {
+      handleAskQuestion(transcript);
+    }
+  }, [isListening]);
+
+  const toggleListening = () => {
+    if (isListening) {
+      stopListening();
+    } else {
+      startListening(language === 'pt' ? 'pt-BR' : 'en-US');
+    }
+  };
+
+  const handleAskQuestion = async (questionToAsk: string) => {
+    if (!questionToAsk.trim()) return;
+    
+    setIsAskingArya(true);
+    setInsightsError(null);
+    setAiInsights(null);
+    try {
+      const res = await fetch('/api/ask', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          question: questionToAsk,
+          transactions: transactionsForDisplayedPeriod,
+          budgets: loadedBudgets || {},
+          language,
+          monthYear: displayedMonthYearLabel,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed');
+      setAiInsights(`**Pergunta:** ${questionToAsk}\n\n**Athena:** ${data.answer}`);
+    } catch (err: any) {
+      setInsightsError(err.message || translate({ en: 'Athena could not answer. Please try again.', pt: 'Athena não conseguiu responder. Tente novamente.' }));
+    } finally {
+      setIsAskingArya(false);
+    }
+  };
 
   const effectMountedRef = useRef(true);
   const unsubscribeTransactionsRef = useRef<(() => void) | null>(null);
@@ -752,21 +821,147 @@ export default function ReportsPage() {
           </CardContent>
         </Card>
 
-        <Card className="shadow-lg bg-muted/50 border-dashed">
+        <Card className="shadow-lg bg-muted/50 border border-primary/20">
           <CardHeader className="flex flex-row items-start gap-4 space-y-0">
-            <Terminal className="h-8 w-8 text-primary flex-shrink-0 mt-1" />
+            <Sparkles className="h-8 w-8 text-primary flex-shrink-0 mt-1" />
             <div className="flex-grow">
-              <CardTitle>{translate({ en: "Financial Insights by AI", pt: "Insights Financeiros por IA" })}</CardTitle>
-              <CardDescription className="text-wrap"> {translate({ en: "AI-generated summary and advice for", pt: "Resumo e conselhos gerados por IA para" })} {displayedMonthYearLabel}.
-                <br />
-                {translate({ en: "This feature is in development. AI analysis will use transactions and defined budgets once fully integrated.", pt: "Esta funcionalidade está em desenvolvimento. A análise da IA usará transações e orçamentos definidos quando totalmente integrada." })}
+              <CardTitle>
+                {translate({ en: "Athena — AI Financial Insights", pt: "Athena — Insights Financeiros" })}
+              </CardTitle>
+              <CardDescription className="text-wrap">
+                {translate({ en: "Personalized summary and advice for", pt: "Resumo e conselhos personalizados para" })} {displayedMonthYearLabel}.
               </CardDescription>
             </div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={isGeneratingInsights || isAskingArya || transactionsForDisplayedPeriod.length === 0}
+                onClick={async () => {
+                  setIsGeneratingInsights(true);
+                  setInsightsError(null);
+                  setAiInsights(null);
+                  try {
+                    const res = await fetch('/api/insights', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        transactions: transactionsForDisplayedPeriod,
+                        budgets: loadedBudgets || {},
+                        language,
+                        monthYear: displayedMonthYearLabel,
+                      }),
+                    });
+                    const data = await res.json();
+                    if (!res.ok) throw new Error(data.error || 'Failed');
+                    setAiInsights(data.insights);
+                  } catch (err: any) {
+                    setInsightsError(err.message || translate({ en: 'Could not generate insights. Please try again.', pt: 'Não foi possível gerar insights. Tente novamente.' }));
+                  } finally {
+                    setIsGeneratingInsights(false);
+                  }
+                }}
+                className="flex-shrink-0"
+              >
+                <RefreshCw className={cn("h-4 w-4 mr-2", isGeneratingInsights && "animate-spin")} />
+                {isGeneratingInsights
+                  ? translate({ en: 'Generating...', pt: 'Gerando...' })
+                  : aiInsights
+                    ? translate({ en: 'Regenerate', pt: 'Regenerar' })
+                    : translate({ en: 'Generate', pt: 'Gerar' })}
+              </Button>
+            </div>
           </CardHeader>
-          <CardContent className="pt-4">
-              <p className="text-muted-foreground text-center">
-                {translate({ en: "AI insights are coming soon!", pt: "Insights da IA em breve!" })}
-              </p>
+          <CardContent className="pt-2 space-y-4">
+            {/* Ask Athena Input Section */}
+            <div className="relative group">
+              <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+                <Sparkles className="h-4 w-4 text-primary opacity-50 group-focus-within:opacity-100 transition-opacity" />
+              </div>
+              <input
+                type="text"
+                value={userQuestion}
+                onChange={(e) => setUserQuestion(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && userQuestion.trim() && !isAskingArya) {
+                    const question = userQuestion;
+                    setUserQuestion("");
+                    handleAskQuestion(question);
+                  }
+                }}
+                placeholder={isListening 
+                  ? translate({ en: "Listening...", pt: "Ouvindo..." })
+                  : translate({ en: "Ask Athena something about your expenses...", pt: "Pergunte algo à Athena sobre seus gastos..." })}
+                className={cn(
+                  "w-full pl-10 pr-20 py-2 bg-background/50 border border-primary/20 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 transition-all placeholder:text-muted-foreground/60",
+                  isListening && "text-primary font-medium animate-pulse border-primary/40 bg-primary/5"
+                )}
+                disabled={isAskingArya || transactionsForDisplayedPeriod.length === 0}
+              />
+              
+              <div className="absolute right-2 inset-y-0 flex items-center gap-1">
+                {browserSupportsSpeechRecognition && (
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className={cn(
+                      "h-8 w-8 rounded-full transition-all",
+                      isListening ? "bg-primary/20 text-primary animate-pulse" : "hover:bg-primary/10"
+                    )}
+                    onClick={toggleListening}
+                    disabled={isAskingArya || transactionsForDisplayedPeriod.length === 0}
+                  >
+                    <Mic className="h-4 w-4" />
+                  </Button>
+                )}
+
+                {isAskingArya ? (
+                  <RefreshCw className="h-4 w-4 text-primary animate-spin mr-2" />
+                ) : (
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-8 w-8 rounded-full hover:bg-primary/20 hover:text-primary"
+                    onClick={() => {
+                       const question = userQuestion;
+                       setUserQuestion("");
+                       handleAskQuestion(question);
+                    }}
+                    disabled={!userQuestion.trim() || isAskingArya || transactionsForDisplayedPeriod.length === 0}
+                  >
+                    <ArrowRight className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            {isGeneratingInsights || isAskingArya ? (
+              <div className="space-y-3 py-2">
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-5/6" />
+                <Skeleton className="h-4 w-4/6" />
+                <Skeleton className="h-4 w-full mt-4" />
+                <Skeleton className="h-4 w-3/4" />
+              </div>
+            ) : insightsError ? (
+              <div className="rounded-md bg-destructive/10 border border-destructive/30 p-4">
+                <p className="text-sm text-destructive">{insightsError}</p>
+              </div>
+            ) : aiInsights ? (
+              <div className="prose prose-sm dark:prose-invert max-w-none text-foreground">
+                <ReactMarkdown>{aiInsights}</ReactMarkdown>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-8 text-center gap-3">
+                <Sparkles className="h-10 w-10 text-muted-foreground/50" />
+                <p className="text-sm text-muted-foreground">
+                  {transactionsForDisplayedPeriod.length === 0
+                    ? translate({ en: 'Add transactions this month so Athena can analyze them.', pt: 'Adicione transações neste mês para que a Athena possa analisá-las.' })
+                    : translate({ en: 'Click "Generate" to get personalized financial insights from Athena.', pt: 'Clique em "Gerar" para obter insights financeiros personalizados da Athena.' })
+                  }
+                </p>
+              </div>
+            )}
           </CardContent>
         </Card>
 

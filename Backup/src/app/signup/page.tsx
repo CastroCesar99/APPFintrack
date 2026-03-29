@@ -30,7 +30,7 @@ export default function SignupPage() {
     );
   }
 
-  const pageTitle = translate({ en: "Create Your FinTrack Account", pt: "Crie Sua Conta FinTrack" });
+  const pageTitle = translate({ en: "Create Your Athena Account", pt: "Crie Sua Conta Athena" });
   const pageDescription = translate({ en: "Start organizing your finances today.", pt: "Comece a organizar suas finanças hoje mesmo." });
   const footerLoginText = translate({ en: "Log In", pt: "Faça Login" });
   const footerPromptText = translate({ en: "Already have an account?", pt: "Já tem uma conta?" });

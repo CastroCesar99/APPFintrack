@@ -2,8 +2,26 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
+html, body {
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  margin: 0;
+  padding: 0;
+  /* Altamente recomendado para iOS/Capacitor: Nunca dar overflow: hidden no root */
+}
+
+/* Safe Area Support */
+:root {
+  --safe-area-top: env(safe-area-inset-top);
+  --safe-area-bottom: env(safe-area-inset-bottom);
+  --safe-area-left: env(safe-area-inset-left);
+  --safe-area-right: env(safe-area-inset-right);
+}
+
+/* Global Scale Adjustment for Mobile */
+@media (max-width: 640px) {
+  html {
+    font-size: 14px; /* Slightly smaller base font for mobile */
+  }
 }
 
 @layer base {

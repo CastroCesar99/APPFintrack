@@ -23,7 +23,7 @@ export function ExportData({ transactions }: ExportDataProps) {
       });
       return;
     }
-    exportToCsv(transactions, "fintrack_transactions.csv");
+    exportToCsv(transactions, "athena_transactions.csv");
     toast({
       title: translate({ en: "Export Successful", pt: "Exportação Bem-sucedida" }),
       description: translate({ en: "Your transactions have been exported to CSV.", pt: "Suas transações foram exportadas para CSV." }),

@@ -228,7 +228,7 @@ export function OnboardingForm() {
  console.log("Onboarding complete flag set in localStorage.");
       localStorage.setItem('userLanguage', language);
 
-      toast({ title: translate({en: "Setup Saved!", pt: "Configuração Salva!"}), description: translate({en: "Welcome to FinTrack!", pt: "Bem-vindo(a) ao FinTrack!"}) });
+      toast({ title: translate({en: "Setup Saved!", pt: "Configuração Salva!"}), description: translate({en: "Welcome to Athena!", pt: "Bem-vindo(a) ao Athena!"}) });
       router.push('/');
     } catch (error) {
       console.error("Error saving onboarding data (handleSubmit):", error);
