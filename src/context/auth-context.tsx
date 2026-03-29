@@ -61,8 +61,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, (currentUser) => {
       console.log("AuthContext: Auth state changed. User:", currentUser?.uid);
-      setUser(currentUser);
-      if (!currentUser) {
+      if (currentUser) {
+        setLoading(true); // Restart loading for the new session
+        setUser(currentUser);
+      } else {
+        setUser(null);
         setIsSubscriptionActive(false);
         setSubscriptionStatus(null);
         setIsOnboarded(false);
@@ -125,8 +128,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log(`AuthContext: User ${user.email} is whitelisted. Granting subscription access.`);
       setIsSubscriptionActive(true);
       setSubscriptionStatus('active');
-      setLoading(false);
-      return; // Skip Firestore check
+      setIsOnboarded(true); // Grant onboarding bypass immediately for whitelisted users
     }
 
     console.log("AuthContext: User detected (",user.uid,"), setting up Firestore listener for subscription/onboarding status.");
@@ -153,7 +155,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       const data = docSnap.data();
       if (data) {
-        const onboarded = data.onboardingComplete === true;
+        let onboarded = data.onboardingComplete === true;
+        
+        // Force onboarded = true for whitelisted users (stable identity)
+        if (user.email && whitelistedEmails.includes(user.email)) {
+          console.log("AuthContext: Whitelisted user detected in snapshot. Forcing onboarded=true.");
+          onboarded = true;
+        }
+
         const status: SubscriptionStatus = data.subscriptionStatus || 'inactive';
         const endDate: Date | null = data.subscriptionEndDate?.toDate() || null;
         const now = new Date();
@@ -161,7 +170,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.log(`AuthContext: Checking. Onboarded: ${onboarded}, Status: '${status}', EndDate:`, endDate);
 
         let isActive = false;
-        if (status === 'active' && endDate && endDate > now) {
+        // Whitelist also overrides subscription activity check
+        if ((status === 'active' && endDate && endDate > now) || (user.email && whitelistedEmails.includes(user.email))) {
           isActive = true;
         }
         
@@ -172,9 +182,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(false);
     }, (error) => {
         console.error("AuthContext: Error listening to user document:", error);
-        setIsSubscriptionActive(false);
-        setSubscriptionStatus(null);
-        setIsOnboarded(false);
+        // Fallback for whitelisted users to avoid redirect loops on connectivity/permission errors
+        if (user.email && whitelistedEmails.includes(user.email)) {
+          console.warn("AuthContext: Firestore error for whitelisted user. Using fallback states.");
+          setIsOnboarded(true);
+          setIsSubscriptionActive(true);
+        } else {
+          setIsSubscriptionActive(false);
+          setSubscriptionStatus(null);
+          setIsOnboarded(false);
+        }
         setLoading(false);
     });
 

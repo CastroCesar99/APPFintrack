@@ -235,7 +235,16 @@ export default function DashboardPage() {
   // Save Transaction Handler for QuickActions
   const handleSaveTransaction = useCallback(async (transactionData: Omit<Transaction, "id" | "userId" | "createdAt" | "updatedAt">, id?:string) => {
       if (!userId) throw new Error("User not authenticated");
-      const docData = { ...transactionData, userId, updatedAt: serverTimestamp() };
+      
+      // Sanitize data: Firestore does not support 'undefined' values
+      const sanitizedData = { ...transactionData };
+      Object.keys(sanitizedData).forEach(key => {
+        if ((sanitizedData as any)[key] === undefined) {
+          delete (sanitizedData as any)[key];
+        }
+      });
+
+      const docData = { ...sanitizedData, userId, updatedAt: serverTimestamp() };
 
       try {
           await runTransaction(db, async (transaction) => {

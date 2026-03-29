@@ -2,7 +2,7 @@
 
 import { useAuth } from "@/context/auth-context";
 import { useRouter, usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 
 interface AuthGuardProps {
   children: React.ReactNode;
@@ -16,9 +16,18 @@ export function AuthGuard({ children }: AuthGuardProps) {
   const router = useRouter();
   const pathname = usePathname();
   const [isReady, setIsReady] = useState(false);
+  const redirectCountRef = useRef(0);
 
   useEffect(() => {
+    console.log(`AuthGuard: Running. Path: ${pathname}, Loading: ${loading}, User: ${user?.uid}, Onboarded: ${isOnboarded}`);
+    
     if (loading) return;
+
+    // Prevention of infinite loops
+    if (redirectCountRef.current > 10) {
+      console.error("AuthGuard: Infinite redirect loop detected. Stopping.");
+      return; 
+    }
 
     const isPublicPath = PUBLIC_PATHS.includes(pathname);
     const isAuthStepPath = AUTH_STEP_PATHS.includes(pathname);
@@ -26,7 +35,7 @@ export function AuthGuard({ children }: AuthGuardProps) {
     // 1. Not logged in
     if (!user) {
       if (!isPublicPath) {
-        console.log("AuthGuard: No user, redirecting to /login from", pathname);
+        redirectCountRef.current += 1;
         router.push('/login');
       } else {
         setIsReady(true);
@@ -35,10 +44,9 @@ export function AuthGuard({ children }: AuthGuardProps) {
     }
 
     // 2. Logged in, check verification
-    // Google/Social users usually have emailVerified = true
     if (!user.emailVerified) {
       if (pathname !== '/verify-email') {
-        console.log("AuthGuard: Email not verified, redirecting to /verify-email");
+        redirectCountRef.current += 1;
         router.push('/verify-email');
       } else {
         setIsReady(true);
@@ -49,7 +57,7 @@ export function AuthGuard({ children }: AuthGuardProps) {
     // 3. Verified, check onboarding
     if (!isOnboarded) {
       if (pathname !== '/onboarding') {
-        console.log("AuthGuard: Not onboarded, redirecting to /onboarding");
+        redirectCountRef.current += 1;
         router.push('/onboarding');
       } else {
         setIsReady(true);
@@ -59,7 +67,8 @@ export function AuthGuard({ children }: AuthGuardProps) {
 
     // 4. Everything ready
     if (isPublicPath || isAuthStepPath) {
-      console.log("AuthGuard: User ready, redirecting from public/step path to /");
+      console.log("AuthGuard: Finalizing flow, redirecting to /");
+      redirectCountRef.current += 1;
       router.push('/');
     } else {
       setIsReady(true);
