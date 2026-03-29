@@ -12,8 +12,8 @@ import {
   type User,
   sendPasswordResetEmail as firebaseSendPasswordResetEmail,
   GoogleAuthProvider,
-  signInWithPopup,
-  signInWithCredential
+  signInWithCredential,
+  OAuthProvider
 } from 'firebase/auth';
 import { Capacitor } from '@capacitor/core';
 import { SocialLogin } from '@capgo/capacitor-social-login';
@@ -57,7 +57,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setLoading(false);
       }
     });
-    return () => unsubscribeAuth();
+
+    // Safety timeout: If nothing happens for 10 seconds, clear loading
+    // to prevent infinite spinner if Firebase/Plugins hang.
+    const timer = setTimeout(() => {
+      setLoading(prev => {
+        if (prev) {
+          console.warn("AuthContext: Safety timeout reached. Clearing loading state.");
+          return false;
+        }
+        return prev;
+      });
+    }, 8000);
+
+    return () => {
+      unsubscribeAuth();
+      clearTimeout(timer);
+    };
   }, []);
 
   // Helper to initialize Social Login
@@ -144,6 +160,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setLoading(true);
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
+      setLoading(false);
       return userCredential.user;
     } catch (error) {
       console.error("AuthContext: Error signing up:", error);
@@ -156,6 +173,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setLoading(true);
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, pass);
+      setLoading(false);
       return userCredential.user;
     } catch (error) {
       console.error("AuthContext: Error logging in:", error); 
@@ -198,17 +216,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } else {
         // Standard Web Popup Login
         console.log("AuthContext: Starting web signInWithPopup...");
+        // Dynamic import to avoid loading gapi on mobile
+        const { signInWithPopup } = await import('firebase/auth');
         const provider = new GoogleAuthProvider();
         userCredential = await signInWithPopup(auth, provider);
       }
 
+      setLoading(false);
       return userCredential.user;
     } catch (error) {
       console.error("AuthContext: Error with Google login:", error);
       setLoading(false);
       return null;
     }
-  }, []);
+  }, [handleInitializeSocial, isSocialInitialized]);
+
 
   const logOut = useCallback(async () => {
     try {

@@ -1,6 +1,13 @@
 
 import { initializeApp, getApps, type FirebaseApp } from "firebase/app";
-import { getAuth, type Auth } from "firebase/auth";
+import { 
+  initializeAuth, 
+  getAuth, 
+  indexedDBLocalPersistence, 
+  browserLocalPersistence, 
+  type Auth 
+} from "firebase/auth";
+import { Capacitor } from "@capacitor/core";
 import { getFirestore, type Firestore, enableIndexedDbPersistence, CACHE_SIZE_UNLIMITED } from "firebase/firestore";
 
 // Explicitly read environment variables
@@ -44,16 +51,25 @@ const firebaseConfig = {
   appId: appId,
 };
 
-let app: FirebaseApp;
-let db: Firestore;
-let auth: Auth;
+let app: FirebaseApp = undefined as any;
+let db: Firestore = undefined as any;
+let auth: Auth = undefined as any;
 
 if (!getApps().length) {
   try {
     app = initializeApp(firebaseConfig);
     // Initialize Firestore, potentially with a specific database ID
     db = getFirestore(app);
-    auth = getAuth(app);
+    // Custom Auth Initialization for Capacitor / Web
+    if (Capacitor.isNativePlatform()) {
+      auth = initializeAuth(app, {
+        persistence: indexedDBLocalPersistence
+      });
+      console.log("Firebase Auth initialized with indexedDBLocalPersistence (Native)");
+    } else {
+      auth = getAuth(app);
+      console.log("Firebase Auth initialized with default persistence (Web)");
+    }
     if (typeof window !== 'undefined') { // Ensure this only runs on the client
       // Commenting out enableIndexedDbPersistence to debug potential issues with offline persistence
       // enableIndexedDbPersistence(db, { // Pass the specific db instance here
@@ -81,15 +97,21 @@ if (!getApps().length) {
 } else {
   app = getApps()[0];
   // Ensure db is initialized with the specific database ID in this path too
-  db = getFirestore(app, databaseId); // Use databaseId here as well
-  auth = getAuth(app);
+  db = getFirestore(app, (databaseId as string)); // Use databaseId here as well
+  if (Capacitor.isNativePlatform()) {
+    auth = initializeAuth(app, {
+      persistence: indexedDBLocalPersistence
+    });
+  } else {
+    auth = getAuth(app);
+  }
 }
 
 // Fallback if db somehow didn't get initialized (e.g. critical error during init)
 // This is a defensive measure; ideally, critical init errors should be handled more robustly.
 if (!db && app) {
     console.warn("Firestore db was not initialized during the primary block, attempting fallback initialization for database:", databaseId);
-    db = getFirestore(app, databaseId);
+    db = getFirestore(app, (databaseId as string));
 }
 if (!auth && app) {
     console.warn("Firebase Auth was not initialized during the primary block, attempting fallback initialization.");
