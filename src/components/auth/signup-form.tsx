@@ -83,7 +83,7 @@ export function SignupForm() {
           })
         });
         localStorage.removeItem('onboardingComplete'); 
-        router.push("/verify-email"); 
+        // Redirection is now handled globally by AuthGuard
       } catch (error: any) {
         console.error("Error during signup post-processing:", error);
         let errorMessage = translate({ en: "An error occurred. Please try again.", pt: "Ocorreu um erro. Por favor, tente novamente." });

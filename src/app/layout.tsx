@@ -6,6 +6,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { LanguageProvider } from '@/context/language-context';
 import { AuthProvider } from '@/context/auth-context';
+import { AuthGuard } from '@/components/auth/auth-guard';
 import { DateNavigationProvider } from '@/context/date-navigation-context';
 import { ThemeProvider } from '@/context/theme-context';
 
@@ -34,13 +35,15 @@ export default function RootLayout({
       <body suppressHydrationWarning={true} className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <ThemeProvider>
           <AuthProvider>
-            <LanguageProvider>
-              <DateNavigationProvider>
-                <SidebarProvider defaultOpen={true}>
-                  {children}
-                </SidebarProvider>
-              </DateNavigationProvider>
-            </LanguageProvider>
+            <AuthGuard>
+              <LanguageProvider>
+                <DateNavigationProvider>
+                  <SidebarProvider defaultOpen={true}>
+                    {children}
+                  </SidebarProvider>
+                </DateNavigationProvider>
+              </LanguageProvider>
+            </AuthGuard>
           </AuthProvider>
           <Toaster />
         </ThemeProvider>

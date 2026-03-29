@@ -74,21 +74,11 @@ export function LoginForm() {
     setIsLoading(false);
 
     if (user) {
-      if (!user.emailVerified) {
-        toast({
-          title: translate({ en: "Email Not Verified", pt: "E-mail Não Verificado" }),
-          description: translate({ en: "Please verify your email address before logging in.", pt: "Por favor, verifique seu endereço de e-mail antes de fazer login." }),
-          variant: "destructive",
-        });
-        router.push("/verify-email");
-        return;
-      }
       toast({
         title: translate({ en: "Login successful!", pt: "Login bem-sucedido!" }),
         description: translate({ en: "Welcome back.", pt: "Bem-vindo(a) de volta." })
       });
-      // Onboarding check is handled by DashboardPage or OnboardingPage itself
-      router.push("/"); 
+      // Redirection is now handled globally by AuthGuard
     } else {
       toast({
         title: translate({ en: "Login Error", pt: "Erro no Login" }),
@@ -107,7 +97,7 @@ export function LoginForm() {
           title: translate({ en: "Login successful!", pt: "Login bem-sucedido!" }),
           description: translate({ en: "Welcome back with Google.", pt: "Bem-vindo(a) de volta com o Google." })
         });
-        router.push("/");
+        // Redirection is now handled globally by AuthGuard
       }
     } catch (error) {
       console.error("Google login error:", error);

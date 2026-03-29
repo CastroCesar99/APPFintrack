@@ -38,6 +38,7 @@ interface AuthContextType {
   loading: boolean;
   isSubscriptionActive: boolean;
   subscriptionStatus: SubscriptionStatus | null;
+  isOnboarded: boolean;
   signUp: (email: string, pass: string) => Promise<User | null>;
   logIn: (email: string, pass: string) => Promise<User | null>;
   signInWithGoogle: () => Promise<User | null>;
@@ -53,6 +54,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [isSubscriptionActive, setIsSubscriptionActive] = useState(false);
   const [subscriptionStatus, setSubscriptionStatus] = useState<SubscriptionStatus | null>(null);
+  const [isOnboarded, setIsOnboarded] = useState(false);
   const [isSocialInitialized, setIsSocialInitialized] = useState(false);
   const router = useRouter();
 
@@ -63,6 +65,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!currentUser) {
         setIsSubscriptionActive(false);
         setSubscriptionStatus(null);
+        setIsOnboarded(false);
         setLoading(false);
       }
     });
@@ -126,38 +129,52 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return; // Skip Firestore check
     }
 
-    console.log("AuthContext: User detected (",user.uid,"), setting up Firestore listener for subscription status.");
+    console.log("AuthContext: User detected (",user.uid,"), setting up Firestore listener for subscription/onboarding status.");
     const userDocRef = doc(db, 'users', user.uid);
-    const unsubscribeDoc = onSnapshot(userDocRef, (docSnap) => {
+    const unsubscribeDoc = onSnapshot(userDocRef, async (docSnap) => {
       console.log("AuthContext: Firestore snapshot received for user", user.uid);
-      if (docSnap.exists()) {
-        const data = docSnap.data();
+      
+      if (!docSnap.exists() && user) {
+         // Auto-provision user doc for new social logins
+         console.log("AuthContext: User document does not exist yet. Creating basic doc for social user...");
+         const { setDoc, serverTimestamp, Timestamp } = await import('firebase/firestore');
+         await setDoc(userDocRef, {
+           uid: user.uid,
+           name: user.displayName || "",
+           email: user.email,
+           createdAt: serverTimestamp(),
+           onboardingComplete: false,
+           subscriptionStatus: 'inactive',
+           subscriptionEndDate: Timestamp.fromDate(new Date(0)),
+         }, { merge: true });
+         // The listener will re-fire once the doc is created
+         return;
+      }
+
+      const data = docSnap.data();
+      if (data) {
+        const onboarded = data.onboardingComplete === true;
         const status: SubscriptionStatus = data.subscriptionStatus || 'inactive';
         const endDate: Date | null = data.subscriptionEndDate?.toDate() || null;
         const now = new Date();
         
-        console.log(`AuthContext: Checking status. Read from DB -> Status: '${status}', EndDate:`, endDate);
+        console.log(`AuthContext: Checking. Onboarded: ${onboarded}, Status: '${status}', EndDate:`, endDate);
 
         let isActive = false;
         if (status === 'active' && endDate && endDate > now) {
           isActive = true;
         }
         
-        console.log(`AuthContext: Final calculation -> isActive: ${isActive}`);
-        
+        setIsOnboarded(onboarded);
         setIsSubscriptionActive(isActive);
         setSubscriptionStatus(status);
-      } else {
-        console.log("AuthContext: User document does not exist yet. Defaulting to inactive.");
-        setIsSubscriptionActive(false);
-        setSubscriptionStatus('inactive');
       }
       setLoading(false);
-      console.log("AuthContext: Loading set to false after reading user doc.");
     }, (error) => {
         console.error("AuthContext: Error listening to user document:", error);
         setIsSubscriptionActive(false);
         setSubscriptionStatus(null);
+        setIsOnboarded(false);
         setLoading(false);
     });
 
@@ -275,6 +292,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     loading,
     isSubscriptionActive,
     subscriptionStatus,
+    isOnboarded,
     signUp,
     logIn,
     signInWithGoogle,
