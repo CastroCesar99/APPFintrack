@@ -14,8 +14,8 @@ export async function generateFinancialInsights(
   const ai = new GoogleGenAI({ apiKey });
 
   const systemInstruction = language === 'pt' 
-    ? "Seu nome é Arya. Você é uma consultora financeira especialista e carismática do app FinTrack. Analise os dados financeiros fornecidos e dê insights curtos, diretos e acionáveis. Use formatação Markdown (negrito, listas) para facilitar a leitura. Seja encorajadora, mas realista."
-    : "Your name is Arya. You are an expert and charismatic financial advisor for the FinTrack app. Analyze the provided financial data and give short, direct, and actionable insights. Use Markdown formatting (bold, lists) for readability. Be encouraging but realistic.";
+    ? "Seu nome é Arya. Você é uma consultora financeira especialista e carismática do app Athena. Analise os dados financeiros fornecidos e dê insights curtos, diretos e acionáveis. Use formatação Markdown (negrito, listas) para facilitar a leitura. Seja encorajadora, mas realista."
+    : "Your name is Arya. You are an expert and charismatic financial advisor for the Athena app. Analyze the provided financial data and give short, direct, and actionable insights. Use Markdown formatting (bold, lists) for readability. Be encouraging but realistic.";
 
   const prompt = language === 'pt'
     ? `Analise os seguintes dados financeiros para o período de ${monthYear}:
@@ -61,12 +61,12 @@ export async function askArya(
   const ai = new GoogleGenAI({ apiKey });
 
   const systemInstruction = language === 'pt'
-    ? `Seu nome é Arya. Você é uma consultora financeira especialista do app FinTrack.
+    ? `Seu nome é Arya. Você é uma consultora financeira especialista do app Athena.
     Sua missão é responder perguntas específicas do usuário sobre os dados financeiros dele para o período de ${monthYear}.
     Seja direta, carismática e precisa. Use os dados fornecidos (transações e orçamentos) para fundamentar suas respostas.
     Se não encontrar a informação nos dados, admita que não sabe ou peça mais detalhes.
     Use Markdown para formatar valores monetários e listas.`
-    : `Your name is Arya. You are an expert financial advisor for the FinTrack app.
+    : `Your name is Arya. You are an expert financial advisor for the Athena app.
     Your mission is to answer specific user questions about their financial data for the period of ${monthYear}.
     Be direct, charismatic, and precise. Use the provided data (transactions and budgets) to base your answers.
     If you can't find the information in the data, admit you don't know or ask for more details.
@@ -117,7 +117,7 @@ export async function extractTransactionFromText(
   const historyContext = history.map(h => `${h.description}: ${h.expenseNature || 'variable'}`).join(", ");
 
   const systemInstruction = language === 'pt'
-    ? `Você é a Arya, assistente inteligente do app FinTrack.
+    ? `Você é a Arya, assistente inteligente do app Athena.
     Sua missão é extrair dados de uma transação financeira a partir de um texto e retornar APENAS um JSON válido.
     
     Categorias do Usuário: ${categoriesContext}
@@ -131,7 +131,7 @@ export async function extractTransactionFromText(
     4. Tente mapear o pagamento para um dos "Meios de Pagamento do Usuário" acima (procure por nomes como "The One", "Nubank", "Crédito", etc).
     5. O valor deve ser um número.
     6. Verifique o "Histórico Recente". Se já existir um gasto com a mesma descrição, use a mesma natureza (fixed ou variable). Caso contrário, tente inferir pelo contexto (ex: aluguel é fixed, restaurante é variable).`
-    : `Your name is Arya, the smart assistant for the FinTrack app.
+    : `Your name is Arya, the smart assistant for the Athena app.
     Your mission is to extract financial transaction data from text and return ONLY a valid JSON.
     
     User Categories: ${categoriesContext}

@@ -20,7 +20,7 @@ export function AppSidebarContent() {
   const { translate } = useLanguage(); 
   const { user, logOut, loading: authLoading } = useAuth();
 
-  const appTitle = "FinTrack";
+  const appTitle = "Athena";
 
   const menuItems = [
     {

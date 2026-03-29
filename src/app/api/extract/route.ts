@@ -25,8 +25,8 @@ export async function POST(req: NextRequest) {
 
       if (isQuotaError) {
         const quotaMessage = language === 'pt' 
-          ? '⚠️ Limite atingido por hoje. Arya precisa pausar. Tente novamente amanhã.'
-          : '⚠️ Daily limit reached. Arya needs a break. Please try again tomorrow.';
+          ? '⚠️ Limite atingido por hoje. Athena precisa pausar. Tente novamente amanhã.'
+          : '⚠️ Daily limit reached. Athena needs a break. Please try again tomorrow.';
         return NextResponse.json({ error: quotaMessage }, { status: 429 });
       }
 

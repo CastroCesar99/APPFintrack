@@ -127,9 +127,9 @@ export default function ReportsPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed');
-      setAiInsights(`**Pergunta:** ${questionToAsk}\n\n**Arya:** ${data.answer}`);
+      setAiInsights(`**Pergunta:** ${questionToAsk}\n\n**Athena:** ${data.answer}`);
     } catch (err: any) {
-      setInsightsError(err.message || translate({ en: 'Arya could not answer. Please try again.', pt: 'Arya não conseguiu responder. Tente novamente.' }));
+      setInsightsError(err.message || translate({ en: 'Athena could not answer. Please try again.', pt: 'Athena não conseguiu responder. Tente novamente.' }));
     } finally {
       setIsAskingArya(false);
     }
@@ -826,7 +826,7 @@ export default function ReportsPage() {
             <Sparkles className="h-8 w-8 text-primary flex-shrink-0 mt-1" />
             <div className="flex-grow">
               <CardTitle>
-                {translate({ en: "Arya — AI Financial Insights", pt: "Arya — Insights Financeiros" })}
+                {translate({ en: "Athena — AI Financial Insights", pt: "Athena — Insights Financeiros" })}
               </CardTitle>
               <CardDescription className="text-wrap">
                 {translate({ en: "Personalized summary and advice for", pt: "Resumo e conselhos personalizados para" })} {displayedMonthYearLabel}.
@@ -873,7 +873,7 @@ export default function ReportsPage() {
             </div>
           </CardHeader>
           <CardContent className="pt-2 space-y-4">
-            {/* Ask Arya Input Section */}
+            {/* Ask Athena Input Section */}
             <div className="relative group">
               <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
                 <Sparkles className="h-4 w-4 text-primary opacity-50 group-focus-within:opacity-100 transition-opacity" />
@@ -891,7 +891,7 @@ export default function ReportsPage() {
                 }}
                 placeholder={isListening 
                   ? translate({ en: "Listening...", pt: "Ouvindo..." })
-                  : translate({ en: "Ask Arya something about your expenses...", pt: "Pergunte algo à Arya sobre seus gastos..." })}
+                  : translate({ en: "Ask Athena something about your expenses...", pt: "Pergunte algo à Athena sobre seus gastos..." })}
                 className={cn(
                   "w-full pl-10 pr-20 py-2 bg-background/50 border border-primary/20 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 transition-all placeholder:text-muted-foreground/60",
                   isListening && "text-primary font-medium animate-pulse border-primary/40 bg-primary/5"
@@ -956,8 +956,8 @@ export default function ReportsPage() {
                 <Sparkles className="h-10 w-10 text-muted-foreground/50" />
                 <p className="text-sm text-muted-foreground">
                   {transactionsForDisplayedPeriod.length === 0
-                    ? translate({ en: 'Add transactions this month so Arya can analyze them.', pt: 'Adicione transações neste mês para que a Arya possa analisá-las.' })
-                    : translate({ en: 'Click "Generate" to get personalized financial insights from Arya.', pt: 'Clique em "Gerar" para obter insights financeiros personalizados da Arya.' })
+                    ? translate({ en: 'Add transactions this month so Athena can analyze them.', pt: 'Adicione transações neste mês para que a Athena possa analisá-las.' })
+                    : translate({ en: 'Click "Generate" to get personalized financial insights from Athena.', pt: 'Clique em "Gerar" para obter insights financeiros personalizados da Athena.' })
                   }
                 </p>
               </div>

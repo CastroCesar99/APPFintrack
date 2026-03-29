@@ -28,7 +28,7 @@ export function AppHeaderContent() {
 
 
   return (
-    <div className="flex min-h-14 lg:min-h-16 items-center justify-between gap-4 border-b bg-background px-4 lg:px-6 pt-[var(--safe-area-top)]">
+    <div className="flex min-h-14 lg:min-h-16 items-center justify-between gap-4 border-b bg-background px-4 lg:px-6">
       {/* Left Section: Sidebar Trigger and User Greeting */}
       <div className="flex flex-1 items-center gap-3 min-w-0"> {/* Use flex-1 to allow this container to shrink */}
         <SidebarTrigger className="md:hidden" />
@@ -39,7 +39,7 @@ export function AppHeaderContent() {
         )}
         {!userGreeting && !authLoading && ( 
            <span className="text-base font-semibold text-foreground">
-            {translate({ en: "FinTrack", pt: "FinTrack"})}
+            {translate({ en: "Athena", pt: "Athena"})}
           </span>
         )}
       </div>

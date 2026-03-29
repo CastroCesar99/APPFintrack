@@ -31,13 +31,13 @@ export async function POST(req: NextRequest) {
 
       if (isQuotaError) {
         const quotaMessage = language === 'pt'
-          ? '⚠️ Limite atingido por hoje. Arya precisa descansar um pouco. Tente novamente amanhã.'
-          : '⚠️ Daily limit reached. Arya needs to rest for a bit. Please try again tomorrow.';
+          ? '⚠️ Limite atingido por hoje. Athena precisa descansar um pouco. Tente novamente amanhã.'
+          : '⚠️ Daily limit reached. Athena needs to rest for a bit. Please try again tomorrow.';
         return NextResponse.json({ error: quotaMessage }, { status: 429 });
       }
 
       return NextResponse.json(
-        { error: language === 'pt' ? 'Arya não conseguiu responder agora.' : 'Arya couldn\'t answer right now.' },
+        { error: language === 'pt' ? 'Athena não conseguiu responder agora.' : 'Athena couldn\'t answer right now.' },
         { status: 500 }
       );
     }

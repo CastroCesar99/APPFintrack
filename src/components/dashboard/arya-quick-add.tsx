@@ -86,7 +86,7 @@ export function AryaQuickAdd({
         onQuickAdd(result.data);
         setText("");
         toast({
-          title: translate({ en: "Arya understood!", pt: "Arya entendeu!" }),
+          title: translate({ en: "Athena understood!", pt: "Athena entendeu!" }),
           description: translate({
             en: "Review the details and save your transaction.",
             pt: "Revise os detalhes e salve sua transação.",
@@ -98,8 +98,8 @@ export function AryaQuickAdd({
       toast({
         title: translate({ en: "Error", pt: "Erro" }),
         description: error.message || translate({
-          en: "Arya couldn't understand that. Try being more specific.",
-          pt: "A Arya não conseguiu entender. Tente ser mais específico.",
+          en: "Athena couldn't understand that. Try being more specific.",
+          pt: "A Athena não conseguiu entender. Tente ser mais específico.",
         }),
         variant: "destructive",
       });
@@ -125,8 +125,8 @@ export function AryaQuickAdd({
               placeholder={isListening 
                 ? translate({ en: "Listening...", pt: "Ouvindo..." })
                 : translate({
-                  en: "Quick add with Arya: 'Pizza 50 yesterday'...",
-                  pt: "Adição rápida com Arya: 'Pizza 50 ontem'...",
+                  en: "Quick add with Athena: 'Pizza 50 yesterday'...",
+                  pt: "Adição rápida com Athena: 'Pizza 50 ontem'...",
                 })}
               className={cn(
                 "w-full bg-transparent border-none focus:ring-0 text-sm placeholder:text-muted-foreground/60 py-2 pr-20",

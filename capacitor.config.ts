@@ -2,7 +2,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'com.fintrackcastromanagement.app',
-  appName: 'FinTrack',
+  appName: 'Athena',
   webDir: 'out',
   plugins: {
     SocialLogin: {

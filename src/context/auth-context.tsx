@@ -36,6 +36,7 @@ if (typeof window !== 'undefined' && !Capacitor.isNativePlatform()) {
 interface AuthContextType {
   user: User | null;
   loading: boolean;
+  isFetchingProfile: boolean;
   isSubscriptionActive: boolean;
   subscriptionStatus: SubscriptionStatus | null;
   isOnboarded: boolean;
@@ -52,6 +53,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isFetchingProfile, setIsFetchingProfile] = useState(true);
   const [isSubscriptionActive, setIsSubscriptionActive] = useState(false);
   const [subscriptionStatus, setSubscriptionStatus] = useState<SubscriptionStatus | null>(null);
   const [isOnboarded, setIsOnboarded] = useState(false);
@@ -59,16 +61,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
 
   useEffect(() => {
-    const unsubscribeAuth = onAuthStateChanged(auth, (currentUser) => {
+    const unsubscribeAuth = onAuthStateChanged(auth, async (currentUser) => {
       console.log("AuthContext: Auth state changed. User:", currentUser?.uid);
       if (currentUser) {
-        setLoading(true); // Restart loading for the new session
+        // Reiniciamos o loading no evento para dar tempo de montar o snapshot
+        setLoading(true); 
+        setIsFetchingProfile(true);
         setUser(currentUser);
       } else {
         setUser(null);
         setIsSubscriptionActive(false);
         setSubscriptionStatus(null);
         setIsOnboarded(false);
+        setIsFetchingProfile(false);
         setLoading(false);
       }
     });
@@ -150,6 +155,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
            subscriptionEndDate: Timestamp.fromDate(new Date(0)),
          }, { merge: true });
          // The listener will re-fire once the doc is created
+         setIsFetchingProfile(false);
+         setLoading(false); // <--- INSERIDO CONFORME ORDEM: Libera o lock se o Doc do usuário é novo
          return;
       }
 
@@ -175,11 +182,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           isActive = true;
         }
         
+        // As regras de negócio avaliadas, aplicamos o state
         setIsOnboarded(onboarded);
         setIsSubscriptionActive(isActive);
         setSubscriptionStatus(status);
+
+        // GARANTIA: Resolução Imediata do Loading (Conforme Ouro)
+        setIsFetchingProfile(false);
+        setLoading(false);
+      } else {
+        // Se `docSnap.data()` vier vazio, destrava.
+        setIsFetchingProfile(false);
+        setLoading(false);
       }
-      setLoading(false);
+
     }, (error) => {
         console.error("AuthContext: Error listening to user document:", error);
         // Fallback for whitelisted users to avoid redirect loops on connectivity/permission errors
@@ -192,6 +208,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setSubscriptionStatus(null);
           setIsOnboarded(false);
         }
+        setIsFetchingProfile(false);
         setLoading(false);
     });
 
@@ -307,6 +324,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const value = {
     user,
     loading,
+    isFetchingProfile,
     isSubscriptionActive,
     subscriptionStatus,
     isOnboarded,

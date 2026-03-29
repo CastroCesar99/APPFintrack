@@ -40,8 +40,8 @@ function generateLocalInsights(
   }
 
   lines.push(isPt
-    ? `**📊 Resumo da Arya — ${monthYear}**`
-    : `**📊 Arya's Summary — ${monthYear}**`);
+    ? `**📊 Resumo da Athena — ${monthYear}**`
+    : `**📊 Athena's Summary — ${monthYear}**`);
 
   lines.push('');
 
@@ -112,8 +112,8 @@ function generateLocalInsights(
 
   lines.push('');
   lines.push(isPt
-    ? `> _Análise gerada localmente. Configure a chave Gemini para que a Arya use IA real._`
-    : `> _Analysis generated locally. Configure the Gemini key for Arya to use real AI._`);
+    ? `> _Análise gerada localmente. Configure a chave Gemini para que a Athena use IA real._`
+    : `> _Analysis generated locally. Configure the Gemini key for Athena to use real AI._`);
 
   return lines.join('\n');
 }

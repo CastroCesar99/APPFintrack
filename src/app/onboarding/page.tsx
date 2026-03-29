@@ -39,7 +39,7 @@ export default function OnboardingPage() {
         <div className="flex flex-col items-center mb-8">
           {/* AppLogoIcon removed from here */}
           <h1 className="text-3xl font-bold text-center mb-2">
-            {translate({ en: "Welcome to FinTrack!", pt: "Bem-vindo(a) ao FinTrack!" })}
+            {translate({ en: "Welcome to Athena!", pt: "Bem-vindo(a) ao Athena!" })}
           </h1>
           <p className="text-muted-foreground text-center">
             {translate({

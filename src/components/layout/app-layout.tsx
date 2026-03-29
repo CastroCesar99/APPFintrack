@@ -11,13 +11,13 @@ interface AppLayoutProps {
 
 export function AppLayout({ children }: AppLayoutProps) {
   return (
-    <div className="flex h-screen w-full overflow-x-hidden"> {/* Fix: h-screen instead of min-h-screen for internal scroll */}
+    <div className="flex flex-1 min-h-[100dvh] w-full flex-col md:flex-row shadow-none">
       <Sidebar variant="sidebar" collapsible="icon">
         <AppSidebarContent />
       </Sidebar>
-      <SidebarInset className="flex flex-col h-full"> 
+      <SidebarInset className="flex flex-col flex-1 w-full min-h-[100dvh]">
         <AppHeaderContent />
-        <main className="flex-1 overflow-y-auto overflow-x-hidden p-4 pt-6 md:p-6 pb-[calc(1.5rem+var(--safe-area-bottom))]"> {/* Added gap for bottom bar */}
+        <main className="flex-1 overflow-y-auto overflow-x-hidden p-4 pt-6 md:p-6 pb-6">
           {children}
         </main>
       </SidebarInset>

@@ -4,10 +4,9 @@
 
 html, body {
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
-  height: 100%;
   margin: 0;
   padding: 0;
-  overflow: hidden; /* Prevent body scroll, use main instead */
+  /* Altamente recomendado para iOS/Capacitor: Nunca dar overflow: hidden no root */
 }
 
 /* Safe Area Support */
