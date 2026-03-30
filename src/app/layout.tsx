@@ -45,7 +45,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning={true}>
-      <body suppressHydrationWarning={true} className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-[100dvh] flex flex-col w-full overflow-y-auto overflow-x-hidden pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]`}>
+      <body suppressHydrationWarning={true} className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-[100dvh] flex flex-col w-full max-w-full overflow-x-hidden overflow-y-auto overscroll-none pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]`}>
         <ThemeProvider>
           <AuthProvider>
             <AuthGuard>
