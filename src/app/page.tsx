@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation';
 // UI Components
 import { AppLayout } from "@/components/layout/app-layout";
 import { Skeleton } from "@/components/ui/skeleton";
+import { WelcomeScreen } from '@/components/welcome-screen';
 
 // Dashboard Components
 import { SummarySection } from "@/components/dashboard/summary-section";
@@ -39,7 +40,36 @@ import {
 import { ptBR, enUS } from 'date-fns/locale';
 
 
-export default function DashboardPage() {
+export default function HomePage() {
+  const { user, loading: authLoading } = useAuth();
+  const userId = user?.uid;
+  const router = useRouter();
+  const { translate, language } = useLanguage();
+  const { displayedDate } = useDateNavigation();
+  const { toast } = useToast();
+
+  // Show WelcomeScreen if not logged in
+  if (!user && !authLoading) {
+    return <WelcomeScreen />;
+  }
+
+  // Show loading while checking auth
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
+        <div className="text-white text-center">
+          <div className="w-8 h-8 animate-spin rounded-full border-4 border-white border-t-transparent mx-auto mb-4"></div>
+          <p>Carregando...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Rest of the dashboard component for logged-in users
+  return <DashboardPage />;
+}
+
+function DashboardPage() {
   const { user, loading: authLoading } = useAuth();
   const userId = user?.uid;
   const router = useRouter();

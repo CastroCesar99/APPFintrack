@@ -1,7 +1,8 @@
 "use client";
 
 import { useAuth } from "@/context/auth-context";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect } from "react";
 
 interface AuthGuardProps {
   children: React.ReactNode;
@@ -12,6 +13,20 @@ const PUBLIC_PATHS = ['/login', '/signup', '/forgot-password'];
 export function AuthGuard({ children }: AuthGuardProps) {
   const { user, loading } = useAuth();
   const pathname = usePathname();
+  const router = useRouter();
+
+  // Mover lógica de redirecionamento para useEffect
+  useEffect(() => {
+    if (loading) return;
+    
+    const isPublic = PUBLIC_PATHS.includes(pathname);
+    
+    if (!user && !isPublic) {
+      router.replace('/login');
+    } else if (user && pathname === '/login') {
+      router.replace('/');
+    }
+  }, [user, loading, pathname, router]);
 
   // 1. Se estiver carregando, mostra spinner
   if (loading) {
@@ -25,12 +40,16 @@ export function AuthGuard({ children }: AuthGuardProps) {
     );
   }
 
-  // 2. Se não estiver logado e não for rota pública, redireciona para login
+  // 2. Se não estiver logado e não for rota pública, retorna null (redirecionamento pendente)
   if (!user && !PUBLIC_PATHS.includes(pathname)) {
-    window.location.href = '/login';
     return null;
   }
 
-  // 3. Para todos os outros casos, renderiza os filhos
+  // 3. Se estiver logado e estiver na página de login, retorna null (redirecionamento pendente)
+  if (user && pathname === '/login') {
+    return null;
+  }
+
+  // 4. Para todos os outros casos, renderiza os filhos
   return <>{children}</>;
 }
