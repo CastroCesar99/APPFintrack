@@ -69,16 +69,16 @@ export const PaymentMethodIcon: React.FC<PaymentMethodIconProps> = ({ iconName, 
 
 export const AppLogoIcon = () => {
   const { theme } = useTheme();
-  const logoSrc = theme === 'dark' ? '/images/white fintrack logo.png' : '/images/fintrack-logo.png';
-  const altText = theme === 'dark' ? 'Athena Logo (Dark Mode)' : 'Athena Logo (Light Mode)';
+  const logoSrc = '/images/Logo.png';
+  const altText = 'Athena Logo';
 
   return (
     <Image
       src={logoSrc}
       alt={altText}
-      width={32}
-      height={32}
-      className="h-8 w-8"
+      width={64}
+      height={64}
+      className="h-16 w-16"
     />
   );
 };

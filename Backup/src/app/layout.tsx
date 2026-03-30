@@ -22,7 +22,12 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: 'Athena',
-  description: 'Track your finances with ease.',
+  description: 'Financial wisdom at your fingertips.',
+  icons: {
+    icon: '/images/Logo.png',
+    apple: '/images/Logo.png',
+  },
+  manifest: '/manifest.json',
 };
 
 export const viewport: Viewport = {
