@@ -1,6 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateFinancialInsights } from '@/lib/ai';
 
+// CORS Headers - Required for Capacitor/WebKit cross-origin requests
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+};
+
+// OPTIONS handler - Required for CORS preflight requests
+export async function OPTIONS() {
+  return new Response(null, { status: 200, headers: corsHeaders });
+}
+
 // Local fallback: generates insights from the data without AI
 function generateLocalInsights(
   transactions: any[],
@@ -120,13 +132,16 @@ function generateLocalInsights(
 
 export async function POST(req: NextRequest) {
   let language: 'en' | 'pt' = 'pt';
+  
   try {
     const body = await req.json();
     const { transactions, budgets, monthYear } = body;
     language = body.language || 'pt';
 
     if (!transactions || !monthYear) {
-      return NextResponse.json({ error: 'Missing required fields.' }, { status: 400 });
+      return NextResponse.json({ 
+        error: 'Missing required fields.' 
+      }, { status: 400, headers: corsHeaders });
     }
 
     try {
@@ -137,7 +152,7 @@ export async function POST(req: NextRequest) {
         language,
         monthYear
       );
-      return NextResponse.json({ insights });
+      return NextResponse.json({ insights }, { status: 200, headers: corsHeaders });
     } catch (aiError: any) {
       console.error('Gemini AI Error Object:', JSON.stringify(aiError, null, 2));
       
@@ -157,19 +172,22 @@ export async function POST(req: NextRequest) {
         const quotaMessage = language === 'pt' 
           ? '⚠️ Limite atingido por hoje. O plano gratuito do Gemini foi esgotado. Tente novamente amanhã.'
           : '⚠️ Daily limit reached. Gemini free quota has been exhausted. Please try again tomorrow.';
-        return NextResponse.json({ error: quotaMessage }, { status: 429 });
+        return NextResponse.json({ error: quotaMessage }, { status: 429, headers: corsHeaders });
       }
 
       // Para outros erros (ex: rede), ainda podemos tentar o fallback local se for preferível.
       console.warn('Gemini AI unavailable for other reason, using local fallback.');
       const insights = generateLocalInsights(transactions, budgets || {}, language, monthYear);
-      return NextResponse.json({ insights, fallback: true });
+      return NextResponse.json({ insights, fallback: true }, { status: 200, headers: corsHeaders });
     }
   } catch (error: any) {
     console.error('API /insights critical error:', error);
     return NextResponse.json(
-      { error: language === 'pt' ? 'Erro ao processar os dados.' : 'Error processing data.' },
-      { status: 500 }
+      { 
+        success: false,
+        error: error.message || 'Internal Server Error'
+      },
+      { status: 500, headers: corsHeaders }
     );
   }
 }

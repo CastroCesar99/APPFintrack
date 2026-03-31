@@ -19,6 +19,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 import { db } from '@/lib/firebase';
 import { collection, query, orderBy, onSnapshot, Timestamp, doc, getDoc } from "firebase/firestore";
+import { Capacitor } from '@capacitor/core';
 import {
   format as formatDateFns,
   parseISO as parseISODateFns,
@@ -41,6 +42,11 @@ import { formatCurrency, cn } from '@/lib/utils';
 import { ExportData } from '@/components/dashboard/export-data';
 import { Progress } from "@/components/ui/progress";
 import { CategoryIcon } from "@/components/icons";
+
+// Dynamic base URL: uses Vercel for native, relative for web
+const baseUrl = Capacitor.isNativePlatform() 
+  ? (process.env.NEXT_PUBLIC_API_URL || '') 
+  : '';
 
 interface BudgetComparisonItem {
   categoryInternalName: string;
@@ -114,7 +120,10 @@ export default function ReportsPage() {
     setInsightsError(null);
     setAiInsights(null);
     try {
-      const res = await fetch('/api/ask', {
+      const endpoint = `${baseUrl}/api/ask`;
+      console.log(`[Reports] Asking Arya via:`, endpoint);
+      
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -842,7 +851,10 @@ export default function ReportsPage() {
                   setInsightsError(null);
                   setAiInsights(null);
                   try {
-                    const res = await fetch('/api/insights', {
+                    const endpoint = `${baseUrl}/api/insights`;
+                    console.log(`[Reports] Generating insights via:`, endpoint);
+                    
+                    const res = await fetch(endpoint, {
                       method: 'POST',
                       headers: { 'Content-Type': 'application/json' },
                       body: JSON.stringify({

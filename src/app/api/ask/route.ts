@@ -1,6 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { askArya } from '@/lib/ai';
 
+// CORS Headers - Required for Capacitor/WebKit cross-origin requests
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+};
+
+// OPTIONS handler - Required for CORS preflight requests
+export async function OPTIONS() {
+  return new Response(null, { status: 200, headers: corsHeaders });
+}
+
 export async function POST(req: NextRequest) {
   let language: 'en' | 'pt' = 'pt';
   try {
@@ -9,7 +21,9 @@ export async function POST(req: NextRequest) {
     language = body.language || 'pt';
 
     if (!question || !transactions || !monthYear) {
-      return NextResponse.json({ error: 'Missing required fields.' }, { status: 400 });
+      return NextResponse.json({ 
+        error: 'Missing required fields.' 
+      }, { status: 400, headers: corsHeaders });
     }
 
     try {
@@ -20,7 +34,7 @@ export async function POST(req: NextRequest) {
         language,
         monthYear
       );
-      return NextResponse.json({ answer });
+      return NextResponse.json({ answer }, { status: 200, headers: corsHeaders });
     } catch (aiError: any) {
       console.error('Ask Arya AI Error:', aiError);
 
@@ -33,19 +47,25 @@ export async function POST(req: NextRequest) {
         const quotaMessage = language === 'pt'
           ? '⚠️ Limite atingido por hoje. Athena precisa descansar um pouco. Tente novamente amanhã.'
           : '⚠️ Daily limit reached. Athena needs to rest for a bit. Please try again tomorrow.';
-        return NextResponse.json({ error: quotaMessage }, { status: 429 });
+        return NextResponse.json({ error: quotaMessage }, { status: 429, headers: corsHeaders });
       }
 
       return NextResponse.json(
-        { error: language === 'pt' ? 'Athena não conseguiu responder agora.' : 'Athena couldn\'t answer right now.' },
-        { status: 500 }
+        { 
+          success: false,
+          error: language === 'pt' ? 'Athena não conseguiu responder agora.' : 'Athena couldn\'t answer right now.' 
+        },
+        { status: 500, headers: corsHeaders }
       );
     }
   } catch (error: any) {
     console.error('API /ask critical error:', error);
     return NextResponse.json(
-      { error: 'Error processing request.' },
-      { status: 500 }
+      { 
+        success: false,
+        error: error.message || 'Internal Server Error'
+      },
+      { status: 500, headers: corsHeaders }
     );
   }
 }
