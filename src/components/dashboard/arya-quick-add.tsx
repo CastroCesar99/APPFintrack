@@ -8,6 +8,12 @@ import { useLanguage } from "@/context/language-context";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
+import { Capacitor } from '@capacitor/core';
+
+// Dynamic base URL: uses Vercel for native, relative for web
+const baseUrl = Capacitor.isNativePlatform() 
+  ? (process.env.NEXT_PUBLIC_API_URL || '') 
+  : '';
 
 interface AryaQuickAddProps {
   onQuickAdd: (extractedData: any) => void;
@@ -109,12 +115,10 @@ export function AryaQuickAdd({
 
       let res;
       try {
-        // Use absolute URL for Capacitor compatibility
-        // NEXT_PUBLIC_API_URL should point to production backend (e.g., Vercel)
-        // Fallback to local IP for development with iOS Simulator
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://192.168.1.100:3000';
-        const endpoint = `${apiUrl}/api/extract`;
+        // Use dynamic baseUrl: empty for web, NEXT_PUBLIC_API_URL for native
+        const endpoint = `${baseUrl}/api/extract`;
         
+        console.log(`[${requestId}] Platform:`, Capacitor.isNativePlatform() ? 'Native' : 'Web');
         console.log(`[${requestId}] Fetching from:`, endpoint);
         
         res = await fetch(endpoint, {

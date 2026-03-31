@@ -1,6 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { extractTransactionFromText } from '@/lib/ai';
 
+// CORS Headers - Required for Capacitor/WebKit cross-origin requests
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Request-ID',
+};
+
+// OPTIONS handler - Required for CORS preflight requests
+export async function OPTIONS() {
+  return new Response(null, { status: 200, headers: corsHeaders });
+}
+
 export async function POST(req: NextRequest) {
   let language: 'en' | 'pt' = 'pt';
   
@@ -20,7 +32,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ 
         error: 'Invalid request body',
         details: parseError.message 
-      }, { status: 400 });
+      }, { status: 400, headers: corsHeaders });
     }
     
     const { text, categories, paymentMethods, history } = body;
@@ -31,7 +43,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ 
         error: 'Missing text field.',
         details: 'Text must be a non-empty string'
-      }, { status: 400 });
+      }, { status: 400, headers: corsHeaders });
     }
 
     // Sanitize text input
@@ -50,7 +62,7 @@ export async function POST(req: NextRequest) {
       );
       
       console.log(`[${requestId}] Extraction successful`);
-      return NextResponse.json({ data });
+      return NextResponse.json({ data }, { status: 200, headers: corsHeaders });
       
     } catch (aiError: any) {
       console.error(`[${requestId}] Extract AI Error:`, aiError);
@@ -72,7 +84,7 @@ export async function POST(req: NextRequest) {
         const quotaMessage = language === 'pt' 
           ? '⚠️ Limite atingido por hoje. Athena precisa pausar. Tente novamente amanhã.'
           : '⚠️ Daily limit reached. Athena needs a break. Please try again tomorrow.';
-        return NextResponse.json({ error: quotaMessage }, { status: 429 });
+        return NextResponse.json({ error: quotaMessage }, { status: 429, headers: corsHeaders });
       }
 
       if (isSyntaxError) {
@@ -83,7 +95,7 @@ export async function POST(req: NextRequest) {
           error: syntaxMessage,
           details: aiError.message,
           requestId 
-        }, { status: 500 });
+        }, { status: 500, headers: corsHeaders });
       }
 
       return NextResponse.json(
@@ -92,7 +104,7 @@ export async function POST(req: NextRequest) {
           details: aiError.message || 'Unknown error',
           requestId
         },
-        { status: 500 }
+        { status: 500, headers: corsHeaders }
       );
     }
   } catch (error: any) {
@@ -101,11 +113,11 @@ export async function POST(req: NextRequest) {
     
     return NextResponse.json(
       { 
-        error: 'Error processing request.',
-        details: error.message || 'Unknown error',
+        success: false,
+        error: error.message || 'Internal Server Error',
         requestId
       },
-      { status: 500 }
+      { status: 500, headers: corsHeaders }
     );
   }
 }
