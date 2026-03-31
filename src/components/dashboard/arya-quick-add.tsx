@@ -62,24 +62,109 @@ export function AryaQuickAdd({
   const handleExtract = async () => {
     if (!text.trim()) return;
 
+    // Generate unique request ID for debugging
+    const requestId = `quickadd_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    console.log(`[${requestId}] Starting handleExtract with text:`, text.substring(0, 50));
+
     setIsLoading(true);
     try {
-      const res = await fetch("/api/extract", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          text,
-          categories: userCategories.map(c => ({ name: c.name, label: c.label })),
-          paymentMethods: userPaymentMethods.map(p => ({ name: p.name, label: p.label })),
-          history: recentTransactions.slice(0, 20).map(t => ({ description: t.description, expenseNature: t.expenseNature })),
-          language
-        }),
-      });
+      // Safely prepare data with error handling for each step
+      let safeCategories: any[] = [];
+      let safePaymentMethods: any[] = [];
+      let safeHistory: any[] = [];
 
-      const result = await res.json();
+      try {
+        safeCategories = userCategories.map(c => ({ 
+          name: String(c.name || '').replace(/[\x00-\x1F\x7F]/g, ''), 
+          label: c.label 
+        }));
+      } catch (e) {
+        console.error(`[${requestId}] Error preparing categories:`, e);
+        safeCategories = [];
+      }
+
+      try {
+        safePaymentMethods = userPaymentMethods.map(p => ({ 
+          name: String(p.name || '').replace(/[\x00-\x1F\x7F]/g, ''), 
+          label: p.label 
+        }));
+      } catch (e) {
+        console.error(`[${requestId}] Error preparing payment methods:`, e);
+        safePaymentMethods = [];
+      }
+
+      try {
+        safeHistory = recentTransactions.slice(0, 20).map(t => ({ 
+          description: String(t.description || '').replace(/[\x00-\x1F\x7F]/g, ''), 
+          expenseNature: String(t.expenseNature || 'variable').replace(/[\x00-\x1F\x7F]/g, '') 
+        }));
+      } catch (e) {
+        console.error(`[${requestId}] Error preparing history:`, e);
+        safeHistory = [];
+      }
+
+      // Sanitize input text
+      const sanitizedText = text.trim().replace(/[\x00-\x1F\x7F]/g, '');
+      console.log(`[${requestId}] Sanitized text:`, sanitizedText.substring(0, 50));
+
+      let res;
+      try {
+        // Use absolute URL for Capacitor compatibility
+        // NEXT_PUBLIC_API_URL should point to production backend (e.g., Vercel)
+        // Fallback to local IP for development with iOS Simulator
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://192.168.1.100:3000';
+        const endpoint = `${apiUrl}/api/extract`;
+        
+        console.log(`[${requestId}] Fetching from:`, endpoint);
+        
+        res = await fetch(endpoint, {
+          method: "POST",
+          headers: { 
+            "Content-Type": "application/json",
+            "X-Request-ID": requestId
+          },
+          body: JSON.stringify({ 
+            text: sanitizedText,
+            categories: safeCategories,
+            paymentMethods: safePaymentMethods,
+            history: safeHistory,
+            language
+          }),
+        });
+      } catch (fetchError: any) {
+        console.error(`[${requestId}] Fetch error:`, fetchError);
+        throw new Error(`Network error: ${fetchError.message || 'Failed to connect'}`);
+      }
+
+      // Defensive parsing: read as text first, then parse JSON
+      let result;
+      try {
+        const textResponse = await res.text(); // Read as text first
+        console.log(`[${requestId}] Raw response (first 200 chars):`, textResponse.substring(0, 200));
+        
+        if (!res.ok) {
+          console.error(`[${requestId}] API error (Raw):`, textResponse);
+          throw new Error(`Erro do Servidor: ${res.status} - ${textResponse.substring(0, 100)}`);
+        }
+        
+        // Only parse JSON if response is OK
+        try {
+          result = JSON.parse(textResponse);
+        } catch (parseError: any) {
+          console.error(`[${requestId}] JSON parse error:`, parseError);
+          console.error(`[${requestId}] Response that failed to parse:`, textResponse);
+          throw new Error('Invalid JSON response from server');
+        }
+      } catch (responseError: any) {
+        console.error(`[${requestId}] Response handling error:`, responseError);
+        throw responseError;
+      }
+
+      console.log(`[${requestId}] Response status:`, res.status);
 
       if (!res.ok) {
-        throw new Error(result.error || "Failed to extract");
+        console.error(`[${requestId}] API error:`, result);
+        throw new Error(result.error || result.details || "Failed to extract");
       }
 
       if (result.data) {
@@ -94,7 +179,10 @@ export function AryaQuickAdd({
         });
       }
     } catch (error: any) {
-      console.error("Quick Add Error:", error);
+      console.error(`[${requestId}] Quick Add Error:`, error);
+      console.error(`[${requestId}] Error stack:`, error.stack);
+      
+      // Show detailed error message
       toast({
         title: translate({ en: "Error", pt: "Erro" }),
         description: error.message || translate({
@@ -105,6 +193,7 @@ export function AryaQuickAdd({
       });
     } finally {
       setIsLoading(false);
+      console.log(`[${requestId}] handleExtract completed`);
     }
   };
 

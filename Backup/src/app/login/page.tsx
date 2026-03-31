@@ -164,7 +164,7 @@ export default function LoginPage() {
 
   // Renderização principal - apenas UM logo
   return (
-    <div className="min-h-[100dvh] w-full max-w-[100vw] bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex flex-col items-center justify-center relative overflow-hidden">
+    <div className="fixed inset-0 w-full h-full bg-[#0f172a] overflow-hidden flex flex-col">
       {/* Background Pattern */}
       <div 
         className="absolute inset-0 opacity-30" 
@@ -173,7 +173,7 @@ export default function LoginPage() {
         }}
       />
       
-      <div className="w-full max-w-md mx-auto space-y-2 relative z-10 px-4">
+      <div className="flex-1 w-full h-full overflow-y-auto overflow-x-hidden flex flex-col items-center justify-center px-4 relative z-10">
         
         {/* Logo and Name - Animated Entrance */}
         <div className="text-center space-y-1">
@@ -186,9 +186,6 @@ export default function LoginPage() {
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 7, ease: 'easeOut' }}
             >
-              {/* Glow effect */}
-              <div className="absolute inset-0 bg-white rounded-full blur-3xl opacity-10 scale-150"></div>
-              
               {/* Logo ÚNICO - Tamanho Ultra Compacto */}
               <div className="relative w-40 h-40 mx-auto">
                 <Image
@@ -226,7 +223,7 @@ export default function LoginPage() {
         {/* Formulário aparece apenas após o tempo mínimo */}
         {shouldShowLoginForm && (
           <motion.div 
-            className="w-full max-w-sm bg-white/10 backdrop-blur-md rounded-2xl p-3 border border-white/20 shadow-2xl"
+            className="w-full max-w-sm mx-auto bg-white/10 backdrop-blur-md rounded-2xl p-3 border border-white/20 shadow-2xl"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.6 }}
@@ -321,11 +318,11 @@ export default function LoginPage() {
           </form>
 
           {/* Divider */}
-          <div className="relative my-6">
-            <div className="absolute inset-0 flex items-center">
+          <div className="relative my-6 w-full overflow-hidden">
+            <div className="absolute inset-0 flex items-center w-full">
               <div className="w-full border-t border-white/20"></div>
             </div>
-            <div className="relative flex justify-center text-sm">
+            <div className="relative flex justify-center text-sm w-full">
               <span className="px-2 bg-transparent text-white/60">
                 {translate({ en: "or", pt: "ou" })}
               </span>
@@ -389,7 +386,7 @@ export default function LoginPage() {
       </div>
 
       {/* Subtle floating particles */}
-      <div className="absolute inset-0 pointer-events-none">
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
         {[...Array(6)].map((_, i) => (
           <motion.div
             key={i}
