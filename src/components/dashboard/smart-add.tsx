@@ -65,11 +65,11 @@ export function SmartAdd({ onQuickAdd, onBatchApprove, disabled }: SmartAddProps
       }
 
       const image = await CapCamera.Camera.getPhoto({
-        quality: 40,
+        quality: 25,
         allowEditing: false,
         resultType: CapCamera.CameraResultType.Base64,
         source: source === 'camera' ? CapCamera.CameraSource.Camera : CapCamera.CameraSource.Photos,
-        width: 800,
+        width: 600,
       });
 
       if (image.base64String) {

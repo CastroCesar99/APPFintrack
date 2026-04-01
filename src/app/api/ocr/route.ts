@@ -30,6 +30,9 @@ export async function POST(req: NextRequest) {
   try {
     const { imageBase64, mimeType = "image/jpeg" } = await req.json();
 
+    // Log do tamanho do payload para monitoramento
+    console.log('Tamanho do Base64 enviado:', imageBase64 ? imageBase64.length : 0, 'caracteres');
+
     if (!imageBase64) {
       return NextResponse.json(
         { error: "Imagem não fornecida" },
@@ -70,7 +73,7 @@ Regras:
     ];
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.0-flash",
+      model: "gemini-1.5-flash",
       contents,
       config: {
         temperature: 0.1,
