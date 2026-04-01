@@ -3,12 +3,27 @@ import { GoogleGenAI } from "@google/genai";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GOOGLE_GENAI_API_KEY });
 
+// CORS headers para permitir chamadas do Capacitor
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type",
+};
+
 interface OCRResult {
   amount: number;
   date: string;
   establishment: string;
   category: string;
   confidence: number;
+}
+
+// Handler para preflight CORS
+export async function OPTIONS(req: NextRequest) {
+  return new NextResponse(null, {
+    status: 200,
+    headers: corsHeaders,
+  });
 }
 
 export async function POST(req: NextRequest) {
@@ -18,7 +33,7 @@ export async function POST(req: NextRequest) {
     if (!imageBase64) {
       return NextResponse.json(
         { error: "Imagem não fornecida" },
-        { status: 400 }
+        { status: 400, headers: corsHeaders }
       );
     }
 
@@ -68,7 +83,7 @@ Regras:
     if (!text) {
       return NextResponse.json(
         { error: "Não foi possível analisar a imagem" },
-        { status: 500 }
+        { status: 500, headers: corsHeaders }
       );
     }
 
@@ -77,7 +92,7 @@ Regras:
     if (!jsonMatch) {
       return NextResponse.json(
         { error: "Resposta inválida da IA", rawResponse: text },
-        { status: 500 }
+        { status: 500, headers: corsHeaders }
       );
     }
 
@@ -86,13 +101,13 @@ Regras:
     return NextResponse.json({
       success: true,
       data: result,
-    });
+    }, { headers: corsHeaders });
 
   } catch (error: any) {
     console.error("[OCR API Error]:", error);
     return NextResponse.json(
       { error: error.message || "Erro ao processar imagem" },
-      { status: 500 }
+      { status: 500, headers: corsHeaders }
     );
   }
 }

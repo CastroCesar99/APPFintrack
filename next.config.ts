@@ -2,7 +2,8 @@ import type {NextConfig} from 'next';
 
 const nextConfig: NextConfig = {
   /* config options here */
-  output: process.env.IS_CAPACITOR === 'true' ? 'export' : undefined,
+  output: 'export',
+  distDir: 'out',
   typescript: {
     // !! WARN !!
     ignoreBuildErrors: true,

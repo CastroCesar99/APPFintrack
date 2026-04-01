@@ -9,6 +9,12 @@ import { AuthProvider } from '@/context/auth-context';
 import { AuthGuard } from '@/components/auth/auth-guard';
 import { DateNavigationProvider } from '@/context/date-navigation-context';
 import { ThemeProvider } from '@/context/theme-context';
+import { defineCustomElements } from '@ionic/pwa-elements/loader';
+
+// Registrar PWA Elements para câmera funcionar na web
+if (typeof window !== 'undefined') {
+  defineCustomElements(window);
+}
 
 const geistSans = Geist({
   variable: '--font-geist-sans',

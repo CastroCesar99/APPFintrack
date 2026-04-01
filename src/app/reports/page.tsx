@@ -9,14 +9,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Terminal, Package, Wallet, FileText, DollarSign, Target, TrendingUp, TrendingDown, Sparkles, ListChecks, RefreshCw, Mic, MicOff, ArrowRight } from "lucide-react";
+import { Terminal, Package, Wallet, FileText, DollarSign, Target, TrendingUp, TrendingDown, Sparkles, ListChecks, RefreshCw, ArrowRight } from "lucide-react";
 import type { Transaction, DisplayCategory, UserPreferences, CustomCategoryData, Category, CategoryName } from "@/types";
 import { CATEGORIES, getCategoryDisplayLabel } from "@/types";
 import { useAuth } from '@/context/auth-context';
 import { useLanguage } from '@/context/language-context';
 import { useDateNavigation } from '@/context/date-navigation-context';
 import { useToast } from "@/hooks/use-toast";
-import { useSpeech } from '@/hooks/use-speech';
 import { db } from '@/lib/firebase';
 import { collection, query, orderBy, onSnapshot, Timestamp, doc, getDoc } from "firebase/firestore";
 import { Capacitor } from '@capacitor/core';
@@ -42,8 +41,6 @@ import { formatCurrency, cn } from '@/lib/utils';
 import { ExportData } from '@/components/dashboard/export-data';
 import { Progress } from "@/components/ui/progress";
 import { CategoryIcon } from "@/components/icons";
-import { VoiceLayer } from "@/components/voice-layer";
-import { StubbornInput } from "@/components/stubborn-input";
 
 // Dynamic base URL: uses Vercel for native, relative for web
 const baseUrl = Capacitor.isNativePlatform() 
@@ -875,13 +872,13 @@ export default function ReportsPage() {
                 <Sparkles className="h-4 w-4 text-primary opacity-50 group-focus-within:opacity-100 transition-opacity" />
               </div>
               
-              {/* StubbornInput - Não re-renderiza com atualizações da página pai */}
-              <StubbornInput
+              {/* Input para perguntar à Athena */}
+              <Input
                 id="input-athena"
                 value={userQuestion}
-                onChange={setUserQuestion}
-                onSubmit={() => {
-                  if (userQuestion.trim()) {
+                onChange={(e) => setUserQuestion(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && userQuestion.trim()) {
                     const question = userQuestion;
                     setUserQuestion("");
                     handleAskQuestion(question);

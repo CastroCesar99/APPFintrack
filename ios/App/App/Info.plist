@@ -2,6 +2,8 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+    <key>CAPACITOR_DEBUG</key>
+	<string>$(CAPACITOR_DEBUG)</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
@@ -45,10 +47,6 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
-	<key>NSMicrophoneUsageDescription</key>
-	<string>A Athena precisa ouvir sua voz para transcrever suas despesas automaticamente.</string>
-	<key>NSSpeechRecognitionUsageDescription</key>
-	<string>A Athena usa o reconhecimento de fala para transformar seu áudio em dados financeiros.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>A Athena precisa da câmera para tirar fotos dos seus recibos e comprovantes.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
