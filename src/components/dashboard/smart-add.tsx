@@ -65,11 +65,11 @@ export function SmartAdd({ onQuickAdd, onBatchApprove, disabled }: SmartAddProps
       }
 
       const image = await CapCamera.Camera.getPhoto({
-        quality: 25,
+        quality: 40,
         allowEditing: false,
         resultType: CapCamera.CameraResultType.Base64,
         source: source === 'camera' ? CapCamera.CameraSource.Camera : CapCamera.CameraSource.Photos,
-        width: 600,
+        width: 800,
       });
 
       if (image.base64String) {
@@ -122,9 +122,23 @@ export function SmartAdd({ onQuickAdd, onBatchApprove, disabled }: SmartAddProps
       }
     } catch (error: any) {
       console.error("[OCR Error]:", error);
+      
+      // Mensagem amigável para erro 429 (IA ocupada)
+      const isRateLimit = error.message?.includes('429') || 
+                          error.message?.includes('quota') ||
+                          error.message?.includes('Resource exhausted');
+      
       toast({
         title: translate({ en: "Error", pt: "Erro" }),
-        description: error.message || translate({ en: "Could not process receipt", pt: "Não foi possível processar o recibo" }),
+        description: isRateLimit 
+          ? translate({ 
+              en: "AI busy, try again in 30 seconds", 
+              pt: "IA ocupada, tente em 30 segundos" 
+            })
+          : (error.message || translate({ 
+              en: "Could not process receipt", 
+              pt: "Não foi possível processar o recibo" 
+            })),
         variant: "destructive",
       });
     } finally {
