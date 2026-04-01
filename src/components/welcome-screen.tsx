@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/context/language-context';
 import { useAuth } from '@/context/auth-context';
+import { ThemeAwareLogo } from '@/components/icons';
 import { motion } from 'framer-motion';
 import Image from 'next/image';
 
@@ -79,12 +80,10 @@ export function WelcomeScreen() {
               
               {/* Logo */}
               <div className="relative w-40 h-40 mx-auto">
-                <Image
-                  src="/images/Logo.png"
-                  alt="Athena"
-                  fill
+                <ThemeAwareLogo 
+                  width={160} 
+                  height={160} 
                   className={`object-contain transition-all duration-300 ${owlBlink ? 'scale-95' : 'scale-100'}`}
-                  priority
                 />
               </div>
               

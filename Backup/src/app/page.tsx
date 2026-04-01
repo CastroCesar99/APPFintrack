@@ -15,7 +15,7 @@ import { SummarySection } from "@/components/dashboard/summary-section";
 import { RecentTransactionsSection } from "@/components/dashboard/recent-transactions-section";
 import { QuickActionsSection } from '@/components/dashboard/quick-actions-section';
 import { ExpenseCategoryChart } from '@/components/dashboard/charts/expense-category-chart';
-import { AryaQuickAdd } from '@/components/dashboard/arya-quick-add';
+import { SmartAdd } from '@/components/dashboard/smart-add';
 
 // Types & Data
 import type { Transaction, DisplayCategory, DisplayPaymentMethod } from "@/types";
@@ -29,7 +29,7 @@ import { useToast } from "@/hooks/use-toast";
 
 // Firebase & Date-fns
 import { db } from '@/lib/firebase';
-import { collection, query, onSnapshot, doc, Timestamp, addDoc, serverTimestamp, runTransaction, getDocs, setDoc } from "firebase/firestore";
+import { collection, query, onSnapshot, doc, Timestamp, addDoc, serverTimestamp, runTransaction, getDocs, setDoc, writeBatch } from "firebase/firestore";
 import {
   format as formatDateFns,
   parseISO as parseISODateFns,
@@ -341,8 +341,28 @@ function DashboardPage() {
           monthlyBudget={monthlyBudget}
           displayedMonthYearLabel={displayedMonthYearLabel}
         />
-        <AryaQuickAdd 
+        <SmartAdd 
           onQuickAdd={(data) => setExtractedTransaction(data)} 
+          onBatchApprove={async (transactions) => {
+            if (!userId) throw new Error("User not authenticated");
+            
+            const batch = writeBatch(db);
+            const transactionsColRef = collection(db, 'users', userId, 'transactions');
+            
+            for (const tx of transactions) {
+              const newDocRef = doc(transactionsColRef);
+              batch.set(newDocRef, {
+                ...tx,
+                type: 'expense',
+                userId,
+                createdAt: serverTimestamp(),
+                updatedAt: serverTimestamp(),
+                effectiveMonth: formatDateFns(displayedDate, "yyyy-MM"),
+              });
+            }
+            
+            await batch.commit();
+          }}
           disabled={!isSubscriptionActive}
           userCategories={allUserCategories}
           userPaymentMethods={allUserPaymentMethods}

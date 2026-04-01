@@ -2,12 +2,10 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>CAPACITOR_DEBUG</key>
-	<string>$(CAPACITOR_DEBUG)</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
-	<string>Athena</string>
+        <string>Athena</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -20,17 +18,6 @@
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
 	<string>$(MARKETING_VERSION)</string>
-	<key>CFBundleURLTypes</key>
-	<array>
-		<dict>
-			<key>CFBundleTypeRole</key>
-			<string>Editor</string>
-			<key>CFBundleURLSchemes</key>
-			<array>
-				<string>com.googleusercontent.apps.627912670361-hcsfl4egpoeli1e8o2j8sqks6qmk7fn3</string>
-			</array>
-		</dict>
-	</array>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>LSRequiresIPhoneOS</key>
@@ -56,9 +43,17 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
-	<key>NSMicrophoneUsageDescription</key>
-	<string>Athena precisa do microfone para que você possa adicionar despesas por voz através da IA.</string>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>A Athena precisa ouvir sua voz para transcrever suas despesas automaticamente.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>A Athena usa o reconhecimento de fala para transformar seu áudio em dados financeiros.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>A Athena precisa da câmera para tirar fotos dos seus recibos e comprovantes.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>A Athena precisa acessar sua galeria para importar comprovantes salvos.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>A Athena precisa salvar as fotos capturadas na sua galeria.</string>
 </dict>
 </plist>

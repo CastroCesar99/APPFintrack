@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Sparkles, Loader2, ArrowRight, Mic, MicOff } from "lucide-react";
 import { useLanguage } from "@/context/language-context";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
+import { useSpeech } from '@/hooks/use-speech';
 import { Capacitor } from '@capacitor/core';
 
 // Dynamic base URL: uses Vercel for native, relative for web
@@ -34,34 +34,49 @@ export function AryaQuickAdd({
   const { toast } = useToast();
   const [text, setText] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [forcedPlaceholder, setForcedPlaceholder] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
   
   const {
     isListening,
     transcript,
+    visualStatus,
     startListening,
     stopListening,
     browserSupportsSpeechRecognition
-  } = useSpeechRecognition();
+  } = useSpeech();
 
-  // Update text when transcript changes
+  // Single Source of Truth - Apenas um useEffect para monitorar isListening
   useEffect(() => {
-    if (transcript) {
-      setText(transcript);
-    }
-  }, [transcript]);
-
-  // Handle auto-submit when user stops talking (if we have text)
-  useEffect(() => {
-    if (!isListening && transcript && !isLoading) {
-      handleExtract();
+    console.log('[QuickAdd] isListening changed:', isListening);
+    if (isListening) {
+      console.log('[QuickAdd] Microfone está ativo');
+    } else {
+      console.log('[QuickAdd] Microfone está inativo');
     }
   }, [isListening]);
 
   const toggleListening = () => {
     if (isListening) {
       stopListening();
+      setForcedPlaceholder("");
     } else {
-      startListening(language === 'pt' ? 'pt-BR' : 'en-US');
+      // Limpa texto anterior antes de começar
+      setText("");
+      
+      // Feedback visual forçado imediatamente
+      setForcedPlaceholder(translate({ en: "Listening now...", pt: "Ouvindo agora..." }));
+      
+      // Inicia listening com callback para texto capturado e ref para injeção direta
+      startListening(
+        language === 'pt' ? 'pt-BR' : 'en-US',
+        (capturedText) => {
+          console.log('Texto capturado via onTextCaptured:', capturedText);
+          setText(capturedText);
+          setForcedPlaceholder(""); // Limpa placeholder quando capturar texto
+        },
+        inputRef // Passa o ref para injeção direta no DOM
+      );
     }
   };
 
@@ -211,19 +226,24 @@ export function AryaQuickAdd({
           
           <div className="flex-grow relative">
             <input
+              ref={inputRef}
               type="text"
               value={text}
               onChange={(e) => setText(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleExtract()}
-              placeholder={isListening 
-                ? translate({ en: "Listening...", pt: "Ouvindo..." })
-                : translate({
-                  en: "Quick add with Athena: 'Pizza 50 yesterday'...",
-                  pt: "Adição rápida com Athena: 'Pizza 50 ontem'...",
-                })}
+              placeholder={forcedPlaceholder || 
+                (visualStatus === 'listening' 
+                  ? translate({ en: "Listening...", pt: "Ouvindo..." })
+                  : visualStatus === 'starting'
+                  ? translate({ en: "Starting...", pt: "Iniciando..." })
+                  : translate({
+                      en: "Quick add with Athena: 'Pizza 50 yesterday'...",
+                      pt: "Adição rápida com Athena: 'Pizza 50 ontem'...",
+                    }))}
               className={cn(
                 "w-full bg-transparent border-none focus:ring-0 text-sm placeholder:text-muted-foreground/60 py-2 pr-20",
-                isListening && "text-primary font-medium animate-pulse"
+                visualStatus === 'listening' && "text-primary font-medium animate-pulse",
+                visualStatus === 'starting' && "text-muted-foreground animate-pulse"
               )}
               disabled={isLoading || disabled}
             />
@@ -231,17 +251,22 @@ export function AryaQuickAdd({
             <div className="absolute right-0 inset-y-0 flex items-center pr-1 gap-1">
               {browserSupportsSpeechRecognition && (
                 <Button
+                  type="button"
                   size="icon"
                   variant="ghost"
                   className={cn(
                     "h-8 w-8 rounded-full transition-all",
-                    isListening ? "bg-primary/20 text-primary animate-pulse" : "hover:bg-primary/10"
+                    visualStatus === 'listening' ? "bg-red-500/20 text-red-500 animate-pulse" : 
+                    visualStatus === 'starting' ? "bg-yellow-500/20 text-yellow-500 animate-pulse" :
+                    "hover:bg-primary/10"
                   )}
                   onClick={toggleListening}
                   disabled={isLoading || disabled}
                 >
-                  {isListening ? (
-                    <Mic className="h-4 w-4" />
+                  {visualStatus === 'listening' ? (
+                    <Mic className="h-4 w-4 text-red-500 animate-pulse" />
+                  ) : visualStatus === 'starting' ? (
+                    <Mic className="h-4 w-4 text-yellow-500 animate-pulse" />
                   ) : (
                     <Mic className="h-4 w-4 text-muted-foreground/60" />
                   )}

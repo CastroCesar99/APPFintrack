@@ -69,7 +69,7 @@ export const PaymentMethodIcon: React.FC<PaymentMethodIconProps> = ({ iconName, 
 
 export const AppLogoIcon = () => {
   const { theme } = useTheme();
-  const logoSrc = '/images/Logo.png';
+  const logoSrc = theme === 'dark' ? '/images/Logo.png' : '/images/Logo-Preto.png';
   const altText = 'Athena Logo';
 
   return (
@@ -79,6 +79,27 @@ export const AppLogoIcon = () => {
       width={64}
       height={64}
       className="h-16 w-16"
+    />
+  );
+};
+
+// Componente genérico para logos com tema
+export const ThemeAwareLogo: React.FC<{
+  width?: number;
+  height?: number;
+  className?: string;
+}> = ({ width = 160, height = 160, className = "" }) => {
+  const { theme } = useTheme();
+  const logoSrc = theme === 'dark' ? '/images/Logo.png' : '/images/Logo-Preto.png';
+  const altText = 'Athena Logo';
+
+  return (
+    <Image
+      src={logoSrc}
+      alt={altText}
+      width={width}
+      height={height}
+      className={className}
     />
   );
 };

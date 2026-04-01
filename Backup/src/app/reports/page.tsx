@@ -16,9 +16,10 @@ import { useAuth } from '@/context/auth-context';
 import { useLanguage } from '@/context/language-context';
 import { useDateNavigation } from '@/context/date-navigation-context';
 import { useToast } from "@/hooks/use-toast";
-import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
+import { useSpeech } from '@/hooks/use-speech';
 import { db } from '@/lib/firebase';
 import { collection, query, orderBy, onSnapshot, Timestamp, doc, getDoc } from "firebase/firestore";
+import { Capacitor } from '@capacitor/core';
 import {
   format as formatDateFns,
   parseISO as parseISODateFns,
@@ -41,6 +42,13 @@ import { formatCurrency, cn } from '@/lib/utils';
 import { ExportData } from '@/components/dashboard/export-data';
 import { Progress } from "@/components/ui/progress";
 import { CategoryIcon } from "@/components/icons";
+import { VoiceLayer } from "@/components/voice-layer";
+import { StubbornInput } from "@/components/stubborn-input";
+
+// Dynamic base URL: uses Vercel for native, relative for web
+const baseUrl = Capacitor.isNativePlatform() 
+  ? (process.env.NEXT_PUBLIC_API_URL || '') 
+  : '';
 
 interface BudgetComparisonItem {
   categoryInternalName: string;
@@ -77,35 +85,17 @@ export default function ReportsPage() {
   const [userQuestion, setUserQuestion] = useState("");
   const [isAskingArya, setIsAskingArya] = useState(false);
 
-  const {
-    isListening,
-    transcript,
-    startListening,
-    stopListening,
-    browserSupportsSpeechRecognition
-  } = useSpeechRecognition();
-
-  // Update question when transcript changes
-  useEffect(() => {
-    if (transcript) {
-      setUserQuestion(transcript);
+  // Handler simplificado para texto capturado pela voz
+  const handleVoiceTextCaptured = useCallback((capturedText: string) => {
+    console.log('[ReportsPage] Texto recebido do VoiceInput:', capturedText);
+    setUserQuestion(capturedText);
+    // Auto-submit para IA após captura
+    if (capturedText.trim()) {
+      setTimeout(() => {
+        handleAskQuestion(capturedText);
+      }, 500);
     }
-  }, [transcript]);
-
-  // Handle auto-submit when user stops talking (if we have a question)
-  useEffect(() => {
-    if (!isListening && transcript && !isAskingArya) {
-      handleAskQuestion(transcript);
-    }
-  }, [isListening]);
-
-  const toggleListening = () => {
-    if (isListening) {
-      stopListening();
-    } else {
-      startListening(language === 'pt' ? 'pt-BR' : 'en-US');
-    }
-  };
+  }, []);
 
   const handleAskQuestion = async (questionToAsk: string) => {
     if (!questionToAsk.trim()) return;
@@ -114,7 +104,10 @@ export default function ReportsPage() {
     setInsightsError(null);
     setAiInsights(null);
     try {
-      const res = await fetch('/api/ask', {
+      const endpoint = `${baseUrl}/api/ask`;
+      console.log(`[Reports] Asking Arya via:`, endpoint);
+      
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -842,7 +835,10 @@ export default function ReportsPage() {
                   setInsightsError(null);
                   setAiInsights(null);
                   try {
-                    const res = await fetch('/api/insights', {
+                    const endpoint = `${baseUrl}/api/insights`;
+                    console.log(`[Reports] Generating insights via:`, endpoint);
+                    
+                    const res = await fetch(endpoint, {
                       method: 'POST',
                       headers: { 'Content-Type': 'application/json' },
                       body: JSON.stringify({
@@ -873,52 +869,38 @@ export default function ReportsPage() {
             </div>
           </CardHeader>
           <CardContent className="pt-2 space-y-4">
-            {/* Ask Athena Input Section */}
+            {/* Ask Athena Input Section - Componente STUBBORN (Teimoso) */}
             <div className="relative group">
               <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
                 <Sparkles className="h-4 w-4 text-primary opacity-50 group-focus-within:opacity-100 transition-opacity" />
               </div>
-              <input
-                type="text"
+              
+              {/* StubbornInput - Não re-renderiza com atualizações da página pai */}
+              <StubbornInput
+                id="input-athena"
                 value={userQuestion}
-                onChange={(e) => setUserQuestion(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && userQuestion.trim() && !isAskingArya) {
+                onChange={setUserQuestion}
+                onSubmit={() => {
+                  if (userQuestion.trim()) {
                     const question = userQuestion;
                     setUserQuestion("");
                     handleAskQuestion(question);
                   }
                 }}
-                placeholder={isListening 
-                  ? translate({ en: "Listening...", pt: "Ouvindo..." })
-                  : translate({ en: "Ask Athena something about your expenses...", pt: "Pergunte algo à Athena sobre seus gastos..." })}
-                className={cn(
-                  "w-full pl-10 pr-20 py-2 bg-background/50 border border-primary/20 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 transition-all placeholder:text-muted-foreground/60",
-                  isListening && "text-primary font-medium animate-pulse border-primary/40 bg-primary/5"
-                )}
                 disabled={isAskingArya || transactionsForDisplayedPeriod.length === 0}
+                placeholder={translate({ 
+                  en: "Ask Athena something about your expenses...", 
+                  pt: "Pergunte algo à Athena sobre seus gastos..." 
+                })}
+                className="w-full pl-10 pr-12"
               />
-              
-              <div className="absolute right-2 inset-y-0 flex items-center gap-1">
-                {browserSupportsSpeechRecognition && (
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className={cn(
-                      "h-8 w-8 rounded-full transition-all",
-                      isListening ? "bg-primary/20 text-primary animate-pulse" : "hover:bg-primary/10"
-                    )}
-                    onClick={toggleListening}
-                    disabled={isAskingArya || transactionsForDisplayedPeriod.length === 0}
-                  >
-                    <Mic className="h-4 w-4" />
-                  </Button>
-                )}
 
+              <div className="absolute right-2 inset-y-0 flex items-center">
                 {isAskingArya ? (
                   <RefreshCw className="h-4 w-4 text-primary animate-spin mr-2" />
                 ) : (
                   <Button
+                    type="button"
                     size="icon"
                     variant="ghost"
                     className="h-8 w-8 rounded-full hover:bg-primary/20 hover:text-primary"

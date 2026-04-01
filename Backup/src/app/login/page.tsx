@@ -5,6 +5,7 @@ import type React from 'react';
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/auth-context';
 import { useLanguage } from '@/context/language-context';
+import { ThemeAwareLogo } from '@/components/icons';
 import { motion } from 'framer-motion';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -188,12 +189,10 @@ export default function LoginPage() {
             >
               {/* Logo ÚNICO - Tamanho Ultra Compacto */}
               <div className="relative w-40 h-40 mx-auto">
-                <Image
-                  src="/images/Logo.png"
-                  alt="Athena"
-                  fill
+                <ThemeAwareLogo 
+                  width={160} 
+                  height={160} 
                   className="object-contain"
-                  priority
                 />
               </div>
               
