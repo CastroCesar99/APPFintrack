@@ -52,36 +52,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, async (currentUser) => {
       console.log("AuthContext: Auth state changed. User:", currentUser?.uid);
-      if (currentUser) {
-        // Reiniciamos o loading no evento para dar tempo de montar o snapshot
-        setLoading(true); 
-        setIsFetchingProfile(true);
-        setUser(currentUser);
-      } else {
-        setUser(null);
-        setIsSubscriptionActive(false);
-        setSubscriptionStatus(null);
-        setIsOnboarded(false);
-        setIsFetchingProfile(false);
-        setLoading(false);
-      }
+      setUser(currentUser);
+      setLoading(false);
     });
-
-    // Safety timeout: If nothing happens for 10 seconds, clear loading
-    // to prevent infinite spinner if Firebase/Plugins hang.
-    const timer = setTimeout(() => {
-      setLoading(prev => {
-        if (prev) {
-          console.warn("AuthContext: Safety timeout reached. Clearing loading state.");
-          return false;
-        }
-        return prev;
-      });
-    }, 8000);
 
     return () => {
       unsubscribeAuth();
-      clearTimeout(timer);
     };
   }, []);
 
@@ -221,12 +197,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setLoading(true);
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
-      setLoading(false);
       return userCredential.user;
     } catch (error) {
       console.error("AuthContext: Error signing up:", error);
+      throw error;
+    } finally {
       setLoading(false);
-      return null;
     }
   }, []);
 
@@ -234,29 +210,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setLoading(true);
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, pass);
-      setLoading(false);
       return userCredential.user;
     } catch (error) {
       console.error("AuthContext: Error logging in:", error); 
-      setLoading(false); 
-      return null;
+      throw error;
     }
   }, []);
 
   const signInWithGoogle = useCallback(async (): Promise<User | null> => {
     setLoading(true);
     try {
-      // Standard Web Popup Login
       console.log("AuthContext: Starting web signInWithPopup...");
       const provider = new GoogleAuthProvider();
-      const userCredential = await signInWithPopup(auth, provider);
-
-      setLoading(false);
-      return userCredential.user;
+      const result = await signInWithPopup(auth, provider);
+      return result.user;
     } catch (error) {
       console.error("AuthContext: Error with Google login:", error);
+      throw error;
+    } finally {
       setLoading(false);
-      return null;
     }
   }, []);
 

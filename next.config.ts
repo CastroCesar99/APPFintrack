@@ -1,3 +1,4 @@
+
 import type {NextConfig} from 'next';
 
 const nextConfig: NextConfig = {
@@ -17,6 +18,7 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  allowedDevOrigins: ["9000-firebase-fintrackapp-1754659687803.cluster-vpxjqdstfzgs6qeiaf7rdlsqrc.cloudworkstations.dev"]
 };
 
 export default nextConfig;
