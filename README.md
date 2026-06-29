@@ -1,3 +1,0 @@
-# Firebase Studio
-
-novo deloy
