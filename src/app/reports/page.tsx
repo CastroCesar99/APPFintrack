@@ -18,7 +18,9 @@ import { useDateNavigation } from '@/context/date-navigation-context';
 import { useToast } from "@/hooks/use-toast";
 import { db } from '@/lib/firebase';
 import { collection, query, orderBy, onSnapshot, Timestamp, doc, getDoc } from "firebase/firestore";
-import { Capacitor } from '@capacitor/core';
+
+// Web-only: always use relative base URL
+const baseUrl = '';
 import {
   format as formatDateFns,
   parseISO as parseISODateFns,
@@ -42,10 +44,6 @@ import { ExportData } from '@/components/dashboard/export-data';
 import { Progress } from "@/components/ui/progress";
 import { CategoryIcon } from "@/components/icons";
 
-// Dynamic base URL: uses Vercel for native, relative for web
-const baseUrl = Capacitor.isNativePlatform() 
-  ? (process.env.NEXT_PUBLIC_API_URL || '') 
-  : '';
 
 interface BudgetComparisonItem {
   categoryInternalName: string;

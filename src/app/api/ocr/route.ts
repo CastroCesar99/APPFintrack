@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenAI } from "@google/genai";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GOOGLE_GENAI_API_KEY });
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 // CORS headers para permitir chamadas do Capacitor
 const corsHeaders = {
@@ -73,11 +73,12 @@ Regras:
     ];
 
     const response = await ai.models.generateContent({
-      model: "gemini-1.5-flash",
+      model: "gemini-2.0-flash-lite",
       contents,
       config: {
         temperature: 0.1,
         maxOutputTokens: 1024,
+        responseMimeType: "application/json",
       },
     });
 
@@ -90,8 +91,11 @@ Regras:
       );
     }
 
+    // Strip markdown code fences if present (```json ... ```)
+    const cleanedText = text.replace(/```(?:json)?\s*/gi, '').replace(/```/g, '').trim();
+
     // Extrair JSON da resposta
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    const jsonMatch = cleanedText.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
       return NextResponse.json(
         { error: "Resposta inválida da IA", rawResponse: text },

@@ -9,7 +9,7 @@ import { ThemeAwareLogo } from '@/components/icons';
 import { motion } from 'framer-motion';
 import Image from 'next/image';
 import Link from 'next/link';
-import { GoogleAuthProvider, signInWithRedirect, getRedirectResult, signInWithEmailAndPassword } from 'firebase/auth';
+import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { triggerHaptic } from '@/utils/haptics';
 
@@ -33,21 +33,6 @@ export default function LoginPage() {
     // REMOVIDO: Não usar window.location.href na verificação para evitar loop infinito
     // O redirecionamento será feito apenas pelo AuthGuard
     
-    // Verificar se há resultado de redirect do Google
-    const checkRedirectResult = async () => {
-      try {
-        const result = await getRedirectResult(auth);
-        if (result?.user) {
-          // Success haptic feedback for Google login
-          triggerHaptic('success');
-          // Login via redirect bem-sucedido
-          window.location.href = '/';
-        }
-      } catch (error) {
-        console.log('No redirect result or error:', error);
-      }
-    };
-    
     // Carregar email salvo do localStorage
     const savedEmail = localStorage.getItem('athena_remembered_email');
     if (savedEmail) {
@@ -59,8 +44,6 @@ export default function LoginPage() {
     const timer = setTimeout(() => {
       setMinimumTimePassed(true);
     }, 3000);
-    
-    checkRedirectResult();
     
     // Limpar timer
     return () => clearTimeout(timer);
@@ -145,11 +128,17 @@ export default function LoginPage() {
     setIsAuthenticating(true);
     
     try {
-      // Usar signInWithRedirect em vez de popup para evitar bloqueio
-      const provider = new GoogleAuthProvider();
-      await signInWithRedirect(auth, provider);
+      // Use the auth context's signInWithGoogle function
+      const user = await signInWithGoogle();
       
-      // Success haptic feedback será chamado no getRedirectResult
+      if (user) {
+        // Success haptic feedback
+        triggerHaptic('success');
+        // Redirect to home after successful login
+        window.location.href = '/';
+      } else {
+        throw new Error('Google login failed');
+      }
       
     } catch (error) {
       console.error('Google login error:', error);
