@@ -12,26 +12,14 @@ import {
   type User,
   sendPasswordResetEmail as firebaseSendPasswordResetEmail,
   GoogleAuthProvider,
-  signInWithCredential,
-  OAuthProvider
+  signInWithPopup
 } from 'firebase/auth';
-import { Capacitor } from '@capacitor/core';
-import { SocialLogin } from '@capgo/capacitor-social-login';
 import { auth, db } from '@/lib/firebase'; 
 import { useRouter } from 'next/navigation';
 import { doc, onSnapshot, Timestamp } from 'firebase/firestore';
 import { whitelistedEmails } from '@/lib/whitelist';
 
 export type SubscriptionStatus = 'trial' | 'active' | 'inactive' | 'canceled' | 'expired';
-
-// Pre-load auth module for Web to prevent popup blocking
-let webAuthModule: any = null;
-if (typeof window !== 'undefined' && !Capacitor.isNativePlatform()) {
-  import('firebase/auth').then(m => {
-    webAuthModule = m;
-    console.log("AuthContext: Web Auth module pre-loaded.");
-  }).catch(err => console.error("AuthContext: Error pre-loading web auth:", err));
-}
 
 interface AuthContextType {
   user: User | null;
@@ -58,71 +46,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isSubscriptionActive, setIsSubscriptionActive] = useState(false);
   const [subscriptionStatus, setSubscriptionStatus] = useState<SubscriptionStatus | null>(null);
   const [isOnboarded, setIsOnboarded] = useState(false);
-  const [isSocialInitialized, setIsSocialInitialized] = useState(false);
   const [fallbackTriggered, setFallbackTriggered] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, async (currentUser) => {
       console.log("AuthContext: Auth state changed. User:", currentUser?.uid);
-      if (currentUser) {
-        // Reiniciamos o loading no evento para dar tempo de montar o snapshot
-        setLoading(true); 
-        setIsFetchingProfile(true);
-        setUser(currentUser);
-      } else {
-        setUser(null);
-        setIsSubscriptionActive(false);
-        setSubscriptionStatus(null);
-        setIsOnboarded(false);
-        setIsFetchingProfile(false);
-        setLoading(false);
-      }
+      setUser(currentUser);
+      setLoading(false);
     });
-
-    // Safety timeout: If nothing happens for 10 seconds, clear loading
-    // to prevent infinite spinner if Firebase/Plugins hang.
-    const timer = setTimeout(() => {
-      setLoading(prev => {
-        if (prev) {
-          console.warn("AuthContext: Safety timeout reached. Clearing loading state.");
-          return false;
-        }
-        return prev;
-      });
-    }, 8000);
 
     return () => {
       unsubscribeAuth();
-      clearTimeout(timer);
     };
   }, []);
-
-  // Helper to initialize Social Login
-  const handleInitializeSocial = useCallback(async () => {
-    if (!Capacitor.isNativePlatform() || isSocialInitialized) return;
-    
-    try {
-      console.log("AuthContext: Initializing SocialLogin...");
-      const googleClientId = '627912670361-hcsfl4egpoeli1e8o2j8sqks6qmk7fn3.apps.googleusercontent.com';
-      await SocialLogin.initialize({
-        google: {
-          webClientId: googleClientId,
-          iOSClientId: googleClientId,
-          iOSServerClientId: googleClientId,
-        },
-      });
-      setIsSocialInitialized(true);
-      console.log("AuthContext: SocialLogin initialized successfully.");
-    } catch (error) {
-      console.error("AuthContext: Error initializing SocialLogin:", error);
-    }
-  }, [isSocialInitialized]);
-
-  // Initialize on mount if native
-  useEffect(() => {
-    handleInitializeSocial();
-  }, [handleInitializeSocial]);
 
   useEffect(() => {
     if (!user?.uid) {
@@ -260,12 +197,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setLoading(true);
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
-      setLoading(false);
       return userCredential.user;
     } catch (error) {
       console.error("AuthContext: Error signing up:", error);
+      throw error;
+    } finally {
       setLoading(false);
-      return null;
     }
   }, []);
 
@@ -273,71 +210,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setLoading(true);
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, pass);
-      setLoading(false);
       return userCredential.user;
     } catch (error) {
       console.error("AuthContext: Error logging in:", error); 
-      setLoading(false); 
-      return null;
+      throw error;
     }
   }, []);
 
   const signInWithGoogle = useCallback(async (): Promise<User | null> => {
     setLoading(true);
     try {
-      let userCredential;
-
-      if (Capacitor.isNativePlatform()) {
-        // Ensure initialized
-        if (!isSocialInitialized) {
-          console.log("AuthContext: SocialLogin not initialized yet, forcing it now.");
-          await handleInitializeSocial();
-        }
-
-        // Native Capacitor Login via Capgo Social Login
-        console.log("AuthContext: Starting native SocialLogin.login...");
-        const response = await SocialLogin.login({
-          provider: 'google',
-          options: {
-            scopes: ['email', 'profile'],
-          },
-        });
-
-        const result = response.result as any;
-        const idToken = result.idToken || result.token;
-
-        if (idToken) {
-           console.log("AuthContext: Native token received, signing in with Firebase credential.");
-           const credential = GoogleAuthProvider.credential(idToken);
-           userCredential = await signInWithCredential(auth, credential);
-        } else {
-          throw new Error("No token received from Google Login");
-        }
-      } else {
-        // Standard Web Popup Login
-        console.log("AuthContext: Starting web signInWithPopup...");
-        
-        let signInWithPopupFunc;
-        if (webAuthModule) {
-          signInWithPopupFunc = webAuthModule.signInWithPopup;
-        } else {
-          // Fallback if not pre-loaded yet
-          const { signInWithPopup } = await import('firebase/auth');
-          signInWithPopupFunc = signInWithPopup;
-        }
-
-        const provider = new GoogleAuthProvider();
-        userCredential = await signInWithPopupFunc(auth, provider);
-      }
-
-      setLoading(false);
-      return userCredential.user;
+      console.log("AuthContext: Starting web signInWithPopup...");
+      const provider = new GoogleAuthProvider();
+      const result = await signInWithPopup(auth, provider);
+      return result.user;
     } catch (error) {
       console.error("AuthContext: Error with Google login:", error);
+      throw error;
+    } finally {
       setLoading(false);
-      return null;
     }
-  }, [handleInitializeSocial, isSocialInitialized]);
+  }, []);
 
 
   const logOut = useCallback(async () => {

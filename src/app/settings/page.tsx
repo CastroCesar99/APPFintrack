@@ -7,16 +7,213 @@ import { Button } from "@/components/ui/button";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { ListChecks, CreditCard, Languages, Mail, Heart, Cog, Sun, Moon, Star } from "lucide-react";
+import { ListChecks, CreditCard, Languages, Mail, Heart, Cog, Sun, Moon, Star, Download, Upload } from "lucide-react";
 import { useLanguage } from "@/context/language-context";
 import { useToast } from "@/hooks/use-toast";
 import Link from 'next/link';
 import { useTheme } from "@/context/theme-context";
+import { useAuth } from "@/context/auth-context";
+import { collection, getDocs, doc, setDoc, deleteDoc, writeBatch } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 export default function SettingsPage() {
   const { language, setLanguage, translate } = useLanguage();
   const { theme, setTheme } = useTheme();
   const { toast } = useToast();
+  const { user } = useAuth();
+
+  const handleExportData = async () => {
+    if (!user?.uid) {
+      toast({
+        title: translate({ en: "Error", pt: "Erro" }),
+        description: translate({ en: "You must be logged in to export data", pt: "Você deve estar logado para exportar dados" }),
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      const exportData: any = {
+        version: "1.0",
+        exportDate: new Date().toISOString(),
+        userId: user.uid,
+        data: {}
+      };
+
+      // Export transactions
+      const transactionsSnap = await getDocs(collection(db, 'users', user.uid, 'transactions'));
+      exportData.data.transactions = transactionsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+      // Export categories
+      const categoriesSnap = await getDocs(collection(db, 'users', user.uid, 'categories'));
+      exportData.data.categories = categoriesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+      // Export payment methods
+      const paymentMethodsSnap = await getDocs(collection(db, 'users', user.uid, 'paymentMethods'));
+      exportData.data.paymentMethods = paymentMethodsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+      // Export budgets
+      const budgetsSnap = await getDocs(collection(db, 'users', user.uid, 'budgets'));
+      exportData.data.budgets = budgetsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+      // Export user preferences
+      const userPrefsDoc = await getDocs(collection(db, 'users', user.uid, 'preferences'));
+      if (!userPrefsDoc.empty) {
+        exportData.data.preferences = userPrefsDoc.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      }
+
+      // Create and download JSON file
+      const jsonString = JSON.stringify(exportData, null, 2);
+      const blob = new Blob([jsonString], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `athena-backup-${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      toast({
+        title: translate({ en: "Export Successful", pt: "Exportação Bem-sucedida" }),
+        description: translate({ en: "Your data has been exported successfully", pt: "Seus dados foram exportados com sucesso" })
+      });
+    } catch (error) {
+      console.error("Export error:", error);
+      toast({
+        title: translate({ en: "Export Failed", pt: "Exportação Falhou" }),
+        description: translate({ en: "Failed to export your data", pt: "Falha ao exportar seus dados" }),
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleImportData = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (!user?.uid) {
+      toast({
+        title: translate({ en: "Error", pt: "Erro" }),
+        description: translate({ en: "You must be logged in to import data", pt: "Você deve estar logado para importar dados" }),
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const text = await file.text();
+      const importData = JSON.parse(text);
+
+      if (!importData.data) {
+        throw new Error("Invalid backup file format");
+      }
+
+      // Confirm import
+      const confirmed = window.confirm(
+        translate({ 
+          en: "This will replace your current data. Are you sure you want to continue?", 
+          pt: "Isso substituirá seus dados atuais. Tem certeza que deseja continuar?" 
+        })
+      );
+
+      if (!confirmed) {
+        event.target.value = '';
+        return;
+      }
+
+      // Clear existing data
+      const batch = writeBatch(db);
+
+      // Clear transactions
+      const existingTransactions = await getDocs(collection(db, 'users', user.uid, 'transactions'));
+      existingTransactions.docs.forEach(doc => batch.delete(doc.ref));
+
+      // Clear categories
+      const existingCategories = await getDocs(collection(db, 'users', user.uid, 'categories'));
+      existingCategories.docs.forEach(doc => batch.delete(doc.ref));
+
+      // Clear payment methods
+      const existingPaymentMethods = await getDocs(collection(db, 'users', user.uid, 'paymentMethods'));
+      existingPaymentMethods.docs.forEach(doc => batch.delete(doc.ref));
+
+      // Clear budgets
+      const existingBudgets = await getDocs(collection(db, 'users', user.uid, 'budgets'));
+      existingBudgets.docs.forEach(doc => batch.delete(doc.ref));
+
+      // Clear preferences
+      const existingPrefs = await getDocs(collection(db, 'users', user.uid, 'preferences'));
+      existingPrefs.docs.forEach(doc => batch.delete(doc.ref));
+
+      await batch.commit();
+
+      // Import new data
+      const importBatch = writeBatch(db);
+
+      // Import transactions
+      if (importData.data.transactions) {
+        for (const transaction of importData.data.transactions) {
+          const { id, ...data } = transaction;
+          const docRef = doc(collection(db, 'users', user.uid, 'transactions'), id);
+          importBatch.set(docRef, { ...data, userId: user.uid });
+        }
+      }
+
+      // Import categories
+      if (importData.data.categories) {
+        for (const category of importData.data.categories) {
+          const { id, ...data } = category;
+          const docRef = doc(collection(db, 'users', user.uid, 'categories'), id);
+          importBatch.set(docRef, data);
+        }
+      }
+
+      // Import payment methods
+      if (importData.data.paymentMethods) {
+        for (const method of importData.data.paymentMethods) {
+          const { id, ...data } = method;
+          const docRef = doc(collection(db, 'users', user.uid, 'paymentMethods'), id);
+          importBatch.set(docRef, data);
+        }
+      }
+
+      // Import budgets
+      if (importData.data.budgets) {
+        for (const budget of importData.data.budgets) {
+          const { id, ...data } = budget;
+          const docRef = doc(collection(db, 'users', user.uid, 'budgets'), id);
+          importBatch.set(docRef, { ...data, userId: user.uid });
+        }
+      }
+
+      // Import preferences
+      if (importData.data.preferences) {
+        for (const pref of importData.data.preferences) {
+          const { id, ...data } = pref;
+          const docRef = doc(collection(db, 'users', user.uid, 'preferences'), id);
+          importBatch.set(docRef, data);
+        }
+      }
+
+      await importBatch.commit();
+
+      toast({
+        title: translate({ en: "Import Successful", pt: "Importação Bem-sucedida" }),
+        description: translate({ en: "Your data has been imported successfully", pt: "Seus dados foram importados com sucesso" })
+      });
+
+      // Reset file input
+      event.target.value = '';
+    } catch (error) {
+      console.error("Import error:", error);
+      toast({
+        title: translate({ en: "Import Failed", pt: "Importação Falhou" }),
+        description: translate({ en: "Failed to import your data. Please check the file format.", pt: "Falha ao importar seus dados. Verifique o formato do arquivo." }),
+        variant: "destructive"
+      });
+      event.target.value = '';
+    }
+  };
 
   const handlePlaceholderClick = (featureName: string) => {
     toast({
@@ -100,6 +297,47 @@ export default function SettingsPage() {
                 {translate({ en: "Manage Subscription", pt: "Gerenciar Assinatura" })}
               </Button>
             </Link>
+          </CardContent>
+        </Card>
+
+        {/* Data Export/Import */}
+        <Card className="shadow-lg">
+          <CardHeader className="flex flex-row items-start gap-4 space-y-0">
+            <Download className="h-8 w-8 text-primary flex-shrink-0 mt-1" />
+            <div className="flex-grow">
+              <CardTitle>{translate({ en: "Data Export/Import", pt: "Exportar/Importar Dados" })}</CardTitle>
+              <CardDescription>
+                {translate({
+                  en: "Download your data as JSON or import from a backup file.",
+                  pt: "Baixe seus dados como JSON ou importe de um arquivo de backup."
+                })}
+              </CardDescription>
+            </div>
+          </CardHeader>
+          <CardContent className="pt-4 space-y-3">
+            <Button
+              onClick={handleExportData}
+              className="w-full sm:w-auto"
+              variant="outline"
+            >
+              <Download className="w-4 h-4 mr-2" />
+              {translate({ en: "Export Data", pt: "Exportar Dados" })}
+            </Button>
+            <div className="relative">
+              <input
+                type="file"
+                accept=".json"
+                onChange={handleImportData}
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+              />
+              <Button
+                className="w-full sm:w-auto"
+                variant="outline"
+              >
+                <Upload className="w-4 h-4 mr-2" />
+                {translate({ en: "Import Data", pt: "Importar Dados" })}
+              </Button>
+            </div>
           </CardContent>
         </Card>
         

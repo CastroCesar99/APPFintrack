@@ -1,13 +1,6 @@
 
 import { initializeApp, getApps, type FirebaseApp } from "firebase/app";
-import { 
-  initializeAuth, 
-  getAuth, 
-  indexedDBLocalPersistence, 
-  browserLocalPersistence, 
-  type Auth 
-} from "firebase/auth";
-import { Capacitor } from "@capacitor/core";
+import { getAuth, type Auth } from "firebase/auth";
 import { getFirestore, type Firestore, enableIndexedDbPersistence, CACHE_SIZE_UNLIMITED } from "firebase/firestore";
 
 // Explicitly read environment variables
@@ -61,16 +54,9 @@ if (!getApps().length) {
     app = initializeApp(firebaseConfig);
     // Initialize Firestore, potentially with a specific database ID
     db = getFirestore(app);
-    // Custom Auth Initialization for Capacitor / Web
-    if (Capacitor.isNativePlatform()) {
-      auth = initializeAuth(app, {
-        persistence: indexedDBLocalPersistence
-      });
-      console.log("Firebase Auth initialized with indexedDBLocalPersistence (Native)");
-    } else {
-      auth = getAuth(app);
-      console.log("Firebase Auth initialized with default persistence (Web)");
-    }
+    // Web-only Auth Initialization
+    auth = getAuth(app);
+    console.log("Firebase Auth initialized with default persistence (Web)");
     if (typeof window !== 'undefined') { // Ensure this only runs on the client
       // Commenting out enableIndexedDbPersistence to debug potential issues with offline persistence
       // enableIndexedDbPersistence(db, { // Pass the specific db instance here

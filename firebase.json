@@ -1,6 +1,30 @@
 {
-    "apphosting": {
-      "source": "."
-    }
+  "hosting": {
+    "public": "public",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "**",
+        "destination": "/"
+      }
+    ],
+    "headers": [
+      {
+        "source": "**",
+        "headers": [
+          {
+            "key": "Access-Control-Allow-Origin",
+            "value": "*"
+          }
+        ]
+      }
+    ],
+    "authorizedDomains": [
+      "34313-firebase-fintrackapp-1754659687803.cluster-vpxjqdstfzgs6qeiaf7rdlsqrc.cloudworkstations.dev"
+    ]
   }
-  
+}

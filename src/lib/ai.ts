@@ -31,7 +31,7 @@ export async function generateFinancialInsights(
 
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-flash-lite-latest",
+      model: "gemini-2.0-flash",
       contents: prompt,
       config: {
         systemInstruction,
@@ -81,7 +81,7 @@ export async function askArya(
 
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-flash-lite-latest",
+      model: "gemini-2.0-flash",
       contents: prompt,
       config: {
         systemInstruction,
@@ -224,7 +224,7 @@ export async function extractTransactionFromText(
 
     try {
       const response = await ai.models.generateContent({
-        model: "gemini-flash-lite-latest",
+        model: "gemini-2.0-flash",
         contents: prompt,
         config: {
           systemInstruction,

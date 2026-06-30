@@ -7,12 +7,7 @@ import { Camera, Image as ImageIcon, Check, Trash2, Loader2, Sparkles, ArrowRigh
 import { useLanguage } from "@/context/language-context";
 import { useToast } from "@/hooks/use-toast";
 import { cn, formatCurrency } from "@/lib/utils";
-import { Capacitor } from '@capacitor/core';
-import * as CapCamera from '@capacitor/camera';
-
-const baseUrl = Capacitor.isNativePlatform() 
-  ? (process.env.NEXT_PUBLIC_API_URL || '') 
-  : '';
+const baseUrl = '';
 
 interface PendingTransaction {
   id: string;
@@ -43,46 +38,65 @@ export function SmartAdd({ onQuickAdd, onBatchApprove, disabled }: SmartAddProps
   const [isApproving, setIsApproving] = useState(false);
 
   const handleCapture = async (source: 'camera' | 'photos') => {
-    try {
-      const permission = await CapCamera.Camera.requestPermissions();
-      
-      if (source === 'camera' && permission.camera !== "granted") {
-        toast({
-          title: translate({ en: "Permission denied", pt: "Permissão negada" }),
-          description: translate({ en: "Camera permission required", pt: "Permissão de câmera necessária" }),
-          variant: "destructive",
-        });
-        return;
+    // Web platform fallback - use file input
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = async (event) => {
+          const base64 = (event.target?.result as string).split(',')[1];
+          await processImage(base64, file.type);
+        };
+        reader.readAsDataURL(file);
       }
+    };
+    input.click();
+    return;
 
-      if (source === 'photos' && permission.photos !== "granted") {
-        toast({
-          title: translate({ en: "Permission denied", pt: "Permissão negada" }),
-          description: translate({ en: "Gallery permission required", pt: "Permissão de galeria necessária" }),
-          variant: "destructive",
-        });
-        return;
-      }
+    // Native platform implementation (commented out for web)
+    // try {
+    //   const permission = await CapCamera.Camera.requestPermissions();
+    //   
+    //   if (source === 'camera' && permission.camera !== "granted") {
+    //     toast({
+    //       title: translate({ en: "Permission denied", pt: "Permissão negada" }),
+    //       description: translate({ en: "Camera permission required", pt: "Permissão de câmera necessária" }),
+    //       variant: "destructive",
+    //     });
+    //     return;
+    //   }
 
-      const image = await CapCamera.Camera.getPhoto({
-        quality: 40,
-        allowEditing: false,
-        resultType: CapCamera.CameraResultType.Base64,
-        source: source === 'camera' ? CapCamera.CameraSource.Camera : CapCamera.CameraSource.Photos,
-        width: 800,
-      });
+    //   if (source === 'photos' && permission.photos !== "granted") {
+    //     toast({
+    //       title: translate({ en: "Permission denied", pt: "Permissão negada" }),
+    //       description: translate({ en: "Gallery permission required", pt: "Permissão de galeria necessária" }),
+    //       variant: "destructive",
+    //     });
+    //     return;
+    //   }
 
-      if (image.base64String) {
-        await processImage(image.base64String, `image/${image.format || 'jpeg'}`);
-      }
-    } catch (error: any) {
-      console.error("[Camera Error]:", error);
-      toast({
-        title: translate({ en: "Error", pt: "Erro" }),
-        description: error.message,
-        variant: "destructive",
-      });
-    }
+    //   const image = await CapCamera.Camera.getPhoto({
+    //     quality: 40,
+    //     allowEditing: false,
+    //     resultType: CapCamera.CameraResultType.Base64,
+    //     source: source === 'camera' ? CapCamera.CameraSource.Camera : CapCamera.CameraSource.Photos,
+    //     width: 800,
+    //   });
+
+    //   if (image.base64String) {
+    //     await processImage(image.base64String, `image/${image.format || 'jpeg'}`);
+    //   }
+    // } catch (error: any) {
+    //   console.error("[Camera Error]:", error);
+    //   toast({
+    //     title: translate({ en: "Error", pt: "Erro" }),
+    //     description: error.message,
+    //     variant: "destructive",
+    //   });
+    // }
   };
 
   const processImage = async (base64Image: string, mimeType: string = "image/jpeg") => {

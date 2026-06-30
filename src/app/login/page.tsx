@@ -9,12 +9,10 @@ import { ThemeAwareLogo } from '@/components/icons';
 import { motion } from 'framer-motion';
 import Image from 'next/image';
 import Link from 'next/link';
-import { GoogleAuthProvider, signInWithRedirect, getRedirectResult, signInWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
 import { triggerHaptic } from '@/utils/haptics';
 
 export default function LoginPage() {
-  const { user, loading, signInWithGoogle, signUp, logIn } = useAuth();
+  const { user, loading, signInWithGoogle, logIn } = useAuth();
   const { translate } = useLanguage();
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [formData, setFormData] = useState({
@@ -30,43 +28,19 @@ export default function LoginPage() {
   });
 
   useEffect(() => {
-    // REMOVIDO: Não usar window.location.href na verificação para evitar loop infinito
-    // O redirecionamento será feito apenas pelo AuthGuard
-    
-    // Verificar se há resultado de redirect do Google
-    const checkRedirectResult = async () => {
-      try {
-        const result = await getRedirectResult(auth);
-        if (result?.user) {
-          // Success haptic feedback for Google login
-          triggerHaptic('success');
-          // Login via redirect bem-sucedido
-          window.location.href = '/';
-        }
-      } catch (error) {
-        console.log('No redirect result or error:', error);
-      }
-    };
-    
-    // Carregar email salvo do localStorage
     const savedEmail = localStorage.getItem('athena_remembered_email');
     if (savedEmail) {
       setFormData(prev => ({ ...prev, email: savedEmail }));
       setRememberMe(true);
     }
     
-    // Atraso artificial premium de 3 segundos
     const timer = setTimeout(() => {
       setMinimumTimePassed(true);
     }, 3000);
     
-    checkRedirectResult();
-    
-    // Limpar timer
     return () => clearTimeout(timer);
   }, []);
 
-  // Estado de carregamento premium - mostra apenas o logo
   const shouldShowLoginForm = !loading && !user && minimumTimePassed;
   
   if (loading || (!loading && user)) {
@@ -84,13 +58,10 @@ export default function LoginPage() {
     e.preventDefault();
     if (isAuthenticating) return;
     
-    // Trigger haptic feedback
     triggerHaptic('light');
     
-    // Reset errors
     setErrors({ email: '', password: '', general: '' });
     
-    // Validation
     let hasError = false;
     if (!formData.email) {
       setErrors(prev => ({ ...prev, email: translate({ en: 'Email is required', pt: 'Email é obrigatório' }) }));
@@ -106,20 +77,16 @@ export default function LoginPage() {
     setIsAuthenticating(true);
     
     try {
-      // Login com e-mail e senha
-      await signInWithEmailAndPassword(auth, formData.email, formData.password);
+      await logIn(formData.email, formData.password);
       
-      // Success haptic feedback
       triggerHaptic('success');
       
-      // Salvar email no localStorage se "Lembre-se" estiver marcado
       if (rememberMe) {
         localStorage.setItem('athena_remembered_email', formData.email);
       } else {
         localStorage.removeItem('athena_remembered_email');
       }
       
-      // REGRA NUCLEAR: Hard reload após sucesso do login
       window.location.href = '/';
       
     } catch (error: any) {
@@ -131,7 +98,7 @@ export default function LoginPage() {
       } else {
         setErrors(prev => ({ ...prev, general: translate({ en: 'Login failed', pt: 'Falha no login' }) }));
       }
-      
+    } finally {
       setIsAuthenticating(false);
     }
   };
@@ -139,21 +106,24 @@ export default function LoginPage() {
   const handleGoogleLogin = async () => {
     if (isAuthenticating) return;
     
-    // Trigger haptic feedback
     triggerHaptic('light');
     
     setIsAuthenticating(true);
     
     try {
-      // Usar signInWithRedirect em vez de popup para evitar bloqueio
-      const provider = new GoogleAuthProvider();
-      await signInWithRedirect(auth, provider);
+      const user = await signInWithGoogle();
       
-      // Success haptic feedback será chamado no getRedirectResult
+      if (user) {
+        triggerHaptic('success');
+        window.location.href = '/';
+      } else {
+        throw new Error('Google login failed');
+      }
       
     } catch (error) {
       console.error('Google login error:', error);
-      setErrors(prev => ({ ...prev, general: translate({ en: 'Google login failed', pt: 'Falha no login Google' }) }));
+      setErrors(prev => ({ ...prev, general: translate({ en: 'Google login failed', pt: 'Falha no login com o Google' }) }));
+    } finally {
       setIsAuthenticating(false);
     }
   };
@@ -163,10 +133,8 @@ export default function LoginPage() {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  // Renderização principal - apenas UM logo
   return (
     <div className="fixed inset-0 w-full h-full bg-[#0f172a] overflow-hidden flex flex-col">
-      {/* Background Pattern */}
       <div 
         className="absolute inset-0 opacity-30" 
         style={{
@@ -176,9 +144,7 @@ export default function LoginPage() {
       
       <div className="flex-1 w-full h-full overflow-y-auto overflow-x-hidden flex flex-col items-center justify-center px-4 relative z-10">
         
-        {/* Logo and Name - Animated Entrance */}
         <div className="text-center space-y-1">
-          {/* Logo Container */}
           <div className="relative inline-block">
             <motion.div
               className="relative"
@@ -187,7 +153,6 @@ export default function LoginPage() {
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 7, ease: 'easeOut' }}
             >
-              {/* Logo ÚNICO - Tamanho Ultra Compacto */}
               <div className="relative w-40 h-40 mx-auto">
                 <ThemeAwareLogo 
                   width={160} 
@@ -196,7 +161,6 @@ export default function LoginPage() {
                 />
               </div>
               
-              {/* Subtle shine animation */}
               <motion.div
                 className="absolute inset-0 bg-gradient-to-tr from-transparent via-white to-transparent opacity-0 rounded-full"
                 animate={{ opacity: [0, 0.5, 0] }}
@@ -205,12 +169,10 @@ export default function LoginPage() {
             </motion.div>
           </div>
 
-          {/* Brand Name */}
           <h1 className="text-3xl font-light text-white tracking-wider animate-fade-in" style={{ animationDelay: '0.2s' }}>
             Athena
           </h1>
 
-          {/* Tagline */}
           <p className="text-sm text-white/60 font-light tracking-wide animate-fade-in" style={{ animationDelay: '0.4s' }}>
             {translate({ 
               en: "Intelligent Financial Management", 
@@ -219,7 +181,6 @@ export default function LoginPage() {
           </p>
         </div>
 
-        {/* Formulário aparece apenas após o tempo mínimo */}
         {shouldShowLoginForm && (
           <motion.div 
             className="w-full max-w-sm mx-auto bg-white/10 backdrop-blur-md rounded-2xl p-3 border border-white/20 shadow-2xl"
@@ -228,7 +189,6 @@ export default function LoginPage() {
             transition={{ duration: 0.8, delay: 0.6 }}
           >
           <form onSubmit={handleEmailLogin} className="space-y-1">
-            {/* Email Input */}
             <div className="space-y-1">
               <label htmlFor="email" className="text-sm font-medium text-white/80">
                 {translate({ en: 'Email', pt: 'Email' })}
@@ -248,7 +208,6 @@ export default function LoginPage() {
               )}
             </div>
 
-            {/* Password Input */}
             <div className="space-y-1">
               <label htmlFor="password" className="text-sm font-medium text-white/80">
                 {translate({ en: 'Password', pt: 'Senha' })}
@@ -268,7 +227,6 @@ export default function LoginPage() {
               )}
             </div>
 
-            {/* Remember Me Checkbox */}
             <div className="flex items-center space-x-2">
               <input
                 type="checkbox"
@@ -282,14 +240,12 @@ export default function LoginPage() {
               </label>
             </div>
 
-            {/* General Error */}
             {errors.general && (
               <div className="p-3 bg-red-400/10 border border-red-400/20 rounded-lg">
                 <p className="text-sm text-red-400">{errors.general}</p>
               </div>
             )}
 
-            {/* Login Button */}
             <motion.div
               whileTap={{ scale: 0.98 }}
               transition={{ duration: 0.1 }}
@@ -316,7 +272,6 @@ export default function LoginPage() {
             </motion.div>
           </form>
 
-          {/* Divider */}
           <div className="relative my-6 w-full overflow-hidden">
             <div className="absolute inset-0 flex items-center w-full">
               <div className="w-full border-t border-white/20"></div>
@@ -328,7 +283,6 @@ export default function LoginPage() {
             </div>
           </div>
 
-          {/* Google Login Button */}
           <motion.div
             whileTap={{ scale: 0.98 }}
             transition={{ duration: 0.1 }}
@@ -362,7 +316,6 @@ export default function LoginPage() {
             </button>
           </motion.div>
 
-          {/* Sign Up Link */}
           <div className="text-center">
             <p className="text-sm text-white/60">
               {translate({ 
@@ -384,7 +337,6 @@ export default function LoginPage() {
         )}
       </div>
 
-      {/* Subtle floating particles */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         {[...Array(6)].map((_, i) => (
           <motion.div
